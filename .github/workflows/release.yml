@@ -159,19 +159,36 @@ jobs:
         run: |
           BUNDLE=build/linux/x64/release/bundle
           mkdir -p "$BUNDLE/lib"
+          BUILD=../CrispASR/build
 
-          SO=$(ls ../CrispASR/build/src/libwhisper.so.[0-9]* 2>/dev/null | head -1)
-          [ -z "$SO" ] && SO=../CrispASR/build/src/libwhisper.so
+          # Main library (libcrispasr.so / libwhisper.so alias)
+          SO=$(ls $BUILD/src/libcrispasr.so.[0-9]* $BUILD/src/libwhisper.so.[0-9]* 2>/dev/null | head -1)
+          [ -z "$SO" ] && SO=$(ls $BUILD/src/libcrispasr.so $BUILD/src/libwhisper.so 2>/dev/null | head -1)
           cp "$SO" "$BUNDLE/lib/libwhisper.so"
           ln -sf libwhisper.so "$BUNDLE/lib/libcrispasr.so"
 
+          # ggml shared libraries (REQUIRED — without these, libcrispasr
+          # has unresolved symbols like ggml_siglu_swapped; issue #2)
+          for ggml in ggml ggml-base ggml-cpu; do
+            src=$(ls $BUILD/ggml/src/lib${ggml}.so.[0-9]* $BUILD/ggml/src/lib${ggml}.so 2>/dev/null | head -1)
+            if [ -n "$src" ]; then
+              cp "$src" "$BUNDLE/lib/lib${ggml}.so"
+            else
+              echo "warn: lib${ggml}.so not found" >&2
+            fi
+          done
+
+          # Backend shared libraries (optional — backends compile into
+          # libcrispasr when BUILD_SHARED_LIBS=ON, but may also exist
+          # as separate .so's depending on CMake configuration)
           for name in parakeet canary qwen3_asr cohere granite_speech \
-                      canary_ctc voxtral voxtral4b; do
-            src="../CrispASR/build/src/lib${name}.so"
+                      canary_ctc voxtral voxtral4b wav2vec2-ggml glm-asr \
+                      kyutai-stt firered-asr moonshine omniasr vibevoice \
+                      gemma4_e2b mimo_asr qwen3_tts orpheus kokoro \
+                      chatterbox indextts; do
+            src="$BUILD/src/lib${name}.so"
             if [ -f "$src" ]; then
               cp "$src" "$BUNDLE/lib/lib${name}.so"
-            else
-              echo "warn: $src missing, backend ${name} not runtime-ready" >&2
             fi
           done
           ls -lh "$BUNDLE/lib/"
@@ -249,19 +266,31 @@ jobs:
         run: |
           DEST=android/app/src/main/jniLibs/arm64-v8a
           mkdir -p "$DEST"
+          SRC=../CrispASR/build-android/arm64-v8a
 
-          SRC_DIR=../CrispASR/build-android/arm64-v8a/src
-          cp "$SRC_DIR/libwhisper.so" "$DEST/libwhisper.so"
-          # Also register under libcrispasr.so for the Dart loader
-          # first-candidate.
+          # Main library
+          cp "$SRC/src/libwhisper.so" "$DEST/libwhisper.so"
           cp "$DEST/libwhisper.so" "$DEST/libcrispasr.so"
-          for name in parakeet canary qwen3_asr cohere granite_speech \
-                      canary_ctc voxtral voxtral4b; do
-            s="$SRC_DIR/lib${name}.so"
-            if [ -f "$s" ]; then
-              cp "$s" "$DEST/lib${name}.so"
-            fi
+
+          # ggml shared libraries (REQUIRED — issue #2)
+          for ggml in ggml ggml-base ggml-cpu; do
+            s=$(ls $SRC/ggml/src/lib${ggml}.so 2>/dev/null | head -1)
+            [ -n "$s" ] && cp "$s" "$DEST/lib${ggml}.so"
           done
+
+          # Backend shared libraries
+          for name in parakeet canary qwen3_asr cohere granite_speech \
+                      canary_ctc voxtral voxtral4b wav2vec2-ggml glm-asr \
+                      moonshine omniasr vibevoice qwen3_tts orpheus kokoro \
+                      chatterbox indextts; do
+            s="$SRC/src/lib${name}.so"
+            [ -f "$s" ] && cp "$s" "$DEST/lib${name}.so"
+          done
+
+          # libc++_shared.so for NDK
+          CPPSHARED=$(find "$ANDROID_NDK_HOME" -name "libc++_shared.so" -path "*arm64*" 2>/dev/null | head -1)
+          [ -n "$CPPSHARED" ] && cp "$CPPSHARED" "$DEST/"
+
           ls -lh "$DEST/"
 
       - name: Pub get
