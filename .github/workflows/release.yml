@@ -239,46 +239,46 @@ jobs:
           channel: stable
           cache: true
 
-      # Cross-build libwhisper.so + sibling backend .so's for arm64.
-      # We only build arm64-v8a in CI to keep the job under ~15 min;
-      # add more ABIs locally if you need them.
-      - name: Cross-build libwhisper.so for Android arm64
+      # Cross-build a single all-in-one libcrispasr.so for Android arm64.
+      # Same approach as Linux: static build with PIC, then re-link as
+      # one shared lib with all ggml + backend symbols baked in.
+      - name: Cross-build libcrispasr.so for Android arm64 (all-in-one)
         working-directory: repos/CrispASR
+        env:
+          NDK_TC: ${{ env.ANDROID_NDK_HOME }}/build/cmake/android.toolchain.cmake
         run: |
-          chmod +x ./build-android.sh
-          ./build-android.sh --abi arm64-v8a
-          ls -lh build-android/arm64-v8a/src/libwhisper*.so
+          cmake -S . -B build-android/arm64-v8a \
+            -DCMAKE_TOOLCHAIN_FILE="$NDK_TC" \
+            -DANDROID_ABI=arm64-v8a \
+            -DANDROID_NATIVE_API_LEVEL=24 \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_SHARED_LIBS=OFF \
+            -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+            -DCRISPASR_BUILD_EXAMPLES=OFF \
+            -DCRISPASR_BUILD_TESTS=OFF
+          cmake --build build-android/arm64-v8a --parallel
+          # Re-link all static archives into a single shared lib
+          cd build-android/arm64-v8a
+          NDK_CC=$(find $ANDROID_NDK_HOME/toolchains/llvm/prebuilt -name "aarch64-linux-android24-clang++" | head -1)
+          $NDK_CC -shared -o src/libcrispasr.so \
+            -Wl,--whole-archive \
+            src/libcrispasr.a \
+            $(find . -name "lib*.a" ! -name "libcrispasr.a" ! -name "libCatch*" ! -name "libcommon*" -printf "%p ") \
+            -Wl,--no-whole-archive \
+            -lm -llog
+          ln -sf libcrispasr.so src/libwhisper.so
+          ls -lh src/libcrispasr.so
 
-      - name: Copy native libs into jniLibs/
+      - name: Copy native lib into jniLibs/
         working-directory: repos/CrisperWeaver
         run: |
           DEST=android/app/src/main/jniLibs/arm64-v8a
           mkdir -p "$DEST"
-          SRC=../CrispASR/build-android/arm64-v8a
-
-          # Main library
-          cp "$SRC/src/libwhisper.so" "$DEST/libwhisper.so"
+          cp ../CrispASR/build-android/arm64-v8a/src/libcrispasr.so "$DEST/libwhisper.so"
           cp "$DEST/libwhisper.so" "$DEST/libcrispasr.so"
-
-          # ggml shared libraries (REQUIRED — issue #2)
-          for ggml in ggml ggml-base ggml-cpu; do
-            s=$(ls $SRC/ggml/src/lib${ggml}.so 2>/dev/null | head -1)
-            [ -n "$s" ] && cp "$s" "$DEST/lib${ggml}.so"
-          done
-
-          # Backend shared libraries
-          for name in parakeet canary qwen3_asr cohere granite_speech \
-                      canary_ctc voxtral voxtral4b wav2vec2-ggml glm-asr \
-                      moonshine omniasr vibevoice qwen3_tts orpheus kokoro \
-                      chatterbox indextts; do
-            s="$SRC/src/lib${name}.so"
-            [ -f "$s" ] && cp "$s" "$DEST/lib${name}.so"
-          done
-
           # libc++_shared.so for NDK
           CPPSHARED=$(find "$ANDROID_NDK_HOME" -name "libc++_shared.so" -path "*arm64*" 2>/dev/null | head -1)
           [ -n "$CPPSHARED" ] && cp "$CPPSHARED" "$DEST/"
-
           ls -lh "$DEST/"
 
       - name: Pub get
