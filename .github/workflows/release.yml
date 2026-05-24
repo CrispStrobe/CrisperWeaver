@@ -67,7 +67,7 @@ jobs:
         # first launch OR show stale catalog entries. ~30 s + 30 HTTP
         # requests; failures don't gate the build (the committed snapshot
         # is the floor).
-        run: dart run scripts/bake_models_catalog.dart || true
+        run: timeout 120 dart run scripts/bake_models_catalog.dart || true
 
       - name: Build macOS (Release)
         working-directory: repos/CrisperWeaver
@@ -162,7 +162,7 @@ jobs:
 
       - name: Refresh baked models catalogue
         working-directory: repos/CrisperWeaver
-        run: dart run scripts/bake_models_catalog.dart || true
+        run: timeout 120 dart run scripts/bake_models_catalog.dart || true
 
       - name: Build Linux (Release)
         working-directory: repos/CrisperWeaver
@@ -293,7 +293,7 @@ jobs:
         # first launch OR show stale catalog entries. ~30 s + 30 HTTP
         # requests; failures don't gate the build (the committed snapshot
         # is the floor).
-        run: dart run scripts/bake_models_catalog.dart || true
+        run: timeout 120 dart run scripts/bake_models_catalog.dart || true
 
       - name: Build APK (release, unsigned)
         working-directory: repos/CrisperWeaver
@@ -382,7 +382,7 @@ jobs:
         # first launch OR show stale catalog entries. ~30 s + 30 HTTP
         # requests; failures don't gate the build (the committed snapshot
         # is the floor).
-        run: dart run scripts/bake_models_catalog.dart || true
+        run: timeout 120 dart run scripts/bake_models_catalog.dart || true
 
       - name: Build iOS (no codesign)
         working-directory: repos/CrisperWeaver
@@ -461,7 +461,7 @@ jobs:
       - name: Refresh baked models catalogue
         working-directory: repos/CrisperWeaver
         shell: pwsh
-        run: dart run scripts/bake_models_catalog.dart; exit 0
+        run: timeout 120 dart run scripts/bake_models_catalog.dart || true
 
       - name: Build Windows (Release)
         working-directory: repos/CrisperWeaver
