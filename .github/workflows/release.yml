@@ -133,12 +133,26 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Build libwhisper.so (Release)
+      - name: Build libcrispasr.so (Release, all-in-one)
         working-directory: repos/CrispASR
         run: |
-          cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON
+          # Build static with PIC, then re-link as a single shared lib
+          # with ggml + all backends baked in. No separate ggml .so's needed.
+          cmake -B build -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_SHARED_LIBS=OFF \
+            -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+            -DCRISPASR_BUILD_EXAMPLES=OFF -DCRISPASR_BUILD_TESTS=OFF
           cmake --build build --config Release --parallel --target crispasr
-          ls -lh build/src/libwhisper*.so*
+          cd build
+          gcc -shared -o src/libcrispasr.so \
+            -Wl,--whole-archive \
+            src/libcrispasr.a \
+            $(find . -name "lib*.a" ! -name "libcrispasr.a" ! -name "libCatch*" ! -name "libcommon*" -printf "%p ") \
+            -Wl,--no-whole-archive \
+            -lstdc++ -lm -lpthread -fopenmp
+          ln -sf libcrispasr.so src/libwhisper.so
+          ls -lh src/libcrispasr.so
+          nm -D src/libcrispasr.so | grep -c "T " | xargs printf "  %d exported symbols\n"
 
       - name: Enable Linux desktop + pub get
         working-directory: repos/CrisperWeaver
@@ -154,44 +168,18 @@ jobs:
         working-directory: repos/CrisperWeaver
         run: flutter build linux --release
 
-      - name: Bundle all CrispASR .so's into bundle/lib/
+      - name: Bundle libcrispasr.so into bundle/lib/
         working-directory: repos/CrisperWeaver
         run: |
           BUNDLE=build/linux/x64/release/bundle
           mkdir -p "$BUNDLE/lib"
-          BUILD=../CrispASR/build
-
-          # Main library (libcrispasr.so / libwhisper.so alias)
-          SO=$(ls $BUILD/src/libcrispasr.so.[0-9]* $BUILD/src/libwhisper.so.[0-9]* 2>/dev/null | head -1)
-          [ -z "$SO" ] && SO=$(ls $BUILD/src/libcrispasr.so $BUILD/src/libwhisper.so 2>/dev/null | head -1)
-          cp "$SO" "$BUNDLE/lib/libwhisper.so"
+          # Single self-contained shared lib (ggml + all backends linked in)
+          cp ../CrispASR/build/src/libcrispasr.so "$BUNDLE/lib/libwhisper.so"
           ln -sf libwhisper.so "$BUNDLE/lib/libcrispasr.so"
-
-          # ggml shared libraries (REQUIRED — without these, libcrispasr
-          # has unresolved symbols like ggml_siglu_swapped; issue #2)
-          for ggml in ggml ggml-base ggml-cpu; do
-            src=$(ls $BUILD/ggml/src/lib${ggml}.so.[0-9]* $BUILD/ggml/src/lib${ggml}.so 2>/dev/null | head -1)
-            if [ -n "$src" ]; then
-              cp "$src" "$BUNDLE/lib/lib${ggml}.so"
-            else
-              echo "warn: lib${ggml}.so not found" >&2
-            fi
-          done
-
-          # Backend shared libraries (optional — backends compile into
-          # libcrispasr when BUILD_SHARED_LIBS=ON, but may also exist
-          # as separate .so's depending on CMake configuration)
-          for name in parakeet canary qwen3_asr cohere granite_speech \
-                      canary_ctc voxtral voxtral4b wav2vec2-ggml glm-asr \
-                      kyutai-stt firered-asr moonshine omniasr vibevoice \
-                      gemma4_e2b mimo_asr qwen3_tts orpheus kokoro \
-                      chatterbox indextts; do
-            src="$BUILD/src/lib${name}.so"
-            if [ -f "$src" ]; then
-              cp "$src" "$BUNDLE/lib/lib${name}.so"
-            fi
-          done
-          ls -lh "$BUNDLE/lib/"
+          ls -lh "$BUNDLE/lib/libwhisper.so"
+          # Verify key symbols are present
+          nm -D "$BUNDLE/lib/libwhisper.so" | grep -q ggml_siglu_swapped && echo "OK: ggml_siglu_swapped exported" || echo "WARN: ggml_siglu_swapped missing!"
+          nm -D "$BUNDLE/lib/libwhisper.so" | grep -q crispasr_session_available_backends && echo "OK: available_backends exported" || echo "WARN: available_backends missing!"
 
       - name: Tarball
         working-directory: repos/CrisperWeaver/build/linux/x64/release
