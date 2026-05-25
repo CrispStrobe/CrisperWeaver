@@ -3188,6 +3188,24 @@ abstract class AppLocalizations {
   /// **'Default model \"{modelId}\" isn\'t downloaded yet.'**
   String defaultModelNotDownloaded(String modelId);
 
+  /// Shown at first launch / before the user has downloaded any model. Replaces defaultModelNotDownloaded when there is literally nothing to load.
+  ///
+  /// In en, this message translates to:
+  /// **'No transcription model is downloaded yet — open Models to grab one.'**
+  String get noModelsDownloadedYet;
+
+  /// Shown when the OS returns a content:// URI we can't resolve to a real path (typical for Google Drive / OneDrive / Files that haven't been synced).
+  ///
+  /// In en, this message translates to:
+  /// **'This file lives in cloud storage and can\'t be opened directly. Please copy it to local storage (Downloads / Files on this device) and try again.'**
+  String get filePickerCloudFileUnsupported;
+
+  /// No description provided for @filePickerFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'File picker failed: {error}'**
+  String filePickerFailed(String error);
+
   /// No description provided for @openModels.
   ///
   /// In en, this message translates to:

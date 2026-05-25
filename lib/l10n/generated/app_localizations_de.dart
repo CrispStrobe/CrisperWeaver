@@ -1839,6 +1839,19 @@ class AppLocalizationsDe extends AppLocalizations {
   }
 
   @override
+  String get noModelsDownloadedYet =>
+      'Noch kein Transkriptionsmodell heruntergeladen — öffne „Modelle“, um eines zu laden.';
+
+  @override
+  String get filePickerCloudFileUnsupported =>
+      'Diese Datei liegt im Cloud-Speicher und kann nicht direkt geöffnet werden. Bitte erst lokal kopieren (Downloads / Dateien auf diesem Gerät) und erneut versuchen.';
+
+  @override
+  String filePickerFailed(String error) {
+    return 'Dateiauswahl fehlgeschlagen: $error';
+  }
+
+  @override
   String get openModels => 'Modelle öffnen';
 
   @override

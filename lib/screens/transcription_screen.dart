@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:go_router/go_router.dart';
 import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../utils/audio_utils.dart';
@@ -140,11 +141,11 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
 
     // Auto-switch to a downloaded model if the persisted default isn't
     // downloaded yet. Covers the common first-launch flow: user gets
-    // the "not downloaded" snackbar → taps "Open Models" → downloads
+    // the "no models" snackbar → taps "Open Models" → downloads
     // a different model than the persisted default (e.g. has "base"
     // as default but only downloaded "tiny"). Without this, the next
     // launch / transcribe still tries the persisted default and
-    // surfaces the same "not downloaded" error.
+    // surfaces the same error.
     final downloaded =
         _availableModels.where((m) => m.isDownloaded).toList(growable: false);
     if (_modelName.isEmpty ||
@@ -160,10 +161,29 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
             'Auto-switching default model: was=$_modelName now=$switched');
         if (mounted) setState(() => _modelName = switched);
         settings.defaultModel = switched;
+      } else if (mounted) {
+        // First-launch / nothing downloaded — the "default model X isn't
+        // downloaded" message names a specific model (typically `base`)
+        // which is confusing because the user never picked it. Show a
+        // generic "no models yet, open Models" prompt instead.
+        final l = AppLocalizations.of(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(l.noModelsDownloadedYet),
+            duration: const Duration(seconds: 8),
+            showCloseIcon: true,
+            action: SnackBarAction(
+              label: l.openModels,
+              onPressed: () {
+                if (mounted) context.push('/models');
+              },
+            ),
+          ),
+        );
       }
     }
 
-    if (_modelName.isNotEmpty) {
+    if (_modelName.isNotEmpty && downloaded.isNotEmpty) {
       try {
         await service.loadModel(_modelName);
       } catch (e, st) {
@@ -174,11 +194,9 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
             error: e, stack: st);
         if (mounted) {
           final l = AppLocalizations.of(context);
-          // First-launch case: persisted default model exists but isn't
-          // downloaded yet. Show a friendly action-snackbar pointing at
-          // Model Management instead of dumping the raw exception text.
-          // Detect by string-matching the upstream's "is not downloaded
-          // yet" sentinel — there's no typed error code today.
+          // A specific named model is missing on disk — point Model
+          // Management at it. The blanket "no models downloaded yet"
+          // case is handled above before we even try to load.
           final isNotDownloaded = e.toString().contains('is not downloaded');
           if (isNotDownloaded) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -1285,6 +1303,13 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
 
   Future<void> _selectAudioFile() async {
     FilePickerResult? result;
+    // Pass 1 — normal pick. Returns filesystem paths for local files.
+    // Pass 2 — if any file came back with a null path (Android SAF
+    // content:// URI from Drive/OneDrive/Files etc.), retry with
+    // `withReadStream: true` so the plugin hands us a byte stream we
+    // can stage to local temp ourselves. Without this, picking from
+    // any cloud-backed location throws `Unknown_path` and the user
+    // can't transcribe Drive-stored recordings at all.
     try {
       // FileType.audio on iOS routes through MPMediaPickerController
       // (Apple Music library) — wrong picker for our case (we want
@@ -1303,21 +1328,85 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
         allowedExtensions: const ['wav', 'mp3', 'flac', 'ogg'],
         allowMultiple: true,
       );
+    } on PlatformException catch (e, st) {
+      // file_picker 11.0.2 throws `Unknown_path` from the platform side
+      // when it can't materialize a real file path (cloud-only Drive
+      // files, third-party DocumentsProvider URIs, etc.). Retry the
+      // pick with a byte stream so we can stage to local temp.
+      final isUnknownPath =
+          (e.code.toLowerCase() == 'unknown_path') ||
+              e.message?.toLowerCase().contains('failed to retrieve path') ==
+                  true;
+      if (isUnknownPath) {
+        Log.instance.i('ui',
+            'File picker hit Unknown_path — retrying with readStream fallback');
+        try {
+          result = await FilePicker.pickFiles(
+            type: FileType.custom,
+            allowedExtensions: const ['wav', 'mp3', 'flac', 'ogg'],
+            allowMultiple: true,
+            withReadStream: true,
+          );
+        } catch (e2, st2) {
+          Log.instance
+              .e('ui', 'File picker fallback also failed', error: e2, stack: st2);
+          if (mounted) {
+            final l = AppLocalizations.of(context);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(l.filePickerCloudFileUnsupported)),
+            );
+          }
+          return;
+        }
+      } else {
+        Log.instance.e('ui', 'File picker threw', error: e, stack: st);
+        if (mounted) {
+          final l = AppLocalizations.of(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(l.filePickerFailed(e.toString()))),
+          );
+        }
+        return;
+      }
     } catch (e, st) {
       Log.instance.e('ui', 'File picker threw', error: e, stack: st);
       if (mounted) {
+        final l = AppLocalizations.of(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('File picker failed: $e')),
+          SnackBar(content: Text(l.filePickerFailed(e.toString()))),
         );
       }
       return;
     }
 
     if (result != null && result.files.isNotEmpty) {
-      final paths = result.files
-          .where((f) => f.path != null)
-          .map((f) => f.path!)
-          .toList();
+      // Resolve each PlatformFile to a local filesystem path. Files with
+      // a non-null `path` are already local; files with only a
+      // `readStream` (the cloud-URI fallback above) get streamed to a
+      // temp file under the app's temp dir.
+      final paths = <String>[];
+      for (final f in result.files) {
+        if (f.path != null) {
+          paths.add(f.path!);
+        } else if (f.readStream != null) {
+          try {
+            final tmpDir = await getTemporaryDirectory();
+            final safe = f.name.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
+            final dest = File(p.join(tmpDir.path, 'picker_$safe'));
+            final sink = dest.openWrite();
+            await f.readStream!.forEach(sink.add);
+            await sink.flush();
+            await sink.close();
+            paths.add(dest.path);
+            Log.instance.i('ui', 'staged cloud file to temp',
+                fields: {'name': f.name, 'temp': dest.path, 'bytes': await dest.length()});
+          } catch (e, st) {
+            Log.instance
+                .e('ui', 'failed to stage cloud-picked file', error: e, stack: st);
+          }
+        }
+      }
+      if (paths.isEmpty) return;
       setState(() {
         _selectedFilePath = paths.first;
       });

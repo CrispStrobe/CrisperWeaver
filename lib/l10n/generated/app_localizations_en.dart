@@ -1824,6 +1824,19 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get noModelsDownloadedYet =>
+      'No transcription model is downloaded yet — open Models to grab one.';
+
+  @override
+  String get filePickerCloudFileUnsupported =>
+      'This file lives in cloud storage and can\'t be opened directly. Please copy it to local storage (Downloads / Files on this device) and try again.';
+
+  @override
+  String filePickerFailed(String error) {
+    return 'File picker failed: $error';
+  }
+
+  @override
   String get openModels => 'Open Models';
 
   @override
