@@ -279,6 +279,24 @@ class CrispASREngine implements TranscriptionEngine {
 
     final modelPath = await _modelService!.getWhisperCppModelPath(modelId);
     if (modelPath == null) {
+      // Diagnostic: surface why the path resolution failed so we can tell
+      // "the catalog entry doesn't exist" apart from "the file isn't on
+      // disk" apart from "wrong fileName vs what was actually downloaded".
+      final dir = _modelService!.whisperCppDir();
+      final expectedFile = def.fileName;
+      final expectedPath = '$dir/$expectedFile';
+      final exists = await File(expectedPath).exists();
+      Log.instance.w(
+          'crispasr',
+          'Model not found via getWhisperCppModelPath',
+          fields: {
+            'modelId': modelId,
+            'expected_filename': expectedFile,
+            'expected_path': expectedPath,
+            'file_exists': exists,
+            'backend': def.backend,
+            'size_bytes': exists ? await File(expectedPath).length() : 0,
+          });
       throw ModelLoadException(
         'Model $modelId is not downloaded yet.',
         engineId,
