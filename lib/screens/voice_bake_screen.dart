@@ -1,4 +1,3 @@
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
@@ -6,6 +5,7 @@ import 'package:path/path.dart' as p;
 import '../l10n/generated/app_localizations.dart';
 import '../services/log_service.dart';
 import '../services/voice_baking_service.dart';
+import '../utils/file_picker_util.dart';
 
 /// Wraps `models/bake-chatterbox-voice-from-wav.py` in a UI flow.
 /// Pick a WAV, set the output filename, optionally override the
@@ -42,18 +42,26 @@ class _VoiceBakeScreenState extends ConsumerState<VoiceBakeScreen> {
 
   Future<void> _pickWav() async {
     try {
-      final result = await FilePicker.pickFiles(
-        type: FileType.custom,
+      final pick = await pickFilesRobust(
         allowedExtensions: const ['wav'],
       );
-      final path = result?.files.firstOrNull?.path;
-      if (path == null) return;
-      setState(() => _wavPath = path);
+      if (pick.isEmpty) return;
+      setState(() => _wavPath = pick.localPaths.first);
+    } on FilePickerCloudUriUnsupported catch (e, st) {
+      Log.instance.w('voice-bake', 'cloud-URI pick failed even with fallback',
+          error: e, stack: st);
+      if (mounted) {
+        final l = AppLocalizations.of(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l.filePickerCloudFileUnsupported)),
+        );
+      }
     } catch (e, st) {
       Log.instance.w('voice-bake', 'wav picker failed', error: e, stack: st);
       if (mounted) {
+        final l = AppLocalizations.of(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString())),
+          SnackBar(content: Text(l.filePickerFailed(e.toString()))),
         );
       }
     }

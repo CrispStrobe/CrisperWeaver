@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -15,6 +14,7 @@ import '../main.dart' show modelServiceProvider;
 import '../services/log_service.dart';
 import '../services/model_service.dart';
 import '../services/tts_service.dart';
+import '../utils/file_picker_util.dart';
 
 /// Text → speech, using whichever CrispASR TTS backend the user has
 /// downloaded. Mirrors the structure of the Transcribe screen but
@@ -335,22 +335,30 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
   /// audio extensions so the iOS picker filters cleanly.
   Future<void> _pickCustomVoice() async {
     try {
-      final result = await FilePicker.pickFiles(
-        type: FileType.custom,
+      final pick = await pickFilesRobust(
         allowedExtensions: const ['wav', 'flac', 'mp3'],
       );
-      final file = result?.files.firstOrNull;
-      final path = file?.path;
-      if (path == null) return;
+      if (pick.isEmpty) return;
+      final path = pick.localPaths.first;
       setState(() => _customVoiceWavPath = path);
       Log.instance.i('synth', 'custom voice picked',
-          fields: {'path': path, 'bytes': file?.size ?? -1});
+          fields: {'path': path, 'cloud_fallback': pick.usedCloudFallback});
+    } on FilePickerCloudUriUnsupported catch (e, st) {
+      Log.instance.w('synth', 'cloud-URI pick failed even with fallback',
+          error: e, stack: st);
+      if (mounted) {
+        final l = AppLocalizations.of(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l.filePickerCloudFileUnsupported)),
+        );
+      }
     } catch (e, st) {
       Log.instance.w('synth', 'custom voice picker failed',
           error: e, stack: st);
       if (mounted) {
+        final l = AppLocalizations.of(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString())),
+          SnackBar(content: Text(l.filePickerFailed(e.toString()))),
         );
       }
     }

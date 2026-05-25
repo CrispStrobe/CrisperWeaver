@@ -9,7 +9,6 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -18,6 +17,7 @@ import '../services/audio_service.dart' show audioServiceProvider;
 import '../services/log_service.dart';
 import '../services/settings_service.dart' show settingsServiceProvider;
 import '../services/speaker_id_service.dart';
+import '../utils/file_picker_util.dart';
 import 'package:crispasr/crispasr.dart' as crispasr;
 
 class SpeakerManagementScreen extends ConsumerStatefulWidget {
@@ -261,14 +261,17 @@ class _EnrolSpeakerScreenState extends ConsumerState<_EnrolSpeakerScreen> {
   Future<void> _pickFile() async {
     setState(() => _error = null);
     try {
-      final result = await FilePicker.pickFiles(
-        type: FileType.custom,
+      final pick = await pickFilesRobust(
         allowedExtensions: const ['wav', 'flac', 'mp3', 'm4a', 'ogg'],
       );
-      final path = result?.files.firstOrNull?.path;
-      if (path == null) return;
+      if (pick.isEmpty) return;
       if (!mounted) return;
-      setState(() => _capturedPath = path);
+      setState(() => _capturedPath = pick.localPaths.first);
+    } on FilePickerCloudUriUnsupported catch (e, st) {
+      Log.instance.w('speakers', 'cloud-URI pick failed even with fallback',
+          error: e, stack: st);
+      if (!mounted) return;
+      setState(() => _error = AppLocalizations.of(context).filePickerCloudFileUnsupported);
     } catch (e, st) {
       Log.instance.w('speakers', 'file pick failed', error: e, stack: st);
       if (!mounted) return;

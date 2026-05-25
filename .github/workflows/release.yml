@@ -525,8 +525,12 @@ jobs:
       - name: Build MSIX
         working-directory: repos/CrisperWeaver
         shell: pwsh
+        # msix 3.16.13 dropped the --verbose flag (the CLI parser hard-
+        # errors with `Could not find an option named "--verbose"`),
+        # which broke every Windows release since v0.6.5. Just don't
+        # pass it — msix:create logs enough at the default level.
         run: |
-          flutter pub run msix:create --verbose
+          flutter pub run msix:create
           $msix = Get-ChildItem -Recurse build\windows\x64\runner\Release -Filter *.msix | Select-Object -First 1
           if (-not $msix) { Write-Error 'msix:create produced no .msix'; exit 1 }
           $dst = "crisper_weaver-windows-x64.msix"

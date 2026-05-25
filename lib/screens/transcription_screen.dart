@@ -4,11 +4,11 @@ import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:go_router/go_router.dart';
 import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+
+import '../utils/file_picker_util.dart';
 
 import '../utils/audio_utils.dart';
 
@@ -1302,72 +1302,38 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
   }
 
   Future<void> _selectAudioFile() async {
-    FilePickerResult? result;
-    // Pass 1 — normal pick. Returns filesystem paths for local files.
-    // Pass 2 — if any file came back with a null path (Android SAF
-    // content:// URI from Drive/OneDrive/Files etc.), retry with
-    // `withReadStream: true` so the plugin hands us a byte stream we
-    // can stage to local temp ourselves. Without this, picking from
-    // any cloud-backed location throws `Unknown_path` and the user
-    // can't transcribe Drive-stored recordings at all.
+    // FileType.audio on iOS routes through MPMediaPickerController
+    // (Apple Music library) — wrong picker for our case (we want
+    // recorded files in Files / iCloud Drive, not music tracks) AND
+    // it requires NSAppleMusicUsageDescription. Use FileType.custom
+    // with explicit extensions so iOS picks the document picker on
+    // every platform.
+    //
+    // Only formats our FFI decoder (miniaudio) handles natively:
+    // wav / mp3 / flac / ogg. m4a / aac / mp4 / wma fail with
+    // "Not a valid WAV file" because miniaudio rejects them and
+    // the Dart fallback only parses WAV. Add those back once we
+    // wire a platform-native AAC decoder on iOS / macOS.
+    //
+    // pickFilesRobust handles the Android Unknown_path / cloud-URI
+    // case by retrying with withReadStream:true and staging the
+    // bytes to a local temp file we own — see lib/utils/file_picker_util.dart.
+    RobustFilePick pick;
     try {
-      // FileType.audio on iOS routes through MPMediaPickerController
-      // (Apple Music library) — wrong picker for our case (we want
-      // recorded files in Files / iCloud Drive, not music tracks) AND
-      // it requires NSAppleMusicUsageDescription. Use FileType.custom
-      // with explicit extensions so iOS picks the document picker on
-      // every platform.
-      //
-      // Only formats our FFI decoder (miniaudio) handles natively:
-      // wav / mp3 / flac / ogg. m4a / aac / mp4 / wma fail with
-      // "Not a valid WAV file" because miniaudio rejects them and
-      // the Dart fallback only parses WAV. Add those back once we
-      // wire a platform-native AAC decoder on iOS / macOS.
-      result = await FilePicker.pickFiles(
-        type: FileType.custom,
+      pick = await pickFilesRobust(
         allowedExtensions: const ['wav', 'mp3', 'flac', 'ogg'],
         allowMultiple: true,
       );
-    } on PlatformException catch (e, st) {
-      // file_picker 11.0.2 throws `Unknown_path` from the platform side
-      // when it can't materialize a real file path (cloud-only Drive
-      // files, third-party DocumentsProvider URIs, etc.). Retry the
-      // pick with a byte stream so we can stage to local temp.
-      final isUnknownPath =
-          (e.code.toLowerCase() == 'unknown_path') ||
-              e.message?.toLowerCase().contains('failed to retrieve path') ==
-                  true;
-      if (isUnknownPath) {
-        Log.instance.i('ui',
-            'File picker hit Unknown_path — retrying with readStream fallback');
-        try {
-          result = await FilePicker.pickFiles(
-            type: FileType.custom,
-            allowedExtensions: const ['wav', 'mp3', 'flac', 'ogg'],
-            allowMultiple: true,
-            withReadStream: true,
-          );
-        } catch (e2, st2) {
-          Log.instance
-              .e('ui', 'File picker fallback also failed', error: e2, stack: st2);
-          if (mounted) {
-            final l = AppLocalizations.of(context);
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(l.filePickerCloudFileUnsupported)),
-            );
-          }
-          return;
-        }
-      } else {
-        Log.instance.e('ui', 'File picker threw', error: e, stack: st);
-        if (mounted) {
-          final l = AppLocalizations.of(context);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(l.filePickerFailed(e.toString()))),
-          );
-        }
-        return;
+    } on FilePickerCloudUriUnsupported catch (e, st) {
+      Log.instance.w('ui', 'cloud-URI pick failed even with fallback',
+          error: e, stack: st);
+      if (mounted) {
+        final l = AppLocalizations.of(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l.filePickerCloudFileUnsupported)),
+        );
       }
+      return;
     } catch (e, st) {
       Log.instance.e('ui', 'File picker threw', error: e, stack: st);
       if (mounted) {
@@ -1379,34 +1345,8 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
       return;
     }
 
-    if (result != null && result.files.isNotEmpty) {
-      // Resolve each PlatformFile to a local filesystem path. Files with
-      // a non-null `path` are already local; files with only a
-      // `readStream` (the cloud-URI fallback above) get streamed to a
-      // temp file under the app's temp dir.
-      final paths = <String>[];
-      for (final f in result.files) {
-        if (f.path != null) {
-          paths.add(f.path!);
-        } else if (f.readStream != null) {
-          try {
-            final tmpDir = await getTemporaryDirectory();
-            final safe = f.name.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
-            final dest = File(p.join(tmpDir.path, 'picker_$safe'));
-            final sink = dest.openWrite();
-            await f.readStream!.forEach(sink.add);
-            await sink.flush();
-            await sink.close();
-            paths.add(dest.path);
-            Log.instance.i('ui', 'staged cloud file to temp',
-                fields: {'name': f.name, 'temp': dest.path, 'bytes': await dest.length()});
-          } catch (e, st) {
-            Log.instance
-                .e('ui', 'failed to stage cloud-picked file', error: e, stack: st);
-          }
-        }
-      }
-      if (paths.isEmpty) return;
+    if (pick.isNotEmpty) {
+      final paths = pick.localPaths;
       setState(() {
         _selectedFilePath = paths.first;
       });

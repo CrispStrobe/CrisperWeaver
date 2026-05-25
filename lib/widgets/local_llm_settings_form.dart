@@ -11,7 +11,6 @@
 // advanced-params ExpansionTile (GPU layers / context window /
 // CPU threads / max tokens / temperature).
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -19,6 +18,7 @@ import 'package:go_router/go_router.dart';
 import '../l10n/generated/app_localizations.dart';
 import '../main.dart' show modelServiceProvider;
 import '../services/model_service.dart';
+import '../utils/file_picker_util.dart';
 
 class LocalLlmSettingsForm extends ConsumerStatefulWidget {
   const LocalLlmSettingsForm({
@@ -168,14 +168,12 @@ class LocalLlmSettingsFormState
   /// parent's Save still has to fire to actually persist;
   /// picking just updates the in-form draft.
   Future<void> _pickModel() async {
-    final picked = await FilePicker.pickFiles(
+    final pick = await pickFilesRobust(
       dialogTitle: AppLocalizations.of(context).settingsLocalLlmModelPick,
-      type: FileType.custom,
       allowedExtensions: const ['gguf'],
     );
-    final p = picked?.files.single.path;
-    if (p == null || p.isEmpty) return;
-    setState(() => _modelPath = p);
+    if (pick.isEmpty) return;
+    setState(() => _modelPath = pick.localPaths.first);
   }
 
   /// Commit the in-form draft to the parent via onCommit. Does

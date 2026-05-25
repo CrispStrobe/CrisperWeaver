@@ -28,7 +28,6 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -38,6 +37,7 @@ import '../l10n/generated/app_localizations.dart';
 import '../services/audio_service.dart';
 import '../services/log_service.dart';
 import '../services/settings_service.dart';
+import '../utils/file_picker_util.dart';
 
 /// What step the wizard is on. Linear forward-only flow with a
 /// Back button that just decrements the index. Each step owns
@@ -149,13 +149,19 @@ class _VoiceCloneWizardScreenState
   Future<void> _pickFile() async {
     setState(() => _captureError = null);
     try {
-      final result = await FilePicker.pickFiles(
-        type: FileType.custom,
+      final pick = await pickFilesRobust(
         allowedExtensions: const ['wav', 'flac', 'mp3'],
       );
-      final path = result?.files.firstOrNull?.path;
-      if (path == null) return;
-      setState(() => _recordedPath = path);
+      if (pick.isEmpty) return;
+      setState(() => _recordedPath = pick.localPaths.first);
+    } on FilePickerCloudUriUnsupported catch (e, st) {
+      Log.instance.w('voice-clone',
+          'cloud-URI pick failed even with fallback',
+          error: e, stack: st);
+      if (mounted) {
+        setState(() => _captureError =
+            AppLocalizations.of(context).filePickerCloudFileUnsupported);
+      }
     } catch (e, st) {
       Log.instance.w('voice-clone', 'file pick failed',
           error: e, stack: st);
