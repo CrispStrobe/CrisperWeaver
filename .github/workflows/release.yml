@@ -276,10 +276,32 @@ jobs:
           mkdir -p "$DEST"
           cp ../CrispASR/build-android/arm64-v8a/src/libcrispasr.so "$DEST/libwhisper.so"
           cp "$DEST/libwhisper.so" "$DEST/libcrispasr.so"
-          # libc++_shared.so for NDK
-          CPPSHARED=$(find "$ANDROID_NDK_HOME" -name "libc++_shared.so" -path "*arm64*" 2>/dev/null | head -1)
-          [ -n "$CPPSHARED" ] && cp "$CPPSHARED" "$DEST/"
+          # libcrispasr.so is C++ and NEEDs libc++_shared.so — without it
+          # the Android loader silently fails DynamicLibrary.open and the
+          # Dart side falls back to availableBackends()=[], yielding the
+          # "bundled libwhisper was built with {}" error from issue #3.
+          # The NDK ships it under aarch64-linux-android (NOT "arm64", a
+          # filter mismatch that ate the v0.6.4 APK).
+          CPPSHARED=$(find "$ANDROID_NDK_HOME" -path "*aarch64-linux-android*" \
+            -name "libc++_shared.so" 2>/dev/null | head -1)
+          if [ -z "$CPPSHARED" ]; then
+            echo "::error::libc++_shared.so not found under \$ANDROID_NDK_HOME" >&2
+            exit 1
+          fi
+          cp "$CPPSHARED" "$DEST/"
           ls -lh "$DEST/"
+          # Sanity: confirm every NEEDED dep of libcrispasr.so has a sibling
+          # in jniLibs/. Anything missing here = silent dlopen failure at
+          # runtime, which is exactly how issue #3 manifested.
+          NEEDED=$(${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-readelf \
+            -d "$DEST/libcrispasr.so" | awk -F'[][]' '/\(NEEDED\)/{print $2}')
+          echo "libcrispasr.so NEEDS: $NEEDED"
+          for n in $NEEDED; do
+            case "$n" in
+              libm.so|libc.so|libdl.so|liblog.so) ;;  # provided by Android
+              *) [ -f "$DEST/$n" ] || { echo "::error::missing NEEDED dep $n" >&2; exit 1; } ;;
+            esac
+          done
 
       - name: Pub get
         working-directory: repos/CrisperWeaver
