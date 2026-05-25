@@ -257,10 +257,18 @@ jobs:
             -DCRISPASR_BUILD_EXAMPLES=OFF \
             -DCRISPASR_BUILD_TESTS=OFF
           cmake --build build-android/arm64-v8a --parallel
-          # Re-link all static archives into a single shared lib
+          # Re-link all static archives into a single shared lib.
+          # CMake's OpenMP detection (-- Found OpenMP_CXX: -fopenmp=libomp)
+          # compiles ggml/whisper TUs with __kmpc_* calls, but this manual
+          # linker invocation doesn't pull in libomp by default. Adding
+          # -fopenmp -static-openmp pulls the NDK's libomp.a in and resolves
+          # those symbols inside libcrispasr.so — otherwise the runtime
+          # dies at dlopen with "cannot locate symbol __kmpc_global_thread_num"
+          # (a recurrence of #3 the v0.6.5 build hit).
           cd build-android/arm64-v8a
           NDK_CC=$(find $ANDROID_NDK_HOME/toolchains/llvm/prebuilt -name "aarch64-linux-android24-clang++" | head -1)
           $NDK_CC -shared -o src/libcrispasr.so \
+            -fopenmp -static-openmp \
             -Wl,--whole-archive \
             src/libcrispasr.a \
             $(find . -name "lib*.a" ! -name "libcrispasr.a" ! -name "libCatch*" ! -name "libcommon*" -printf "%p ") \
@@ -268,6 +276,16 @@ jobs:
             -lm -llog
           ln -sf libcrispasr.so src/libwhisper.so
           ls -lh src/libcrispasr.so
+          # Fail fast if any OpenMP runtime symbol is still UND — silent
+          # regression here is exactly how #3 keeps coming back.
+          NDKRE=$(find $ANDROID_NDK_HOME/toolchains/llvm/prebuilt -name "llvm-readelf" | head -1)
+          if "$NDKRE" --dyn-symbols src/libcrispasr.so \
+              | awk '$5=="UND"' | grep -qE "__kmpc|^.* omp_"; then
+            echo "::error::libcrispasr.so still has UND OpenMP symbols" >&2
+            "$NDKRE" --dyn-symbols src/libcrispasr.so \
+              | awk '$5=="UND"' | grep -E "__kmpc|omp_" >&2
+            exit 1
+          fi
 
       - name: Copy native lib into jniLibs/
         working-directory: repos/CrisperWeaver
