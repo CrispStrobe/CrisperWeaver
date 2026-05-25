@@ -107,7 +107,11 @@ class VadService {
         path = await _findCatalogVad('marblenet-vad');
         break;
       case VadBackend.whisperEncDec:
-        path = await _findCatalogVad('whisper-vad-encdec');
+        // The current public GGUF is at `cstr/whisper-vad-encdec-asmr-GGUF`
+        // and ships as `whisper-vad-asmr-*.gguf`; match both the new and
+        // legacy naming so already-downloaded files keep working.
+        path = await _findCatalogVad('whisper-vad-asmr');
+        path ??= await _findCatalogVad('whisper-vad-encdec');
         break;
     }
     if (path == null && backend != VadBackend.silero) {

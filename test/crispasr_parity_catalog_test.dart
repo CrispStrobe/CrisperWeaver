@@ -67,13 +67,16 @@ void main() {
     test('TTS additions are kind=tts so Model Manager filters them', () {
       // Chatterbox / IndexTTS / qwen3-tts VoiceDesign / vibevoice-1.5b
       // are TTS backends — they belong in the TTS filter chip, not
-      // the default ASR view.
+      // the default ASR view. Catalogue keys are kept stable so prior
+      // installs upgrade cleanly even though the underlying HF
+      // filenames moved (e.g. chatterbox-en-q8_0 now points at
+      // chatterbox-t3-q8_0.gguf in cstr/chatterbox-GGUF).
       for (final id in [
         'chatterbox-en-q8_0',
         'kartoffelbox-de-q8_0',
         'indextts-q8_0',
         'qwen3-tts-12hz-1.7b-voicedesign-q8_0',
-        'vibevoice-1.5b-tts-f32-tokenizer',
+        'vibevoice-1.5b-tts-f16',
       ]) {
         final def = ModelService.crispasrBackendModels[id];
         expect(def, isNotNull, reason: '$id missing from catalog');
@@ -111,11 +114,12 @@ void main() {
     });
 
     test('text-to-text translation models in catalog with kind=translate', () {
-      // M2M-100 + WMT21 (both directions) + MADLAD-400 — the four
-      // text translation entries the new Translate screen consumes.
+      // M2M-100 (418M) + WMT21 (both directions) + MADLAD-400 — the
+      // text translation entries the Translate screen consumes. The
+      // 1.2B M2M-100 GGUF is not currently published; revisit when it
+      // lands publicly.
       const expected = [
         'm2m100-418m-q4_k',
-        'm2m100-1.2b-q4_k',
         'wmt21-dense-24-wide-en-x-q4_k',
         'wmt21-dense-24-wide-x-en-q4_k',
         'madlad400-3b-mt-q4_k',

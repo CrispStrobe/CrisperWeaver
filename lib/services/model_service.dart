@@ -349,27 +349,15 @@ class ModelService {
       backend: 'qwen3',
     ),
     // Granite / FastConformer-CTC / Wav2Vec2 — populated by HF probe.
-    'qwen2-audio-7b-q4_k': ModelDefinition(
-      name: 'qwen2-audio-7b-q4_k',
-      displayName: 'Qwen2-Audio 7B (q4_k)',
-      fileName: 'qwen2-audio-7b-q4_k.gguf',
-      url:
-          'https://huggingface.co/cstr/qwen2-audio-7b-GGUF/resolve/main/qwen2-audio-7b-q4_k.gguf',
-      sizeBytes: 4500 * 1024 * 1024,
-      checksum: '',
-      description: 'Large multilingual audio-LLM — ~4.5 GB',
-      quantization: 'q4_k',
-      backend: 'qwen2-audio',
-    ),
     'canary-1b-v2-f16': ModelDefinition(
       name: 'canary-1b-v2-f16',
       displayName: 'Canary 1B v2 (f16)',
-      fileName: 'canary-1b-v2-f16.gguf',
+      fileName: 'canary-1b-v2.gguf',
       url:
-          'https://huggingface.co/cstr/canary-1b-v2-GGUF/resolve/main/canary-1b-v2-f16.gguf',
-      sizeBytes: 2000 * 1024 * 1024,
+          'https://huggingface.co/cstr/canary-1b-v2-GGUF/resolve/main/canary-1b-v2.gguf',
+      sizeBytes: 1965244512,
       checksum: '',
-      description: 'High-precision Canary 1B — ~2.0 GB',
+      description: 'High-precision Canary 1B — ~1.9 GB',
       quantization: 'f16',
       backend: 'canary',
     ),
@@ -460,8 +448,8 @@ class ModelService {
       displayName: 'MiMo audio tokenizer (q4_k)',
       fileName: 'mimo-tokenizer-q4_k.gguf',
       url:
-          'https://huggingface.co/cstr/mimo-asr-GGUF/resolve/main/mimo-tokenizer-q4_k.gguf',
-      sizeBytes: 250 * 1024 * 1024,
+          'https://huggingface.co/cstr/mimo-tokenizer-GGUF/resolve/main/mimo-tokenizer-q4_k.gguf',
+      sizeBytes: 395594656,
       checksum: '',
       description:
           'MiMo audio tokenizer — companion to mimo-asr (PCM → 8-channel codes)',
@@ -504,22 +492,22 @@ class ModelService {
       kind: ModelKind.tts,
       companions: ['kokoro-voice-af_heart'],
     ),
-    // VibeVoice realtime 0.5B — TTS with bundled tokenizer (the f16 / q4_k
-    // variants of the same name DON'T include the Tekken tokenizer and
-    // fail at first synthesize with "model lacks tokenizer"). The
-    // -tts-f32-tokenizer file is the single-file shippable.
-    'vibevoice-realtime-0.5b-tts-f32-tokenizer': ModelDefinition(
-      name: 'vibevoice-realtime-0.5b-tts-f32-tokenizer',
-      displayName: 'VibeVoice TTS realtime 0.5B (f32 + tokenizer)',
-      fileName: 'vibevoice-realtime-0.5b-tts-f32-tokenizer.gguf',
+    // VibeVoice realtime 0.5B — the `-tts-` infix marks the variant that
+    // bundles the Tekken tokenizer (the plain `-q4_k` / `-q8_0` variants
+    // are tokenizer-less and fail at first synth). Use the f16 tokenizer
+    // variant as the single-file shippable.
+    'vibevoice-realtime-0.5b-tts-f16': ModelDefinition(
+      name: 'vibevoice-realtime-0.5b-tts-f16',
+      displayName: 'VibeVoice TTS realtime 0.5B (f16 + tokenizer)',
+      fileName: 'vibevoice-realtime-0.5b-tts-f16.gguf',
       url:
-          'https://huggingface.co/cstr/vibevoice-realtime-0.5b-GGUF/resolve/main/vibevoice-realtime-0.5b-tts-f32-tokenizer.gguf',
-      sizeBytes: 4073 * 1024 * 1024,
+          'https://huggingface.co/cstr/vibevoice-realtime-0.5b-GGUF/resolve/main/vibevoice-realtime-0.5b-tts-f16.gguf',
+      sizeBytes: 2100 * 1024 * 1024,
       checksum: '',
       description:
           'VibeVoice realtime TTS with bundled Tekken tokenizer — '
           'needs a vibevoice-voice-*.gguf voicepack',
-      quantization: 'f32',
+      quantization: 'f16',
       backend: 'vibevoice-tts',
       kind: ModelKind.tts,
       companions: ['vibevoice-voice-emma'],
@@ -615,27 +603,27 @@ class ModelService {
     // Newest top-tier multilingual ASR; works with `lang=auto` + LID.
     'gemma4-e2b-q4_k': ModelDefinition(
       name: 'gemma4-e2b-q4_k',
-      displayName: 'Gemma4-E2B (q4_k)',
-      fileName: 'gemma4-e2b-q4_k.gguf',
+      displayName: 'Gemma4-E2B-it (q4_k)',
+      fileName: 'gemma4-e2b-it-q4_k.gguf',
       url:
-          'https://huggingface.co/cstr/gemma4-e2b-GGUF/resolve/main/gemma4-e2b-q4_k.gguf',
-      sizeBytes: 1900 * 1024 * 1024,
+          'https://huggingface.co/cstr/gemma4-e2b-it-GGUF/resolve/main/gemma4-e2b-it-q4_k.gguf',
+      sizeBytes: 2793146016,
       checksum: '',
-      description: 'Multilingual ASR (140+ languages) — ~1.9 GB',
+      description: 'Multilingual ASR (140+ languages, instruction-tuned) — ~2.8 GB',
       quantization: 'q4_k',
       backend: 'gemma4-e2b',
     ),
     // OmniASR LLM unlimited — streaming variant, 15 s protocol.
     'omniasr-llm-unlimited-q4_k': ModelDefinition(
       name: 'omniasr-llm-unlimited-q4_k',
-      displayName: 'OmniASR LLM unlimited (q4_k)',
-      fileName: 'omniasr-llm-unlimited-q4_k.gguf',
+      displayName: 'OmniASR LLM unlimited 300M v2 (q4_k)',
+      fileName: 'omniasr-llm-unlimited-300m-v2-q4_k.gguf',
       url:
-          'https://huggingface.co/cstr/omniasr-llm-unlimited-GGUF/resolve/main/omniasr-llm-unlimited-q4_k.gguf',
-      sizeBytes: 600 * 1024 * 1024,
+          'https://huggingface.co/cstr/omniasr-llm-unlimited-300m-v2-GGUF/resolve/main/omniasr-llm-unlimited-300m-v2-q4_k.gguf',
+      sizeBytes: 1075436320,
       checksum: '',
       description:
-          'Streaming OmniASR LLM (unlimited audio, 1600+ langs) — ~600 MB',
+          'Streaming OmniASR LLM (unlimited audio, 1600+ langs) — ~1.0 GB',
       quantization: 'q4_k',
       backend: 'omniasr-llm-unlimited',
     ),
@@ -656,74 +644,112 @@ class ModelService {
     // Granite 4.1 plus — instruction-tuned 4.1 variant.
     'granite-speech-4.1-plus-q4_k': ModelDefinition(
       name: 'granite-speech-4.1-plus-q4_k',
-      displayName: 'Granite Speech 4.1+ (q4_k)',
-      fileName: 'granite-speech-4.1-plus-q4_k.gguf',
+      displayName: 'Granite Speech 4.1 2B+ (q4_k)',
+      fileName: 'granite-speech-4.1-2b-plus-q4_k.gguf',
       url:
-          'https://huggingface.co/cstr/granite-speech-4.1-plus-GGUF/resolve/main/granite-speech-4.1-plus-q4_k.gguf',
-      sizeBytes: 1700 * 1024 * 1024,
+          'https://huggingface.co/cstr/granite-speech-4.1-2b-plus-GGUF/resolve/main/granite-speech-4.1-2b-plus-q4_k.gguf',
+      sizeBytes: 2957822752,
       checksum: '',
-      description: 'IBM Granite Speech 4.1+ (instruction-tuned) — ~1.7 GB',
+      description: 'IBM Granite Speech 4.1 2B+ (instruction-tuned) — ~2.9 GB',
       quantization: 'q4_k',
       backend: 'granite-4.1-plus',
     ),
     // Granite 4.1 NAR — non-autoregressive variant.
     'granite-speech-4.1-nar-q4_k': ModelDefinition(
       name: 'granite-speech-4.1-nar-q4_k',
-      displayName: 'Granite Speech 4.1 NAR (q4_k)',
-      fileName: 'granite-speech-4.1-nar-q4_k.gguf',
+      displayName: 'Granite Speech 4.1 2B NAR (q4_k)',
+      fileName: 'granite-speech-4.1-2b-nar-q4_k.gguf',
       url:
-          'https://huggingface.co/cstr/granite-speech-4.1-nar-GGUF/resolve/main/granite-speech-4.1-nar-q4_k.gguf',
-      sizeBytes: 1400 * 1024 * 1024,
+          'https://huggingface.co/cstr/granite-speech-4.1-2b-nar-GGUF/resolve/main/granite-speech-4.1-2b-nar-q4_k.gguf',
+      sizeBytes: 3413252640,
       checksum: '',
-      description: 'Granite Speech 4.1 NAR (parallel-decode) — ~1.4 GB',
+      description: 'Granite Speech 4.1 2B NAR (parallel-decode) — ~3.4 GB',
       quantization: 'q4_k',
       backend: 'granite-4.1-nar',
     ),
     // ---------- Additional TTS families (Chatterbox, IndexTTS, etc.) ----------
-    // Chatterbox EN — T3 AR + S3Gen flow-matching, voice cloning via baked GGUF.
+    // Chatterbox is split into two GGUFs in cstr/chatterbox-GGUF:
+    //   * chatterbox-t3-*.gguf — Llama-style AR (the "main" model)
+    //   * chatterbox-s3gen-*.gguf — S3Gen flow-matching vocoder
+    // Both halves are required at synth time. The T3 entry below is the
+    // primary; its `companions` link pulls in the S3Gen sibling.
     'chatterbox-en-q8_0': ModelDefinition(
       name: 'chatterbox-en-q8_0',
-      displayName: 'Chatterbox EN (q8_0)',
-      fileName: 'chatterbox-en-q8_0.gguf',
+      displayName: 'Chatterbox T3 (q8_0)',
+      fileName: 'chatterbox-t3-q8_0.gguf',
       url:
-          'https://huggingface.co/cstr/chatterbox-en-GGUF/resolve/main/chatterbox-en-q8_0.gguf',
-      sizeBytes: 850 * 1024 * 1024,
+          'https://huggingface.co/cstr/chatterbox-GGUF/resolve/main/chatterbox-t3-q8_0.gguf',
+      sizeBytes: 630177120,
       checksum: '',
       description:
-          'Chatterbox English TTS (T3 + S3Gen flow-matching) — voice cloning via baked GGUF',
+          'Chatterbox TTS T3 (AR transformer) — needs chatterbox-s3gen-* companion',
       quantization: 'q8_0',
       backend: 'chatterbox',
       kind: ModelKind.tts,
+      companions: ['chatterbox-s3gen-q8_0'],
     ),
-    // Kartoffelbox DE — Chatterbox German finetune.
+    // Chatterbox S3Gen flow-matching vocoder — companion of chatterbox-t3.
+    'chatterbox-s3gen-q8_0': ModelDefinition(
+      name: 'chatterbox-s3gen-q8_0',
+      displayName: 'Chatterbox S3Gen (q8_0)',
+      fileName: 'chatterbox-s3gen-q8_0.gguf',
+      url:
+          'https://huggingface.co/cstr/chatterbox-GGUF/resolve/main/chatterbox-s3gen-q8_0.gguf',
+      sizeBytes: 358278528,
+      checksum: '',
+      description:
+          'Chatterbox S3Gen flow-matching vocoder — companion to chatterbox-t3',
+      quantization: 'q8_0',
+      backend: 'chatterbox',
+      kind: ModelKind.codec,
+    ),
+    // Kartoffelbox — Chatterbox German finetune (turbo). T3 only on HF;
+    // pair with the matching English S3Gen vocoder at synth time.
     'kartoffelbox-de-q8_0': ModelDefinition(
       name: 'kartoffelbox-de-q8_0',
-      displayName: 'Kartoffelbox DE (q8_0)',
-      fileName: 'kartoffelbox-de-q8_0.gguf',
+      displayName: 'Kartoffelbox turbo T3 DE (q8_0)',
+      fileName: 'kartoffelbox-turbo-t3-q8_0.gguf',
       url:
-          'https://huggingface.co/cstr/kartoffelbox-de-GGUF/resolve/main/kartoffelbox-de-q8_0.gguf',
-      sizeBytes: 850 * 1024 * 1024,
+          'https://huggingface.co/cstr/kartoffelbox-turbo-GGUF/resolve/main/kartoffelbox-turbo-t3-q8_0.gguf',
+      sizeBytes: 653201696,
       checksum: '',
       description:
-          'Kartoffelbox German TTS (Chatterbox finetune) — voice cloning via baked GGUF',
+          'Kartoffelbox-turbo German T3 (Chatterbox finetune) — pair with a chatterbox-s3gen companion',
       quantization: 'q8_0',
       backend: 'chatterbox',
       kind: ModelKind.tts,
+      companions: ['chatterbox-s3gen-q8_0'],
     ),
-    // IndexTTS — GPT-2 AR (24L/1280d) + BigVGAN; designed for ZH+EN.
+    // IndexTTS 1.5 is split into two GGUFs in cstr/indextts-1.5-GGUF:
+    //   * indextts-gpt-*.gguf — GPT-2 style AR
+    //   * indextts-bigvgan.gguf — BigVGAN vocoder (no quants)
     'indextts-q8_0': ModelDefinition(
       name: 'indextts-q8_0',
-      displayName: 'IndexTTS (q8_0)',
-      fileName: 'indextts-q8_0.gguf',
+      displayName: 'IndexTTS 1.5 GPT (q8_0)',
+      fileName: 'indextts-gpt-q8_0.gguf',
       url:
-          'https://huggingface.co/cstr/indextts-GGUF/resolve/main/indextts-q8_0.gguf',
-      sizeBytes: 1600 * 1024 * 1024,
+          'https://huggingface.co/cstr/indextts-1.5-GGUF/resolve/main/indextts-gpt-q8_0.gguf',
+      sizeBytes: 641977344,
       checksum: '',
       description:
-          'IndexTTS (GPT-2 AR + BigVGAN, ZH+EN) — zero-shot voice cloning from WAV reference',
+          'IndexTTS 1.5 GPT (ZH+EN, zero-shot voice cloning) — needs indextts-bigvgan companion',
       quantization: 'q8_0',
       backend: 'indextts',
       kind: ModelKind.tts,
+      companions: ['indextts-bigvgan'],
+    ),
+    'indextts-bigvgan': ModelDefinition(
+      name: 'indextts-bigvgan',
+      displayName: 'IndexTTS BigVGAN vocoder',
+      fileName: 'indextts-bigvgan.gguf',
+      url:
+          'https://huggingface.co/cstr/indextts-1.5-GGUF/resolve/main/indextts-bigvgan.gguf',
+      sizeBytes: 268168960,
+      checksum: '',
+      description: 'IndexTTS BigVGAN vocoder — companion to indextts-gpt-*',
+      quantization: 'f16',
+      backend: 'indextts',
+      kind: ModelKind.codec,
     ),
     // Qwen3-TTS VoiceDesign — natural-language voice description.
     'qwen3-tts-12hz-1.7b-voicedesign-q8_0': ModelDefinition(
@@ -741,18 +767,20 @@ class ModelService {
       kind: ModelKind.tts,
       companions: ['qwen3-tts-tokenizer-12hz'],
     ),
-    // VibeVoice 1.5B — base model with runtime WAV cloning (no GGUF voicepack).
-    'vibevoice-1.5b-tts-f32-tokenizer': ModelDefinition(
-      name: 'vibevoice-1.5b-tts-f32-tokenizer',
-      displayName: 'VibeVoice 1.5B TTS (f32 + tokenizer)',
-      fileName: 'vibevoice-1.5b-tts-f32-tokenizer.gguf',
+    // VibeVoice 1.5B — base model with runtime WAV cloning (no GGUF
+    // voicepack). The `-tts-` infix marks the variant with the bundled
+    // Tekken tokenizer; choose f16 for the high-quality shippable.
+    'vibevoice-1.5b-tts-f16': ModelDefinition(
+      name: 'vibevoice-1.5b-tts-f16',
+      displayName: 'VibeVoice 1.5B TTS (f16 + tokenizer)',
+      fileName: 'vibevoice-1.5b-tts-f16.gguf',
       url:
-          'https://huggingface.co/cstr/vibevoice-1.5b-GGUF/resolve/main/vibevoice-1.5b-tts-f32-tokenizer.gguf',
-      sizeBytes: 6800 * 1024 * 1024,
+          'https://huggingface.co/cstr/vibevoice-1.5b-GGUF/resolve/main/vibevoice-1.5b-tts-f16.gguf',
+      sizeBytes: 5412393280,
       checksum: '',
       description:
           'VibeVoice 1.5B base — runtime WAV cloning via setVoice(wav, refText: …)',
-      quantization: 'f32',
+      quantization: 'f16',
       backend: 'vibevoice-tts',
       kind: ModelKind.tts,
     ),
@@ -761,10 +789,10 @@ class ModelService {
     'fullstop-punc-multilang-q8_0': ModelDefinition(
       name: 'fullstop-punc-multilang-q8_0',
       displayName: 'Fullstop-punc multilang (q8_0)',
-      fileName: 'fullstop-punc-multilang-q8_0.gguf',
+      fileName: 'fullstop-punc-q8_0.gguf',
       url:
-          'https://huggingface.co/cstr/fullstop-punc-multilang-GGUF/resolve/main/fullstop-punc-multilang-q8_0.gguf',
-      sizeBytes: 130 * 1024 * 1024,
+          'https://huggingface.co/cstr/fullstop-punc-multilang-GGUF/resolve/main/fullstop-punc-q8_0.gguf',
+      sizeBytes: 599331488,
       checksum: '',
       description:
           'Multilingual punctuation + casing restoration (EN/DE/FR/IT). Pair with CTC backends.',
@@ -777,15 +805,15 @@ class ModelService {
     // DiarizeMethod.pyannote — enabled in the diarisation method picker.
     'pyannote-v3-seg-q8_0': ModelDefinition(
       name: 'pyannote-v3-seg-q8_0',
-      displayName: 'Pyannote v3 segmentation (q8_0)',
-      fileName: 'pyannote-v3-seg-q8_0.gguf',
+      displayName: 'Pyannote v3 segmentation',
+      fileName: 'pyannote-seg-3.0.gguf',
       url:
-          'https://huggingface.co/cstr/pyannote-v3-seg-GGUF/resolve/main/pyannote-v3-seg-q8_0.gguf',
-      sizeBytes: 90 * 1024 * 1024,
+          'https://huggingface.co/cstr/pyannote-v3-segmentation-GGUF/resolve/main/pyannote-seg-3.0.gguf',
+      sizeBytes: 5976512,
       checksum: '',
       description:
-          'Pyannote v3 segmentation for diarisation (up to 3 speakers per slice)',
-      quantization: 'q8_0',
+          'Pyannote v3 segmentation for diarisation (up to 3 speakers per slice) — ~5.7 MB',
+      quantization: 'f16',
       backend: 'pyannote',
       kind: ModelKind.diarize,
     ),
@@ -795,37 +823,37 @@ class ModelService {
     // so the VAD method picker can offer them.
     'firered-vad-q4_k': ModelDefinition(
       name: 'firered-vad-q4_k',
-      displayName: 'FireRed VAD (q4_k)',
-      fileName: 'firered-vad-q4_k.gguf',
+      displayName: 'FireRed VAD',
+      fileName: 'firered-vad.gguf',
       url:
-          'https://huggingface.co/cstr/firered-vad-GGUF/resolve/main/firered-vad-q4_k.gguf',
-      sizeBytes: 3 * 1024 * 1024,
+          'https://huggingface.co/cstr/firered-vad-GGUF/resolve/main/firered-vad.gguf',
+      sizeBytes: 2357952,
       checksum: '',
-      description: 'FireRed VAD (F1 97.57%, recommended) — ~3 MB',
-      quantization: 'q4_k',
+      description: 'FireRed VAD (F1 97.57%, recommended) — ~2.3 MB',
+      quantization: 'f16',
       backend: 'vad',
       kind: ModelKind.vad,
     ),
     'marblenet-vad': ModelDefinition(
       name: 'marblenet-vad',
-      displayName: 'MarbleNet VAD (f16)',
-      fileName: 'marblenet-vad-f16.gguf',
+      displayName: 'MarbleNet VAD',
+      fileName: 'marblenet-vad.gguf',
       url:
-          'https://huggingface.co/cstr/marblenet-vad-GGUF/resolve/main/marblenet-vad-f16.gguf',
-      sizeBytes: 500 * 1024,
+          'https://huggingface.co/cstr/marblenet-vad-GGUF/resolve/main/marblenet-vad.gguf',
+      sizeBytes: 449824,
       checksum: '',
-      description: 'MarbleNet VAD (EN/DE/FR/ES/RU/ZH) — ~500 KB',
+      description: 'MarbleNet VAD (EN/DE/FR/ES/RU/ZH) — ~440 KB',
       quantization: 'f16',
       backend: 'vad',
       kind: ModelKind.vad,
     ),
     'whisper-vad-encdec-q4_k': ModelDefinition(
       name: 'whisper-vad-encdec-q4_k',
-      displayName: 'Whisper-VAD-EncDec (q4_k, experimental)',
-      fileName: 'whisper-vad-encdec-q4_k.gguf',
+      displayName: 'Whisper-VAD ASMR (q4_k, experimental)',
+      fileName: 'whisper-vad-asmr-q4_k.gguf',
       url:
-          'https://huggingface.co/cstr/whisper-vad-encdec-GGUF/resolve/main/whisper-vad-encdec-q4_k.gguf',
-      sizeBytes: 22 * 1024 * 1024,
+          'https://huggingface.co/cstr/whisper-vad-encdec-asmr-GGUF/resolve/main/whisper-vad-asmr-q4_k.gguf',
+      sizeBytes: 22778080,
       checksum: '',
       description:
           'Whisper-VAD-EncDec (English ASMR-trained, experimental) — ~22 MB',
@@ -852,20 +880,9 @@ class ModelService {
       backend: 'm2m100',
       kind: ModelKind.translate,
     ),
-    'm2m100-1.2b-q4_k': ModelDefinition(
-      name: 'm2m100-1.2b-q4_k',
-      displayName: 'M2M-100 1.2B (q4_k)',
-      fileName: 'm2m100-1.2b-q4_k.gguf',
-      url:
-          'https://huggingface.co/cstr/m2m100-1.2b-GGUF/resolve/main/m2m100-1.2b-q4_k.gguf',
-      sizeBytes: 1400 * 1024 * 1024,
-      checksum: '',
-      description:
-          'M2M-100 1.2B — higher fidelity translation (100 languages) — ~1.4 GB',
-      quantization: 'q4_k',
-      backend: 'm2m100',
-      kind: ModelKind.translate,
-    ),
+    // M2M-100 1.2B is not currently published — `cstr/m2m100-1.2b-GGUF`
+    // returns 401. Use m2m100-418m-q4_k as the smaller default; revisit
+    // if a 1.2B GGUF lands publicly.
     // WMT21 — Facebook's News-competition winner. Two separate
     // checkpoints, each 4.7B / ~2.5 GB Q4_K: en-x for English-source,
     // x-en for English-target. Routes through the same m2m100 runtime
@@ -919,15 +936,15 @@ class ModelService {
     // alternative to the whisper encoder LID path.
     'silero-lang95-v1-f16': ModelDefinition(
       name: 'silero-lang95-v1-f16',
-      displayName: 'Silero LID 95-langs (f16)',
-      fileName: 'silero-lang95-v1-f16.gguf',
+      displayName: 'Silero LID 95-langs (f32)',
+      fileName: 'silero-lid-lang95-f32.gguf',
       url:
-          'https://huggingface.co/cstr/silero-lang95-GGUF/resolve/main/silero-lang95-v1-f16.gguf',
-      sizeBytes: 16 * 1024 * 1024,
+          'https://huggingface.co/cstr/silero-lid-lang95-GGUF/resolve/main/silero-lid-lang95-f32.gguf',
+      sizeBytes: 16900416,
       checksum: '',
       description:
           'Silero language identification (95 languages) — faster + smaller than the Whisper-encoder LID',
-      quantization: 'f16',
+      quantization: 'f32',
       backend: 'lid',
       kind: ModelKind.lid,
     ),
@@ -1358,17 +1375,17 @@ class ModelService {
     // Gemma4-E2B — Conformer + Gemma-4 LLM, 140+ languages.
     'gemma4-e2b': BackendRepo(
       backend: 'gemma4-e2b',
-      repoId: 'cstr/gemma4-e2b-GGUF',
-      baseName: 'gemma4-e2b',
-      displayPrefix: 'Gemma4-E2B',
-      description: 'Multilingual ASR (140+ languages)',
+      repoId: 'cstr/gemma4-e2b-it-GGUF',
+      baseName: 'gemma4-e2b-it',
+      displayPrefix: 'Gemma4-E2B-it',
+      description: 'Multilingual ASR (140+ languages, instruction-tuned)',
     ),
     // OmniASR LLM unlimited streaming variant.
     'omniasr-llm-unlimited': BackendRepo(
       backend: 'omniasr-llm-unlimited',
-      repoId: 'cstr/omniasr-llm-unlimited-GGUF',
-      baseName: 'omniasr-llm-unlimited',
-      displayPrefix: 'OmniASR LLM unlimited',
+      repoId: 'cstr/omniasr-llm-unlimited-300m-v2-GGUF',
+      baseName: 'omniasr-llm-unlimited-300m-v2',
+      displayPrefix: 'OmniASR LLM unlimited 300M v2',
       description: 'Streaming OmniASR (unlimited audio)',
     ),
     // Granite Speech 4.1 family.
@@ -1381,34 +1398,46 @@ class ModelService {
     ),
     'granite-4.1-plus': BackendRepo(
       backend: 'granite-4.1-plus',
-      repoId: 'cstr/granite-speech-4.1-plus-GGUF',
-      baseName: 'granite-speech-4.1-plus',
-      displayPrefix: 'Granite Speech 4.1+',
+      repoId: 'cstr/granite-speech-4.1-2b-plus-GGUF',
+      baseName: 'granite-speech-4.1-2b-plus',
+      displayPrefix: 'Granite Speech 4.1 2B+',
       description: 'Granite Speech 4.1+ (instruction-tuned)',
     ),
     'granite-4.1-nar': BackendRepo(
       backend: 'granite-4.1-nar',
-      repoId: 'cstr/granite-speech-4.1-nar-GGUF',
-      baseName: 'granite-speech-4.1-nar',
-      displayPrefix: 'Granite Speech 4.1 NAR',
+      repoId: 'cstr/granite-speech-4.1-2b-nar-GGUF',
+      baseName: 'granite-speech-4.1-2b-nar',
+      displayPrefix: 'Granite Speech 4.1 2B NAR',
       description: 'Granite Speech 4.1 NAR (parallel-decode)',
     ),
-    // Chatterbox / Kartoffelbox TTS family.
+    // Chatterbox — repo holds two file families: chatterbox-t3-*.gguf
+    // (AR transformer) + chatterbox-s3gen-*.gguf (flow-matching
+    // vocoder). The probe walks against the T3 baseName; the S3Gen
+    // companion is registered separately so the model picker can offer
+    // both.
     'chatterbox': BackendRepo(
       backend: 'chatterbox',
-      repoId: 'cstr/chatterbox-en-GGUF',
-      baseName: 'chatterbox-en',
-      displayPrefix: 'Chatterbox EN',
-      description: 'Chatterbox TTS (T3 + S3Gen flow-matching)',
+      repoId: 'cstr/chatterbox-GGUF',
+      baseName: 'chatterbox-t3',
+      displayPrefix: 'Chatterbox T3',
+      description: 'Chatterbox TTS T3 (AR transformer)',
       kind: ModelKind.tts,
     ),
-    // IndexTTS — TTS GPT-2 AR + BigVGAN.
+    'chatterbox-s3gen': BackendRepo(
+      backend: 'chatterbox',
+      repoId: 'cstr/chatterbox-GGUF',
+      baseName: 'chatterbox-s3gen',
+      displayPrefix: 'Chatterbox S3Gen',
+      description: 'Chatterbox S3Gen flow-matching vocoder',
+      kind: ModelKind.codec,
+    ),
+    // IndexTTS 1.5 — repo split into GPT-AR + BigVGAN vocoder files.
     'indextts': BackendRepo(
       backend: 'indextts',
-      repoId: 'cstr/indextts-GGUF',
-      baseName: 'indextts',
-      displayPrefix: 'IndexTTS',
-      description: 'IndexTTS (GPT-2 AR + BigVGAN, ZH+EN)',
+      repoId: 'cstr/indextts-1.5-GGUF',
+      baseName: 'indextts-gpt',
+      displayPrefix: 'IndexTTS 1.5 GPT',
+      description: 'IndexTTS 1.5 GPT (ZH+EN)',
       kind: ModelKind.tts,
     ),
     // Fullstop-punc — multilingual punctuation post-processor.
@@ -1423,8 +1452,8 @@ class ModelService {
     // Pyannote v3 segmentation — ML diarisation.
     'pyannote': BackendRepo(
       backend: 'pyannote',
-      repoId: 'cstr/pyannote-v3-seg-GGUF',
-      baseName: 'pyannote-v3-seg',
+      repoId: 'cstr/pyannote-v3-segmentation-GGUF',
+      baseName: 'pyannote-seg-3.0',
       displayPrefix: 'Pyannote v3 segmentation',
       description: 'Pyannote ML diarisation model',
       kind: ModelKind.diarize,
