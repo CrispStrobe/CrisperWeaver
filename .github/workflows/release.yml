@@ -333,7 +333,17 @@ jobs:
             -DUSE_LIBPCAUDIO=OFF -DUSE_LIBSONIC=OFF \
             -DENABLE_TESTS=OFF \
             -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/espeak-ng-native"
+          # Two-step build: first the executable so it exists, then
+          # `data` (the ALL custom target in cmake/data.cmake) which
+          # runs espeak-ng to actually compile phontab / phondata /
+          # phonindex / *_dict / intonations into share/espeak-ng-data/.
+          # Without the `data` step, `cmake --install` only copies the
+          # source-controlled lang/ + voices/!v subdirs and the
+          # espeak-ng-data we bundle as a Flutter asset is missing all
+          # the compiled phoneme tables — kokoro_synthesize then
+          # returns no PCM at first call (#6 Android root cause).
           cmake --build build-native --parallel --target espeak-ng-bin
+          cmake --build build-native --parallel --target data
           cmake --install build-native
           ESPEAK_NG_NATIVE_ROOT="$GITHUB_WORKSPACE/espeak-ng-native"
           echo "ESPEAK_NG_NATIVE_ROOT=$ESPEAK_NG_NATIVE_ROOT" >> $GITHUB_ENV
@@ -510,6 +520,18 @@ jobs:
             echo "::error::espeak-ng-data asset bundle suspiciously small ($STAGED_COUNT files) — expected several hundred" >&2
             exit 1
           fi
+          # The compiled phoneme tables (phontab + phondata + phonindex)
+          # are what libespeak-ng actually loads at espeak_Initialize.
+          # Without them the asset bundle ships only source dicts and
+          # kokoro returns no audio at first synth (251-file shape).
+          for required in phontab phondata phonindex; do
+            if [ ! -f "$DEST/$required" ]; then
+              echo "::error::espeak-ng-data missing compiled file: $required (data target didn't run)" >&2
+              ls "$DEST" | head -20 >&2
+              exit 1
+            fi
+          done
+          echo "OK: phontab + phondata + phonindex present"
 
       - name: Pub get
         working-directory: repos/CrisperWeaver
