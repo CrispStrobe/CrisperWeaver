@@ -314,19 +314,23 @@ jobs:
             https://github.com/espeak-ng/espeak-ng.git espeak-ng-src
           cd espeak-ng-src
           # Step 1 — native build for the data-generation binary.
+          # Notes:
+          #  * Target is `espeak-ng-bin` (OUTPUT_NAME espeak-ng) —
+          #    `--target espeak-ng` matches a phony rule that builds
+          #    the data tree only.
+          #  * Disable ESPEAK_COMPAT so the install step doesn't try
+          #    to copy the speak-ng / espeak / speak compat symlinks
+          #    (they're created by a separate ALL custom target that
+          #    `--target espeak-ng-bin` doesn't drag in).
           cmake -S . -B build-native \
             -DCMAKE_BUILD_TYPE=Release \
             -DBUILD_SHARED_LIBS=OFF \
             -DESPEAK_COMPILE_PHONEME_DATA=ON \
+            -DESPEAK_COMPAT=OFF \
             -DUSE_ASYNC=OFF -DUSE_MBROLA=OFF -DUSE_KLATT=OFF \
             -DUSE_LIBPCAUDIO=OFF -DUSE_LIBSONIC=OFF \
             -DENABLE_TESTS=OFF \
             -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/espeak-ng-native"
-          # Target name in espeak-ng's CMakeLists is `espeak-ng-bin`
-          # (set_target_properties → OUTPUT_NAME espeak-ng). Passing
-          # `--target espeak-ng` matches a phony rule that builds the
-          # data tree only — the install step then errors trying to
-          # copy a binary that was never built.
           cmake --build build-native --parallel --target espeak-ng-bin
           cmake --install build-native
           ESPEAK_NG_NATIVE_ROOT="$GITHUB_WORKSPACE/espeak-ng-native"
@@ -344,6 +348,7 @@ jobs:
             -DUSE_ASYNC=OFF -DUSE_MBROLA=OFF -DUSE_KLATT=OFF \
             -DUSE_LIBPCAUDIO=OFF -DUSE_LIBSONIC=OFF \
             -DESPEAK_COMPILE_PHONEME_DATA=OFF \
+            -DESPEAK_COMPAT=OFF \
             -DENABLE_TESTS=OFF \
             -DNativeBuild_DIR="$ESPEAK_NG_NATIVE_ROOT/bin" \
             -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/espeak-ng-android"
@@ -660,7 +665,10 @@ jobs:
         # Build from the 1.52.0 source tag so we get DLL + LIB +
         # headers + data dir straight out of the same CMake project.
         env:
-          ESPEAK_NG_REF: "1.52.0"
+          # Same master pin as the Android cross-build — keeps the
+          # source ref consistent across platforms and lets us share
+          # any future espeak-ng fixes uniformly.
+          ESPEAK_NG_REF: "master"
         run: |
           git clone --depth=1 --branch $env:ESPEAK_NG_REF `
             https://github.com/espeak-ng/espeak-ng.git espeak-ng-src
@@ -672,6 +680,7 @@ jobs:
             -DUSE_ASYNC=OFF -DUSE_MBROLA=OFF -DUSE_KLATT=OFF `
             -DUSE_LIBPCAUDIO=OFF -DUSE_LIBSONIC=OFF `
             -DESPEAK_COMPILE_PHONEME_DATA=ON `
+            -DESPEAK_COMPAT=OFF `
             -DENABLE_TESTS=OFF `
             -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\espeak-ng-win"
           cmake --build build --config Release --target espeak-ng-bin
