@@ -10,6 +10,7 @@ import 'package:crispasr/crispasr.dart' as crispasr;
 
 import 'baked_models_catalog.dart';
 import 'ios_helpers.dart';
+import 'disk_space.dart';
 import 'log_service.dart';
 import 'settings_service.dart';
 
@@ -1989,12 +1990,24 @@ class ModelService {
     try {
       onStatusChange?.call('Checking available space...');
 
-      // Check available space
+      // Free-space precheck. `_getAvailableSpace` probes the real
+      // filesystem (statvfs on POSIX, GetDiskFreeSpaceExW on Windows)
+      // and returns -1 when the platform isn't covered — treat that
+      // as "skip the check, let the actual download surface the OS
+      // error if we genuinely run out." We don't multiply by 1.2 any
+      // more either: the old "* 1.2" buffer over a 5 GB hardcoded
+      // ceiling false-positived every model >= 4.2 GB (issue #8).
+      // Compare against the raw byte count + a fixed 256 MB headroom
+      // so a partially-resumed download still has room to fit a tail
+      // chunk + checksum verify.
       final freeSpace = await _getAvailableSpace();
-      if (freeSpace < modelDef.sizeBytes * 1.2) {
-        throw ModelException(
-            'Insufficient storage space. Need ${_formatSize(modelDef.sizeBytes)}, '
-            'have ${_formatSize(freeSpace)}');
+      if (freeSpace >= 0) {
+        final needed = modelDef.sizeBytes + 256 * 1024 * 1024;
+        if (freeSpace < needed) {
+          throw ModelException(
+              'Insufficient storage space. Need ${_formatSize(modelDef.sizeBytes)}, '
+              'have ${_formatSize(freeSpace)}');
+        }
       }
 
       onStatusChange?.call('Starting download...');
@@ -2544,12 +2557,19 @@ class ModelService {
   }
 
   Future<int> _getAvailableSpace() async {
-    // On mobile platforms, this is an approximation. Production code
-    // should pull real free-space from a platform-specific API (e.g.
-    // statvfs on POSIX, GetDiskFreeSpaceExW on Windows). The 5 GB
-    // constant is a "probably enough" placeholder used to gate
-    // download cancellation; we don't rely on it for correctness.
-    return 5 * 1024 * 1024 * 1024;
+    // Real free-space probe — statvfs on POSIX, GetDiskFreeSpaceExW
+    // on Windows. Returns -1 when the platform-specific call fails
+    // or isn't available; the caller treats that as "skip the
+    // precheck and let the actual download fail if we run out of
+    // disk." Fixes issue #8: the previous hardcoded 5 GB constant
+    // false-positived every model >= 4.2 GB.
+    try {
+      final dir = whisperCppDir();
+      return getAvailableDiskSpace(dir);
+    } catch (e, st) {
+      Log.instance.w('model', 'free-space probe threw', error: e, stack: st);
+      return -1;
+    }
   }
 
   Future<int> _getDirectorySize(String directoryPath) async {
