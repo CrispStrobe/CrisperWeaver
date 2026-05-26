@@ -305,7 +305,12 @@ jobs:
             -DUSE_LIBPCAUDIO=OFF -DUSE_LIBSONIC=OFF \
             -DENABLE_TESTS=OFF \
             -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/espeak-ng-native"
-          cmake --build build-native --parallel --target espeak-ng
+          # Target name in espeak-ng's CMakeLists is `espeak-ng-bin`
+          # (set_target_properties → OUTPUT_NAME espeak-ng). Passing
+          # `--target espeak-ng` matches a phony rule that builds the
+          # data tree only — the install step then errors trying to
+          # copy a binary that was never built.
+          cmake --build build-native --parallel --target espeak-ng-bin
           cmake --install build-native
           ESPEAK_NG_NATIVE_ROOT="$GITHUB_WORKSPACE/espeak-ng-native"
           echo "ESPEAK_NG_NATIVE_ROOT=$ESPEAK_NG_NATIVE_ROOT" >> $GITHUB_ENV
