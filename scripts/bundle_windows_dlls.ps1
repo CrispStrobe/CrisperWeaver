@@ -98,39 +98,46 @@ foreach ($g in @("ggml", "ggml-cpu", "ggml-base", "ggml-blas")) {
 # PCM and the user sees "synth failed : Exception: synthesize
 # returned no audio for backend kokoro" — that's issue #6.
 #
-# ESPEAK_NG_ROOT is exported by the CI workflow's
-# "Install espeak-ng" step. For local dev passes, fall back to the
-# default Chocolatey install path.
-$espeakRoot = if ($env:ESPEAK_NG_ROOT) { $env:ESPEAK_NG_ROOT } else { "C:\Program Files\eSpeak NG" }
-if (Test-Path $espeakRoot) {
-    # The MSI ships libespeak-ng.dll alongside espeak-ng.exe at the
-    # root, and the phoneme tables under espeak-ng-data\.
-    $espeakDll = Join-Path $espeakRoot "libespeak-ng.dll"
-    if (Test-Path $espeakDll) {
+# ESPEAK_NG_ROOT is exported by the CI workflow's source build of
+# espeak-ng. Layout matches `cmake --install` so files live under
+# bin\, lib\, share\espeak-ng-data\.
+$espeakRoot = $env:ESPEAK_NG_ROOT
+if ($espeakRoot -and (Test-Path $espeakRoot)) {
+    # DLL: cmake install lays it under bin\ on Windows.
+    $espeakDll = $null
+    foreach ($cand in @("$espeakRoot\bin\libespeak-ng.dll", "$espeakRoot\libespeak-ng.dll")) {
+        if (Test-Path $cand) { $espeakDll = $cand; break }
+    }
+    if ($espeakDll) {
         Copy-Item $espeakDll "$runnerDir\libespeak-ng.dll" -Force
-        Write-Host "  bundled libespeak-ng.dll"
+        Write-Host "  bundled libespeak-ng.dll from $espeakDll"
     } else {
-        Write-Host "  warn: libespeak-ng.dll not at $espeakDll" -ForegroundColor Yellow
+        Write-Host "::error::libespeak-ng.dll not found under $espeakRoot" -ForegroundColor Red
+        # Don't exit — desktop still works for non-kokoro backends.
     }
-    # Bundle espeak-ng.exe too — it's small and lets the popen
-    # fallback path work if libespeak's in-process init ever fails.
-    $espeakExe = Join-Path $espeakRoot "espeak-ng.exe"
-    if (Test-Path $espeakExe) {
+    $espeakExe = $null
+    foreach ($cand in @("$espeakRoot\bin\espeak-ng.exe", "$espeakRoot\espeak-ng.exe")) {
+        if (Test-Path $cand) { $espeakExe = $cand; break }
+    }
+    if ($espeakExe) {
         Copy-Item $espeakExe "$runnerDir\espeak-ng.exe" -Force
-        Write-Host "  bundled espeak-ng.exe"
+        Write-Host "  bundled espeak-ng.exe from $espeakExe"
     }
-    $espeakData = Join-Path $espeakRoot "espeak-ng-data"
-    if (Test-Path $espeakData) {
-        # Wipe + repopulate so stale data files from a prior install don't linger.
+    # espeak-ng-data — produced by ESPEAK_COMPILE_PHONEME_DATA at build.
+    $espeakData = $null
+    foreach ($cand in @("$espeakRoot\share\espeak-ng-data", "$espeakRoot\espeak-ng-data")) {
+        if (Test-Path $cand) { $espeakData = $cand; break }
+    }
+    if ($espeakData) {
         $dst = Join-Path $runnerDir "espeak-ng-data"
         if (Test-Path $dst) { Remove-Item $dst -Recurse -Force }
         Copy-Item $espeakData $dst -Recurse -Force
-        Write-Host "  bundled espeak-ng-data\"
+        Write-Host "  bundled espeak-ng-data\ from $espeakData"
     } else {
-        Write-Host "  warn: espeak-ng-data not at $espeakData" -ForegroundColor Yellow
+        Write-Host "::error::espeak-ng-data dir not found under $espeakRoot" -ForegroundColor Red
     }
 } else {
-    Write-Host "  warn: ESPEAK_NG_ROOT not set and default path missing — kokoro will be unusable" -ForegroundColor Yellow
+    Write-Host "  warn: ESPEAK_NG_ROOT not set — kokoro will be unusable" -ForegroundColor Yellow
 }
 
 Write-Host "`nFinal runner dir contents:"

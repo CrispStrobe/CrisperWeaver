@@ -157,7 +157,8 @@ jobs:
             src/libcrispasr.a \
             $(find . -name "lib*.a" ! -name "libcrispasr.a" ! -name "libCatch*" ! -name "libcommon*" -printf "%p ") \
             -Wl,--no-whole-archive \
-            -lstdc++ -lm -lpthread -fopenmp
+            -lstdc++ -lm -lpthread -fopenmp \
+            -lespeak-ng
           ln -sf libcrispasr.so src/libwhisper.so
           ls -lh src/libcrispasr.so
           nm -D src/libcrispasr.so | grep -c "T " | xargs printf "  %d exported symbols\n"
@@ -289,7 +290,16 @@ jobs:
       #   $ESPEAK_NG_ANDROID_ROOT — arm64 static .a + headers
       - name: Build espeak-ng for arm64-android (kokoro phonemizer)
         env:
-          ESPEAK_NG_REF: "1.52.0"
+          # `1.52.0` (the latest tag) doesn't have the
+          # `if (CMAKE_CROSSCOMPILING) { find_program NATIVEBUILD }`
+          # branch needed to pick up the native binary for data
+          # generation — it unconditionally invokes
+          # $<TARGET_FILE:espeak-ng-bin> in cmake/data.cmake, which
+          # is the cross-compiled arm64 binary and fails at build
+          # time with "Syntax error: Unterminated quoted string"
+          # (it's an ELF, not a shell script). master branch added
+          # the cross-compile bypass; pin to a known-good HEAD here.
+          ESPEAK_NG_REF: "master"
         run: |
           sudo apt-get update
           sudo apt-get install -y autoconf automake libtool pkg-config
@@ -631,82 +641,84 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Install espeak-ng (kokoro phonemizer)
+      - name: Build espeak-ng from source (kokoro phonemizer)
         shell: pwsh
-        # Without espeak-ng on Windows, kokoro_synthesize returns no
-        # PCM (#6). Chocolatey ships the official 1.52 MSI which puts
-        # libespeak-ng.dll + libespeak-ng.lib + espeak-ng-data under
-        # `C:\Program Files\eSpeak NG\`. The MSI does NOT bundle
-        # `speak_lib.h` though — pull it from the upstream tag so
-        # CMake's find_path succeeds and we get
-        # CRISPASR_HAVE_ESPEAK_NG=1 (in-process phonemizer, no popen
-        # / cmd.exe single-quote escaping landmines).
+        # The official Chocolatey MSI ships libespeak-ng.dll +
+        # espeak-ng.exe + espeak-ng-data but NOT the import library
+        # (libespeak-ng.lib) or headers — both required to link
+        # CRISPASR_HAVE_ESPEAK_NG=1 at build time. Without them
+        # CrispASR falls back to popen("espeak-ng"), which fails on
+        # Windows because cmd.exe doesn't honour the Unix
+        # single-quote escaping in the kokoro popen invocation.
+        # Build from the 1.52.0 source tag so we get DLL + LIB +
+        # headers + data dir straight out of the same CMake project.
+        env:
+          ESPEAK_NG_REF: "1.52.0"
         run: |
-          choco install espeak-ng -y --no-progress --limit-output | Select-Object -Last 5
-          $root = "C:\Program Files\eSpeak NG"
+          git clone --depth=1 --branch $env:ESPEAK_NG_REF `
+            https://github.com/espeak-ng/espeak-ng.git espeak-ng-src
+          cd espeak-ng-src
+          cmake -B build `
+            -A x64 `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DBUILD_SHARED_LIBS=ON `
+            -DUSE_ASYNC=OFF -DUSE_MBROLA=OFF -DUSE_KLATT=OFF `
+            -DUSE_LIBPCAUDIO=OFF -DUSE_LIBSONIC=OFF `
+            -DESPEAK_COMPILE_PHONEME_DATA=ON `
+            -DENABLE_TESTS=OFF `
+            -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\espeak-ng-win"
+          cmake --build build --config Release --target espeak-ng-bin
+          cmake --build build --config Release
+          cmake --install build --config Release
+          $root = "$env:GITHUB_WORKSPACE\espeak-ng-win"
           if (-not (Test-Path $root)) {
-            $root = "C:\Program Files (x86)\eSpeak NG"
-          }
-          if (-not (Test-Path $root)) {
-            Write-Error "espeak-ng install path not found"
+            Write-Error "espeak-ng install dir missing after build"
             exit 1
           }
-          Write-Host "espeak-ng root: $root"
-          Get-ChildItem $root | Format-Table Name, Length
-          # Stage headers under <root>/include/espeak-ng/ so CMake's
-          # find_path(ESPEAK_NG_INCLUDE_DIR espeak-ng/speak_lib.h) hits.
-          $hdrDir = Join-Path $root "include\espeak-ng"
-          New-Item -ItemType Directory -Force -Path $hdrDir | Out-Null
-          $tag = "1.52.0"
-          $base = "https://raw.githubusercontent.com/espeak-ng/espeak-ng/$tag/src/include/espeak-ng"
-          foreach ($h in @("speak_lib.h", "espeak_ng.h", "encoding.h")) {
-            try {
-              Invoke-WebRequest -UseBasicParsing -Uri "$base/$h" `
-                -OutFile (Join-Path $hdrDir $h)
-              Write-Host "  staged include\espeak-ng\$h"
-            } catch {
-              Write-Host "  warn: could not stage $h ($_)" -ForegroundColor Yellow
-            }
-          }
           echo "ESPEAK_NG_ROOT=$root" >> $env:GITHUB_ENV
+          Write-Host "espeak-ng install layout:"
+          Get-ChildItem $root | Format-Table Name
+          Get-ChildItem $root -Recurse -Include "*.dll", "*.lib", "speak_lib.h" |
+            ForEach-Object { Write-Host "  $($_.FullName)" }
 
       - name: Build whisper.dll (shared, Release)
         working-directory: repos/CrispASR
         shell: pwsh
-        # The MSI lays libespeak-ng.dll + libespeak-ng.lib straight at
-        # the install root (no lib/ subdir), so we pass
-        # ESPEAK_NG_INCLUDE_DIR + ESPEAK_NG_LIBRARY directly to short-
-        # circuit CMake's find_path / find_library lookups. Once these
-        # cache vars are set, kokoro picks CRISPASR_HAVE_ESPEAK_NG=1 and
-        # links the in-process phonemizer — same path the macOS Homebrew
-        # + Linux apt builds take. (#6)
+        # Pass ESPEAK_NG_INCLUDE_DIR + ESPEAK_NG_LIBRARY explicitly so
+        # CRISPASR_HAVE_ESPEAK_NG=1 gets set + the import library
+        # links into whisper.dll. The CMake `cmake --install` layout
+        # from the source-built espeak-ng puts the .lib under lib\
+        # and headers under include\. Without this, the manual MSI
+        # install path silently falls back to popen which is broken on
+        # Windows (cmd.exe doesn't honour the Unix single-quote
+        # escaping in the kokoro popen invocation) — that's issue #6.
         run: |
-          $espeakInc = Join-Path $env:ESPEAK_NG_ROOT "include"
-          $espeakLib = ""
-          foreach ($name in @("libespeak-ng.lib", "espeak-ng.lib")) {
-            $cand = Join-Path $env:ESPEAK_NG_ROOT $name
+          $espeakRoot = $env:ESPEAK_NG_ROOT
+          $espeakInc  = Join-Path $espeakRoot "include"
+          $espeakLib  = ""
+          foreach ($cand in @(
+              "$espeakRoot\lib\libespeak-ng.lib",
+              "$espeakRoot\lib\espeak-ng.lib",
+              "$espeakRoot\libespeak-ng.lib")) {
             if (Test-Path $cand) { $espeakLib = $cand; break }
           }
           if (-not $espeakLib) {
-            # Some MSIs nest under lib/.
-            Get-ChildItem -Recurse -Path $env:ESPEAK_NG_ROOT -Filter "*espeak-ng*.lib" |
+            Get-ChildItem -Recurse -Path $espeakRoot -Filter "*espeak-ng*.lib" |
               ForEach-Object { if (-not $espeakLib) { $espeakLib = $_.FullName } }
           }
           Write-Host "ESPEAK_NG_INCLUDE_DIR=$espeakInc"
           Write-Host "ESPEAK_NG_LIBRARY=$espeakLib"
-          $extraArgs = @()
-          if ($espeakLib -and (Test-Path "$espeakInc\espeak-ng\speak_lib.h")) {
-            $extraArgs += "-DESPEAK_NG_INCLUDE_DIR=$espeakInc"
-            $extraArgs += "-DESPEAK_NG_LIBRARY=$espeakLib"
-          } else {
-            Write-Host "::warning::espeak-ng dev files incomplete — kokoro will fall back to popen at runtime (likely broken on Windows due to cmd.exe quoting). DLL + data dir still get bundled."
+          if (-not ($espeakLib -and (Test-Path "$espeakInc\espeak-ng\speak_lib.h"))) {
+            Write-Error "espeak-ng dev files missing (.lib=$espeakLib, header=$espeakInc\espeak-ng\speak_lib.h)"
+            exit 1
           }
           cmake -B build `
             -DCMAKE_BUILD_TYPE=Release `
             -DBUILD_SHARED_LIBS=ON `
             -DWHISPER_BUILD_EXAMPLES=OFF `
             -DWHISPER_BUILD_TESTS=OFF `
-            @extraArgs
+            -DESPEAK_NG_INCLUDE_DIR="$espeakInc" `
+            -DESPEAK_NG_LIBRARY="$espeakLib"
           cmake --build build --config Release --parallel --target crispasr
           Get-ChildItem build -Recurse -Filter *.dll | Select-Object FullName, Length
 
