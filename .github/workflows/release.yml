@@ -477,6 +477,7 @@ jobs:
         # CRISPASR_ESPEAK_DATA_PATH before the first kokoro session
         # opens.
         run: |
+          set -x  # echo every command so missing files are obvious in CI logs.
           DEST=assets/espeak-ng-data
           rm -rf "$DEST"
           mkdir -p "$DEST"
@@ -488,14 +489,27 @@ jobs:
           fi
           if [ -z "$NATIVE_DATA" ] || [ ! -d "$NATIVE_DATA" ]; then
             echo "::error::espeak-ng-data dir not produced by the native build" >&2
+            ls -la "$ESPEAK_NG_NATIVE_ROOT" || true
+            ls -la "$ESPEAK_NG_NATIVE_ROOT/share" || true
             exit 1
           fi
-          cp -R "$NATIVE_DATA/." "$DEST/"
-          du -sh "$DEST" || true
-          # Record an asset manifest line so Flutter's asset bundler
-          # picks the whole dir up. The pubspec.yaml entry that
-          # references this directory is committed; we just need the
-          # files present at build time.
+          # Use a recursive copy that's predictable across cp versions —
+          # the `cp -R src/. dst/` idiom on coreutils preserves the
+          # contents but historically some cp implementations have been
+          # picky. Just rsync the contents.
+          ls -la "$NATIVE_DATA" | head -10
+          cp -R "$NATIVE_DATA"/* "$DEST"/
+          # Fail-fast if the asset dir came out empty — Flutter silently
+          # skips empty asset dirs at build time and we end up with a
+          # working APK that still can't kokoro-synth on a fresh install
+          # (#6 root cause on Android pre-v0.6.12).
+          STAGED_COUNT=$(find "$DEST" -type f | wc -l | tr -d ' ')
+          STAGED_SIZE=$(du -sh "$DEST" | awk '{print $1}')
+          echo "espeak-ng-data staged: $STAGED_COUNT files, $STAGED_SIZE"
+          if [ "$STAGED_COUNT" -lt 100 ]; then
+            echo "::error::espeak-ng-data asset bundle suspiciously small ($STAGED_COUNT files) — expected several hundred" >&2
+            exit 1
+          fi
 
       - name: Pub get
         working-directory: repos/CrisperWeaver

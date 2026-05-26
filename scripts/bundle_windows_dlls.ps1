@@ -104,16 +104,32 @@ foreach ($g in @("ggml", "ggml-cpu", "ggml-base", "ggml-blas")) {
 $espeakRoot = $env:ESPEAK_NG_ROOT
 if ($espeakRoot -and (Test-Path $espeakRoot)) {
     # DLL: cmake install lays it under bin\ on Windows.
+    # MSVC drops the `lib` prefix on shared libs — the file is
+    # `espeak-ng.dll`, not `libespeak-ng.dll`. whisper.dll's import
+    # table NEEDs `espeak-ng.dll` (matches the LINK_NAME at build
+    # time), so bundle it under that name. We also drop a copy under
+    # `libespeak-ng.dll` for any caller still using the Unix name.
     $espeakDll = $null
-    foreach ($cand in @("$espeakRoot\bin\libespeak-ng.dll", "$espeakRoot\libespeak-ng.dll")) {
+    foreach ($cand in @(
+        "$espeakRoot\bin\espeak-ng.dll",
+        "$espeakRoot\bin\libespeak-ng.dll",
+        "$espeakRoot\espeak-ng.dll",
+        "$espeakRoot\libespeak-ng.dll")) {
         if (Test-Path $cand) { $espeakDll = $cand; break }
     }
     if ($espeakDll) {
-        Copy-Item $espeakDll "$runnerDir\libespeak-ng.dll" -Force
-        Write-Host "  bundled libespeak-ng.dll from $espeakDll"
+        $dllBase = [System.IO.Path]::GetFileName($espeakDll)
+        Copy-Item $espeakDll "$runnerDir\$dllBase" -Force
+        Write-Host "  bundled $dllBase from $espeakDll"
+        # Provide the alternate name too — cheap insurance against
+        # whisper.dll being relinked under either NEEDED string.
+        if ($dllBase -eq "libespeak-ng.dll") {
+            Copy-Item $espeakDll "$runnerDir\espeak-ng.dll" -Force
+        } elseif ($dllBase -eq "espeak-ng.dll") {
+            Copy-Item $espeakDll "$runnerDir\libespeak-ng.dll" -Force
+        }
     } else {
-        Write-Host "::error::libespeak-ng.dll not found under $espeakRoot" -ForegroundColor Red
-        # Don't exit — desktop still works for non-kokoro backends.
+        Write-Host "::error::espeak-ng DLL not found under $espeakRoot" -ForegroundColor Red
     }
     $espeakExe = $null
     foreach ($cand in @("$espeakRoot\bin\espeak-ng.exe", "$espeakRoot\espeak-ng.exe")) {
