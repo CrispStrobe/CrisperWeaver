@@ -414,6 +414,46 @@ class ModelService {
       quantization: 'q4_k',
       backend: 'glm-asr',
     ),
+    // Moonshine — UsefulSensors lightweight ASR. Tiny + base variants
+    // ship q4_k and q8_0 quants; the LM-streaming siblings live in
+    // their own repos under `moonshine-streaming-tiny-GGUF`.
+    'moonshine-tiny-q4_k': ModelDefinition(
+      name: 'moonshine-tiny-q4_k',
+      displayName: 'Moonshine tiny (q4_k)',
+      fileName: 'moonshine-tiny-q4_k.gguf',
+      url:
+          'https://huggingface.co/cstr/moonshine-tiny-GGUF/resolve/main/moonshine-tiny-q4_k.gguf',
+      sizeBytes: 21199840,
+      checksum: '',
+      description: 'Moonshine tiny ASR (English, lightweight) — ~21 MB',
+      quantization: 'q4_k',
+      backend: 'moonshine',
+    ),
+    'moonshine-base-q4_k': ModelDefinition(
+      name: 'moonshine-base-q4_k',
+      displayName: 'Moonshine base (q4_k)',
+      fileName: 'moonshine-base-q4_k.gguf',
+      url:
+          'https://huggingface.co/cstr/moonshine-base-GGUF/resolve/main/moonshine-base-q4_k.gguf',
+      sizeBytes: 46923872,
+      checksum: '',
+      description: 'Moonshine base ASR (English, lightweight) — ~47 MB',
+      quantization: 'q4_k',
+      backend: 'moonshine',
+    ),
+    'moonshine-streaming-tiny-q4_k': ModelDefinition(
+      name: 'moonshine-streaming-tiny-q4_k',
+      displayName: 'Moonshine streaming tiny (q4_k)',
+      fileName: 'moonshine-streaming-tiny-q4_k.gguf',
+      url:
+          'https://huggingface.co/cstr/moonshine-streaming-tiny-GGUF/resolve/main/moonshine-streaming-tiny-q4_k.gguf',
+      sizeBytes: 32052896,
+      checksum: '',
+      description:
+          'Moonshine streaming tiny — for live mic streaming, ~32 MB',
+      quantization: 'q4_k',
+      backend: 'moonshine-streaming',
+    ),
     // VibeVoice ASR (the ASR variant; the TTS sibling is vibevoice-tts).
     'vibevoice-asr-q4_k': ModelDefinition(
       name: 'vibevoice-asr-q4_k',
