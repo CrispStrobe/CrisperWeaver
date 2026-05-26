@@ -11,6 +11,7 @@ import '../services/lid_service.dart';
 import '../services/log_service.dart';
 import '../services/model_service.dart';
 import '../services/transcription_service.dart' show AdvancedTranscribeOptions;
+import '../services/transcription_worker_pool.dart';
 
 /// Transcription engine backed by the CrispASR FFI package.
 ///
@@ -22,6 +23,15 @@ import '../services/transcription_service.dart' show AdvancedTranscribeOptions;
 class CrispASREngine implements TranscriptionEngine {
   crispasr.CrispASR? _model;
   crispasr.CrispasrSession? _session;
+  // §9 Android UI freeze fix: keeps the synchronous FFI call off the
+  // platform isolate by running it inside a worker isolate. Spawned
+  // alongside the main `_session` whenever a session-backend model
+  // with no companion files loads. Skipped when the backend needs
+  // companions (codec / voice tables) because the pool worker has
+  // no way to load them today. When null, transcribe falls back to
+  // the direct main-isolate call — older behaviour, may ANR on
+  // Android for long jobs.
+  TranscriptionWorkerPool? _sessionPool;
   bool _isInitialized = false;
   bool _isProcessing = false;
   bool _cancelRequested = false;
@@ -401,6 +411,36 @@ class CrispASREngine implements TranscriptionEngine {
                 fields: {'backend': def.backend, 'companion': companion});
           }
         }
+        // §9 — spawn a 1-worker pool alongside the main-isolate
+        // session so single-file transcribe stays off the platform
+        // isolate. Skip when the backend uses companions (the pool
+        // can't currently re-apply setCodecPath / setVoice on the
+        // worker side) and fall back to the direct call in that
+        // case. Pool spawn failure is non-fatal — we log and the
+        // user just gets the older behaviour.
+        if (def.companions.isEmpty) {
+          try {
+            _sessionPool = await TranscriptionWorkerPool.spawn(
+              count: 1,
+              modelPath: modelPath,
+              backend: def.backend,
+              useGpu: useGpu,
+              flashAttn: flashAttn,
+              nThreads: 4,
+              nGpuLayers: nGpuLayers,
+            );
+            Log.instance.i('crispasr', 'session worker pool spawned',
+                fields: {'backend': def.backend});
+          } catch (e, st) {
+            Log.instance.w(
+                'crispasr',
+                'session worker pool spawn failed — UI may freeze '
+                    'during long transcribes on this backend',
+                error: e,
+                stack: st);
+            _sessionPool = null;
+          }
+        }
       }
       _currentModelId = modelId;
       _currentModelPath = modelPath;
@@ -410,6 +450,13 @@ class CrispASREngine implements TranscriptionEngine {
     } catch (e, st) {
       _model = null;
       _session = null;
+      // Best-effort tear-down of any pool that managed to spawn
+      // before the rest of init failed.
+      final orphanedPool = _sessionPool;
+      _sessionPool = null;
+      if (orphanedPool != null) {
+        unawaited(orphanedPool.shutdown());
+      }
       _currentModelId = null;
       _currentModelPath = null;
       done(error: e);
@@ -436,6 +483,11 @@ class CrispASREngine implements TranscriptionEngine {
     _model = null;
     _session?.close();
     _session = null;
+    final pool = _sessionPool;
+    _sessionPool = null;
+    if (pool != null) {
+      await pool.shutdown();
+    }
     _currentModelId = null;
     _currentModelPath = null;
   }
@@ -776,14 +828,31 @@ class CrispASREngine implements TranscriptionEngine {
         final trimmed = startOffsetSec <= 0
             ? audioData
             : _trimLeadingSamples(audioData, startOffsetSec);
-        final sessionSegments = await _runSessionTranscription(
-          trimmed,
-          language: language,
-          vad: vad,
-          vadModelPath: vadModelPath,
-          advanced: advanced,
-        );
-        final mapped = _mapSessionSegments(sessionSegments, null);
+        final List<TranscriptionSegment> mapped;
+        if (_sessionPool != null) {
+          // §9 — pool path keeps the synchronous FFI call off the
+          // platform isolate; the worker mirrors the same session
+          // setters _runSessionTranscription would have fired.
+          mapped = await _runSessionTranscriptionViaPool(
+            trimmed,
+            language: language,
+            translate: translate,
+            initialPrompt: initialPrompt,
+            bestOf: bestOf,
+            vad: vad,
+            vadModelPath: vadModelPath,
+            advanced: advanced,
+          );
+        } else {
+          final sessionSegments = await _runSessionTranscription(
+            trimmed,
+            language: language,
+            vad: vad,
+            vadModelPath: vadModelPath,
+            advanced: advanced,
+          );
+          mapped = _mapSessionSegments(sessionSegments, null);
+        }
         segments = startOffsetSec <= 0
             ? mapped
             : mapped
@@ -1205,6 +1274,76 @@ class CrispASREngine implements TranscriptionEngine {
       );
     }
     return _session!.transcribe(pcm, language: langHint);
+  }
+
+  /// §9 — session-backend transcription dispatched through the
+  /// 1-worker pool. Mirrors [_runSessionTranscription]'s logic
+  /// (LID, VAD branch, advanced VAD knobs) but the FFI call runs
+  /// in the worker isolate so the UI thread stays responsive and
+  /// Android's ANR detector doesn't kill the process.
+  ///
+  /// Returns segments enriched with engine/model/backend metadata
+  /// — the pool's wire format drops those so we re-attach them
+  /// here to keep parity with [_mapSessionSegments].
+  Future<List<TranscriptionSegment>> _runSessionTranscriptionViaPool(
+    Float32List pcm, {
+    String? language,
+    bool translate = false,
+    String? initialPrompt,
+    int bestOf = 1,
+    bool vad = false,
+    String? vadModelPath,
+    AdvancedTranscribeOptions advanced = const AdvancedTranscribeOptions(),
+  }) async {
+    String? langHint;
+    if (language != null && language.isNotEmpty && language != 'auto') {
+      langHint = language;
+    } else if (_lidService != null) {
+      langHint = await _lidService!.detectIfModelAvailable(pcm);
+      if (langHint != null) {
+        Log.instance.i('crispasr', 'pool path: LID', fields: {
+          'detected': langHint,
+          'backend': _session?.backend,
+        });
+      }
+    }
+
+    final useVad = vad && vadModelPath != null && vadModelPath.isNotEmpty;
+    final prompt = (initialPrompt == null || initialPrompt.trim().isEmpty)
+        ? null
+        : initialPrompt.trim();
+
+    final raw = await _sessionPool!.dispatch(
+      samples: pcm,
+      language: langHint,
+      translate: translate,
+      askPrompt: prompt,
+      bestOf: bestOf,
+      vadModelPath: useVad ? vadModelPath : null,
+      vadThreshold: useVad ? advanced.vadThreshold : null,
+      vadMinSpeechMs: useVad ? advanced.vadMinSpeechMs : null,
+      vadMinSilenceMs: useVad ? advanced.vadMinSilenceMs : null,
+      vadSpeechPadMs: useVad ? advanced.vadSpeechPadMs : null,
+    );
+
+    final backend = _session?.backend;
+    return [
+      for (var i = 0; i < raw.length; i++)
+        TranscriptionSegment(
+          text: raw[i].text,
+          startTime: raw[i].startTime,
+          endTime: raw[i].endTime,
+          confidence: raw[i].confidence,
+          speaker: raw[i].speaker,
+          words: raw[i].words,
+          metadata: {
+            'engine': engineId,
+            'model': _currentModelId,
+            'segmentIndex': i,
+            'backend': backend,
+          },
+        ),
+    ];
   }
 
   List<TranscriptionSegment> _mapWhisperSegments(
