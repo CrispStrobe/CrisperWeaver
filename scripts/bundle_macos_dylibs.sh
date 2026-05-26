@@ -114,6 +114,30 @@ if [[ -d "$GGMLDIR" ]]; then
   find "$GGMLDIR" -name "libggml*.dylib" -exec cp -R {} "$FRAMEWORKS/" \;
 fi
 
+# espeak-ng-data — kokoro's in-process libespeak-ng needs the phoneme
+# tables at runtime. Without it, espeak_Initialize silently fails and
+# kokoro_synthesize returns no PCM (#6 root cause on platforms that
+# don't ship the data dir alongside the runtime).
+#
+# Homebrew installs it under share/; both arches share the same files.
+# Bundle to Resources/ so the .app is self-contained, then we set
+# ESPEAK_DATA_PATH at engine init time (see CrispASREngine).
+RESOURCES="$APP/Contents/Resources"
+mkdir -p "$RESOURCES"
+ESPEAK_DATA_SRC=""
+for cand in /opt/homebrew/share/espeak-ng-data /usr/local/share/espeak-ng-data; do
+  if [[ -d "$cand" ]]; then ESPEAK_DATA_SRC="$cand"; break; fi
+done
+if [[ -n "$ESPEAK_DATA_SRC" ]]; then
+  # Wipe any older copy first so renamed / removed files don't linger.
+  rm -rf "$RESOURCES/espeak-ng-data"
+  mkdir -p "$RESOURCES/espeak-ng-data"
+  cp -R "$ESPEAK_DATA_SRC/." "$RESOURCES/espeak-ng-data/"
+  echo "Bundled espeak-ng-data from $ESPEAK_DATA_SRC"
+else
+  echo "warn: espeak-ng-data not found in /opt/homebrew or /usr/local; kokoro will need system espeak-ng at runtime" >&2
+fi
+
 # Ad-hoc codesign so Gatekeeper accepts the modified bundle locally.
 # Release builds should re-sign with a real Developer ID via codesign
 # separately.

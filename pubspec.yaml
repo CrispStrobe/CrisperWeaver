@@ -3,7 +3,7 @@ description: A cross-platform Flutter app for fully-offline audio transcription 
 
 publish_to: 'none'
 
-version: 0.6.8+9
+version: 0.6.9+10
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -146,6 +146,12 @@ flutter:
     - assets/images/
     - assets/licenses/
     - assets/vad/
+    # espeak-ng phoneme tables — kokoro's in-process phonemizer needs
+    # them at runtime. Only populated by the Android CI step (the
+    # desktop releases bundle libespeak-ng + its data dir alongside
+    # the runtime instead). Empty on desktop checkouts — the asset
+    # bundler tolerates that.
+    - assets/espeak-ng-data/
   # No custom fonts shipped yet — relying on the platform system font.
 
 # Windows MSIX packaging. Consumed by `flutter pub run msix:create`

@@ -71,3 +71,50 @@ void applyKokoroMetalWorkaround() {
   setEnv('KOKORO_F0N_FORCE_CPU', '1');
   setEnv('KOKORO_DEC_FORCE_CPU', '1');
 }
+
+/// Point libespeak-ng at the bundled `espeak-ng-data/` so kokoro's
+/// in-process phonemizer (`espeak_Initialize`) finds its data files
+/// on platforms where the user's system doesn't have espeak-ng
+/// pre-installed. Reads `CRISPASR_ESPEAK_DATA_PATH` inside CrispASR;
+/// see `phonemize_espeak_lib` in src/kokoro.cpp.
+///
+/// Layouts per platform (relative to `Platform.resolvedExecutable`):
+///   * macOS .app   — `../Resources/espeak-ng-data`
+///   * Linux bundle — `lib/espeak-ng-data` (sibling to libwhisper.so)
+///   * Windows bundle — `data/espeak-ng-data` or `espeak-ng-data` next to
+///                      runner.exe
+///   * Android — caller is expected to extract the assets dir to a
+///               writable location first and pass [explicitOverride].
+void applyKokoroEspeakDataPath({String? explicitOverride}) {
+  String? candidate = explicitOverride;
+  if (candidate == null) {
+    final exeDir = File(Platform.resolvedExecutable).parent.path;
+    final List<String> candidates;
+    if (Platform.isMacOS) {
+      // exeDir = .../crisper_weaver.app/Contents/MacOS
+      candidates = ['$exeDir/../Resources/espeak-ng-data'];
+    } else if (Platform.isLinux) {
+      candidates = ['$exeDir/lib/espeak-ng-data', '$exeDir/espeak-ng-data'];
+    } else if (Platform.isWindows) {
+      candidates = ['$exeDir/data/espeak-ng-data', '$exeDir/espeak-ng-data'];
+    } else {
+      // iOS / Android — caller must provide the extracted-asset path.
+      return;
+    }
+    for (final c in candidates) {
+      if (Directory(c).existsSync()) {
+        candidate = c;
+        break;
+      }
+    }
+  }
+  if (candidate == null) {
+    Log.instance.d('env',
+        'bundled espeak-ng-data not found; kokoro will use system espeak-ng if available');
+    return;
+  }
+  setEnv('CRISPASR_ESPEAK_DATA_PATH', candidate);
+  Log.instance
+      .i('env', 'pointed CRISPASR_ESPEAK_DATA_PATH at bundled data dir',
+          fields: {'path': candidate});
+}

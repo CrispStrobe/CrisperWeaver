@@ -47,6 +47,13 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Install espeak-ng (kokoro phonemizer)
+        # CMake links libespeak-ng into kokoro when Homebrew has it
+        # available (find_path scans /opt/homebrew/include). Without
+        # this, kokoro_synthesize falls back to popen("espeak-ng") at
+        # runtime — broken on a clean .app handed to a user.
+        run: brew install espeak-ng
+
       - name: Build libwhisper.dylib (Release + Metal)
         working-directory: repos/CrispASR
         run: |
@@ -124,7 +131,8 @@ jobs:
             clang cmake ninja-build pkg-config \
             libgtk-3-dev liblzma-dev libstdc++-12-dev \
             libsecret-1-dev libjsoncpp-dev libglu1-mesa \
-            libkeybinder-3.0-dev libayatana-appindicator3-dev
+            libkeybinder-3.0-dev libayatana-appindicator3-dev \
+            libespeak-ng-dev espeak-ng-data
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -168,7 +176,7 @@ jobs:
         working-directory: repos/CrisperWeaver
         run: flutter build linux --release
 
-      - name: Bundle libcrispasr.so into bundle/lib/
+      - name: Bundle libcrispasr.so + libespeak-ng into bundle/lib/
         working-directory: repos/CrisperWeaver
         run: |
           BUNDLE=build/linux/x64/release/bundle
@@ -176,10 +184,41 @@ jobs:
           # Single self-contained shared lib (ggml + all backends linked in)
           cp ../CrispASR/build/src/libcrispasr.so "$BUNDLE/lib/libwhisper.so"
           ln -sf libwhisper.so "$BUNDLE/lib/libcrispasr.so"
+          # Bundle libespeak-ng so kokoro can phonemize on machines that
+          # don't have espeak-ng pre-installed. CMake links via NEEDED;
+          # if the user system doesn't have it, dlopen fails silently
+          # (kokoro stays unusable). Ship the .so and its symlinks.
+          ESP=$(dpkg -L libespeak-ng1 2>/dev/null | grep -E 'libespeak-ng\.so' | head -3)
+          if [ -n "$ESP" ]; then
+            for f in $ESP; do cp -P "$f" "$BUNDLE/lib/" 2>/dev/null || true; done
+            ls -lh "$BUNDLE/lib/" | grep espeak || true
+          else
+            echo "::warning::libespeak-ng package files not found via dpkg -L; kokoro phonemizer will require system espeak-ng" >&2
+          fi
+          # Bundle espeak-ng-data so libespeak-ng can phonemize without
+          # the user installing the data package separately. Mirror the
+          # apt path layout — espeak-ng searches relative to its own dir
+          # at runtime as well as $ESPEAK_DATA_PATH.
+          if [ -d /usr/lib/x86_64-linux-gnu/espeak-ng-data ]; then
+            mkdir -p "$BUNDLE/lib/espeak-ng-data"
+            cp -R /usr/lib/x86_64-linux-gnu/espeak-ng-data/. "$BUNDLE/lib/espeak-ng-data/"
+          elif [ -d /usr/share/espeak-ng-data ]; then
+            mkdir -p "$BUNDLE/lib/espeak-ng-data"
+            cp -R /usr/share/espeak-ng-data/. "$BUNDLE/lib/espeak-ng-data/"
+          else
+            echo "::warning::espeak-ng-data not found in standard apt paths" >&2
+          fi
           ls -lh "$BUNDLE/lib/libwhisper.so"
           # Verify key symbols are present
           nm -D "$BUNDLE/lib/libwhisper.so" | grep -q ggml_siglu_swapped && echo "OK: ggml_siglu_swapped exported" || echo "WARN: ggml_siglu_swapped missing!"
           nm -D "$BUNDLE/lib/libwhisper.so" | grep -q crispasr_session_available_backends && echo "OK: available_backends exported" || echo "WARN: available_backends missing!"
+          # Confirm kokoro's in-process phonemizer landed (means
+          # CMake found libespeak-ng at build time).
+          if nm -D "$BUNDLE/lib/libwhisper.so" | grep -q kokoro_phonemize_text_lib; then
+            echo "OK: kokoro_phonemize_text_lib exported (in-process espeak)"
+          else
+            echo "WARN: kokoro_phonemize_text_lib missing — kokoro will fall back to popen(espeak-ng)" >&2
+          fi
 
       - name: Tarball
         working-directory: repos/CrisperWeaver/build/linux/x64/release
@@ -239,6 +278,60 @@ jobs:
           channel: stable
           cache: true
 
+      # Cross-compile espeak-ng for arm64-android. Two-step build:
+      #   1. native (host linux-x86_64) — produces the `espeak-ng`
+      #      binary that espeak-ng's CMake uses to generate
+      #      espeak-ng-data/ (the runtime phoneme tables).
+      #   2. arm64-android — static lib for linking into libcrispasr.so.
+      # Without this, kokoro on Android can't phonemize → synthesize
+      # returns no audio (#6 root cause on Android). Result paths:
+      #   $ESPEAK_NG_NATIVE_ROOT  — host install + espeak-ng-data/
+      #   $ESPEAK_NG_ANDROID_ROOT — arm64 static .a + headers
+      - name: Build espeak-ng for arm64-android (kokoro phonemizer)
+        env:
+          ESPEAK_NG_REF: "1.52.0"
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y autoconf automake libtool pkg-config
+          git clone --depth=1 --branch "$ESPEAK_NG_REF" \
+            https://github.com/espeak-ng/espeak-ng.git espeak-ng-src
+          cd espeak-ng-src
+          # Step 1 — native build for the data-generation binary.
+          cmake -S . -B build-native \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_SHARED_LIBS=OFF \
+            -DESPEAK_COMPILE_PHONEME_DATA=ON \
+            -DUSE_ASYNC=OFF -DUSE_MBROLA=OFF -DUSE_KLATT=OFF \
+            -DUSE_LIBPCAUDIO=OFF -DUSE_LIBSONIC=OFF \
+            -DENABLE_TESTS=OFF \
+            -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/espeak-ng-native"
+          cmake --build build-native --parallel --target espeak-ng
+          cmake --install build-native
+          ESPEAK_NG_NATIVE_ROOT="$GITHUB_WORKSPACE/espeak-ng-native"
+          echo "ESPEAK_NG_NATIVE_ROOT=$ESPEAK_NG_NATIVE_ROOT" >> $GITHUB_ENV
+          # Step 2 — cross-compile static lib for arm64-android using the
+          # native binary for intonations data gen.
+          NDK_TC="$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake"
+          cmake -S . -B build-android \
+            -DCMAKE_TOOLCHAIN_FILE="$NDK_TC" \
+            -DANDROID_ABI=arm64-v8a \
+            -DANDROID_NATIVE_API_LEVEL=24 \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_SHARED_LIBS=OFF \
+            -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+            -DUSE_ASYNC=OFF -DUSE_MBROLA=OFF -DUSE_KLATT=OFF \
+            -DUSE_LIBPCAUDIO=OFF -DUSE_LIBSONIC=OFF \
+            -DESPEAK_COMPILE_PHONEME_DATA=OFF \
+            -DENABLE_TESTS=OFF \
+            -DNativeBuild_DIR="$ESPEAK_NG_NATIVE_ROOT/bin" \
+            -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/espeak-ng-android"
+          cmake --build build-android --parallel
+          cmake --install build-android
+          ESPEAK_NG_ANDROID_ROOT="$GITHUB_WORKSPACE/espeak-ng-android"
+          echo "ESPEAK_NG_ANDROID_ROOT=$ESPEAK_NG_ANDROID_ROOT" >> $GITHUB_ENV
+          echo "=== android espeak-ng install layout ==="
+          find "$ESPEAK_NG_ANDROID_ROOT" -maxdepth 3 \( -name '*.a' -o -name '*.h' \) | head -20
+
       # Cross-build a single all-in-one libcrispasr.so for Android arm64.
       # Same approach as Linux: static build with PIC, then re-link as
       # one shared lib with all ggml + backend symbols baked in.
@@ -247,6 +340,18 @@ jobs:
         env:
           NDK_TC: ${{ env.ANDROID_NDK_HOME }}/build/cmake/android.toolchain.cmake
         run: |
+          # Compute ESPEAK_NG_INCLUDE_DIR + LIBRARY so CrispASR's kokoro
+          # CMake snippet (src/CMakeLists.txt around L949-L991) hits the
+          # cross-compiled static lib and sets CRISPASR_HAVE_ESPEAK_NG=1.
+          ESPEAK_INC=$(find "$ESPEAK_NG_ANDROID_ROOT" -maxdepth 4 -type d -name 'espeak-ng' -path '*/include/*' | head -1)
+          ESPEAK_INC="${ESPEAK_INC%/espeak-ng}"
+          ESPEAK_LIB=$(find "$ESPEAK_NG_ANDROID_ROOT" -name 'libespeak-ng.a' | head -1)
+          echo "ESPEAK_INC=$ESPEAK_INC"
+          echo "ESPEAK_LIB=$ESPEAK_LIB"
+          if [ -z "$ESPEAK_INC" ] || [ -z "$ESPEAK_LIB" ]; then
+            echo "::error::espeak-ng cross-build artefacts incomplete — kokoro will be broken on Android" >&2
+            exit 1
+          fi
           cmake -S . -B build-android/arm64-v8a \
             -DCMAKE_TOOLCHAIN_FILE="$NDK_TC" \
             -DANDROID_ABI=arm64-v8a \
@@ -255,7 +360,9 @@ jobs:
             -DBUILD_SHARED_LIBS=OFF \
             -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
             -DCRISPASR_BUILD_EXAMPLES=OFF \
-            -DCRISPASR_BUILD_TESTS=OFF
+            -DCRISPASR_BUILD_TESTS=OFF \
+            -DESPEAK_NG_INCLUDE_DIR="$ESPEAK_INC" \
+            -DESPEAK_NG_LIBRARY="$ESPEAK_LIB"
           cmake --build build-android/arm64-v8a --parallel
           # Re-link all static archives into a single shared lib.
           # CMake's OpenMP detection (-- Found OpenMP_CXX: -fopenmp=libomp)
@@ -267,12 +374,18 @@ jobs:
           # (a recurrence of #3 the v0.6.5 build hit).
           cd build-android/arm64-v8a
           NDK_CC=$(find $ANDROID_NDK_HOME/toolchains/llvm/prebuilt -name "aarch64-linux-android24-clang++" | head -1)
+          # Pull in the cross-compiled libespeak-ng.a too — without
+          # --whole-archive on it, only the espeak_* symbols kokoro
+          # actually references get linked, which is what we want
+          # (espeak's own data tables live in espeak-ng-data/ at
+          # runtime, not in the .a).
           $NDK_CC -shared -o src/libcrispasr.so \
             -fopenmp -static-openmp \
             -Wl,--whole-archive \
             src/libcrispasr.a \
             $(find . -name "lib*.a" ! -name "libcrispasr.a" ! -name "libCatch*" ! -name "libcommon*" -printf "%p ") \
             -Wl,--no-whole-archive \
+            "$ESPEAK_NG_ANDROID_ROOT"/lib*/libespeak-ng.a \
             -lm -llog
           ln -sf libcrispasr.so src/libwhisper.so
           ls -lh src/libcrispasr.so
@@ -320,6 +433,36 @@ jobs:
               *) [ -f "$DEST/$n" ] || { echo "::error::missing NEEDED dep $n" >&2; exit 1; } ;;
             esac
           done
+
+      - name: Stage espeak-ng-data as Flutter asset
+        working-directory: repos/CrisperWeaver
+        # Android can't dlopen a directory of phoneme tables — they
+        # live under assets/espeak-ng-data/ inside the APK, get
+        # extracted to the app's docs dir on first launch (see
+        # lib/services/espeak_data_service.dart), and the resulting
+        # path is then handed to libespeak-ng via
+        # CRISPASR_ESPEAK_DATA_PATH before the first kokoro session
+        # opens.
+        run: |
+          DEST=assets/espeak-ng-data
+          rm -rf "$DEST"
+          mkdir -p "$DEST"
+          # The native build's installed data lives under share/.
+          NATIVE_DATA="$ESPEAK_NG_NATIVE_ROOT/share/espeak-ng-data"
+          if [ ! -d "$NATIVE_DATA" ]; then
+            # Fallback: look for a data dir anywhere under the native install.
+            NATIVE_DATA=$(find "$ESPEAK_NG_NATIVE_ROOT" -maxdepth 4 -type d -name 'espeak-ng-data' | head -1)
+          fi
+          if [ -z "$NATIVE_DATA" ] || [ ! -d "$NATIVE_DATA" ]; then
+            echo "::error::espeak-ng-data dir not produced by the native build" >&2
+            exit 1
+          fi
+          cp -R "$NATIVE_DATA/." "$DEST/"
+          du -sh "$DEST" || true
+          # Record an asset manifest line so Flutter's asset bundler
+          # picks the whole dir up. The pubspec.yaml entry that
+          # references this directory is committed; we just need the
+          # files present at build time.
 
       - name: Pub get
         working-directory: repos/CrisperWeaver
@@ -483,11 +626,82 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Install espeak-ng (kokoro phonemizer)
+        shell: pwsh
+        # Without espeak-ng on Windows, kokoro_synthesize returns no
+        # PCM (#6). Chocolatey ships the official 1.52 MSI which puts
+        # libespeak-ng.dll + libespeak-ng.lib + espeak-ng-data under
+        # `C:\Program Files\eSpeak NG\`. The MSI does NOT bundle
+        # `speak_lib.h` though — pull it from the upstream tag so
+        # CMake's find_path succeeds and we get
+        # CRISPASR_HAVE_ESPEAK_NG=1 (in-process phonemizer, no popen
+        # / cmd.exe single-quote escaping landmines).
+        run: |
+          choco install espeak-ng -y --no-progress --limit-output | Select-Object -Last 5
+          $root = "C:\Program Files\eSpeak NG"
+          if (-not (Test-Path $root)) {
+            $root = "C:\Program Files (x86)\eSpeak NG"
+          }
+          if (-not (Test-Path $root)) {
+            Write-Error "espeak-ng install path not found"
+            exit 1
+          }
+          Write-Host "espeak-ng root: $root"
+          Get-ChildItem $root | Format-Table Name, Length
+          # Stage headers under <root>/include/espeak-ng/ so CMake's
+          # find_path(ESPEAK_NG_INCLUDE_DIR espeak-ng/speak_lib.h) hits.
+          $hdrDir = Join-Path $root "include\espeak-ng"
+          New-Item -ItemType Directory -Force -Path $hdrDir | Out-Null
+          $tag = "1.52.0"
+          $base = "https://raw.githubusercontent.com/espeak-ng/espeak-ng/$tag/src/include/espeak-ng"
+          foreach ($h in @("speak_lib.h", "espeak_ng.h", "encoding.h")) {
+            try {
+              Invoke-WebRequest -UseBasicParsing -Uri "$base/$h" `
+                -OutFile (Join-Path $hdrDir $h)
+              Write-Host "  staged include\espeak-ng\$h"
+            } catch {
+              Write-Host "  warn: could not stage $h ($_)" -ForegroundColor Yellow
+            }
+          }
+          echo "ESPEAK_NG_ROOT=$root" >> $env:GITHUB_ENV
+
       - name: Build whisper.dll (shared, Release)
         working-directory: repos/CrispASR
         shell: pwsh
+        # The MSI lays libespeak-ng.dll + libespeak-ng.lib straight at
+        # the install root (no lib/ subdir), so we pass
+        # ESPEAK_NG_INCLUDE_DIR + ESPEAK_NG_LIBRARY directly to short-
+        # circuit CMake's find_path / find_library lookups. Once these
+        # cache vars are set, kokoro picks CRISPASR_HAVE_ESPEAK_NG=1 and
+        # links the in-process phonemizer — same path the macOS Homebrew
+        # + Linux apt builds take. (#6)
         run: |
-          cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON -DWHISPER_BUILD_EXAMPLES=OFF -DWHISPER_BUILD_TESTS=OFF
+          $espeakInc = Join-Path $env:ESPEAK_NG_ROOT "include"
+          $espeakLib = ""
+          foreach ($name in @("libespeak-ng.lib", "espeak-ng.lib")) {
+            $cand = Join-Path $env:ESPEAK_NG_ROOT $name
+            if (Test-Path $cand) { $espeakLib = $cand; break }
+          }
+          if (-not $espeakLib) {
+            # Some MSIs nest under lib/.
+            Get-ChildItem -Recurse -Path $env:ESPEAK_NG_ROOT -Filter "*espeak-ng*.lib" |
+              ForEach-Object { if (-not $espeakLib) { $espeakLib = $_.FullName } }
+          }
+          Write-Host "ESPEAK_NG_INCLUDE_DIR=$espeakInc"
+          Write-Host "ESPEAK_NG_LIBRARY=$espeakLib"
+          $extraArgs = @()
+          if ($espeakLib -and (Test-Path "$espeakInc\espeak-ng\speak_lib.h")) {
+            $extraArgs += "-DESPEAK_NG_INCLUDE_DIR=$espeakInc"
+            $extraArgs += "-DESPEAK_NG_LIBRARY=$espeakLib"
+          } else {
+            Write-Host "::warning::espeak-ng dev files incomplete — kokoro will fall back to popen at runtime (likely broken on Windows due to cmd.exe quoting). DLL + data dir still get bundled."
+          }
+          cmake -B build `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DBUILD_SHARED_LIBS=ON `
+            -DWHISPER_BUILD_EXAMPLES=OFF `
+            -DWHISPER_BUILD_TESTS=OFF `
+            @extraArgs
           cmake --build build --config Release --parallel --target crispasr
           Get-ChildItem build -Recurse -Filter *.dll | Select-Object FullName, Length
 

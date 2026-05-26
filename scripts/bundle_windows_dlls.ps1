@@ -92,5 +92,46 @@ foreach ($g in @("ggml", "ggml-cpu", "ggml-base", "ggml-blas")) {
     }
 }
 
+# espeak-ng runtime — kokoro NEEDS libespeak-ng.dll at load time
+# (linked at build via CRISPASR_HAVE_ESPEAK_NG). Without this DLL +
+# espeak-ng-data\ next to runner.exe, kokoro_synthesize returns no
+# PCM and the user sees "synth failed : Exception: synthesize
+# returned no audio for backend kokoro" — that's issue #6.
+#
+# ESPEAK_NG_ROOT is exported by the CI workflow's
+# "Install espeak-ng" step. For local dev passes, fall back to the
+# default Chocolatey install path.
+$espeakRoot = if ($env:ESPEAK_NG_ROOT) { $env:ESPEAK_NG_ROOT } else { "C:\Program Files\eSpeak NG" }
+if (Test-Path $espeakRoot) {
+    # The MSI ships libespeak-ng.dll alongside espeak-ng.exe at the
+    # root, and the phoneme tables under espeak-ng-data\.
+    $espeakDll = Join-Path $espeakRoot "libespeak-ng.dll"
+    if (Test-Path $espeakDll) {
+        Copy-Item $espeakDll "$runnerDir\libespeak-ng.dll" -Force
+        Write-Host "  bundled libespeak-ng.dll"
+    } else {
+        Write-Host "  warn: libespeak-ng.dll not at $espeakDll" -ForegroundColor Yellow
+    }
+    # Bundle espeak-ng.exe too — it's small and lets the popen
+    # fallback path work if libespeak's in-process init ever fails.
+    $espeakExe = Join-Path $espeakRoot "espeak-ng.exe"
+    if (Test-Path $espeakExe) {
+        Copy-Item $espeakExe "$runnerDir\espeak-ng.exe" -Force
+        Write-Host "  bundled espeak-ng.exe"
+    }
+    $espeakData = Join-Path $espeakRoot "espeak-ng-data"
+    if (Test-Path $espeakData) {
+        # Wipe + repopulate so stale data files from a prior install don't linger.
+        $dst = Join-Path $runnerDir "espeak-ng-data"
+        if (Test-Path $dst) { Remove-Item $dst -Recurse -Force }
+        Copy-Item $espeakData $dst -Recurse -Force
+        Write-Host "  bundled espeak-ng-data\"
+    } else {
+        Write-Host "  warn: espeak-ng-data not at $espeakData" -ForegroundColor Yellow
+    }
+} else {
+    Write-Host "  warn: ESPEAK_NG_ROOT not set and default path missing — kokoro will be unusable" -ForegroundColor Yellow
+}
+
 Write-Host "`nFinal runner dir contents:"
 Get-ChildItem $runnerDir -Filter *.dll | ForEach-Object { Write-Host "  $($_.Name)  $($_.Length) bytes" }

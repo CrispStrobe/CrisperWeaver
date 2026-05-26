@@ -33,6 +33,7 @@ import 'services/audio_service.dart';
 import 'services/batch_queue_service.dart';
 import 'services/desktop_open_with_bridge.dart';
 import 'services/env_helpers.dart';
+import 'services/espeak_data_service.dart';
 import 'services/history_service.dart';
 import 'services/log_service.dart';
 import 'services/native_licenses.dart';
@@ -68,6 +69,24 @@ void main(List<String> args) async {
   // duration LSTM, iSTFTNet generator) still get Metal acceleration.
   // Drop this once upstream fixes AdainResBlk1d on Metal.
   applyKokoroMetalWorkaround();
+
+  // Point libespeak-ng at the bundled espeak-ng-data/ so kokoro's
+  // in-process phonemizer can initialise on platforms where the user
+  // doesn't have espeak-ng installed system-wide (Windows + macOS .app
+  // releases ship the data dir alongside the runtime). Must fire before
+  // the first kokoro session opens — CrispASR reads
+  // CRISPASR_ESPEAK_DATA_PATH once in phonemize_espeak_lib. Android is
+  // handled separately: the assets bundle gets extracted to the docs
+  // dir on first launch and the path is set via the explicitOverride.
+  applyKokoroEspeakDataPath();
+
+  // Android can't dlopen a directory of phoneme tables straight out
+  // of the APK (it's a zip). EspeakDataService extracts the bundled
+  // espeak-ng-data/ asset to the app's docs dir on first launch and
+  // calls applyKokoroEspeakDataPath with the resulting path so
+  // libespeak-ng's init points at writable files. No-op on every
+  // other platform.
+  await EspeakDataService.ensureExtractedAndSetEnv();
 
   // just_audio ships native code for iOS/Android/macOS/web only. On
   // Windows and Linux it has no platform implementation, which crashes

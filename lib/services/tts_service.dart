@@ -327,9 +327,35 @@ class TtsService {
       });
       return SynthesizedAudio(samples: pcm, sampleRate: 24000);
     } catch (e, st) {
-      Log.instance.e('tts', 'synth failed', error: e, stack: st);
+      // Diagnostic enrichment: the upstream message "synthesize
+      // returned no audio for backend kokoro" is opaque — the actual
+      // failure path is almost always "kokoro can't phonemize because
+      // libespeak-ng / espeak-ng-data is missing on this platform"
+      // (issue #6 on Windows + Android pre-fix). Surface a hint so
+      // bug reports come with actionable context.
+      final msg = e.toString();
+      final hint = _diagnosticHint(_backend ?? '', msg);
+      Log.instance.e('tts', 'synth failed', error: e, stack: st,
+          fields: hint == null ? null : {'hint': hint});
       return null;
     }
+  }
+
+  /// Best-effort root-cause hint for a synth failure, keyed off the
+  /// upstream exception text + the loaded backend. Surfaced in the
+  /// log fields so a bug report includes the most likely cause
+  /// without the user having to dig.
+  String? _diagnosticHint(String backend, String exceptionText) {
+    final isNoAudio = exceptionText.contains('returned no audio');
+    if (!isNoAudio) return null;
+    if (backend == 'kokoro') {
+      return 'kokoro needs libespeak-ng + espeak-ng-data for phonemisation. '
+          'Desktop releases bundle them next to the runtime; Android extracts '
+          'the asset bundle on first launch. Check that '
+          'CRISPASR_ESPEAK_DATA_PATH points at a populated dir or that '
+          'espeak-ng is on PATH.';
+    }
+    return null;
   }
 
   /// Strip leading + trailing samples whose magnitude is below the
