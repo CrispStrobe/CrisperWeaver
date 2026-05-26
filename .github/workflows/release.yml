@@ -389,12 +389,32 @@ jobs:
           ESPEAK_INC=$(find "$ESPEAK_NG_ANDROID_ROOT" -maxdepth 4 -type d -name 'espeak-ng' -path '*/include/*' | head -1)
           ESPEAK_INC="${ESPEAK_INC%/espeak-ng}"
           ESPEAK_LIB=$(find "$ESPEAK_NG_ANDROID_ROOT" -name 'libespeak-ng.a' | head -1)
+          # libucd.a holds the ucd_isalpha / ucd_isspace / ucd_toupper /
+          # ucd_tolower symbols libespeak-ng calls into. espeak-ng's CMake
+          # builds it as a separate static lib in src/ucd-tools/ but
+          # `cmake --install` does NOT copy it into the install prefix —
+          # so finding it requires looking at the build tree directly.
+          # Forgetting this lib was the v0.6.9–0.6.13 Android regression
+          # (#6 follow-up): libcrispasr.so had unresolved ucd_* symbols,
+          # dlopen silently failed at runtime, the Dart side reported
+          # "Available backends: {}" and kokoro session_open threw
+          # "cannot locate symbol ucd_isalpha".
+          UCD_LIB=$(find "$GITHUB_WORKSPACE/espeak-ng-src/build-android" \
+            -name 'libucd.a' 2>/dev/null | head -1)
+          if [ -z "$UCD_LIB" ]; then
+            # Fallback: maybe a future espeak-ng version installs it.
+            UCD_LIB=$(find "$ESPEAK_NG_ANDROID_ROOT" -name 'libucd.a' \
+              2>/dev/null | head -1)
+          fi
           echo "ESPEAK_INC=$ESPEAK_INC"
           echo "ESPEAK_LIB=$ESPEAK_LIB"
-          if [ -z "$ESPEAK_INC" ] || [ -z "$ESPEAK_LIB" ]; then
-            echo "::error::espeak-ng cross-build artefacts incomplete — kokoro will be broken on Android" >&2
+          echo "UCD_LIB=$UCD_LIB"
+          if [ -z "$ESPEAK_INC" ] || [ -z "$ESPEAK_LIB" ] || [ -z "$UCD_LIB" ]; then
+            echo "::error::espeak-ng cross-build artefacts incomplete — kokoro will be broken on Android (espeak-ng=$ESPEAK_LIB, ucd=$UCD_LIB)" >&2
             exit 1
           fi
+          # Stash UCD_LIB for the link step below.
+          echo "UCD_LIB=$UCD_LIB" >> $GITHUB_ENV
           cmake -S . -B build-android/arm64-v8a \
             -DCMAKE_TOOLCHAIN_FILE="$NDK_TC" \
             -DANDROID_ABI=arm64-v8a \
@@ -429,6 +449,7 @@ jobs:
             $(find . -name "lib*.a" ! -name "libcrispasr.a" ! -name "libCatch*" ! -name "libcommon*" -printf "%p ") \
             -Wl,--no-whole-archive \
             "$ESPEAK_NG_ANDROID_ROOT"/lib*/libespeak-ng.a \
+            "$UCD_LIB" \
             -lm -llog
           ln -sf libcrispasr.so src/libwhisper.so
           ls -lh src/libcrispasr.so
@@ -440,6 +461,18 @@ jobs:
             echo "::error::libcrispasr.so still has UND OpenMP symbols" >&2
             "$NDKRE" --dyn-symbols src/libcrispasr.so \
               | awk '$5=="UND"' | grep -E "__kmpc|omp_" >&2
+            exit 1
+          fi
+          # Same fail-fast guard for the ucd_* symbols libespeak-ng pulls
+          # in — without libucd.a in the link line, dlopen silently fails
+          # at runtime and we see "Available backends: {}" + kokoro
+          # session_open throwing "cannot locate symbol ucd_isalpha"
+          # (#6 v0.6.13 regression).
+          if "$NDKRE" --dyn-symbols src/libcrispasr.so \
+              | awk '$5=="UND"' | grep -qE "\\bucd_"; then
+            echo "::error::libcrispasr.so still has UND ucd_* symbols — libucd.a missing from link" >&2
+            "$NDKRE" --dyn-symbols src/libcrispasr.so \
+              | awk '$5=="UND"' | grep -E "\\bucd_" >&2
             exit 1
           fi
 
