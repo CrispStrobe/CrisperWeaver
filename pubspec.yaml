@@ -3,7 +3,7 @@ description: A cross-platform Flutter app for fully-offline audio transcription 
 
 publish_to: 'none'
 
-version: 0.6.13+14
+version: 0.6.14+15
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -147,11 +147,16 @@ flutter:
     - assets/licenses/
     - assets/vad/
     # espeak-ng phoneme tables — kokoro's in-process phonemizer needs
-    # them at runtime. Only populated by the Android CI step (the
-    # desktop releases bundle libespeak-ng + its data dir alongside
-    # the runtime instead). Empty on desktop checkouts — the asset
-    # bundler tolerates that.
+    # them at runtime. Shipped as one tarball asset because Flutter's
+    # pubspec `assets:` doesn't bundle subdirectories recursively, and
+    # the espeak-ng-data tree has lang/<family>/ and voices/!v/ subdirs
+    # we need. EspeakDataService extracts it on first launch.
+    # Populated by the Android CI step from the native build's data
+    # output; desktop releases bundle libespeak-ng + its data dir
+    # alongside the runtime instead. The placeholder dir keeps Flutter
+    # happy on desktop checkouts that never run the Android staging.
     - assets/espeak-ng-data/
+    - assets/espeak-ng-data.tar.gz
   # No custom fonts shipped yet — relying on the platform system font.
 
 # Windows MSIX packaging. Consumed by `flutter pub run msix:create`

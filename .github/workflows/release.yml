@@ -479,22 +479,18 @@ jobs:
 
       - name: Stage espeak-ng-data as Flutter asset
         working-directory: repos/CrisperWeaver
-        # Android can't dlopen a directory of phoneme tables — they
-        # live under assets/espeak-ng-data/ inside the APK, get
-        # extracted to the app's docs dir on first launch (see
-        # lib/services/espeak_data_service.dart), and the resulting
-        # path is then handed to libespeak-ng via
-        # CRISPASR_ESPEAK_DATA_PATH before the first kokoro session
-        # opens.
+        # Android can't dlopen a directory of phoneme tables — and
+        # Flutter's pubspec `assets:` directive doesn't bundle
+        # subdirectories recursively. Ship the entire tree as one
+        # `espeak-ng-data.tar.gz` asset; EspeakDataService extracts it
+        # to the app's docs dir on first launch and sets
+        # CRISPASR_ESPEAK_DATA_PATH there before the first kokoro
+        # session opens. A single asset avoids enumerating every
+        # `lang/<family>/` + `voices/!v/` subdir in pubspec.yaml.
         run: |
-          set -x  # echo every command so missing files are obvious in CI logs.
-          DEST=assets/espeak-ng-data
-          rm -rf "$DEST"
-          mkdir -p "$DEST"
-          # The native build's installed data lives under share/.
+          set -x
           NATIVE_DATA="$ESPEAK_NG_NATIVE_ROOT/share/espeak-ng-data"
           if [ ! -d "$NATIVE_DATA" ]; then
-            # Fallback: look for a data dir anywhere under the native install.
             NATIVE_DATA=$(find "$ESPEAK_NG_NATIVE_ROOT" -maxdepth 4 -type d -name 'espeak-ng-data' | head -1)
           fi
           if [ -z "$NATIVE_DATA" ] || [ ! -d "$NATIVE_DATA" ]; then
@@ -503,35 +499,26 @@ jobs:
             ls -la "$ESPEAK_NG_NATIVE_ROOT/share" || true
             exit 1
           fi
-          # Use a recursive copy that's predictable across cp versions —
-          # the `cp -R src/. dst/` idiom on coreutils preserves the
-          # contents but historically some cp implementations have been
-          # picky. Just rsync the contents.
-          ls -la "$NATIVE_DATA" | head -10
-          cp -R "$NATIVE_DATA"/* "$DEST"/
-          # Fail-fast if the asset dir came out empty — Flutter silently
-          # skips empty asset dirs at build time and we end up with a
-          # working APK that still can't kokoro-synth on a fresh install
-          # (#6 root cause on Android pre-v0.6.12).
-          STAGED_COUNT=$(find "$DEST" -type f | wc -l | tr -d ' ')
-          STAGED_SIZE=$(du -sh "$DEST" | awk '{print $1}')
-          echo "espeak-ng-data staged: $STAGED_COUNT files, $STAGED_SIZE"
-          if [ "$STAGED_COUNT" -lt 100 ]; then
-            echo "::error::espeak-ng-data asset bundle suspiciously small ($STAGED_COUNT files) — expected several hundred" >&2
-            exit 1
-          fi
-          # The compiled phoneme tables (phontab + phondata + phonindex)
-          # are what libespeak-ng actually loads at espeak_Initialize.
-          # Without them the asset bundle ships only source dicts and
-          # kokoro returns no audio at first synth (251-file shape).
+          # Fail fast if the data target didn't run — phontab + phondata +
+          # phonindex are what libespeak-ng actually loads at init.
           for required in phontab phondata phonindex; do
-            if [ ! -f "$DEST/$required" ]; then
+            if [ ! -f "$NATIVE_DATA/$required" ]; then
               echo "::error::espeak-ng-data missing compiled file: $required (data target didn't run)" >&2
-              ls "$DEST" | head -20 >&2
+              ls "$NATIVE_DATA" | head -20 >&2
               exit 1
             fi
           done
-          echo "OK: phontab + phondata + phonindex present"
+          # Strip the per-file asset bundle, repack as one tarball.
+          rm -rf assets/espeak-ng-data
+          mkdir -p assets
+          tar -C "$NATIVE_DATA" -czf assets/espeak-ng-data.tar.gz .
+          ls -lh assets/espeak-ng-data.tar.gz
+          NFILES=$(tar -tzf assets/espeak-ng-data.tar.gz | wc -l | tr -d ' ')
+          echo "espeak-ng-data tarball: $NFILES entries"
+          if [ "$NFILES" -lt 100 ]; then
+            echo "::error::espeak-ng-data tarball suspiciously small ($NFILES entries)" >&2
+            exit 1
+          fi
 
       - name: Pub get
         working-directory: repos/CrisperWeaver

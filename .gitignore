@@ -74,3 +74,8 @@ ios/Runner/Frameworks/*.xcframework
 ios/build/
 macos/Runner/Frameworks/libwhisper.dylib
 /handover-prompts/
+
+# The placeholder espeak-ng-data.tar.gz is committed so flutter pub
+# get / desktop builds don't fail asset resolution; the real
+# multi-MB build artefact is created by the Android CI job and
+# never round-trips back to git.
