@@ -152,7 +152,14 @@ jobs:
             -DCRISPASR_BUILD_EXAMPLES=OFF -DCRISPASR_BUILD_TESTS=OFF
           cmake --build build --config Release --parallel --target crispasr
           cd build
+          # -Wl,-rpath,$ORIGIN so libcrispasr.so finds its sibling
+          # libespeak-ng.so.1 in <bundle>/lib/ at dlopen time. Without
+          # this, the NEEDED entry from -lespeak-ng resolves against
+          # the system loader only — fine on dev machines with apt
+          # espeak-ng installed, broken on a vanilla Linux user who
+          # just untars our release.
           gcc -shared -o src/libcrispasr.so \
+            -Wl,-rpath,'$ORIGIN' \
             -Wl,--whole-archive \
             src/libcrispasr.a \
             $(find . -name "lib*.a" ! -name "libcrispasr.a" ! -name "libCatch*" ! -name "libcommon*" -printf "%p ") \
