@@ -396,6 +396,24 @@ class ModelService {
       quantization: 'q4_k',
       backend: 'qwen3',
     ),
+    // Mega-ASR — Qwen3-ASR-1.7B with the upstream robustness LoRA merged
+    // offline. Dispatches through the qwen3 code path in
+    // crispasr_session_open_explicit but is advertised separately so
+    // the front-door availableBackends() check accepts the alias and
+    // the Models screen groups it under its own backend filter.
+    'mega-asr-1.7b-q4_k': ModelDefinition(
+      name: 'mega-asr-1.7b-q4_k',
+      displayName: 'Mega-ASR 1.7B (q4_k)',
+      fileName: 'mega-asr-1.7b-q4_k.gguf',
+      url:
+          'https://huggingface.co/cstr/mega-asr-GGUF/resolve/main/mega-asr-1.7b-q4_k.gguf',
+      sizeBytes: 1300 * 1024 * 1024,
+      checksum: '',
+      description:
+          'Qwen3-ASR 1.7B + robustness LoRA — multilingual, ~1.3 GB',
+      quantization: 'q4_k',
+      backend: 'mega-asr',
+    ),
     // Granite / FastConformer-CTC / Wav2Vec2 — populated by HF probe.
     'canary-1b-v2-f16': ModelDefinition(
       name: 'canary-1b-v2-f16',
