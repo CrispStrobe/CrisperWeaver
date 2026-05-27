@@ -147,6 +147,17 @@ class ModelService {
       checksum: '',
       description: 'Faster large-v3 variant — ~1.5 GB',
     ),
+    // Distil-Whisper Large v3 — 6× faster + ~50% smaller than large-v3.
+    'distil-large-v3': ModelDefinition(
+      name: 'distil-large-v3',
+      displayName: 'Distil-Whisper Large v3',
+      fileName: 'ggml-distil-large-v3.bin',
+      url:
+          'https://huggingface.co/distil-whisper/distil-large-v3-ggml/resolve/main/ggml-distil-large-v3.bin',
+      sizeBytes: 1530 * 1024 * 1024,
+      checksum: '',
+      description: 'Distilled Whisper Large v3 — ~1.5 GB, faster decode',
+    ),
 
     // ----- Quantized variants (cstr mirrors) -----
     // These are rough size estimates. Checksums are intentionally empty —
@@ -292,6 +303,30 @@ class ModelService {
       quantization: 'q4_k',
       backend: 'parakeet',
     ),
+    'parakeet-tdt-0.6b-v2-q4_k': ModelDefinition(
+      name: 'parakeet-tdt-0.6b-v2-q4_k',
+      displayName: 'Parakeet TDT 0.6B v2 (q4_k)',
+      fileName: 'parakeet-tdt-0.6b-v2-q4_k.gguf',
+      url:
+          'https://huggingface.co/cstr/parakeet-tdt-0.6b-v2-GGUF/resolve/main/parakeet-tdt-0.6b-v2-q4_k.gguf',
+      sizeBytes: 467 * 1024 * 1024,
+      checksum: '',
+      description: 'Parakeet TDT v2 (earlier vocab) — ~467 MB',
+      quantization: 'q4_k',
+      backend: 'parakeet',
+    ),
+    'parakeet-tdt-1.1b-q4_k': ModelDefinition(
+      name: 'parakeet-tdt-1.1b-q4_k',
+      displayName: 'Parakeet TDT 1.1B (q4_k)',
+      fileName: 'parakeet-tdt-1.1b-q4_k.gguf',
+      url:
+          'https://huggingface.co/cstr/parakeet-tdt-1.1b-GGUF/resolve/main/parakeet-tdt-1.1b-q4_k.gguf',
+      sizeBytes: 850 * 1024 * 1024,
+      checksum: '',
+      description: 'Larger Parakeet TDT, 42-layer encoder — ~850 MB',
+      quantization: 'q4_k',
+      backend: 'parakeet',
+    ),
     // Canary — NVIDIA, translation-capable (X→en, en→X).
     'canary-1b-v2-q5_0': ModelDefinition(
       name: 'canary-1b-v2-q5_0',
@@ -349,6 +384,18 @@ class ModelService {
       quantization: 'q4_k',
       backend: 'qwen3',
     ),
+    'qwen3-asr-1.7b-q4_k': ModelDefinition(
+      name: 'qwen3-asr-1.7b-q4_k',
+      displayName: 'Qwen3-ASR 1.7B (q4_k)',
+      fileName: 'qwen3-asr-1.7b-q4_k.gguf',
+      url:
+          'https://huggingface.co/cstr/qwen3-asr-1.7b-GGUF/resolve/main/qwen3-asr-1.7b-q4_k.gguf',
+      sizeBytes: 1100 * 1024 * 1024,
+      checksum: '',
+      description: 'Qwen3-ASR 1.7B, multilingual (30+ langs) — ~1.1 GB',
+      quantization: 'q4_k',
+      backend: 'qwen3',
+    ),
     // Granite / FastConformer-CTC / Wav2Vec2 — populated by HF probe.
     'canary-1b-v2-f16': ModelDefinition(
       name: 'canary-1b-v2-f16',
@@ -372,6 +419,18 @@ class ModelService {
       sizeBytes: 580 * 1024 * 1024,
       checksum: '',
       description: 'OmniASR LLM 300M (multilingual) — ~580 MB',
+      quantization: 'q4_k',
+      backend: 'omniasr-llm',
+    ),
+    'omniasr-llm-1b-q4_k': ModelDefinition(
+      name: 'omniasr-llm-1b-q4_k',
+      displayName: 'OmniASR LLM 1B (q4_k)',
+      fileName: 'omniasr-llm-1b-q4_k.gguf',
+      url:
+          'https://huggingface.co/cstr/omniasr-llm-1b-GGUF/resolve/main/omniasr-llm-1b-q4_k.gguf',
+      sizeBytes: 1300 * 1024 * 1024,
+      checksum: '',
+      description: 'OmniASR LLM 1B (multilingual) — ~1.3 GB',
       quantization: 'q4_k',
       backend: 'omniasr-llm',
     ),
