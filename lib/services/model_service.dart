@@ -598,6 +598,13 @@ class ModelService {
       description: 'Moonshine tiny ASR (English, lightweight) — ~21 MB',
       quantization: 'q4_k',
       backend: 'moonshine',
+      // moonshine_init() in CrispASR reads the BPE tokenizer from
+      // `dir_of(model_path) + "/tokenizer.bin"` at session-open time.
+      // Without this companion the open call returns null and the
+      // load looks like "GGUF backend isn't supported" even though the
+      // backend IS in availableBackends(). (Reported on #7 second wave
+      // after the buffer-truncation fix made the error string honest.)
+      companions: ['moonshine-tokenizer'],
     ),
     'moonshine-base-q4_k': ModelDefinition(
       name: 'moonshine-base-q4_k',
@@ -610,6 +617,7 @@ class ModelService {
       description: 'Moonshine base ASR (English, lightweight) — ~47 MB',
       quantization: 'q4_k',
       backend: 'moonshine',
+      companions: ['moonshine-tokenizer'],
     ),
     'moonshine-streaming-tiny-q4_k': ModelDefinition(
       name: 'moonshine-streaming-tiny-q4_k',
@@ -623,6 +631,29 @@ class ModelService {
           'Moonshine streaming tiny — for live mic streaming, ~32 MB',
       quantization: 'q4_k',
       backend: 'moonshine-streaming',
+      companions: ['moonshine-tokenizer'],
+    ),
+    // Shared BPE tokenizer for the moonshine family. CrispASR's
+    // moonshine_init resolves `dir_of(model_path) + "/tokenizer.bin"`
+    // at session-open time so this just needs to land alongside the
+    // GGUF — the engine's setCodecPath call is a no-op for moonshine,
+    // it's the filesystem co-location that matters. tiny + base share
+    // the English BPE; moonshine-streaming uses the same English vocab
+    // so reusing one tokenizer is correct.
+    'moonshine-tokenizer': ModelDefinition(
+      name: 'moonshine-tokenizer',
+      displayName: 'Moonshine BPE tokenizer',
+      fileName: 'tokenizer.bin',
+      url:
+          'https://huggingface.co/cstr/moonshine-tiny-GGUF/resolve/main/tokenizer.bin',
+      // Tokenizer.bin is small (~few hundred KB). Hardcoded estimate
+      // avoids a HEAD request just for the size — accuracy isn't
+      // load-bearing for a sub-MB file.
+      sizeBytes: 500 * 1024,
+      checksum: '',
+      description:
+          'BPE tokenizer for the moonshine family (English) — required companion',
+      backend: 'moonshine',
     ),
     // VibeVoice ASR (the ASR variant; the TTS sibling is vibevoice-tts).
     'vibevoice-asr-q4_k': ModelDefinition(
