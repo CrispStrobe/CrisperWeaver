@@ -748,6 +748,11 @@ class ModelService {
       description:
           'BPE tokenizer for the moonshine family (English) — required companion',
       backend: 'moonshine',
+      // kind=codec so the catalogue-invariants test doesn't flag
+      // this entry as "moonshine ASR without a tokenizer companion"
+      // — it IS the tokenizer companion. Same shape as
+      // mimo-tokenizer-q4_k / snac-24khz / qwen3-tts-tokenizer-12hz.
+      kind: ModelKind.codec,
     ),
     // VibeVoice ASR (the ASR variant; the TTS sibling is vibevoice-tts).
     'vibevoice-asr-q4_k': ModelDefinition(
