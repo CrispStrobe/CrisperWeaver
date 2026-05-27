@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:go_router/go_router.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import 'package:path/path.dart' as p;
 
@@ -1001,12 +1002,86 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           settings.customModelsDir.isEmpty ? null : settings.customModelsDir,
     );
     if (picked == null || picked.isEmpty) return;
+    // Picking an external dir on Android 11+ requires the
+    // "All files access" runtime permission (MANAGE_EXTERNAL_STORAGE).
+    // The manifest declares it but it stays denied until the user
+    // toggles it in Settings → Apps → CrisperWeaver → Special access.
+    // permission_handler.request() on Android 11+ redirects to that
+    // Settings page. Without this, the picker returns a path string
+    // but every Directory(path).listSync / File(path).readAsBytes
+    // fails with "OS Error: Permission denied, errno = 13" — most
+    // visibly after uninstall+reinstall, when Android resets the
+    // grant but the saved customModelsDir path persists.
+    if (Platform.isAndroid && _looksLikeExternalStoragePath(picked)) {
+      final status = await Permission.manageExternalStorage.status;
+      if (!status.isGranted) {
+        if (!mounted) return;
+        // l10n: this dialog is an Android-only error path so we keep
+        // the copy inline rather than threading 4 new ARB keys through
+        // every locale just for this niche flow. The Settings page
+        // permission_handler opens is OS-localized anyway.
+        final proceed = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('"All files access" needed'),
+            content: const Text(
+              'Picking a folder outside the app sandbox needs Android\'s '
+              '"All files access" permission. Tap "Open Settings", enable '
+              '"All files access" for CrisperWeaver, then come back. '
+              'After uninstalling and reinstalling the app, the grant is '
+              'reset by Android and must be re-enabled.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: const Text('Open Settings'),
+              ),
+            ],
+          ),
+        );
+        if (proceed != true) return;
+        await Permission.manageExternalStorage.request();
+        final newStatus = await Permission.manageExternalStorage.status;
+        if (!newStatus.isGranted) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                '"All files access" denied — using sandbox dir instead.',
+              ),
+            ),
+          );
+          return;
+        }
+      }
+    }
     setState(() => settings.customModelsDir = picked);
     Log.instance.i('settings', 'customModelsDir set', fields: {'path': picked});
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(l.settingsModelsDirSet(picked))),
     );
+  }
+
+  /// True when [path] points into Android's shared external storage
+  /// (/storage/emulated/0/...) — those paths only become readable
+  /// after the user grants MANAGE_EXTERNAL_STORAGE in system settings.
+  /// App-private dirs under /Android/data/[package]/files/... don't
+  /// need it; we skip the prompt for those so the user isn't pestered
+  /// when picking a sandboxed location.
+  bool _looksLikeExternalStoragePath(String path) {
+    if (path.startsWith('/storage/emulated/') ||
+        path.startsWith('/sdcard/') ||
+        path.startsWith('/storage/self/primary/')) {
+      // /Android/data/<pkg>/ is sandboxed — no special perm needed.
+      if (path.contains('/Android/data/')) return false;
+      return true;
+    }
+    return false;
   }
 
   void _showHfTokenDialog(SettingsService settings) {

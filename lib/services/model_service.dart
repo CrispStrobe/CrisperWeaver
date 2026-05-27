@@ -434,6 +434,58 @@ class ModelService {
       quantization: 'q4_k',
       backend: 'omniasr-llm',
     ),
+    // FunASR — Alibaba's compact ASR (Chinese + English).
+    'funasr-nano-2512-f16': ModelDefinition(
+      name: 'funasr-nano-2512-f16',
+      displayName: 'FunASR Nano 2512 (f16)',
+      fileName: 'funasr-nano-2512-f16.gguf',
+      url:
+          'https://huggingface.co/cstr/funasr-nano-GGUF/resolve/main/funasr-nano-2512-f16.gguf',
+      sizeBytes: 200 * 1024 * 1024,
+      checksum: '',
+      description: 'FunASR Nano (Mandarin + English) — ~200 MB',
+      quantization: 'f16',
+      backend: 'funasr',
+    ),
+    'funasr-mlt-nano-2512-f16': ModelDefinition(
+      name: 'funasr-mlt-nano-2512-f16',
+      displayName: 'FunASR MLT Nano 2512 (f16)',
+      fileName: 'funasr-mlt-nano-2512-f16.gguf',
+      url:
+          'https://huggingface.co/cstr/funasr-mlt-nano-GGUF/resolve/main/funasr-mlt-nano-2512-f16.gguf',
+      sizeBytes: 220 * 1024 * 1024,
+      checksum: '',
+      description: 'FunASR multilingual Nano — ~220 MB',
+      quantization: 'f16',
+      backend: 'funasr',
+    ),
+    // Paraformer — FunASR family, Mandarin-focused NAR ASR.
+    'paraformer-zh-q4_k': ModelDefinition(
+      name: 'paraformer-zh-q4_k',
+      displayName: 'Paraformer ZH (q4_k)',
+      fileName: 'paraformer-zh-q4_k.gguf',
+      url:
+          'https://huggingface.co/cstr/paraformer-zh-GGUF/resolve/main/paraformer-zh-q4_k.gguf',
+      sizeBytes: 180 * 1024 * 1024,
+      checksum: '',
+      description: 'Paraformer Mandarin NAR-ASR — ~180 MB',
+      quantization: 'q4_k',
+      backend: 'paraformer',
+    ),
+    // SenseVoice — multi-lingual + LID-tagged.
+    'sensevoice-small-q4_k': ModelDefinition(
+      name: 'sensevoice-small-q4_k',
+      displayName: 'SenseVoice Small (q4_k)',
+      fileName: 'sensevoice-small-q4_k.gguf',
+      url:
+          'https://huggingface.co/cstr/sensevoice-small-GGUF/resolve/main/sensevoice-small-q4_k.gguf',
+      sizeBytes: 250 * 1024 * 1024,
+      checksum: '',
+      description:
+          'SenseVoice Small (ZH/EN/JA/KO/YUE) with built-in lang-id — ~250 MB',
+      quantization: 'q4_k',
+      backend: 'sensevoice',
+    ),
     // FireRed ASR2 — AED Mandarin/English ASR.
     'firered-asr2-aed-q4_k': ModelDefinition(
       name: 'firered-asr2-aed-q4_k',
