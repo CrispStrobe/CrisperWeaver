@@ -148,15 +148,30 @@ class ModelService {
       description: 'Faster large-v3 variant — ~1.5 GB',
     ),
     // Distil-Whisper Large v3 — 6× faster + ~50% smaller than large-v3.
+    // cstr/distil-large-v3-GGUF mirrors the upstream weights as plain
+    // .bin (whisper.cpp loader expects that, not .gguf). The same repo
+    // ships f16 / q8_0 / q5_0 / q4_k / iq2_xs etc. — refreshAvailableQuants()
+    // auto-discovers the rest via the matching BackendRepo entry below.
     'distil-large-v3': ModelDefinition(
       name: 'distil-large-v3',
       displayName: 'Distil-Whisper Large v3',
-      fileName: 'ggml-distil-large-v3.bin',
+      fileName: 'distil-large-v3.bin',
       url:
-          'https://huggingface.co/distil-whisper/distil-large-v3-ggml/resolve/main/ggml-distil-large-v3.bin',
+          'https://huggingface.co/cstr/distil-large-v3-GGUF/resolve/main/distil-large-v3.bin',
       sizeBytes: 1530 * 1024 * 1024,
       checksum: '',
       description: 'Distilled Whisper Large v3 — ~1.5 GB, faster decode',
+    ),
+    'distil-large-v3-q5_0': ModelDefinition(
+      name: 'distil-large-v3-q5_0',
+      displayName: 'Distil-Whisper Large v3 (q5_0)',
+      fileName: 'distil-large-v3-q5_0.bin',
+      url:
+          'https://huggingface.co/cstr/distil-large-v3-GGUF/resolve/main/distil-large-v3-q5_0.bin',
+      sizeBytes: 590 * 1024 * 1024,
+      checksum: '',
+      description: 'Distil-Whisper Large v3, q5_0 — ~590 MB',
+      quantization: 'q5_0',
     ),
 
     // ----- Quantized variants (cstr mirrors) -----
@@ -452,7 +467,21 @@ class ModelService {
       quantization: 'q4_k',
       backend: 'omniasr-llm',
     ),
-    // FunASR — Alibaba's compact ASR (Chinese + English).
+    // FunASR — Alibaba's compact ASR (Chinese + English). cstr/funasr-nano-GGUF
+    // ships both f16 and q4_k; the BackendRepo below makes the HF probe
+    // auto-discover any future q8_0 / iq2_xs siblings.
+    'funasr-nano-2512-q4_k': ModelDefinition(
+      name: 'funasr-nano-2512-q4_k',
+      displayName: 'FunASR Nano 2512 (q4_k)',
+      fileName: 'funasr-nano-2512-q4_k.gguf',
+      url:
+          'https://huggingface.co/cstr/funasr-nano-GGUF/resolve/main/funasr-nano-2512-q4_k.gguf',
+      sizeBytes: 95 * 1024 * 1024,
+      checksum: '',
+      description: 'FunASR Nano (Mandarin + English), q4_k — ~95 MB',
+      quantization: 'q4_k',
+      backend: 'funasr',
+    ),
     'funasr-nano-2512-f16': ModelDefinition(
       name: 'funasr-nano-2512-f16',
       displayName: 'FunASR Nano 2512 (f16)',
@@ -463,6 +492,18 @@ class ModelService {
       checksum: '',
       description: 'FunASR Nano (Mandarin + English) — ~200 MB',
       quantization: 'f16',
+      backend: 'funasr',
+    ),
+    'funasr-mlt-nano-2512-q4_k': ModelDefinition(
+      name: 'funasr-mlt-nano-2512-q4_k',
+      displayName: 'FunASR MLT Nano 2512 (q4_k)',
+      fileName: 'funasr-mlt-nano-2512-q4_k.gguf',
+      url:
+          'https://huggingface.co/cstr/funasr-mlt-nano-GGUF/resolve/main/funasr-mlt-nano-2512-q4_k.gguf',
+      sizeBytes: 105 * 1024 * 1024,
+      checksum: '',
+      description: 'FunASR multilingual Nano, q4_k — ~105 MB',
+      quantization: 'q4_k',
       backend: 'funasr',
     ),
     'funasr-mlt-nano-2512-f16': ModelDefinition(
@@ -1500,6 +1541,83 @@ class ModelService {
       baseName: 'mimo-asr',
       displayPrefix: 'MiMo ASR',
       description: 'XiaomiMiMo MiMo-Audio ASR',
+    ),
+    // Newer additions wired up so refreshAvailableQuants() picks up
+    // every f16 / q4_k / q5_0 / q8_0 / iq2_xs sibling in each repo
+    // without a code change per quant. The "Refresh from HuggingFace"
+    // button on the Models screen walks every entry here.
+    'parakeet-tdt-0.6b-v2': BackendRepo(
+      backend: 'parakeet',
+      repoId: 'cstr/parakeet-tdt-0.6b-v2-GGUF',
+      baseName: 'parakeet-tdt-0.6b-v2',
+      displayPrefix: 'Parakeet TDT 0.6B v2',
+      description: 'Parakeet TDT 0.6B v2 (earlier vocab)',
+    ),
+    'parakeet-tdt-1.1b': BackendRepo(
+      backend: 'parakeet',
+      repoId: 'cstr/parakeet-tdt-1.1b-GGUF',
+      baseName: 'parakeet-tdt-1.1b',
+      displayPrefix: 'Parakeet TDT 1.1B',
+      description: 'Larger Parakeet TDT, 42-layer encoder',
+    ),
+    'qwen3-1.7b': BackendRepo(
+      backend: 'qwen3',
+      repoId: 'cstr/qwen3-asr-1.7b-GGUF',
+      baseName: 'qwen3-asr-1.7b',
+      displayPrefix: 'Qwen3-ASR 1.7B',
+      description: 'Qwen3-ASR 1.7B, multilingual',
+    ),
+    'mega-asr': BackendRepo(
+      backend: 'mega-asr',
+      repoId: 'cstr/mega-asr-GGUF',
+      baseName: 'mega-asr-1.7b',
+      displayPrefix: 'Mega-ASR 1.7B',
+      description: 'Qwen3-ASR 1.7B + robustness LoRA',
+    ),
+    'omniasr-llm-1b': BackendRepo(
+      backend: 'omniasr-llm',
+      repoId: 'cstr/omniasr-llm-1b-GGUF',
+      baseName: 'omniasr-llm-1b',
+      displayPrefix: 'OmniASR LLM 1B',
+      description: 'OmniASR LLM 1B (multilingual)',
+    ),
+    'funasr': BackendRepo(
+      backend: 'funasr',
+      repoId: 'cstr/funasr-nano-GGUF',
+      baseName: 'funasr-nano-2512',
+      displayPrefix: 'FunASR Nano 2512',
+      description: 'FunASR Nano (Mandarin + English)',
+    ),
+    'funasr-mlt': BackendRepo(
+      backend: 'funasr',
+      repoId: 'cstr/funasr-mlt-nano-GGUF',
+      baseName: 'funasr-mlt-nano-2512',
+      displayPrefix: 'FunASR MLT Nano 2512',
+      description: 'FunASR multilingual Nano',
+    ),
+    'paraformer': BackendRepo(
+      backend: 'paraformer',
+      repoId: 'cstr/paraformer-zh-GGUF',
+      baseName: 'paraformer-zh',
+      displayPrefix: 'Paraformer ZH',
+      description: 'Paraformer Mandarin NAR-ASR',
+    ),
+    'sensevoice': BackendRepo(
+      backend: 'sensevoice',
+      repoId: 'cstr/sensevoice-small-GGUF',
+      baseName: 'sensevoice-small',
+      displayPrefix: 'SenseVoice Small',
+      description: 'SenseVoice Small (ZH/EN/JA/KO/YUE) with built-in LID',
+    ),
+    // Distil-Whisper Large v3 — .bin (not .gguf), uses the whisper
+    // runtime. cstr/distil-large-v3-GGUF ships f16/q5_0/q4_k/q8_0/etc.
+    'distil-large-v3': BackendRepo(
+      backend: 'whisper',
+      repoId: 'cstr/distil-large-v3-GGUF',
+      baseName: 'distil-large-v3',
+      displayPrefix: 'Distil-Whisper Large v3',
+      description: 'Distilled Whisper Large v3 — ~6× faster',
+      extension: '.bin',
     ),
     // Kokoro — multilingual TTS (needs voicepack via setVoice).
     'kokoro': BackendRepo(
