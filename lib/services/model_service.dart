@@ -1882,6 +1882,78 @@ class ModelService {
     return QuantProbeResult(added: added, failedRepos: failed);
   }
 
+  /// Probe an arbitrary HuggingFace repo for .gguf files and register
+  /// each as a runtime ModelDefinition tagged with [backend]. The
+  /// catalogue-baked [_probeRepo] requires a [BackendRepo] with strict
+  /// naming conventions; this looser variant accepts any repo + any
+  /// backend the user picks (mirrors `crispasr --hf-repo OWNER/REPO`
+  /// on the CLI side).
+  ///
+  /// Returns the discovered models. Throws on network / 404 / private
+  /// repo so the UI can surface a meaningful error to the user.
+  Future<List<ModelDefinition>> probeHfRepoForBackend({
+    required String repoId,
+    required String backend,
+    String? displayPrefix,
+  }) async {
+    final repoIdTrimmed = repoId.trim();
+    if (repoIdTrimmed.isEmpty || !repoIdTrimmed.contains('/')) {
+      throw ArgumentError('HF repo id must be in OWNER/NAME form');
+    }
+    final headers = <String, dynamic>{};
+    final token = hfToken;
+    if (token != null && token.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $token';
+    }
+    final url = 'https://huggingface.co/api/models/$repoIdTrimmed?blobs=true';
+    final resp =
+        await _dio.get<dynamic>(url, options: Options(headers: headers));
+    if (resp.data is! Map) {
+      throw StateError('HF API returned unexpected payload for $repoIdTrimmed');
+    }
+    final siblings = ((resp.data as Map)['siblings'] as List?) ?? const [];
+    final prefix = displayPrefix ?? repoIdTrimmed.split('/').last;
+    final out = <ModelDefinition>[];
+    for (final raw in siblings) {
+      if (raw is! Map) continue;
+      final fname = raw['rfilename'] as String? ?? '';
+      // Accept the two extensions CrispASR's session_open can dlopen.
+      // .bin is whisper-cpp legacy; .gguf is the modern format.
+      if (!fname.endsWith('.gguf') && !fname.endsWith('.bin')) continue;
+      final stem = fname.endsWith('.gguf')
+          ? fname.substring(0, fname.length - '.gguf'.length)
+          : fname.substring(0, fname.length - '.bin'.length);
+      final sizeBytes = (raw['size'] as num?)?.toInt() ?? 0;
+      // Best-effort quantisation extraction from the file stem —
+      // matches q4_k / q5_0 / q8_0 / f16 / fp16 / iq2_xs etc.
+      final quantMatch = RegExp(r'(q\d[_a-z0-9]*|f16|fp16|f32|bf16|iq\d[_a-z0-9]*)',
+              caseSensitive: false)
+          .firstMatch(stem);
+      final quant = quantMatch?.group(0)?.toLowerCase() ?? 'unknown';
+      // Namespace runtime entries by repo so two repos that ship a
+      // file with the same stem don't clobber each other in
+      // _discoveredModels.
+      final nameKey = '${repoIdTrimmed.replaceAll('/', '__')}--$stem';
+      final def = ModelDefinition(
+        name: nameKey,
+        displayName: '$prefix · $stem',
+        fileName: fname,
+        url: 'https://huggingface.co/$repoIdTrimmed/resolve/main/$fname',
+        sizeBytes: sizeBytes,
+        checksum: '',
+        description: '$prefix · $stem — ${_formatSize(sizeBytes)}',
+        quantization: quant,
+        backend: backend,
+      );
+      _discoveredModels[nameKey] = def;
+      out.add(def);
+    }
+    Log.instance.i('model',
+        'probeHfRepoForBackend: ${out.length} model(s) from $repoIdTrimmed',
+        fields: {'backend': backend});
+    return out;
+  }
+
   /// Discover models from CrispASR's built-in C-side registry — no
   /// network, no hardcoding. For every backend the loaded `libcrispasr`
   /// reports as linked (`CrispasrSession.availableBackends()`), this

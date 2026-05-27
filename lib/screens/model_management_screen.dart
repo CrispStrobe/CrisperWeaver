@@ -1,8 +1,10 @@
+import 'package:crispasr/crispasr.dart' as crispasr;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../l10n/generated/app_localizations.dart';
 import '../main.dart' show modelServiceProvider;
+import '../services/log_service.dart';
 import '../services/model_service.dart';
 
 class ModelManagementScreen extends ConsumerStatefulWidget {
@@ -112,6 +114,120 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
     }
   }
 
+  /// Lets the user paste a HuggingFace repo id + pick a backend, then
+  /// probes the repo for .gguf / .bin files and registers each as a
+  /// downloadable model. Mirrors `crispasr --hf-repo OWNER/NAME` on
+  /// the CLI side. Catalogue-baked entries cover the common models
+  /// out of the box; this is the escape hatch for repos that aren't
+  /// in [ModelService.backendRepos] yet.
+  Future<void> _showAddHfRepoDialog() async {
+    final repoController = TextEditingController();
+    final allBackends = _safeAvailableBackends();
+    final initialBackend =
+        allBackends.contains('whisper') ? 'whisper' : allBackends.first;
+    final result = await showDialog<_AddHfRepoForm?>(
+      context: context,
+      builder: (ctx) {
+        String selectedBackend = initialBackend;
+        return StatefulBuilder(
+          builder: (ctx, setLocal) => AlertDialog(
+            title: const Text('Add from HuggingFace repo'),
+            content: SizedBox(
+              width: 480,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Paste a HuggingFace repo id like "cstr/voxtral-mini-3b-2507-GGUF". '
+                    'CrisperWeaver lists every .gguf / .bin file in the repo, registers '
+                    'each as a downloadable model under the backend you pick, and adds '
+                    'them to the models list.',
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: repoController,
+                    autofocus: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Repo id (OWNER/NAME)',
+                      hintText: 'e.g. cstr/voxtral-mini-3b-2507-GGUF',
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<String>(
+                    initialValue: selectedBackend,
+                    decoration: const InputDecoration(
+                      labelText: 'Backend',
+                      helperText: 'How the model should be loaded.',
+                    ),
+                    items: [
+                      for (final b in allBackends)
+                        DropdownMenuItem(value: b, child: Text(b)),
+                    ],
+                    onChanged: (v) {
+                      if (v != null) setLocal(() => selectedBackend = v);
+                    },
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(null),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () {
+                  final id = repoController.text.trim();
+                  if (id.isEmpty || !id.contains('/')) return;
+                  Navigator.of(ctx).pop(
+                    _AddHfRepoForm(repoId: id, backend: selectedBackend),
+                  );
+                },
+                child: const Text('Probe'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+    if (result == null) return;
+    setState(() => _probing = true);
+    try {
+      final added =
+          await ref.read(modelServiceProvider).probeHfRepoForBackend(
+                repoId: result.repoId,
+                backend: result.backend,
+              );
+      if (!mounted) return;
+      final msg = added.isEmpty
+          ? 'No .gguf / .bin files found in ${result.repoId}.'
+          : 'Added ${added.length} model${added.length == 1 ? '' : 's'} from ${result.repoId}.';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+      await _loadModels();
+    } catch (e, st) {
+      Log.instance.w('models', 'HF custom-repo probe failed', error: e, stack: st);
+      if (!mounted) return;
+      _showErrorDialog('Failed to probe ${result.repoId}:\n$e');
+    } finally {
+      if (mounted) setState(() => _probing = false);
+    }
+  }
+
+  /// Returns the runtime CrispASR backend list, plus a hard-coded
+  /// 'whisper' fallback in case availableBackends() throws (e.g. the
+  /// dylib is too old to expose the symbol — pre-0.5.15 builds had a
+  /// 256-byte truncation bug too). The list isn't strict on the
+  /// CrispASR side either — `omniasr-llm-foo` works as long as it
+  /// starts with an advertised prefix.
+  List<String> _safeAvailableBackends() {
+    try {
+      final b = crispasr.CrispasrSession.availableBackends();
+      if (b.isNotEmpty) return b;
+    } catch (_) {/* fall through to default list */}
+    return const ['whisper'];
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -128,6 +244,11 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
                 : const Icon(Icons.cloud_download),
             tooltip: AppLocalizations.of(context).modelsRefreshFromHf,
             onPressed: _probing ? null : _probeHf,
+          ),
+          IconButton(
+            icon: const Icon(Icons.add_link),
+            tooltip: 'Add from HuggingFace repo…',
+            onPressed: _probing ? null : _showAddHfRepoDialog,
           ),
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -669,4 +790,12 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
       ),
     );
   }
+}
+
+/// Captured from the "Add from HuggingFace repo" dialog. The screen
+/// uses two fields verbatim — no need for a richer model.
+class _AddHfRepoForm {
+  _AddHfRepoForm({required this.repoId, required this.backend});
+  final String repoId;
+  final String backend;
 }
