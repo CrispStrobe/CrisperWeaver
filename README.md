@@ -121,7 +121,7 @@ One dispatcher (`CrispasrSession`) handles every backend; bundled `libcrispasr` 
 | **Silero LID 95**     | Language ID         | 95-language classifier, ~16 MB GGUF — faster than Whisper LID |
 | **FireRedVAD**        | VAD                 | F1 97.57%, ~3 MB                                            |
 | **MarbleNet VAD**     | VAD                 | Small (~500 KB), EN/DE/FR/ES/RU/ZH                          |
-| **Whisper-VAD-EncDec**| VAD (experimental)  | English ASMR-trained, ~22 MB                                |
+| **Whisper-VAD-EncDec**| VAD (experimental)  | Japanese-trained (works on EN too), ~22 MB                  |
 
 Downloads pull f16 from `ggerganov/whisper.cpp` and quantised variants from [`cstr/whisper-ggml-quants`][cstr] and other `cstr/*-GGUF` repos. Skip-checksum toggle in Settings for custom or mirrored GGUFs.
 

@@ -562,17 +562,17 @@ class ModelService {
       backend: 'omniasr-llm',
     ),
     // FunASR — Alibaba's compact ASR (Chinese + English). cstr/funasr-nano-GGUF
-    // ships both f16 and q4_k; the BackendRepo below makes the HF probe
-    // auto-discover any future q8_0 / iq2_xs siblings.
+    // ships f16 + q4_k + q8_0; the BackendRepo below makes the HF probe
+    // auto-discover any future iq2_xs sibling.
     'funasr-nano-2512-q4_k': ModelDefinition(
       name: 'funasr-nano-2512-q4_k',
       displayName: 'FunASR Nano 2512 (q4_k)',
       fileName: 'funasr-nano-2512-q4_k.gguf',
       url:
           'https://huggingface.co/cstr/funasr-nano-GGUF/resolve/main/funasr-nano-2512-q4_k.gguf',
-      sizeBytes: 95 * 1024 * 1024,
+      sizeBytes: 896875328,
       checksum: '',
-      description: 'FunASR Nano (Mandarin + English), q4_k — ~95 MB',
+      description: 'FunASR Nano (Mandarin + English), q4_k — ~897 MB',
       quantization: 'q4_k',
       backend: 'funasr',
     ),
@@ -594,9 +594,9 @@ class ModelService {
       fileName: 'funasr-mlt-nano-2512-q4_k.gguf',
       url:
           'https://huggingface.co/cstr/funasr-mlt-nano-GGUF/resolve/main/funasr-mlt-nano-2512-q4_k.gguf',
-      sizeBytes: 105 * 1024 * 1024,
+      sizeBytes: 896875328,
       checksum: '',
-      description: 'FunASR multilingual Nano, q4_k — ~105 MB',
+      description: 'FunASR multilingual Nano, q4_k — ~897 MB',
       quantization: 'q4_k',
       backend: 'funasr',
     ),
