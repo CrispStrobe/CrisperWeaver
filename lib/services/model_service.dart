@@ -1565,6 +1565,7 @@ class ModelService {
       description: 'VibeVoice realtime TTS (q4_k 636 MB, q8_0 1.1 GB, tts-f16 2 GB)',
       kind: ModelKind.tts,
       voicepackBaseName: 'vibevoice-voice',
+      defaultCompanions: ['vibevoice-voice-emma'],
     ),
     'mimo-asr': BackendRepo(
       backend: 'mimo-asr',
@@ -1572,6 +1573,7 @@ class ModelService {
       baseName: 'mimo-asr',
       displayPrefix: 'MiMo ASR',
       description: 'XiaomiMiMo MiMo-Audio ASR',
+      defaultCompanions: ['mimo-tokenizer-q4_k'],
     ),
     // Newer additions wired up so refreshAvailableQuants() picks up
     // every f16 / q4_k / q5_0 / q8_0 / iq2_xs sibling in each repo
@@ -1658,6 +1660,7 @@ class ModelService {
       displayPrefix: 'Kokoro 82M TTS',
       description: 'Kokoro multilingual TTS (~100 MB)',
       kind: ModelKind.tts,
+      defaultCompanions: ['kokoro-voice-af_heart'],
     ),
     // Kokoro voicepacks — separate HF repo, voicepack-only. Empty
     // baseName means the main-quant probe skips this repo; the
@@ -1679,6 +1682,36 @@ class ModelService {
       displayPrefix: 'Orpheus 3B TTS',
       description: 'Orpheus Llama-3.2-3B TTS (~3.5 GB)',
       kind: ModelKind.tts,
+      defaultCompanions: ['snac-24khz'],
+    ),
+    // Moonshine — three sibling repos (tiny / base / streaming-tiny).
+    // moonshine_init reads tokenizer.bin from the model's directory at
+    // session-open time, so the tokenizer companion isn't optional — see
+    // the explicit moonshine-tokenizer ModelDefinition in
+    // [crispasrBackendModels].
+    'moonshine-tiny': BackendRepo(
+      backend: 'moonshine',
+      repoId: 'cstr/moonshine-tiny-GGUF',
+      baseName: 'moonshine-tiny',
+      displayPrefix: 'Moonshine tiny',
+      description: 'Moonshine tiny ASR (English, lightweight)',
+      defaultCompanions: ['moonshine-tokenizer'],
+    ),
+    'moonshine-base': BackendRepo(
+      backend: 'moonshine',
+      repoId: 'cstr/moonshine-base-GGUF',
+      baseName: 'moonshine-base',
+      displayPrefix: 'Moonshine base',
+      description: 'Moonshine base ASR (English, lightweight)',
+      defaultCompanions: ['moonshine-tokenizer'],
+    ),
+    'moonshine-streaming-tiny': BackendRepo(
+      backend: 'moonshine-streaming',
+      repoId: 'cstr/moonshine-streaming-tiny-GGUF',
+      baseName: 'moonshine-streaming-tiny',
+      displayPrefix: 'Moonshine streaming tiny',
+      description: 'Moonshine streaming ASR for live mic input',
+      defaultCompanions: ['moonshine-tokenizer'],
     ),
     // FireRedPunc — POST-PROCESSOR (not an ASR backend). Catalogued so
     // users can fetch it via Model Management; consumed by `PuncService`.
@@ -2331,6 +2364,7 @@ class ModelService {
         quantization: quant,
         backend: repo.backend,
         kind: repo.kind,
+        companions: repo.defaultCompanions,
       ));
     }
     return out;
@@ -3109,6 +3143,20 @@ class BackendRepo {
   // `cstr/kokoro-voices-GGUF`).
   final String? voicepackBaseName;
 
+  /// Names of ModelDefinitions every auto-discovered variant from
+  /// this repo must download alongside the main GGUF. Mirrors the
+  /// `companions:` field on hardcoded ModelDefinitions — without this,
+  /// the HF-refresh button would surface new quants of mimo-asr /
+  /// moonshine / kokoro / orpheus / chatterbox / qwen3-tts /
+  /// vibevoice-tts without their required tokenizer / codec / voice
+  /// companion, and the user would hit "session_open returned null"
+  /// (moonshine) or runtime codec errors (the rest) on first load.
+  /// Each entry must point at a ModelDefinition that ALSO exists in
+  /// the catalogue (typically a hardcoded codec / voice entry, since
+  /// companion files usually don't follow the `baseName-quant` naming
+  /// convention the probe matches against).
+  final List<String> defaultCompanions;
+
   const BackendRepo({
     required this.backend,
     required this.repoId,
@@ -3118,6 +3166,7 @@ class BackendRepo {
     this.extension = '.gguf',
     this.kind = ModelKind.asr,
     this.voicepackBaseName,
+    this.defaultCompanions = const [],
   });
 }
 
