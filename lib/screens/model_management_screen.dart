@@ -2,6 +2,7 @@ import 'package:crispasr/crispasr.dart' as crispasr;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../constants/app_constants.dart';
 import '../l10n/generated/app_localizations.dart';
 import '../main.dart' show modelServiceProvider;
 import '../services/log_service.dart';
@@ -28,6 +29,13 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
   final TextEditingController _nameFilterController = TextEditingController();
   // Backend dropdown filter; '' means any.
   String _backendFilter = '';
+  // Language dropdown filter; '' means any. ISO 639-1 code matched
+  // against [ModelInfo.languages] via `matchesLanguage`. Untagged
+  // entries (languages == []) and explicitly multilingual entries
+  // (`['*']`) pass any filter — so picking "German" narrows the
+  // list to German-tagged + multilingual models without hiding
+  // catalogue entries that don't yet carry language metadata.
+  String _languageFilter = '';
   bool _isLoading = true;
   String? _downloadingModel;
   double _downloadProgress = 0.0;
@@ -281,6 +289,10 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
     if (_backendFilter.isNotEmpty) {
       filtered = filtered.where((m) => m.backend == _backendFilter).toList();
     }
+    if (_languageFilter.isNotEmpty) {
+      filtered =
+          filtered.where((m) => m.matchesLanguage(_languageFilter)).toList();
+    }
     // Free-text name search — matches displayName / name / backend /
     // quantization so users can type "q5" or "tiny" or "voxtral" and
     // narrow the list to anything relevant. Same shape as the
@@ -420,6 +432,26 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
                 DropdownMenuItem(value: b, child: Text(b)),
             ],
             onChanged: (v) => setState(() => _backendFilter = v ?? ''),
+          ),
+          const SizedBox(width: 8),
+          // Language dropdown — narrows the list by `matchesLanguage`.
+          // Source of options: AppConstants.supportedLanguages (the
+          // 30-language list the transcription source-language picker
+          // also uses), minus "auto" — the model-list language filter
+          // doesn't have an "auto" concept, the empty option ("Any")
+          // already covers "don't filter".
+          DropdownButton<String>(
+            value: _languageFilter,
+            items: [
+              const DropdownMenuItem(value: '', child: Text('Any language')),
+              for (final entry in AppConstants.supportedLanguages.entries)
+                if (entry.key != 'auto')
+                  DropdownMenuItem(
+                    value: entry.key,
+                    child: Text('${entry.value} (${entry.key})'),
+                  ),
+            ],
+            onChanged: (v) => setState(() => _languageFilter = v ?? ''),
           ),
         ],
       ),

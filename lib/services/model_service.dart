@@ -31,6 +31,50 @@ class ModelService {
   static const String cstrCrispBaseUrl =
       'https://huggingface.co/cstr/crispasr-gguf/resolve/main';
 
+  // Common language-code sets used across the catalogue + BackendRepo
+  // tables. Kept as top-level constants so the `static const` model
+  // maps can reference them directly. `['*']` is the multilingual
+  // sentinel — `ModelDefinition.matchesLanguage` treats it as "matches
+  // any picked language."
+  static const List<String> langsAll = <String>['*'];
+  static const List<String> langsEn = <String>['en'];
+  static const List<String> langsDe = <String>['de'];
+  static const List<String> langsZh = <String>['zh'];
+  static const List<String> langsFr = <String>['fr'];
+  static const List<String> langsEs = <String>['es'];
+  static const List<String> langsIt = <String>['it'];
+  static const List<String> langsPt = <String>['pt'];
+  static const List<String> langsNl = <String>['nl'];
+  static const List<String> langsRu = <String>['ru'];
+  static const List<String> langsJa = <String>['ja'];
+  static const List<String> langsAr = <String>['ar'];
+  static const List<String> langsUk = <String>['uk'];
+  static const List<String> langsCs = <String>['cs'];
+  static const List<String> langsEnZh = <String>['en', 'zh'];
+  // The 25-language EU set Canary 1B-v2 + Parakeet TDT v3 advertise.
+  static const List<String> langsEU25 = <String>[
+    'en', 'de', 'fr', 'es', 'it', 'pt', 'nl', 'pl', 'ru', 'uk',
+    'cs', 'da', 'sv', 'no', 'fi', 'el', 'bg', 'ro', 'sk', 'sl',
+    'lt', 'lv', 'et', 'hr', 'hu',
+  ];
+  // 13-language set used by Cohere transcribe + Voxtral 4B realtime.
+  static const List<String> langsCohere13 = <String>[
+    'en', 'es', 'fr', 'de', 'it', 'pt', 'ru', 'zh', 'ja', 'ko',
+    'ar', 'hi', 'tr',
+  ];
+  // 8-language set used by Voxtral 3B Mini.
+  static const List<String> langsVoxtral8 = <String>[
+    'en', 'es', 'fr', 'de', 'it', 'pt', 'nl', 'pl',
+  ];
+  // 6-language set used by Granite Speech 3.x / 4.x.
+  static const List<String> langsGranite6 = <String>[
+    'en', 'fr', 'de', 'es', 'pt', 'ja',
+  ];
+  // SenseVoice supports zh/en/ja/ko/yue; we surface yue under zh.
+  static const List<String> langsSensevoice = <String>['zh', 'en', 'ja', 'ko'];
+  // Fullstop-punc multilingual checkpoint.
+  static const List<String> langsFullstopPunc = <String>['en', 'de', 'fr', 'it'];
+
   final Dio _dio = Dio();
   late String _modelsDir;
   final SettingsService _settingsService;
@@ -945,6 +989,43 @@ class ModelService {
       backend: 'chatterbox',
       kind: ModelKind.codec,
     ),
+    // Kartoffel-Orpheus 3B (DE) — Orpheus base + German fine-tune.
+    // Two flavours under separate HF repos (natural-voice + synthetic);
+    // both share the standard snac-24khz codec. Adding explicit
+    // catalogue entries so they show up under the "German" language
+    // filter even before the user hits Refresh-from-HF.
+    'kartoffel-orpheus-3b-natural-q8_0': ModelDefinition(
+      name: 'kartoffel-orpheus-3b-natural-q8_0',
+      displayName: 'Kartoffel-Orpheus 3B natural (DE, q8_0)',
+      fileName: 'kartoffel-orpheus-3b-german-natural-q8_0.gguf',
+      url:
+          'https://huggingface.co/cstr/kartoffel-orpheus-3b-german-natural-GGUF/resolve/main/kartoffel-orpheus-3b-german-natural-q8_0.gguf',
+      sizeBytes: 3500 * 1024 * 1024,
+      checksum: '',
+      description:
+          'Orpheus 3B German fine-tune (natural voices) — pair with snac-24khz',
+      quantization: 'q8_0',
+      backend: 'orpheus',
+      kind: ModelKind.tts,
+      companions: ['snac-24khz'],
+      languages: langsDe,
+    ),
+    'kartoffel-orpheus-3b-synthetic-q8_0': ModelDefinition(
+      name: 'kartoffel-orpheus-3b-synthetic-q8_0',
+      displayName: 'Kartoffel-Orpheus 3B synthetic (DE, q8_0)',
+      fileName: 'kartoffel-orpheus-3b-german-synthetic-q8_0.gguf',
+      url:
+          'https://huggingface.co/cstr/kartoffel-orpheus-3b-german-synthetic-GGUF/resolve/main/kartoffel-orpheus-3b-german-synthetic-q8_0.gguf',
+      sizeBytes: 3500 * 1024 * 1024,
+      checksum: '',
+      description:
+          'Orpheus 3B German fine-tune (synthetic voices) — pair with snac-24khz',
+      quantization: 'q8_0',
+      backend: 'orpheus',
+      kind: ModelKind.tts,
+      companions: ['snac-24khz'],
+      languages: langsDe,
+    ),
     // Kartoffelbox — Chatterbox German finetune (turbo). T3 only on HF;
     // pair with the matching English S3Gen vocoder at synth time.
     'kartoffelbox-de-q8_0': ModelDefinition(
@@ -961,6 +1042,7 @@ class ModelService {
       backend: 'chatterbox',
       kind: ModelKind.tts,
       companions: ['chatterbox-s3gen-q8_0'],
+      languages: langsDe,
     ),
     // IndexTTS 1.5 is split into two GGUFs in cstr/indextts-1.5-GGUF:
     //   * indextts-gpt-*.gguf — GPT-2 style AR
@@ -1450,6 +1532,7 @@ class ModelService {
       displayPrefix: 'Whisper',
       description: 'Whisper (quantised GGML)',
       extension: '.bin',
+      defaultLanguages: langsAll,
     ),
     'parakeet': BackendRepo(
       backend: 'parakeet',
@@ -1457,6 +1540,7 @@ class ModelService {
       baseName: 'parakeet-tdt-0.6b-v3',
       displayPrefix: 'Parakeet TDT 0.6B v3',
       description: 'Fast English ASR (NVIDIA Parakeet)',
+      defaultLanguages: langsEU25,
     ),
     'canary': BackendRepo(
       backend: 'canary',
@@ -1464,6 +1548,7 @@ class ModelService {
       baseName: 'canary-1b-v2',
       displayPrefix: 'Canary 1B v2',
       description: 'NVIDIA Canary — speech translation',
+      defaultLanguages: langsEU25,
     ),
     'cohere': BackendRepo(
       backend: 'cohere',
@@ -1471,6 +1556,7 @@ class ModelService {
       baseName: 'cohere-transcribe',
       displayPrefix: 'Cohere Transcribe',
       description: 'Cohere high-accuracy ASR',
+      defaultLanguages: langsCohere13,
     ),
     'voxtral': BackendRepo(
       backend: 'voxtral',
@@ -1478,6 +1564,7 @@ class ModelService {
       baseName: 'voxtral-mini-3b-2507',
       displayPrefix: 'Voxtral Mini 3B 2507',
       description: 'Mistral Voxtral — speech translation + ASR',
+      defaultLanguages: langsVoxtral8,
     ),
     'voxtral4b': BackendRepo(
       backend: 'voxtral4b',
@@ -1485,6 +1572,7 @@ class ModelService {
       baseName: 'voxtral-mini-4b-realtime',
       displayPrefix: 'Voxtral Mini 4B realtime',
       description: 'Voxtral realtime variant',
+      defaultLanguages: langsCohere13,
     ),
     'qwen3': BackendRepo(
       backend: 'qwen3',
@@ -1492,6 +1580,7 @@ class ModelService {
       baseName: 'qwen3-asr-0.6b',
       displayPrefix: 'Qwen3-ASR 0.6B',
       description: 'Multilingual (30+ langs incl. Chinese dialects)',
+      defaultLanguages: langsAll,
     ),
     'granite': BackendRepo(
       backend: 'granite',
@@ -1499,6 +1588,7 @@ class ModelService {
       baseName: 'granite-speech-4.0-1b',
       displayPrefix: 'Granite 4.0 1B Speech',
       description: 'IBM Granite speech (instruction-tuned)',
+      defaultLanguages: langsGranite6,
     ),
     'fastconformer-ctc': BackendRepo(
       backend: 'fastconformer-ctc',
@@ -1506,6 +1596,7 @@ class ModelService {
       baseName: 'stt-en-fastconformer-ctc-large',
       displayPrefix: 'FastConformer CTC (en)',
       description: 'Low-latency CTC ASR (English)',
+      defaultLanguages: langsEn,
     ),
     'wav2vec2': BackendRepo(
       backend: 'wav2vec2',
@@ -1513,6 +1604,7 @@ class ModelService {
       baseName: 'wav2vec2-xlsr-en',
       displayPrefix: 'Wav2Vec2 base (en)',
       description: 'Self-supervised (facebook/wav2vec2)',
+      defaultLanguages: langsEn,
     ),
     // OmniASR — multilingual LLM-based ASR. The CTC variant is omitted on
     // purpose: it has no language conditioning and degrades to gibberish on
@@ -1523,6 +1615,7 @@ class ModelService {
       baseName: 'omniasr-llm-300m-v2',
       displayPrefix: 'OmniASR LLM 300M v2',
       description: 'Multilingual LLM-based ASR (300M)',
+      defaultLanguages: langsAll,
     ),
     'firered-asr': BackendRepo(
       backend: 'firered-asr',
@@ -1530,6 +1623,7 @@ class ModelService {
       baseName: 'firered-asr2-aed',
       displayPrefix: 'FireRed ASR2 AED',
       description: 'AED-style Mandarin/English ASR',
+      defaultLanguages: langsEnZh,
     ),
     'kyutai-stt': BackendRepo(
       backend: 'kyutai-stt',
@@ -1537,6 +1631,7 @@ class ModelService {
       baseName: 'kyutai-stt-1b',
       displayPrefix: 'Kyutai STT 1B',
       description: 'Kyutai streaming-style STT (1B)',
+      defaultLanguages: langsEn,
     ),
     'glm-asr': BackendRepo(
       backend: 'glm-asr',
@@ -1544,6 +1639,7 @@ class ModelService {
       baseName: 'glm-asr-nano',
       displayPrefix: 'GLM-ASR Nano',
       description: 'GLM-family multilingual ASR',
+      defaultLanguages: langsAll,
     ),
     'vibevoice': BackendRepo(
       backend: 'vibevoice',
@@ -1551,6 +1647,7 @@ class ModelService {
       baseName: 'vibevoice-asr',
       displayPrefix: 'VibeVoice ASR',
       description: 'Multilingual large ASR (~4.5 GB)',
+      defaultLanguages: langsAll,
     ),
     // VibeVoice TTS — shares its HF repo with 20+ voicepack files,
     // hence `voicepackBaseName`. Main quants: q4_k / q8_0 /
@@ -1566,6 +1663,7 @@ class ModelService {
       kind: ModelKind.tts,
       voicepackBaseName: 'vibevoice-voice',
       defaultCompanions: ['vibevoice-voice-emma'],
+      defaultLanguages: langsAll,
     ),
     'mimo-asr': BackendRepo(
       backend: 'mimo-asr',
@@ -1574,6 +1672,7 @@ class ModelService {
       displayPrefix: 'MiMo ASR',
       description: 'XiaomiMiMo MiMo-Audio ASR',
       defaultCompanions: ['mimo-tokenizer-q4_k'],
+      defaultLanguages: langsEnZh,
     ),
     // Newer additions wired up so refreshAvailableQuants() picks up
     // every f16 / q4_k / q5_0 / q8_0 / iq2_xs sibling in each repo
@@ -1585,6 +1684,7 @@ class ModelService {
       baseName: 'parakeet-tdt-0.6b-v2',
       displayPrefix: 'Parakeet TDT 0.6B v2',
       description: 'Parakeet TDT 0.6B v2 (earlier vocab)',
+      defaultLanguages: langsEn,
     ),
     'parakeet-tdt-1.1b': BackendRepo(
       backend: 'parakeet',
@@ -1592,6 +1692,7 @@ class ModelService {
       baseName: 'parakeet-tdt-1.1b',
       displayPrefix: 'Parakeet TDT 1.1B',
       description: 'Larger Parakeet TDT, 42-layer encoder',
+      defaultLanguages: langsEn,
     ),
     'qwen3-1.7b': BackendRepo(
       backend: 'qwen3',
@@ -1599,6 +1700,7 @@ class ModelService {
       baseName: 'qwen3-asr-1.7b',
       displayPrefix: 'Qwen3-ASR 1.7B',
       description: 'Qwen3-ASR 1.7B, multilingual',
+      defaultLanguages: langsAll,
     ),
     'mega-asr': BackendRepo(
       backend: 'mega-asr',
@@ -1606,6 +1708,7 @@ class ModelService {
       baseName: 'mega-asr-1.7b',
       displayPrefix: 'Mega-ASR 1.7B',
       description: 'Qwen3-ASR 1.7B + robustness LoRA',
+      defaultLanguages: langsAll,
     ),
     'omniasr-llm-1b': BackendRepo(
       backend: 'omniasr-llm',
@@ -1613,6 +1716,7 @@ class ModelService {
       baseName: 'omniasr-llm-1b',
       displayPrefix: 'OmniASR LLM 1B',
       description: 'OmniASR LLM 1B (multilingual)',
+      defaultLanguages: langsAll,
     ),
     'funasr': BackendRepo(
       backend: 'funasr',
@@ -1620,6 +1724,7 @@ class ModelService {
       baseName: 'funasr-nano-2512',
       displayPrefix: 'FunASR Nano 2512',
       description: 'FunASR Nano (Mandarin + English)',
+      defaultLanguages: langsEnZh,
     ),
     'funasr-mlt': BackendRepo(
       backend: 'funasr',
@@ -1627,6 +1732,7 @@ class ModelService {
       baseName: 'funasr-mlt-nano-2512',
       displayPrefix: 'FunASR MLT Nano 2512',
       description: 'FunASR multilingual Nano',
+      defaultLanguages: langsAll,
     ),
     'paraformer': BackendRepo(
       backend: 'paraformer',
@@ -1634,6 +1740,7 @@ class ModelService {
       baseName: 'paraformer-zh',
       displayPrefix: 'Paraformer ZH',
       description: 'Paraformer Mandarin NAR-ASR',
+      defaultLanguages: langsZh,
     ),
     'sensevoice': BackendRepo(
       backend: 'sensevoice',
@@ -1641,6 +1748,7 @@ class ModelService {
       baseName: 'sensevoice-small',
       displayPrefix: 'SenseVoice Small',
       description: 'SenseVoice Small (ZH/EN/JA/KO/YUE) with built-in LID',
+      defaultLanguages: langsSensevoice,
     ),
     // Distil-Whisper Large v3 — .bin (not .gguf), uses the whisper
     // runtime. cstr/distil-large-v3-GGUF ships f16/q5_0/q4_k/q8_0/etc.
@@ -1651,6 +1759,7 @@ class ModelService {
       displayPrefix: 'Distil-Whisper Large v3',
       description: 'Distilled Whisper Large v3 — ~6× faster',
       extension: '.bin',
+      defaultLanguages: langsAll,
     ),
     // Kokoro — multilingual TTS (needs voicepack via setVoice).
     'kokoro': BackendRepo(
@@ -1661,6 +1770,7 @@ class ModelService {
       description: 'Kokoro multilingual TTS (~100 MB)',
       kind: ModelKind.tts,
       defaultCompanions: ['kokoro-voice-af_heart'],
+      defaultLanguages: langsAll,
     ),
     // Kokoro voicepacks — separate HF repo, voicepack-only. Empty
     // baseName means the main-quant probe skips this repo; the
@@ -1683,6 +1793,7 @@ class ModelService {
       description: 'Orpheus Llama-3.2-3B TTS (~3.5 GB)',
       kind: ModelKind.tts,
       defaultCompanions: ['snac-24khz'],
+      defaultLanguages: langsEn,
     ),
     // Moonshine — three sibling repos (tiny / base / streaming-tiny).
     // moonshine_init reads tokenizer.bin from the model's directory at
@@ -1696,6 +1807,7 @@ class ModelService {
       displayPrefix: 'Moonshine tiny',
       description: 'Moonshine tiny ASR (English, lightweight)',
       defaultCompanions: ['moonshine-tokenizer'],
+      defaultLanguages: langsEn,
     ),
     'moonshine-base': BackendRepo(
       backend: 'moonshine',
@@ -1704,6 +1816,7 @@ class ModelService {
       displayPrefix: 'Moonshine base',
       description: 'Moonshine base ASR (English, lightweight)',
       defaultCompanions: ['moonshine-tokenizer'],
+      defaultLanguages: langsEn,
     ),
     'moonshine-streaming-tiny': BackendRepo(
       backend: 'moonshine-streaming',
@@ -1712,6 +1825,7 @@ class ModelService {
       displayPrefix: 'Moonshine streaming tiny',
       description: 'Moonshine streaming ASR for live mic input',
       defaultCompanions: ['moonshine-tokenizer'],
+      defaultLanguages: langsEn,
     ),
     // Chatterbox turbo + Kartoffelbox: same `chatterbox` backend, but the
     // turbo + German variants live in separate repos so refresh-from-HF
@@ -1726,6 +1840,7 @@ class ModelService {
       description: 'Chatterbox turbo TTS T3 — pair with chatterbox-turbo-s3gen',
       kind: ModelKind.tts,
       defaultCompanions: ['chatterbox-s3gen-q8_0'],
+      defaultLanguages: langsEn,
     ),
     'chatterbox-turbo-s3gen': BackendRepo(
       backend: 'chatterbox',
@@ -1745,6 +1860,29 @@ class ModelService {
       description: 'Kartoffelbox-turbo German T3 — pair with chatterbox-s3gen',
       kind: ModelKind.tts,
       defaultCompanions: ['chatterbox-s3gen-q8_0'],
+      defaultLanguages: langsDe,
+    ),
+    // Kartoffel-Orpheus — German Orpheus finetunes (natural / synthetic
+    // voice families) sharing the same SNAC codec as the English base.
+    'kartoffel-orpheus-natural': BackendRepo(
+      backend: 'orpheus',
+      repoId: 'cstr/kartoffel-orpheus-3b-german-natural-GGUF',
+      baseName: 'kartoffel-orpheus-3b-german-natural',
+      displayPrefix: 'Kartoffel-Orpheus 3B natural (DE)',
+      description: 'Orpheus 3B German finetune (natural voices)',
+      kind: ModelKind.tts,
+      defaultCompanions: ['snac-24khz'],
+      defaultLanguages: langsDe,
+    ),
+    'kartoffel-orpheus-synthetic': BackendRepo(
+      backend: 'orpheus',
+      repoId: 'cstr/kartoffel-orpheus-3b-german-synthetic-GGUF',
+      baseName: 'kartoffel-orpheus-3b-german-synthetic',
+      displayPrefix: 'Kartoffel-Orpheus 3B synthetic (DE)',
+      description: 'Orpheus 3B German finetune (synthetic voices)',
+      kind: ModelKind.tts,
+      defaultCompanions: ['snac-24khz'],
+      defaultLanguages: langsDe,
     ),
     // Qwen3-TTS — 12 Hz codec talker + shared tokenizer. Multiple base /
     // customvoice / voicedesign variants ship under separate HF repos but
@@ -1757,6 +1895,7 @@ class ModelService {
       description: 'Qwen3-TTS base talker — needs qwen3-tts-tokenizer-12hz codec',
       kind: ModelKind.tts,
       defaultCompanions: ['qwen3-tts-tokenizer-12hz'],
+      defaultLanguages: langsAll,
     ),
     'qwen3-tts-0.6b-customvoice': BackendRepo(
       backend: 'qwen3-tts',
@@ -1766,6 +1905,7 @@ class ModelService {
       description: 'Qwen3-TTS 0.6B with ICL voice cloning',
       kind: ModelKind.tts,
       defaultCompanions: ['qwen3-tts-tokenizer-12hz'],
+      defaultLanguages: langsAll,
     ),
     'qwen3-tts-1.7b-customvoice': BackendRepo(
       backend: 'qwen3-tts',
@@ -1775,6 +1915,7 @@ class ModelService {
       description: 'Qwen3-TTS 1.7B with ICL voice cloning',
       kind: ModelKind.tts,
       defaultCompanions: ['qwen3-tts-tokenizer-12hz'],
+      defaultLanguages: langsAll,
     ),
     'qwen3-tts-1.7b-voicedesign': BackendRepo(
       backend: 'qwen3-tts',
@@ -1784,6 +1925,7 @@ class ModelService {
       description: 'Qwen3-TTS 1.7B — natural-language voice description',
       kind: ModelKind.tts,
       defaultCompanions: ['qwen3-tts-tokenizer-12hz'],
+      defaultLanguages: langsAll,
     ),
     // The qwen3-tts codec lives in its own repo — registered separately
     // so refresh picks up new tokenizer quants when they're published.
@@ -1804,6 +1946,7 @@ class ModelService {
       displayPrefix: 'FireRedPunc (post-processor)',
       description: 'Punctuation restoration for CTC ASR output',
       kind: ModelKind.punc,
+      defaultLanguages: langsEnZh,
     ),
     // ----------------- CrispASR 0.6.x parity additions -----------------
     // Gemma4-E2B — Conformer + Gemma-4 LLM, 140+ languages.
@@ -1813,6 +1956,7 @@ class ModelService {
       baseName: 'gemma4-e2b-it',
       displayPrefix: 'Gemma4-E2B-it',
       description: 'Multilingual ASR (140+ languages, instruction-tuned)',
+      defaultLanguages: langsAll,
     ),
     // OmniASR LLM unlimited streaming variant.
     'omniasr-llm-unlimited': BackendRepo(
@@ -1821,6 +1965,7 @@ class ModelService {
       baseName: 'omniasr-llm-unlimited-300m-v2',
       displayPrefix: 'OmniASR LLM unlimited 300M v2',
       description: 'Streaming OmniASR (unlimited audio)',
+      defaultLanguages: langsAll,
     ),
     // Granite Speech 4.1 family.
     'granite-4.1': BackendRepo(
@@ -1829,6 +1974,7 @@ class ModelService {
       baseName: 'granite-speech-4.1-2b',
       displayPrefix: 'Granite Speech 4.1 2B',
       description: 'IBM Granite Speech 4.1 (2B)',
+      defaultLanguages: langsGranite6,
     ),
     'granite-4.1-plus': BackendRepo(
       backend: 'granite-4.1-plus',
@@ -1836,6 +1982,7 @@ class ModelService {
       baseName: 'granite-speech-4.1-2b-plus',
       displayPrefix: 'Granite Speech 4.1 2B+',
       description: 'Granite Speech 4.1+ (instruction-tuned)',
+      defaultLanguages: langsGranite6,
     ),
     'granite-4.1-nar': BackendRepo(
       backend: 'granite-4.1-nar',
@@ -1843,6 +1990,7 @@ class ModelService {
       baseName: 'granite-speech-4.1-2b-nar',
       displayPrefix: 'Granite Speech 4.1 2B NAR',
       description: 'Granite Speech 4.1 NAR (parallel-decode)',
+      defaultLanguages: langsGranite6,
     ),
     // Chatterbox — repo holds two file families: chatterbox-t3-*.gguf
     // (AR transformer) + chatterbox-s3gen-*.gguf (flow-matching
@@ -1857,6 +2005,7 @@ class ModelService {
       description: 'Chatterbox TTS T3 (AR transformer)',
       kind: ModelKind.tts,
       defaultCompanions: ['chatterbox-s3gen-q8_0'],
+      defaultLanguages: langsEn,
     ),
     'chatterbox-s3gen': BackendRepo(
       backend: 'chatterbox',
@@ -1875,6 +2024,7 @@ class ModelService {
       description: 'IndexTTS 1.5 GPT (ZH+EN)',
       kind: ModelKind.tts,
       defaultCompanions: ['indextts-bigvgan'],
+      defaultLanguages: langsEnZh,
     ),
     // Fullstop-punc — multilingual punctuation post-processor.
     'fullstop-punc': BackendRepo(
@@ -1884,6 +2034,7 @@ class ModelService {
       displayPrefix: 'Fullstop-punc multilang',
       description: 'Punctuation restoration (EN/DE/FR/IT)',
       kind: ModelKind.punc,
+      defaultLanguages: langsFullstopPunc,
     ),
     // Pyannote v3 segmentation — ML diarisation.
     'pyannote': BackendRepo(
@@ -2071,6 +2222,7 @@ class ModelService {
         quantization: modelDef.quantization,
         backend: modelDef.backend,
         kind: modelDef.kind,
+        languages: modelDef.languages,
       ));
     }
 
@@ -2113,6 +2265,7 @@ class ModelService {
         quantization: modelDef.quantization,
         backend: modelDef.backend,
         kind: modelDef.kind,
+        languages: modelDef.languages,
       ));
     }
 
@@ -2449,6 +2602,7 @@ class ModelService {
         backend: repo.backend,
         kind: repo.kind,
         companions: repo.defaultCompanions,
+        languages: repo.defaultLanguages,
       ));
     }
     return out;
@@ -3183,6 +3337,21 @@ class ModelDefinition {
   /// downloads — engine code looks them up by filename, not name.
   final List<String> companions;
 
+  /// ISO 639-1 language codes the model supports. Two special values:
+  ///   * `[]` (default) — language metadata unknown; the Model Manager
+  ///     language filter treats these as "no opinion" and shows them
+  ///     under every filter (so untagged-but-actually-good entries
+  ///     don't disappear). New rows should aim to fill this in.
+  ///   * `['*']` — multilingual (Whisper-style 99-lang; M2M-100;
+  ///     SenseVoice's built-in LID, etc.). Matches any specific
+  ///     language filter.
+  /// Anything else is a concrete list of ISO 639-1 codes ("en", "de",
+  /// "zh", ...) and matches a filter when the picked code is in the
+  /// list. Codec / voice / VAD / LID / diarisation / punctuation
+  /// entries can leave this empty — the language filter only fires for
+  /// kind = asr / tts / translate.
+  final List<String> languages;
+
   const ModelDefinition({
     required this.name,
     required this.displayName,
@@ -3195,7 +3364,19 @@ class ModelDefinition {
     this.backend = 'whisper',
     this.kind = ModelKind.asr,
     this.companions = const [],
+    this.languages = const [],
   });
+
+  /// True when this row should appear under the given language
+  /// filter. Untagged + multilingual rows pass for any picked code.
+  /// `''` (the "Any" sentinel) always passes too. Used by the
+  /// Model Manager filter row.
+  bool matchesLanguage(String code) {
+    if (code.isEmpty) return true;
+    if (languages.isEmpty) return true;
+    if (languages.contains('*')) return true;
+    return languages.contains(code.toLowerCase());
+  }
 }
 
 /// Points at a HuggingFace repo that the model service can enumerate to
@@ -3241,6 +3422,14 @@ class BackendRepo {
   /// convention the probe matches against).
   final List<String> defaultCompanions;
 
+  /// ISO 639-1 language codes auto-discovered ModelDefinitions inherit.
+  /// Mirrors `defaultCompanions`: same shape as `ModelDefinition.languages`
+  /// — `[]` = unknown, `['*']` = multilingual, otherwise a concrete
+  /// language list. Lets the Models-screen language filter find quants
+  /// the HF probe surfaced even though they weren't in the baked
+  /// catalogue.
+  final List<String> defaultLanguages;
+
   const BackendRepo({
     required this.backend,
     required this.repoId,
@@ -3251,6 +3440,7 @@ class BackendRepo {
     this.kind = ModelKind.asr,
     this.voicepackBaseName,
     this.defaultCompanions = const [],
+    this.defaultLanguages = const [],
   });
 }
 
@@ -3285,6 +3475,12 @@ class ModelInfo {
   /// can see TTS voicepacks separately from main ASR models.
   final ModelKind kind;
 
+  /// ISO 639-1 language codes the underlying ModelDefinition advertises.
+  /// `[]` = unknown (filter shows under any language), `['*']` =
+  /// multilingual, otherwise the list of supported codes. Drives the
+  /// Models screen language-filter dropdown.
+  final List<String> languages;
+
   /// Human-readable runtime status — "Ready" when the bundled libwhisper
   /// can execute this model today, or an explanation of what's missing.
   /// Filled in by the UI based on engine capability probing.
@@ -3302,8 +3498,19 @@ class ModelInfo {
     this.quantization = 'f16',
     this.backend = 'whisper',
     this.kind = ModelKind.asr,
+    this.languages = const [],
     this.runtimeStatus,
   });
+
+  /// Same filter helper as [ModelDefinition.matchesLanguage] — kept on
+  /// the UI-facing type so the Model Manager doesn't have to round-trip
+  /// to the ModelService just to filter a list it already holds.
+  bool matchesLanguage(String code) {
+    if (code.isEmpty) return true;
+    if (languages.isEmpty) return true;
+    if (languages.contains('*')) return true;
+    return languages.contains(code.toLowerCase());
+  }
 }
 
 enum ModelType {
