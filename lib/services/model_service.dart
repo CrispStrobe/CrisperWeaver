@@ -1713,6 +1713,88 @@ class ModelService {
       description: 'Moonshine streaming ASR for live mic input',
       defaultCompanions: ['moonshine-tokenizer'],
     ),
+    // Chatterbox turbo + Kartoffelbox: same `chatterbox` backend, but the
+    // turbo + German variants live in separate repos so refresh-from-HF
+    // doesn't probe them otherwise. (The base chatterbox + chatterbox-s3gen
+    // BackendRepos already exist further down — just adding the missing
+    // siblings here.)
+    'chatterbox-turbo-t3': BackendRepo(
+      backend: 'chatterbox',
+      repoId: 'cstr/chatterbox-turbo-GGUF',
+      baseName: 'chatterbox-turbo-t3',
+      displayPrefix: 'Chatterbox turbo T3',
+      description: 'Chatterbox turbo TTS T3 — pair with chatterbox-turbo-s3gen',
+      kind: ModelKind.tts,
+      defaultCompanions: ['chatterbox-s3gen-q8_0'],
+    ),
+    'chatterbox-turbo-s3gen': BackendRepo(
+      backend: 'chatterbox',
+      repoId: 'cstr/chatterbox-turbo-GGUF',
+      baseName: 'chatterbox-turbo-s3gen',
+      displayPrefix: 'Chatterbox turbo S3Gen',
+      description: 'Chatterbox turbo S3Gen vocoder',
+      kind: ModelKind.codec,
+    ),
+    // Kartoffelbox — German Chatterbox finetune. Only T3 weights ship on
+    // HF; pair with the English Chatterbox S3Gen at synth time.
+    'kartoffelbox': BackendRepo(
+      backend: 'chatterbox',
+      repoId: 'cstr/kartoffelbox-turbo-GGUF',
+      baseName: 'kartoffelbox-turbo-t3',
+      displayPrefix: 'Kartoffelbox turbo T3 (DE)',
+      description: 'Kartoffelbox-turbo German T3 — pair with chatterbox-s3gen',
+      kind: ModelKind.tts,
+      defaultCompanions: ['chatterbox-s3gen-q8_0'],
+    ),
+    // Qwen3-TTS — 12 Hz codec talker + shared tokenizer. Multiple base /
+    // customvoice / voicedesign variants ship under separate HF repos but
+    // all share the qwen3-tts-tokenizer-12hz codec.
+    'qwen3-tts-0.6b-base': BackendRepo(
+      backend: 'qwen3-tts',
+      repoId: 'cstr/qwen3-tts-0.6b-base-GGUF',
+      baseName: 'qwen3-tts-12hz-0.6b-base',
+      displayPrefix: 'Qwen3-TTS 0.6B base',
+      description: 'Qwen3-TTS base talker — needs qwen3-tts-tokenizer-12hz codec',
+      kind: ModelKind.tts,
+      defaultCompanions: ['qwen3-tts-tokenizer-12hz'],
+    ),
+    'qwen3-tts-0.6b-customvoice': BackendRepo(
+      backend: 'qwen3-tts',
+      repoId: 'cstr/qwen3-tts-0.6b-customvoice-GGUF',
+      baseName: 'qwen3-tts-12hz-0.6b-customvoice',
+      displayPrefix: 'Qwen3-TTS 0.6B custom-voice',
+      description: 'Qwen3-TTS 0.6B with ICL voice cloning',
+      kind: ModelKind.tts,
+      defaultCompanions: ['qwen3-tts-tokenizer-12hz'],
+    ),
+    'qwen3-tts-1.7b-customvoice': BackendRepo(
+      backend: 'qwen3-tts',
+      repoId: 'cstr/qwen3-tts-1.7b-customvoice-GGUF',
+      baseName: 'qwen3-tts-12hz-1.7b-customvoice',
+      displayPrefix: 'Qwen3-TTS 1.7B custom-voice',
+      description: 'Qwen3-TTS 1.7B with ICL voice cloning',
+      kind: ModelKind.tts,
+      defaultCompanions: ['qwen3-tts-tokenizer-12hz'],
+    ),
+    'qwen3-tts-1.7b-voicedesign': BackendRepo(
+      backend: 'qwen3-tts',
+      repoId: 'cstr/qwen3-tts-1.7b-voicedesign-GGUF',
+      baseName: 'qwen3-tts-12hz-1.7b-voicedesign',
+      displayPrefix: 'Qwen3-TTS 1.7B voice-design',
+      description: 'Qwen3-TTS 1.7B — natural-language voice description',
+      kind: ModelKind.tts,
+      defaultCompanions: ['qwen3-tts-tokenizer-12hz'],
+    ),
+    // The qwen3-tts codec lives in its own repo — registered separately
+    // so refresh picks up new tokenizer quants when they're published.
+    'qwen3-tts-tokenizer-12hz': BackendRepo(
+      backend: 'qwen3-tts',
+      repoId: 'cstr/qwen3-tts-tokenizer-12hz-GGUF',
+      baseName: 'qwen3-tts-tokenizer-12hz',
+      displayPrefix: 'Qwen3-TTS codec',
+      description: 'Qwen3-TTS 12 Hz audio codec — companion to every Qwen3-TTS talker',
+      kind: ModelKind.codec,
+    ),
     // FireRedPunc — POST-PROCESSOR (not an ASR backend). Catalogued so
     // users can fetch it via Model Management; consumed by `PuncService`.
     'firered-punc': BackendRepo(
@@ -1774,6 +1856,7 @@ class ModelService {
       displayPrefix: 'Chatterbox T3',
       description: 'Chatterbox TTS T3 (AR transformer)',
       kind: ModelKind.tts,
+      defaultCompanions: ['chatterbox-s3gen-q8_0'],
     ),
     'chatterbox-s3gen': BackendRepo(
       backend: 'chatterbox',
@@ -1791,6 +1874,7 @@ class ModelService {
       displayPrefix: 'IndexTTS 1.5 GPT',
       description: 'IndexTTS 1.5 GPT (ZH+EN)',
       kind: ModelKind.tts,
+      defaultCompanions: ['indextts-bigvgan'],
     ),
     // Fullstop-punc — multilingual punctuation post-processor.
     'fullstop-punc': BackendRepo(
