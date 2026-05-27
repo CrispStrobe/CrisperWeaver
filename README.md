@@ -1,8 +1,8 @@
 # CrisperWeaver
 
-**On-device speech recognition + text-to-speech. No cloud. 28+ model families, one app.**
+**On-device speech recognition + text-to-speech. No cloud. 30+ model families, one app.**
 
-CrisperWeaver is a cross-platform Flutter app for fully-offline audio transcription and speech synthesis. Drop in a file, paste a URL, or record with the mic — audio never leaves the device. 24+ open-weight ASR families and 7 TTS families are supported through a single unified engine ([CrispASR][crispasr]): Whisper, Parakeet, Canary, Voxtral, Qwen3-ASR, Cohere, Granite (3.x + 4.1 family), FastConformer-CTC, Canary-CTC, Wav2Vec2, OmniASR (+ streaming "unlimited" variant), FireRed, Kyutai-STT, GLM-ASR, Moonshine, VibeVoice ASR, MiMo ASR, **Gemma4-E2B** (140+ languages) — plus Kokoro / VibeVoice / Qwen3-TTS / Orpheus / **Chatterbox** / **Kartoffelbox** / **IndexTTS** for synthesis, **Pyannote v3** for ML diarisation, FireRedPunc + **fullstop-punc** for punctuation restoration, **Silero LID** for language detection, and FireRed/MarbleNet/Whisper-VAD-EncDec VAD options.
+CrisperWeaver is a cross-platform Flutter app for fully-offline audio transcription and speech synthesis. Drop in a file, paste a URL, or record with the mic — audio never leaves the device. 29+ open-weight ASR families and 7 TTS families are supported through a single unified engine ([CrispASR][crispasr]): Whisper (+ Distil-Whisper), Parakeet, Canary, Voxtral, Qwen3-ASR (+ Mega-ASR LoRA), Cohere, Granite (3.x + 4.1 family), FastConformer-CTC, Canary-CTC, Wav2Vec2, OmniASR (+ streaming "unlimited" variant), FireRed, Kyutai-STT, GLM-ASR, Moonshine, VibeVoice ASR, MiMo ASR, **Gemma4-E2B** (140+ languages), **FunASR** (Mandarin + EN), **Paraformer-ZH**, **SenseVoice** (built-in language ID) — plus Kokoro / VibeVoice / Qwen3-TTS / Orpheus / **Chatterbox** / **Kartoffelbox** / **IndexTTS** for synthesis, **Pyannote v3** for ML diarisation, FireRedPunc + **fullstop-punc** for punctuation restoration, **Silero LID** for language detection, and FireRed/MarbleNet/Whisper-VAD-EncDec VAD options.
 
 [crispasr]: https://github.com/CrispStrobe/CrispASR
 
@@ -28,7 +28,8 @@ CrisperWeaver is a cross-platform Flutter app for fully-offline audio transcript
 - **Drag and drop** files onto the transcription screen (desktop) or directly on the batch queue.
 - **Receive shared audio** from the OS share sheet (Android / iOS / macOS).
 - **Choose your model family and quantisation** — q4_0 / q5_0 / q4_k / q5_k / q6_k / q8_0 variants plus f16 originals. Model picker filters by name + backend; Model Management screen auto-probes HuggingFace to discover every available quant.
-- **Download and manage models** from a built-in browser — parallel queue, resume, SHA-1 verify, cancel, delete.
+- **Add from HuggingFace repo** — link-icon button on the Models screen accepts any `OWNER/NAME` HF repo (e.g. `cstr/voxtral-mini-3b-2507-GGUF`), lists the GGUF / .bin files under your chosen backend, and registers them as downloadable models. Mirror of `crispasr --hf-repo` on the CLI side; escape hatch for repos not yet in the baked catalogue.
+- **Download and manage models** from a built-in browser — parallel queue, resume, SHA-1 verify, cancel, delete. Companion files (codec / voice / tokenizer GGUFs) auto-download alongside their parent model, including for runtime-discovered HF quants.
 - **Advanced decoding knobs** — translate-to-English (Whisper), beam search, initial-prompt vocabulary bias (huge win for domain audio), audio Q&A prompt for instruct-tuned LLM backends (Voxtral / Qwen3), source + target language pickers for true speech translation.
 - **Tune the decoder live** — best-of-N slider (1–10, picks the highest-scoring of N decodes; works on every backend) and decoder temperature slider for every backend `crispasr_session_set_temperature` honours (canary, cohere, parakeet, moonshine, voxtral, qwen3, granite, glm-asr, gemma4, omniasr-llm, kyutai-stt).
 - **Tune the VAD** — pick between Silero (bundled), FireRedVAD (F1 97.57%), MarbleNet, Whisper-VAD-EncDec; live sliders for threshold, min-speech-ms, min-silence-ms, speech-pad-ms.
@@ -69,25 +70,30 @@ One dispatcher (`CrispasrSession`) handles every backend; bundled `libcrispasr` 
 | Family                | Sizes                               | Languages                   | Notes                                |
 | --------------------- | ----------------------------------- | --------------------------- | ------------------------------------ |
 | **Whisper**           | tiny → large-v3 + q4_0/q5_0/q8_0    | 99                          | Word-level ts, lang-detect, streaming |
-| **Parakeet** (NVIDIA) | tdt-0.6b-v3                         | 25 EU (auto-detect)         | Fast, native word timestamps          |
+| **Distil-Whisper**    | distil-large-v3 (f16 / q5_0 / q4_k) | 99                          | ~6× faster than large-v3, ~50% smaller |
+| **Parakeet** (NVIDIA) | tdt-0.6b-v3, v2, 1.1b               | 25 EU (auto-detect)         | Fast, native word timestamps          |
 | **Canary** (NVIDIA)   | 1b-v2                               | 25 EU (explicit src/tgt)    | Speech translation X ↔ en             |
-| **Qwen3-ASR**         | 0.6b                                | 30 + 22 Chinese dialects    | Multilingual                          |
+| **Qwen3-ASR**         | 0.6b, 1.7b                          | 30 + 22 Chinese dialects    | Multilingual                          |
+| **Mega-ASR**          | 1.7b (Qwen3-ASR + robustness LoRA)  | 30 + 22 Chinese dialects    | LoRA merged offline, qwen3 runtime    |
 | **Cohere**            | 03-2026                             | 13                          | High-accuracy Conformer decoder       |
 | **Granite Speech**    | 3.2-8b, 3.3-2b/8b, 4.0-1b, 4.1-2b   | en fr de es pt ja           | Instruction-tuned                     |
+| **Granite Speech 4.1**| 2B / 4.1+ / 4.1-NAR                 | en fr de es pt ja           | Instruction-tuned + parallel decode  |
 | **FastConformer-CTC** | small → xxlarge                     | en                          | Low-latency CTC                       |
 | **Canary-CTC**        | 1b                                  | 25 EU                       | CTC variant of canary                 |
 | **Voxtral Mini**      | 3B (2507), 4B realtime (2602)       | 8 / 13                      | Speech translation; realtime 4B       |
 | **Wav2Vec2**          | large-xlsr-53-english + variants    | per-model (en, de, multi)   | Self-supervised CTC                   |
-| **OmniASR LLM**       | 300M v2                             | multilingual                | LLM-based ASR with `lang=` hint       |
+| **OmniASR LLM**       | 300M v2, 1B                         | multilingual                | LLM-based ASR with `lang=` hint       |
+| **OmniASR LLM unlim.**| 300M v2 streaming                   | 1600+ languages             | Streaming, 15 s protocol, unlimited audio |
 | **FireRed ASR2**      | aed-2b                              | zh / en                     | AED-style                             |
 | **Kyutai STT**        | 1b                                  | en                          | Streaming-style                       |
 | **GLM-ASR Nano**      | nano                                | multilingual                | GLM-family                            |
-| **Moonshine**         | tiny / base + streaming             | en                          | Tiny CPU-friendly                     |
+| **Moonshine**         | tiny / base + streaming             | en                          | Tiny CPU-friendly, BPE tokenizer companion |
 | **VibeVoice ASR**     | large                               | multilingual                | Large multilingual ASR (~4.5 GB)      |
 | **MiMo ASR**          | 2.5B + tokenizer companion          | en zh                       | XiaomiMiMo, two-file (model + codec)  |
 | **Gemma4-E2B**        | 2B (q4_k)                           | 140+ languages              | USM Conformer + Gemma-4 35L          |
-| **OmniASR LLM unlim.**| 300M v2 streaming                   | 1600+ languages             | Streaming, 15 s protocol, unlimited audio |
-| **Granite Speech 4.1**| 2B / 4.1+ / 4.1-NAR                 | en fr de es pt ja           | Instruction-tuned + parallel decode  |
+| **FunASR Nano**       | 2512 (f16 / q4_k), MLT 2512         | zh + en (nano) / multi (mlt)| Alibaba's compact ASR, 70-block SANM  |
+| **Paraformer-ZH**     | base (f16 / q4_k / q8_0)            | zh                          | FunASR family, NAR Mandarin ASR       |
+| **SenseVoice**        | small (f16 / q4_k / q8_0)           | zh en ja ko yue             | Built-in LID + use_itn punctuation    |
 
 ### TTS
 
@@ -97,7 +103,7 @@ One dispatcher (`CrispasrSession`) handles every backend; bundled `libcrispasr` 
 | **VibeVoice**     | realtime 0.5B (f32 + tokenizer), 1.5B base | + voicepack via `setVoice`; 1.5B supports runtime WAV cloning |
 | **Qwen3-TTS**     | 0.6B base + customvoice + codec, 1.7B VoiceDesign | Customvoice has 9 baked speakers; VoiceDesign accepts natural-language voice descriptions via `setInstruct` |
 | **Orpheus**       | 3B + SNAC codec                 | 8 baked English speakers; SNAC via `setCodecPath` |
-| **Chatterbox**    | 850 MB EN / DE (Kartoffelbox)   | T3 AR + S3Gen flow-matching; voice cloning via baked GGUF |
+| **Chatterbox**    | 850 MB base + turbo / Kartoffelbox (DE) | T3 AR + S3Gen flow-matching; voice cloning via baked GGUF |
 | **IndexTTS**      | 1.6 GB                          | GPT-2 AR + BigVGAN; zero-shot WAV cloning, ZH+EN |
 
 ### Post-processors
@@ -128,7 +134,7 @@ Downloads pull f16 from `ggerganov/whisper.cpp` and quantised variants from [`cs
 | macOS    | ✅ Released — `.app.zip`, Metal-enabled, all 24+ backend dylibs (incl. kokoro / orpheus / mimo-asr) bundled, espeak-ng auto-bundled for kokoro phonemisation |
 | Linux    | ✅ Released — `.tar.gz` bundle                                         |
 | Windows  | ✅ Released — portable `.zip` + installable `.msix` with Explorer "Open With" registration for audio + subtitle types |
-| Android  | ✅ Released — real-ASR APK (`arm64-v8a`) with `libwhisper.so` cross-built in CI |
+| Android  | ✅ Released — real-ASR APK (`arm64-v8a`) with `libwhisper.so` cross-built in CI. External models dir picker requests "All files access" runtime permission (Android 11+) so reinstalls don't lose access to `/storage/emulated/0/...` paths. |
 | iOS      | ⚠️ Unsigned IPA — sideload via [SideStore](https://sidestore.io/) / AltStore / Feather |
 
 Roadmap and blockers: see [`PLAN.md`](PLAN.md).
@@ -219,7 +225,7 @@ The default test pass is fast and offline:
 
 ```bash
 flutter analyze    # 0 issues — see analysis_options.yaml for the strict rule set
-flutter test       # 6 tests, ~5 s — widget unit tests + dispatch correctness
+flutter test       # 378 tests, ~20 s — widget unit + service / persistence / batch / dispatch
 ```
 
 `test/backend_dispatch_test.dart` always runs the cheap dispatch
