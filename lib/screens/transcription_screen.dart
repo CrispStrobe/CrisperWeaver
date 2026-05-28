@@ -1081,25 +1081,45 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
     );
   }
 
-  /// Codes the language dropdown should offer for [def]. Three cases:
-  ///   * Concrete list (Canary's 25 EU langs, Cohere's 14, …) → use as-is.
-  ///   * `['*']` (Whisper, Qwen3-ASR multi-thousand-lang) → AppConstants'
-  ///     full code set minus 'auto' (~60 codes scrollable in the
-  ///     dropdown). Wider than the legacy hardcoded 9 without needing
-  ///     a search box.
-  ///   * Empty / def null → legacy 9 ASR-default codes as a sensible
-  ///     fallback for untagged catalogue entries (e.g. user-added
-  ///     HF repos that haven't been classified yet).
+  /// Codes the language dropdown should offer for [def]. Four cases:
+  ///   * `def.languages` set → use as-is.
+  ///   * `def.languages` empty BUT a BackendRepo with the same
+  ///     backend exists → use that repo's `defaultLanguages`. Lets us
+  ///     skip per-entry `languages:` tags on every hardcoded Whisper
+  ///     quant (`tiny-q5_0` / `base-q4_0` / etc.) — the lookup
+  ///     resolves through the BackendRepo's `langsWhisper99` instead.
+  ///   * Either path resolves to `['*']` → AppConstants' full code
+  ///     set minus 'auto' (~60 scrollable + searchable).
+  ///   * Empty / def null and no matching repo → legacy 9 codes as
+  ///     a sensible fallback for untagged HF-direct-import entries.
   List<String> _languageCodesFor(ModelDefinition? def) {
-    if (def != null && def.languages.isNotEmpty) {
-      if (def.languages.contains('*')) {
-        return AppConstants.supportedLanguages.keys
-            .where((c) => c != 'auto')
-            .toList();
-      }
-      return def.languages.toList();
+    if (def == null) {
+      return const ['en', 'es', 'fr', 'de', 'it', 'pt', 'zh', 'ja', 'ko'];
     }
-    return const ['en', 'es', 'fr', 'de', 'it', 'pt', 'zh', 'ja', 'ko'];
+    var codes = def.languages;
+    if (codes.isEmpty) {
+      // Look up the BackendRepo whose `backend` field matches. The
+      // repo's `defaultLanguages` is the source of truth for the
+      // family — every hardcoded whisper variant inherits
+      // langsWhisper99 from the 'whisper' BackendRepo, every parakeet
+      // variant inherits langsEU25 from the 'parakeet' BackendRepo,
+      // etc. No need to repeat the list on every quant.
+      for (final repo in ModelService.backendRepos.values) {
+        if (repo.backend == def.backend && repo.defaultLanguages.isNotEmpty) {
+          codes = repo.defaultLanguages;
+          break;
+        }
+      }
+    }
+    if (codes.isEmpty) {
+      return const ['en', 'es', 'fr', 'de', 'it', 'pt', 'zh', 'ja', 'ko'];
+    }
+    if (codes.contains('*')) {
+      return AppConstants.supportedLanguages.keys
+          .where((c) => c != 'auto')
+          .toList();
+    }
+    return codes.toList();
   }
 
   /// Human-readable name for a language code. ARB localisation only

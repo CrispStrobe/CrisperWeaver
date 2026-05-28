@@ -3,7 +3,7 @@ description: A cross-platform Flutter app for fully-offline audio transcription 
 
 publish_to: 'none'
 
-version: 0.6.37+38
+version: 0.6.38+39
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
