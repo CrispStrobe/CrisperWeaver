@@ -488,15 +488,22 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
             ),
           ),
           const SizedBox(width: 8),
-          DropdownButton<String>(
-            value: _backendFilter,
-            items: [
-              DropdownMenuItem(
-                  value: '', child: Text(l.modelAnyBackend)),
-              for (final b in backends)
-                DropdownMenuItem(value: b, child: Text(b)),
-            ],
-            onChanged: (v) => setState(() => _backendFilter = v ?? ''),
+          // Backend filter — Autocomplete rather than a plain dropdown so
+          // it stays usable as the linked-backend list grows (mirrors the
+          // Transcribe screen's source-language picker). '' is the
+          // "any backend" sentinel, shown as the localized label.
+          SizedBox(
+            width: 200,
+            child: _BackendFilterField(
+              // Re-seed the field text when the selection changes (e.g.
+              // cleared via the kind tabs) — Autocomplete otherwise
+              // latches its controller text on first build.
+              key: ValueKey('backend-filter-$_backendFilter'),
+              backends: backends,
+              selected: _backendFilter,
+              anyLabel: l.modelAnyBackend,
+              onSelected: (b) => setState(() => _backendFilter = b),
+            ),
           ),
           const SizedBox(width: 8),
           // Language dropdown — narrows the list by `matchesLanguage`.
@@ -895,4 +902,96 @@ class _AddHfRepoForm {
   _AddHfRepoForm({required this.repoId, required this.backend});
   final String repoId;
   final String backend;
+}
+
+/// Type-ahead backend filter for the Models screen. Mirrors the
+/// Transcribe screen's source-language picker: an [Autocomplete] over the
+/// backends present in the current list, with '' (the [anyLabel] entry)
+/// as the "don't filter" sentinel.
+class _BackendFilterField extends StatelessWidget {
+  const _BackendFilterField({
+    super.key,
+    required this.backends,
+    required this.selected,
+    required this.anyLabel,
+    required this.onSelected,
+  });
+
+  final List<String> backends;
+  final String selected;
+  final String anyLabel;
+  final ValueChanged<String> onSelected;
+
+  String _label(String b) => b.isEmpty ? anyLabel : b;
+
+  @override
+  Widget build(BuildContext context) {
+    final options = <String>['', ...backends];
+    return Autocomplete<String>(
+      initialValue: TextEditingValue(text: _label(selected)),
+      displayStringForOption: _label,
+      optionsBuilder: (textValue) {
+        final q = textValue.text.trim().toLowerCase();
+        if (q.isEmpty) return options;
+        // Keep the "any" sentinel reachable by typing the label, plus
+        // any backend id containing the query.
+        return options.where((b) => _label(b).toLowerCase().contains(q));
+      },
+      onSelected: onSelected,
+      fieldViewBuilder: (context, controller, focusNode, onSubmit) {
+        return TextField(
+          controller: controller,
+          focusNode: focusNode,
+          decoration: const InputDecoration(
+            isDense: true,
+            border: OutlineInputBorder(),
+            contentPadding:
+                EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            suffixIcon: Icon(Icons.arrow_drop_down),
+          ),
+          onSubmitted: (_) => onSubmit(),
+          onTap: () {
+            // Select-all on tap so the dropdown re-opens even when the
+            // field already holds the current pick.
+            if (controller.text.isNotEmpty) {
+              controller.selection = TextSelection(
+                baseOffset: 0,
+                extentOffset: controller.text.length,
+              );
+            }
+          },
+        );
+      },
+      optionsViewBuilder: (context, onSelectedCb, list) {
+        return Align(
+          alignment: Alignment.topLeft,
+          child: Material(
+            elevation: 4,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 320, maxWidth: 240),
+              child: ListView.builder(
+                padding: EdgeInsets.zero,
+                shrinkWrap: true,
+                itemCount: list.length,
+                itemBuilder: (context, i) {
+                  final option = list.elementAt(i);
+                  return InkWell(
+                    onTap: () => onSelectedCb(option),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
+                      child: Text(
+                        _label(option),
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
 }
