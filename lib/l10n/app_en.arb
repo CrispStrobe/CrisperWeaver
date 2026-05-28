@@ -176,6 +176,17 @@
   "settingsLoading": "Loading…",
 
   "transcribeLanguageLabel": "Language",
+  "transcribeLoadingButton": "Loading {model}…",
+  "@transcribeLoadingButton": {
+    "description": "Transcribe button label during the model-load phase. `model` is the model's display name optionally followed by ' (size)' e.g. 'Whisper Base (140 MB)'.",
+    "placeholders": {"model": {"type": "String"}}
+  },
+  "transcribeLoadingFallback": "Loading model…",
+  "transcribeLoadingDetail": "Loading model: {model} — first transcribe on this model takes ~5–15 s while the worker pool spawns and the weights map into memory.",
+  "@transcribeLoadingDetail": {
+    "description": "Inline status row under the output panel during the model-load phase.",
+    "placeholders": {"model": {"type": "String"}}
+  },
   "transcribeStarting": "Starting download: {model}",
   "@transcribeStarting": {
     "placeholders": {"model": {"type": "String"}}

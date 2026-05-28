@@ -896,6 +896,24 @@ abstract class AppLocalizations {
   /// **'Language'**
   String get transcribeLanguageLabel;
 
+  /// Transcribe button label during the model-load phase. `model` is the model's display name optionally followed by ' (size)' e.g. 'Whisper Base (140 MB)'.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading {model}…'**
+  String transcribeLoadingButton(String model);
+
+  /// No description provided for @transcribeLoadingFallback.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading model…'**
+  String get transcribeLoadingFallback;
+
+  /// Inline status row under the output panel during the model-load phase.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading model: {model} — first transcribe on this model takes ~5–15 s while the worker pool spawns and the weights map into memory.'**
+  String transcribeLoadingDetail(String model);
+
   /// No description provided for @transcribeStarting.
   ///
   /// In en, this message translates to:

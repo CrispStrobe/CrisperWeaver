@@ -176,6 +176,15 @@
   "settingsLoading": "Lade…",
 
   "transcribeLanguageLabel": "Sprache",
+  "transcribeLoadingButton": "Lädt {model}…",
+  "@transcribeLoadingButton": {
+    "placeholders": {"model": {"type": "String"}}
+  },
+  "transcribeLoadingFallback": "Modell wird geladen…",
+  "transcribeLoadingDetail": "Modell wird geladen: {model} — die erste Transkription mit diesem Modell dauert ~5–15 s, während der Worker-Pool startet und die Gewichte in den Speicher gemappt werden.",
+  "@transcribeLoadingDetail": {
+    "placeholders": {"model": {"type": "String"}}
+  },
   "transcribeStarting": "Download startet: {model}",
   "@transcribeStarting": {
     "placeholders": {"model": {"type": "String"}}

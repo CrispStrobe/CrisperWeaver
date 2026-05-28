@@ -446,6 +446,19 @@ class AppLocalizationsDe extends AppLocalizations {
   String get transcribeLanguageLabel => 'Sprache';
 
   @override
+  String transcribeLoadingButton(String model) {
+    return 'Lädt $model…';
+  }
+
+  @override
+  String get transcribeLoadingFallback => 'Modell wird geladen…';
+
+  @override
+  String transcribeLoadingDetail(String model) {
+    return 'Modell wird geladen: $model — die erste Transkription mit diesem Modell dauert ~5–15 s, während der Worker-Pool startet und die Gewichte in den Speicher gemappt werden.';
+  }
+
+  @override
   String transcribeStarting(String model) {
     return 'Download startet: $model';
   }

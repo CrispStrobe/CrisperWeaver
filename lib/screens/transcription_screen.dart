@@ -1302,14 +1302,20 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
                 final busy = appState.isTranscribing || _transcribePending;
                 // Look up the model display name + size during the
                 // load phase so the user sees `Loading <model> (140 MB)…`
-                // instead of the generic spinner.
+                // instead of the generic spinner. l10n via the
+                // transcribeLoadingButton ARB key (placeholder = the
+                // composed "name (size)" string); falls back to
+                // transcribeLoadingFallback when the active model
+                // hasn't been resolved yet.
                 String loadingLabel() {
                   final svc = ref.read(modelServiceProvider);
                   final def = svc.lookupDefinition(_modelName);
-                  if (def == null) return 'Loading model…';
+                  if (def == null) return l.transcribeLoadingFallback;
                   final size = _formatLoadingSize(def.sizeBytes);
-                  if (size.isEmpty) return 'Loading ${def.displayName}…';
-                  return 'Loading ${def.displayName} ($size)…';
+                  final composed = size.isEmpty
+                      ? def.displayName
+                      : '${def.displayName} ($size)';
+                  return l.transcribeLoadingButton(composed);
                 }
 
                 return ElevatedButton.icon(
@@ -1320,10 +1326,6 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Icon(Icons.transcribe),
-                  // Inline English string for the load-phase label —
-                  // ARB-localised "Loading model…" would need a key
-                  // per UI locale; we already inline a few similar
-                  // niche labels in the screen.
                   label: Text(loading
                       ? loadingLabel()
                       : busy
@@ -1529,17 +1531,16 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
                   const LinearProgressIndicator(),
                   const SizedBox(height: 6),
                   Builder(builder: (context) {
+                    final l = AppLocalizations.of(context);
                     final svc = ref.read(modelServiceProvider);
                     final def = svc.lookupDefinition(_modelName);
                     final size = def == null
                         ? ''
                         : _formatLoadingSize(def.sizeBytes);
                     final name = def?.displayName ?? _modelName;
-                    final suffix = size.isEmpty ? '' : ' ($size)';
+                    final composed = size.isEmpty ? name : '$name ($size)';
                     return Text(
-                      'Loading model: $name$suffix — first transcribe on '
-                      'this model takes ~5–15 s while the worker pool '
-                      'spawns and the weights map into memory.',
+                      l.transcribeLoadingDetail(composed),
                       style: Theme.of(context).textTheme.bodySmall,
                     );
                   }),

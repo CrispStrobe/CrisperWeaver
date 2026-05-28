@@ -443,6 +443,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get transcribeLanguageLabel => 'Language';
 
   @override
+  String transcribeLoadingButton(String model) {
+    return 'Loading $model…';
+  }
+
+  @override
+  String get transcribeLoadingFallback => 'Loading model…';
+
+  @override
+  String transcribeLoadingDetail(String model) {
+    return 'Loading model: $model — first transcribe on this model takes ~5–15 s while the worker pool spawns and the weights map into memory.';
+  }
+
+  @override
   String transcribeStarting(String model) {
     return 'Starting download: $model';
   }
