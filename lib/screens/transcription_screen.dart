@@ -774,6 +774,14 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
         // tanks RTF from ~4.5× to 0.3× per #14 — users transcribing
         // known-language audio need a way to pick the source language
         // without a slow LID pass first.
+        //
+        // Uses Autocomplete instead of a plain dropdown so a Whisper
+        // user (60 options) can type "swed" → Swedish, "中" → 中文 /
+        // Chinese, "deu" → Deutsch — without scrolling. The list also
+        // shows up unfiltered when the user just focuses the field
+        // (empty-text branch in optionsBuilder), so small per-model
+        // lists (Granite 5, Sensevoice 4) still work like a regular
+        // picker.
         Builder(
           builder: (context) {
             final l = AppLocalizations.of(context);
@@ -789,30 +797,103 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
                 if (mounted) setState(() => _language = 'auto');
               });
             }
+            final options = <_LangOption>[
+              _LangOption(code: 'auto', displayName: l.languageAuto),
+              for (final code in codes)
+                _LangOption(code: code, displayName: _languageDisplayName(code)),
+            ];
             return Row(
               children: [
                 Text('${l.transcribeLanguageLabel}: '),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: DropdownButtonFormField<String>(
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                      contentPadding:
-                          EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  child: Autocomplete<_LangOption>(
+                    // Reset the field when the model changes —
+                    // Autocomplete latches its controller's text on
+                    // first build, so without a key the picked
+                    // display name from a previous model would stick
+                    // even after the dropdown swapped to the new
+                    // codes list.
+                    key: ValueKey('lang-picker-$_modelName-$_language'),
+                    initialValue: TextEditingValue(
+                      text: options
+                          .firstWhere(
+                            (o) => o.code == _language,
+                            orElse: () => options.first,
+                          )
+                          .displayName,
                     ),
-                    isExpanded: true,
-                    items: [
-                      DropdownMenuItem(
-                          value: 'auto', child: Text(l.languageAuto)),
-                      for (final code in codes)
-                        DropdownMenuItem(
-                          value: code,
-                          child: Text(_languageDisplayName(code)),
+                    displayStringForOption: (o) => o.displayName,
+                    optionsBuilder: (textValue) {
+                      final q = textValue.text.trim().toLowerCase();
+                      if (q.isEmpty) return options;
+                      return options
+                          .where((o) => o.matches(q))
+                          .toList(growable: false);
+                    },
+                    onSelected: (o) => setState(() => _language = o.code),
+                    fieldViewBuilder:
+                        (context, controller, focusNode, onSubmit) {
+                      return TextField(
+                        controller: controller,
+                        focusNode: focusNode,
+                        decoration: const InputDecoration(
+                          border: OutlineInputBorder(),
+                          contentPadding: EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
+                          suffixIcon: Icon(Icons.arrow_drop_down),
                         ),
-                    ],
-                    initialValue: _language,
-                    onChanged: (value) {
-                      if (value != null) setState(() => _language = value);
+                        onSubmitted: (_) => onSubmit(),
+                        onTap: () {
+                          // Re-open the dropdown on tap even when the
+                          // field already has focus + content — without
+                          // this Autocomplete only re-shows options
+                          // after a text edit, which is surprising
+                          // when the user just wants to switch picks.
+                          if (controller.text.isNotEmpty) {
+                            controller.selection = TextSelection(
+                              baseOffset: 0,
+                              extentOffset: controller.text.length,
+                            );
+                          }
+                        },
+                      );
+                    },
+                    optionsViewBuilder: (context, onSelected, list) {
+                      // Capped to ~10 visible rows so a 60-item list
+                      // doesn't swallow the screen; scroll inside.
+                      return Align(
+                        alignment: Alignment.topLeft,
+                        child: Material(
+                          elevation: 4,
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(
+                              maxHeight: 320,
+                              maxWidth: 480,
+                            ),
+                            child: ListView.builder(
+                              padding: EdgeInsets.zero,
+                              shrinkWrap: true,
+                              itemCount: list.length,
+                              itemBuilder: (context, i) {
+                                final option = list.elementAt(i);
+                                return InkWell(
+                                  onTap: () => onSelected(option),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 10),
+                                    child: Text(
+                                      option.displayName,
+                                      style:
+                                          Theme.of(context).textTheme.bodyMedium,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                      );
                     },
                   ),
                 ),
@@ -2985,4 +3066,18 @@ class _NarrowTabbedBodyState extends State<_NarrowTabbedBody>
       ],
     );
   }
+}
+
+/// One row in the source-language picker. The Autocomplete filter
+/// matches against both the ISO code and the human-readable
+/// (native + English) display name, lowercased — so a user can type
+/// "swed", "Schwed" (German UI typing "Swedish" early), "sv", or
+/// just "swed" and land on the same item.
+class _LangOption {
+  _LangOption({required this.code, required this.displayName});
+  final String code;
+  final String displayName;
+  late final String _searchKey =
+      '$code ${displayName.toLowerCase()}';
+  bool matches(String query) => _searchKey.contains(query);
 }
