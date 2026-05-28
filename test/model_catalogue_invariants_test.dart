@@ -448,5 +448,56 @@ void main() {
       );
       expect(resolved, contains('de'));
     });
+
+    test(
+        'longest-prefix BackendRepo wins when multiple repos share a '
+        'backend id (#14 v3 regression)', () {
+      // Reporter on v0.6.39 noticed funasr-mlt-nano resolved to
+      // 4 codes — funasr-nano's set — because both BackendRepos
+      // have backend='funasr' and the FIRST-declared one (funasr)
+      // won the lookup. The fix is a longest-baseName-prefix
+      // disambiguator inside resolveLanguageCodes. These anchors
+      // pin the behaviour for every family with same-backend
+      // siblings: any breakage immediately fails the suite.
+      //
+      // Each row: (model name, expected language-set size lower
+      // bound, expected language-set size upper bound).
+      const expectations = <String, ({int min, int max})>{
+        // funasr-mlt-nano-2512-q4_k must hit langsFunasrMlt31 (30
+        // codes once de-duped) NOT langsSensevoice (4).
+        'funasr-mlt-nano-2512-q4_k': (min: 25, max: 31),
+        // funasr-nano-2512-q4_k → langsSensevoice (4).
+        'funasr-nano-2512-q4_k': (min: 3, max: 5),
+        // parakeet-tdt-0.6b-v2 → langsEn (1). Was returning 25 EU
+        // langs from the v3 repo.
+        'parakeet-tdt-0.6b-v2-q4_k': (min: 1, max: 1),
+        // parakeet-tdt-1.1b → langsEn (1). Same shape.
+        'parakeet-tdt-1.1b-q4_k': (min: 1, max: 1),
+        // parakeet-tdt-0.6b-v3 hardcoded entry → langsEU25 (25).
+        'parakeet-tdt-0.6b-v3-q4_k': (min: 25, max: 25),
+      };
+      final mismatches = <String>[];
+      for (final entry in expectations.entries) {
+        final def = ModelService.crispasrBackendModels[entry.key];
+        if (def == null) {
+          mismatches.add('${entry.key}: catalogue entry missing');
+          continue;
+        }
+        final resolved = ModelService.resolveLanguageCodes(
+          def,
+          expandAll: () => List.generate(99, (i) => 'x$i'),
+        );
+        final n = resolved.length;
+        if (n < entry.value.min || n > entry.value.max) {
+          mismatches.add(
+              '${entry.key} → $n codes, expected '
+              '[${entry.value.min}..${entry.value.max}]: $resolved');
+        }
+      }
+      expect(mismatches, isEmpty,
+          reason: 'Same-backend BackendRepos must disambiguate via '
+              "longest-baseName-prefix match against the def's "
+              'filename stem:\n  ${mismatches.join('\n  ')}');
+    });
   });
 }

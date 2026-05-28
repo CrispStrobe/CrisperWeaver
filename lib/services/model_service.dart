@@ -2403,20 +2403,24 @@ class ModelService {
   ///
   /// Resolution order:
   ///   1. `def.languages` if non-empty.
-  ///   2. The matching BackendRepo's `defaultLanguages` (by backend
-  ///      name) if non-empty. Lets a hardcoded Whisper quant inherit
-  ///      langsWhisper99 from the 'whisper' BackendRepo without
-  ///      tagging every entry.
-  ///   3. `['*']` from either path → expands to AppConstants' full
-  ///      code list (caller-supplied — we don't import constants
-  ///      from a UI-flavoured file here).
-  ///   4. Empty after all that → returns const empty; caller decides
-  ///      the fallback (Transcribe screen ships a 9-code default).
-  ///
-  /// `expandAll` is the function the caller uses to expand `['*']`
-  /// into a concrete code list; the Transcribe screen passes
-  /// AppConstants.supportedLanguages.keys.where(c != 'auto'),
-  /// tests pass a fixed fixture.
+  ///   2. Longest-prefix BackendRepo match: among repos with the
+  ///      same `backend` field, pick the one whose `baseName` is
+  ///      the longest prefix of the model's filename stem. This
+  ///      disambiguates families where multiple BackendRepos share
+  ///      a backend id — e.g. `funasr` (zh+en+ja+ko) vs
+  ///      `funasr-mlt` (30 langs) both have backend='funasr', or
+  ///      `parakeet` (v3, EU25) vs `parakeet-tdt-1.1b` (en-only),
+  ///      or `chatterbox` (23 langs base) vs `chatterbox-turbo`
+  ///      (English-only) vs `kartoffelbox` (de+en). Without the
+  ///      prefix tie-breaker, the FIRST-declared repo wins for the
+  ///      whole family — which is exactly the #14 v2 bug the
+  ///      reporter hit where funasr-mlt-nano resolved to funasr-nano's
+  ///      4 codes.
+  ///   3. Plain backend match (no baseName overlap with the def)
+  ///      as a last-resort fallback for HF-direct-import / untagged
+  ///      entries.
+  ///   4. `['*']` from any path → expands via `expandAll`.
+  ///   5. Empty after all that → returns const empty.
   static List<String> resolveLanguageCodes(
     ModelDefinition? def, {
     required List<String> Function() expandAll,
@@ -2424,10 +2428,35 @@ class ModelService {
     if (def == null) return const [];
     var codes = def.languages;
     if (codes.isEmpty) {
+      // Strip .gguf / .bin suffix from the filename so the prefix
+      // comparison is against the model stem (matches the baseName
+      // shape the catalogue uses).
+      final stem = def.fileName
+          .replaceFirst(RegExp(r'\.(gguf|bin)$'), '');
+      BackendRepo? best;
+      int bestLen = -1;
       for (final repo in backendRepos.values) {
-        if (repo.backend == def.backend && repo.defaultLanguages.isNotEmpty) {
-          codes = repo.defaultLanguages;
-          break;
+        if (repo.backend != def.backend) continue;
+        if (repo.defaultLanguages.isEmpty) continue;
+        if (repo.baseName.isEmpty) continue; // voicepack-only repo
+        if (!stem.startsWith(repo.baseName)) continue;
+        if (repo.baseName.length > bestLen) {
+          bestLen = repo.baseName.length;
+          best = repo;
+        }
+      }
+      if (best != null) {
+        codes = best.defaultLanguages;
+      } else {
+        // No baseName prefix matched — fall back to first
+        // backend-only match. Used by HF-direct-import entries
+        // whose filename doesn't follow any catalogue convention.
+        for (final repo in backendRepos.values) {
+          if (repo.backend == def.backend &&
+              repo.defaultLanguages.isNotEmpty) {
+            codes = repo.defaultLanguages;
+            break;
+          }
         }
       }
     }
