@@ -167,7 +167,7 @@ class ModelService {
     'cs', 'ro', 'el', 'fi', 'sv', 'tr', 'fa', 'da', 'hu', 'mk',
   ];
 
-  final Dio _dio = Dio();
+  final Dio _dio;
   late String _modelsDir;
   final SettingsService _settingsService;
   final Map<String, CancelToken> _activeDowloads = {};
@@ -2262,7 +2262,11 @@ class ModelService {
   final Map<String, ModelDefinition> _discoveredModels = {};
   DateTime? _lastProbeAt;
 
-  ModelService(this._settingsService) {
+  /// [dio] is injectable so tests can drive [probeHfRepoForBackend] and
+  /// the other HF-API paths through a mock HttpClientAdapter without
+  /// touching the network. Production callers omit it and get the
+  /// default client.
+  ModelService(this._settingsService, {Dio? dio}) : _dio = dio ?? Dio() {
     _configureDio();
   }
 
