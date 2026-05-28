@@ -124,6 +124,14 @@ class ModelService {
     'it', 'ja', 'ko', 'ms', 'nl', 'no', 'pl', 'pt', 'ru', 'sv',
     'sw', 'tr', 'zh',
   ];
+  // VoxCPM2 (openbmb/VoxCPM2) advertises 29 langs per cstr/voxcpm2-GGUF's
+  // cardData. Diffusion AR TTS, 48 kHz native (decimated to 24 kHz in the
+  // C API to match the host's fixed-rate playback path).
+  static const List<String> langsVoxcpm2_29 = <String>[
+    'en', 'zh', 'ja', 'ko', 'de', 'fr', 'es', 'pt', 'it', 'nl',
+    'ru', 'ar', 'hi', 'vi', 'th', 'id', 'ms', 'tl', 'tr', 'pl',
+    'cs', 'sv', 'da', 'no', 'fi', 'el', 'he', 'uk', 'ro',
+  ];
   // The 99 languages whisper.cpp supports — from the whisper.cpp
   // source's lang_id table. Codes are ISO 639-1 where one exists;
   // a handful are 3-letter aliases (haw / yue) that the runtime
@@ -917,6 +925,37 @@ class ModelService {
       backend: 'orpheus',
       kind: ModelKind.tts,
       companions: ['snac-24khz'],
+    ),
+    // VoxCPM2 — openbmb/VoxCPM2 tokenizer-free diffusion AR TTS, 29 langs,
+    // zero-shot (no codec companion needed). Q4_K is the practical default;
+    // F16 reference sits in the same repo.
+    'voxcpm2-q4_k': ModelDefinition(
+      name: 'voxcpm2-q4_k',
+      displayName: 'VoxCPM2 (q4_k)',
+      fileName: 'voxcpm2-q4_k.gguf',
+      url:
+          'https://huggingface.co/cstr/voxcpm2-GGUF/resolve/main/voxcpm2-q4_k.gguf',
+      sizeBytes: 1689498432,
+      checksum: '',
+      description: 'VoxCPM2 diffusion TTS — zero-shot, 29 languages, 48 kHz',
+      quantization: 'q4_k',
+      backend: 'voxcpm2-tts',
+      kind: ModelKind.tts,
+      languages: langsVoxcpm2_29,
+    ),
+    'voxcpm2-f16': ModelDefinition(
+      name: 'voxcpm2-f16',
+      displayName: 'VoxCPM2 (f16)',
+      fileName: 'voxcpm2-f16.gguf',
+      url:
+          'https://huggingface.co/cstr/voxcpm2-GGUF/resolve/main/voxcpm2-f16.gguf',
+      sizeBytes: 4972550208,
+      checksum: '',
+      description: 'VoxCPM2 diffusion TTS (f16 reference) — 29 languages, 48 kHz',
+      quantization: 'f16',
+      backend: 'voxcpm2-tts',
+      kind: ModelKind.tts,
+      languages: langsVoxcpm2_29,
     ),
     // ---------------------- TTS voicepacks -----------------------
     'kokoro-voice-af_heart': ModelDefinition(
@@ -2203,6 +2242,18 @@ class ModelService {
       description: 'T5 translator, 419 languages',
       kind: ModelKind.translate,
       defaultLanguages: langsAll,
+    ),
+    // VoxCPM2 — single-file diffusion AR TTS. Zero-shot synthesis (no codec
+    // companion); voxcpm2-ref.gguf in the same repo is a baked reference
+    // voice for the not-yet-wired cloning path.
+    'voxcpm2-tts': BackendRepo(
+      backend: 'voxcpm2-tts',
+      repoId: 'cstr/voxcpm2-GGUF',
+      baseName: 'voxcpm2',
+      displayPrefix: 'VoxCPM2',
+      description: 'VoxCPM2 diffusion TTS (29 languages, zero-shot)',
+      kind: ModelKind.tts,
+      defaultLanguages: langsVoxcpm2_29,
     ),
   };
 
