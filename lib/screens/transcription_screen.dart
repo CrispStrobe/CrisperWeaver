@@ -1273,12 +1273,19 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
             spacing: 16,
             runSpacing: 16,
             children: [
-              // Transcribe Button. `_transcribePending` (local) covers
-              // the click → model-load → pool-spawn window before
-              // appState.isTranscribing flips ~10 s later; OR'd so the
-              // button shows the in-progress affordance from click one
-              // (#13).
+              // Transcribe Button. Three states from #13 reporter
+              // feedback:
+              //   * `_transcribePending && !appState.isTranscribing` →
+              //     model is loading (10 s on Android), label
+              //     "Loading model…" so the user knows what's happening
+              //     and doesn't think the spinner is the transcription
+              //     itself.
+              //   * `appState.isTranscribing` → actual transcribe in
+              //     flight, label "Transcribing…".
+              //   * idle → "Transcribe".
               Builder(builder: (context) {
+                final loading =
+                    _transcribePending && !appState.isTranscribing;
                 final busy = appState.isTranscribing || _transcribePending;
                 return ElevatedButton.icon(
                   icon: busy
@@ -1288,7 +1295,15 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Icon(Icons.transcribe),
-                  label: Text(busy ? l.transcribing : l.transcribe),
+                  // Inline English string for the load-phase label —
+                  // ARB-localised "Loading model…" would need a key
+                  // per UI locale; we already inline a few similar
+                  // niche labels in the screen.
+                  label: Text(loading
+                      ? 'Loading model…'
+                      : busy
+                          ? l.transcribing
+                          : l.transcribe),
                   onPressed: busy ? null : _startTranscription,
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(
@@ -1323,12 +1338,18 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
                   ),
                 ),
 
-              // Clear Button
+              // Clear Button — also disabled during the load + transcribe
+              // window so the user can't wipe a transcript that's about
+              // to land. Reporter on #13 v2 noted the clear button
+              // stayed live while transcribe was busy.
               ElevatedButton.icon(
                 icon: const Icon(Icons.clear),
                 label: Text(l.clear),
-                onPressed:
-                    appState.segments.isNotEmpty ? _clearTranscription : null,
+                onPressed: (appState.isTranscribing ||
+                        _transcribePending ||
+                        appState.segments.isEmpty)
+                    ? null
+                    : _clearTranscription,
               ),
 
               // Save/Share Button
