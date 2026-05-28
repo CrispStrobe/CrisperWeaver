@@ -66,6 +66,13 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
   // on Android (issue #13). Cleared in any _startTranscription
   // early-return so a failed load lets the user retry.
   bool _transcribePending = false;
+  // Set when the user hits Cancel during the model-load window. The FFI
+  // ctor inside loadModel() is uninterruptible, so the load Future still
+  // completes — but we honour the cancel by giving the UI back and
+  // skipping the post-load transcription start. A later Transcribe click
+  // then runs against the already-loaded model. Reset on every
+  // _startTranscription entry.
+  bool _loadCancelled = false;
   final TextEditingController _modelFilterController = TextEditingController();
   // Memoized init future — the first `_ensureEngineReady()` call kicks it
   // off and any subsequent callers await the same future rather than
@@ -1535,9 +1542,30 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
                         : _formatLoadingSize(def.sizeBytes);
                     final name = def?.displayName ?? _modelName;
                     final composed = size.isEmpty ? name : '$name ($size)';
-                    return Text(
-                      l.transcribeLoadingDetail(composed),
-                      style: Theme.of(context).textTheme.bodySmall,
+                    return Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            l.transcribeLoadingDetail(composed),
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ),
+                        // The load can't be interrupted (FFI ctor), but
+                        // Cancel gives the UI back immediately; the model
+                        // finishes loading in the background and a later
+                        // Transcribe click runs against it.
+                        TextButton(
+                          onPressed: _loadCancelled
+                              ? null
+                              : () {
+                                  setState(() => _loadCancelled = true);
+                                  Log.instance.i('ui',
+                                      'User cancelled during model load',
+                                      fields: {'model': _modelName});
+                                },
+                          child: Text(AppLocalizations.of(context).cancel),
+                        ),
+                      ],
                     );
                   }),
                 ],
@@ -1678,7 +1706,10 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
     // run's segments / historyEntryId until the real start, so an
     // early-return between here and the actual transcribe doesn't
     // wipe what the user was looking at.
-    setState(() => _transcribePending = true);
+    setState(() {
+      _transcribePending = true;
+      _loadCancelled = false;
+    });
 
     if (!_engineReady) {
       await _ensureEngineReady();
@@ -1741,6 +1772,19 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
         }
         return;
       }
+    }
+
+    // The model load above can take ~10 s (uninterruptible FFI ctor). If
+    // the user hit Cancel during that window, the load still finished —
+    // but honour the intent: don't start transcribing. The model is now
+    // resident, so a later Transcribe click starts immediately.
+    if (_loadCancelled) {
+      Log.instance.w('ui',
+          'Model load completed after user cancel — leaving model resident, '
+          'skipping transcription start',
+          fields: {'model': _modelName});
+      if (mounted) setState(() => _transcribePending = false);
+      return;
     }
 
     try {
