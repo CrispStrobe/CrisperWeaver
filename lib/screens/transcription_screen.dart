@@ -26,6 +26,7 @@ import '../services/log_service.dart';
 import '../services/memory_estimator.dart';
 import '../services/preset_service.dart';
 import '../services/transcription_service.dart';
+import '../constants/app_constants.dart';
 import '../services/model_service.dart';
 import '../services/settings_service.dart';
 import '../services/transcription_worker_pool.dart';
@@ -759,10 +760,28 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
 
         const SizedBox(height: 16),
 
-        // Language Selection
+        // Language Selection. Dynamically populated from the active
+        // model's `languages` field — Canary 25 EU langs, Voxtral 9,
+        // Cohere 14, Whisper / Qwen3-ASR's ~30, etc. — instead of the
+        // legacy hardcoded 9. Reason: forcing LID via "auto" on Android
+        // tanks RTF from ~4.5× to 0.3× per #14 — users transcribing
+        // known-language audio need a way to pick the source language
+        // without a slow LID pass first.
         Builder(
           builder: (context) {
             final l = AppLocalizations.of(context);
+            final svc = ref.read(modelServiceProvider);
+            final def =
+                _modelName.isEmpty ? null : svc.lookupDefinition(_modelName);
+            final codes = _languageCodesFor(def);
+            // If the user previously picked a code the new model
+            // doesn't advertise, drop back to auto so they don't
+            // silently transcribe with a mismatched language.
+            if (_language != 'auto' && !codes.contains(_language)) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) setState(() => _language = 'auto');
+              });
+            }
             return Row(
               children: [
                 Text('${l.transcribeLanguageLabel}: '),
@@ -774,18 +793,15 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
                       contentPadding:
                           EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     ),
+                    isExpanded: true,
                     items: [
                       DropdownMenuItem(
                           value: 'auto', child: Text(l.languageAuto)),
-                      DropdownMenuItem(value: 'en', child: Text(l.languageEn)),
-                      DropdownMenuItem(value: 'es', child: Text(l.languageEs)),
-                      DropdownMenuItem(value: 'fr', child: Text(l.languageFr)),
-                      DropdownMenuItem(value: 'de', child: Text(l.languageDe)),
-                      DropdownMenuItem(value: 'it', child: Text(l.languageIt)),
-                      DropdownMenuItem(value: 'pt', child: Text(l.languagePt)),
-                      DropdownMenuItem(value: 'zh', child: Text(l.languageZh)),
-                      DropdownMenuItem(value: 'ja', child: Text(l.languageJa)),
-                      DropdownMenuItem(value: 'ko', child: Text(l.languageKo)),
+                      for (final code in codes)
+                        DropdownMenuItem(
+                          value: code,
+                          child: Text(_languageDisplayName(code)),
+                        ),
                     ],
                     initialValue: _language,
                     onChanged: (value) {
@@ -976,6 +992,100 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
       tooltip: AppLocalizations.of(context).tooltipDownloadModel,
     );
   }
+
+  /// Codes the language dropdown should offer for [def]. Three cases:
+  ///   * Concrete list (Canary's 25 EU langs, Cohere's 14, …) → use as-is.
+  ///   * `['*']` (Whisper, Qwen3-ASR multi-thousand-lang) → AppConstants'
+  ///     full code set minus 'auto' (~60 codes scrollable in the
+  ///     dropdown). Wider than the legacy hardcoded 9 without needing
+  ///     a search box.
+  ///   * Empty / def null → legacy 9 ASR-default codes as a sensible
+  ///     fallback for untagged catalogue entries (e.g. user-added
+  ///     HF repos that haven't been classified yet).
+  List<String> _languageCodesFor(ModelDefinition? def) {
+    if (def != null && def.languages.isNotEmpty) {
+      if (def.languages.contains('*')) {
+        return AppConstants.supportedLanguages.keys
+            .where((c) => c != 'auto')
+            .toList();
+      }
+      return def.languages.toList();
+    }
+    return const ['en', 'es', 'fr', 'de', 'it', 'pt', 'zh', 'ja', 'ko'];
+  }
+
+  /// Human-readable name for a language code. ARB localisation only
+  /// covers ~10 codes and doesn't scale to the 99 Whisper supports
+  /// (would need 99 × N-locales entries to maintain in lockstep), so
+  /// we ship a single English language-name map plus the native name
+  /// — the ISO code itself is the stable identifier and the native
+  /// label ("Deutsch", "Español", "中文") is recognisable to every
+  /// user regardless of UI locale. Falls back to "{name} ({code})"
+  /// when no native form is known, and finally to the uppercase code
+  /// so the dropdown never shows an empty row.
+  String _languageDisplayName(String code) {
+    final native = _nativeLanguageName[code];
+    final english = AppConstants.supportedLanguages[code];
+    if (native != null && english != null) return '$native — $english';
+    if (english != null) return '$english ($code)';
+    return code.toUpperCase();
+  }
+
+  /// Native (endonym) names for the most common ISO 639-1 codes we
+  /// surface. Used by the language picker to render labels that read
+  /// well regardless of UI locale. Codes missing here fall back to
+  /// the English name from [AppConstants.supportedLanguages].
+  static const _nativeLanguageName = <String, String>{
+    'en': 'English',
+    'es': 'Español',
+    'fr': 'Français',
+    'de': 'Deutsch',
+    'it': 'Italiano',
+    'pt': 'Português',
+    'nl': 'Nederlands',
+    'pl': 'Polski',
+    'ru': 'Русский',
+    'uk': 'Українська',
+    'cs': 'Čeština',
+    'da': 'Dansk',
+    'sv': 'Svenska',
+    'no': 'Norsk',
+    'fi': 'Suomi',
+    'el': 'Ελληνικά',
+    'bg': 'Български',
+    'ro': 'Română',
+    'sk': 'Slovenčina',
+    'sl': 'Slovenščina',
+    'lt': 'Lietuvių',
+    'lv': 'Latviešu',
+    'et': 'Eesti',
+    'hr': 'Hrvatski',
+    'hu': 'Magyar',
+    'mt': 'Malti',
+    'tr': 'Türkçe',
+    'ar': 'العربية',
+    'he': 'עברית',
+    'fa': 'فارسی',
+    'hi': 'हिन्दी',
+    'th': 'ไทย',
+    'vi': 'Tiếng Việt',
+    'id': 'Bahasa Indonesia',
+    'ms': 'Bahasa Melayu',
+    'tl': 'Tagalog',
+    'zh': '中文',
+    'ja': '日本語',
+    'ko': '한국어',
+    'sw': 'Kiswahili',
+    'ha': 'Hausa',
+    'mk': 'Македонски',
+    'sr': 'Српски',
+    'ca': 'Català',
+    'eu': 'Euskara',
+    'gl': 'Galego',
+    'is': 'Íslenska',
+    'cy': 'Cymraeg',
+    'ga': 'Gaeilge',
+  };
 
   Future<void> _selectModel(String value) async {
     if (value == _modelName) return;
