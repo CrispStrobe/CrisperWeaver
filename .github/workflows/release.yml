@@ -14,16 +14,19 @@ on:
         required: false
         default: ""
 
-# Per-tag concurrency group: same-tag re-runs (workflow_dispatch
-# retry of a failed release, force-push of a tag) cancel the prior
-# in-flight build instead of stacking. Different tags get different
-# groups by virtue of `github.ref` being the full `refs/tags/vX.Y.Z`
-# string, so back-to-back tag pushes run in parallel against the
-# runner pool — without this we were serialising v0.6.34 →
-# v0.6.35 → v0.6.36 → v0.6.37 even though each is a separate
-# artefact set.
+# Single static concurrency group across every release run, including
+# different tags. Pushing v0.6.38 while v0.6.37 is still building
+# cancels v0.6.37's in-flight jobs — only the newest tag's artefacts
+# get attached to GitHub Releases. This matches the rapid-iteration
+# workflow where intermediate-tag .app.zip / .apk / .ipa bundles would
+# just be wasted runner time; the user only needs the latest.
+#
+# If you ever need ALL tags' artefacts (e.g. shipping a hotfix branch
+# in parallel with main's latest), either rename the group locally
+# in a one-off branch or push the older tag once the newer release
+# has finished.
 concurrency:
-  group: release-${{ github.ref }}
+  group: release
   cancel-in-progress: true
 
 env:
