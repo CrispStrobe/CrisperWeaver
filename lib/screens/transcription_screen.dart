@@ -1111,6 +1111,19 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
   /// user regardless of UI locale. Falls back to "{name} ({code})"
   /// when no native form is known, and finally to the uppercase code
   /// so the dropdown never shows an empty row.
+  /// Compact byte-size label for the "Loading {model} ({size})…"
+  /// transcribe-button label. Returns "" for unknown / zero so the
+  /// caller can omit the parenthetical entirely instead of showing
+  /// "(0 B)".
+  String _formatLoadingSize(int bytes) {
+    if (bytes <= 0) return '';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(0)} KB';
+    final mb = bytes / (1024 * 1024);
+    if (mb < 1024) return '${mb.toStringAsFixed(0)} MB';
+    final gb = bytes / (1024 * 1024 * 1024);
+    return '${gb.toStringAsFixed(1)} GB';
+  }
+
   String _languageDisplayName(String code) {
     final native = _nativeLanguageName[code];
     final english = AppConstants.supportedLanguages[code];
@@ -1277,7 +1290,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
               // feedback:
               //   * `_transcribePending && !appState.isTranscribing` →
               //     model is loading (10 s on Android), label
-              //     "Loading model…" so the user knows what's happening
+              //     "Loading <model>…" so the user knows what's happening
               //     and doesn't think the spinner is the transcription
               //     itself.
               //   * `appState.isTranscribing` → actual transcribe in
@@ -1287,6 +1300,18 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
                 final loading =
                     _transcribePending && !appState.isTranscribing;
                 final busy = appState.isTranscribing || _transcribePending;
+                // Look up the model display name + size during the
+                // load phase so the user sees `Loading <model> (140 MB)…`
+                // instead of the generic spinner.
+                String loadingLabel() {
+                  final svc = ref.read(modelServiceProvider);
+                  final def = svc.lookupDefinition(_modelName);
+                  if (def == null) return 'Loading model…';
+                  final size = _formatLoadingSize(def.sizeBytes);
+                  if (size.isEmpty) return 'Loading ${def.displayName}…';
+                  return 'Loading ${def.displayName} ($size)…';
+                }
+
                 return ElevatedButton.icon(
                   icon: busy
                       ? const SizedBox(
@@ -1300,7 +1325,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
                   // per UI locale; we already inline a few similar
                   // niche labels in the screen.
                   label: Text(loading
-                      ? 'Loading model…'
+                      ? loadingLabel()
                       : busy
                           ? l.transcribing
                           : l.transcribe),
@@ -1489,7 +1514,38 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
             ),
           ),
 
-          // Progress Bar
+          // Progress Bar. During the model-load phase we don't know
+          // the actual progress yet (the FFI ctor is opaque), so show
+          // an indeterminate bar + the model name. Once the worker
+          // pool / model finishes loading, appState.startTranscription
+          // fires and we switch to the determinate bar.
+          if (_transcribePending && !appState.isTranscribing)
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 12, vertical: 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const LinearProgressIndicator(),
+                  const SizedBox(height: 6),
+                  Builder(builder: (context) {
+                    final svc = ref.read(modelServiceProvider);
+                    final def = svc.lookupDefinition(_modelName);
+                    final size = def == null
+                        ? ''
+                        : _formatLoadingSize(def.sizeBytes);
+                    final name = def?.displayName ?? _modelName;
+                    final suffix = size.isEmpty ? '' : ' ($size)';
+                    return Text(
+                      'Loading model: $name$suffix — first transcribe on '
+                      'this model takes ~5–15 s while the worker pool '
+                      'spawns and the weights map into memory.',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    );
+                  }),
+                ],
+              ),
+            ),
           if (appState.isTranscribing)
             LinearProgressIndicator(value: appState.progress),
 
