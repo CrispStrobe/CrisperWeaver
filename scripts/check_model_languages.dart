@@ -32,13 +32,13 @@ const _hfApiBase = 'https://huggingface.co/api/models';
 const _aliasMap = <String, String>{
   'eng': 'en', 'english': 'en',
   'deu': 'de', 'ger': 'de', 'german': 'de',
-  'spa': 'es', 'spanish': 'es',
+  'spa': 'es', 'sp': 'es', 'spanish': 'es',
   'fra': 'fr', 'fre': 'fr', 'french': 'fr',
   'ita': 'it', 'italian': 'it',
   'por': 'pt', 'portuguese': 'pt',
   'rus': 'ru', 'russian': 'ru',
-  'jpn': 'ja', 'japanese': 'ja',
-  'kor': 'ko', 'korean': 'ko',
+  'jpn': 'ja', 'jp': 'ja', 'japanese': 'ja',
+  'kor': 'ko', 'kr': 'ko', 'korean': 'ko',
   'cmn': 'zh', 'zho': 'zh', 'chi': 'zh',
   'chinese': 'zh', 'mandarin': 'zh', 'yue': 'zh',
   'ara': 'ar', 'arabic': 'ar',
@@ -66,8 +66,13 @@ const _aliasMap = <String, String>{
 
 String _normCode(String raw) {
   final lower = raw.toLowerCase().trim();
+  // Check the alias map first — even 2-letter inputs can be non-ISO
+  // (jp/kr/sp are HF cardData aliases for ja/ko/es). The previous
+  // short-circuit `length == 2 → return lower` skipped these.
+  final aliased = _aliasMap[lower];
+  if (aliased != null) return aliased;
   if (lower.length == 2) return lower;
-  return _aliasMap[lower] ?? lower;
+  return lower;
 }
 
 class _LocalRepo {
@@ -264,7 +269,69 @@ Future<Set<String>> _fetchRepoLanguages(HttpClient http, String repoId) async {
     }
   }
 
+  // 3. Fallback: when cardData.language is missing or empty but the
+  // repo's README.md does carry a YAML language: block, fetch the
+  // raw markdown and parse the frontmatter ourselves. Some repos
+  // (e.g. ggerganov/whisper.cpp) don't populate cardData via the
+  // API even though the README has the right metadata. Only run
+  // when we have nothing concrete from the JSON — the API path is
+  // cheaper.
+  final hasConcrete = out.any((c) => c != '*');
+  if (!hasConcrete) {
+    final readmeLangs = await _fetchReadmeLanguages(http, repoId);
+    out.addAll(readmeLangs);
+  }
+
   return out;
+}
+
+/// Last-resort: GET https://huggingface.co/{repoId}/raw/main/README.md
+/// and extract the `language:` list from the YAML frontmatter. Some
+/// repos have the metadata in the README but the HF API doesn't
+/// surface it via cardData (ggerganov/whisper.cpp is the canonical
+/// example — empty cardData, 99 langs documented in the README body).
+/// Returns the set of ISO codes found, empty when nothing matches.
+Future<Set<String>> _fetchReadmeLanguages(
+    HttpClient http, String repoId) async {
+  final uri = Uri.parse('https://huggingface.co/$repoId/raw/main/README.md');
+  try {
+    final req = await http.getUrl(uri);
+    final resp = await req.close();
+    if (resp.statusCode != 200) {
+      await resp.drain<void>();
+      return {};
+    }
+    final body = await resp.transform(utf8.decoder).join();
+    // Frontmatter is the block between the first two `---` lines.
+    final fm = RegExp(r'^---\s*\n([\s\S]*?)\n---', multiLine: true)
+        .firstMatch(body);
+    if (fm == null) return {};
+    final yaml = fm.group(1)!;
+    final out = <String>{};
+    // Two YAML shapes:
+    //   language: en       (scalar)
+    //   language:          (list)
+    //   - en
+    //   - de
+    final scalar = RegExp(r'^language:\s*([a-zA-Z0-9_-]+)\s*$', multiLine: true)
+        .firstMatch(yaml);
+    if (scalar != null) {
+      out.add(_normCode(scalar.group(1)!));
+    } else {
+      final listMatch = RegExp(r'^language:\s*\n((?:\s*-\s*[\w-]+\s*\n?)+)',
+              multiLine: true)
+          .firstMatch(yaml);
+      if (listMatch != null) {
+        for (final m
+            in RegExp(r'-\s*([a-zA-Z0-9_-]+)').allMatches(listMatch.group(1)!)) {
+          out.add(_normCode(m.group(1)!));
+        }
+      }
+    }
+    return out;
+  } catch (_) {
+    return {};
+  }
 }
 
 void main(List<String> args) async {

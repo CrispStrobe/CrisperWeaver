@@ -50,6 +50,10 @@ void main() {
   // lowercase 2-letter. `'*'` is the multilingual sentinel.
   const validLanguageCodes = <String>{
     '*',
+    // The 99 whisper.cpp uses + a couple of CrispASR additions
+    // (ku, ky). `haw` / `jw` / `yue` are 3-letter codes Whisper
+    // recognises — kept as-is so langsWhisper99 round-trips
+    // through the test.
     'en', 'es', 'fr', 'de', 'it', 'pt', 'nl', 'pl', 'ru', 'uk',
     'cs', 'da', 'sv', 'no', 'fi', 'el', 'bg', 'ro', 'sk', 'sl',
     'lt', 'lv', 'et', 'hr', 'hu', 'zh', 'ja', 'ko', 'ar', 'hi',
@@ -59,6 +63,9 @@ void main() {
     'ml', 'mr', 'kn', 'te', 'ta', 'bn', 'ka', 'am', 'so', 'af',
     'sr', 'bs', 'cy', 'tt', 'kk', 'ky', 'uz', 'tg', 'tk', 'ps',
     'az', 'ha', 'oc', 'ln', 'sn', 'su',
+    'la', 'mi', 'br', 'si', 'yo', 'be', 'sd', 'yi', 'fo', 'ht',
+    'nn', 'sa', 'lb', 'bo', 'mg', 'as', 'ba',
+    'haw', 'jw', 'yue',
   };
 
   group('catalogue companions', () {

@@ -124,6 +124,40 @@ class ModelService {
     'it', 'ja', 'ko', 'ms', 'nl', 'no', 'pl', 'pt', 'ru', 'sv',
     'sw', 'tr', 'zh',
   ];
+  // The 99 languages whisper.cpp supports — from the whisper.cpp
+  // source's lang_id table. Codes are ISO 639-1 where one exists;
+  // a handful are 3-letter aliases (haw / yue) that the runtime
+  // recognises. ggerganov/whisper.cpp's HF cardData doesn't list
+  // them so we hardcode rather than read from the API.
+  static const List<String> langsWhisper99 = <String>[
+    'en', 'zh', 'de', 'es', 'ru', 'ko', 'fr', 'ja', 'pt', 'tr',
+    'pl', 'ca', 'nl', 'ar', 'sv', 'it', 'id', 'hi', 'fi', 'vi',
+    'he', 'uk', 'el', 'ms', 'cs', 'ro', 'da', 'hu', 'ta', 'no',
+    'th', 'ur', 'hr', 'bg', 'lt', 'la', 'mi', 'ml', 'cy', 'sk',
+    'te', 'fa', 'lv', 'bn', 'sr', 'az', 'sl', 'kn', 'et', 'mk',
+    'br', 'eu', 'is', 'hy', 'ne', 'mn', 'bs', 'kk', 'sq', 'sw',
+    'gl', 'mr', 'pa', 'si', 'km', 'sn', 'yo', 'so', 'af', 'oc',
+    'ka', 'be', 'tg', 'sd', 'gu', 'am', 'yi', 'lo', 'uz', 'fo',
+    'ht', 'ps', 'tk', 'nn', 'mt', 'sa', 'lb', 'my', 'bo', 'tl',
+    'mg', 'as', 'tt', 'haw', 'ln', 'ha', 'ba', 'jw', 'su', 'yue',
+  ];
+  // VibeVoice ASR's 48-language list (per cstr/vibevoice-asr-GGUF's
+  // cardData on HF).
+  static const List<String> langsVibevoice48 = <String>[
+    'en', 'zh', 'es', 'pt', 'de', 'ja', 'ko', 'fr', 'ru', 'id',
+    'sv', 'it', 'he', 'nl', 'pl', 'no', 'tr', 'th', 'ar', 'hu',
+    'ca', 'cs', 'da', 'fa', 'af', 'hi', 'fi', 'et', 'el', 'ro',
+    'vi', 'bg', 'is', 'sl', 'sk', 'lt', 'sw', 'uk', 'lv', 'hr',
+    'ne', 'sr', 'tl', 'ms', 'ur', 'mn', 'hy', 'jv',
+  ];
+  // FunASR MLT Nano's 31-language list (per cstr/funasr-mlt-nano-GGUF
+  // cardData). The 'yue' (Cantonese) entry maps to 'zh' for the
+  // picker since users picking Chinese expect both varieties.
+  static const List<String> langsFunasrMlt31 = <String>[
+    'zh', 'en', 'ja', 'ko', 'vi', 'th', 'id', 'ms', 'tl', 'ar',
+    'hi', 'bg', 'ru', 'de', 'fr', 'es', 'it', 'pt', 'nl', 'pl',
+    'cs', 'ro', 'el', 'fi', 'sv', 'tr', 'fa', 'da', 'hu', 'mk',
+  ];
 
   final Dio _dio = Dio();
   late String _modelsDir;
@@ -254,7 +288,8 @@ class ModelService {
           'https://huggingface.co/cstr/distil-large-v3-GGUF/resolve/main/distil-large-v3.bin',
       sizeBytes: 1530 * 1024 * 1024,
       checksum: '',
-      description: 'Distilled Whisper Large v3 — ~1.5 GB, faster decode',
+      description: 'Distilled Whisper Large v3 (English) — ~1.5 GB, faster decode',
+      languages: langsEn,
     ),
     'distil-large-v3-q5_0': ModelDefinition(
       name: 'distil-large-v3-q5_0',
@@ -264,8 +299,9 @@ class ModelService {
           'https://huggingface.co/cstr/distil-large-v3-GGUF/resolve/main/distil-large-v3-q5_0.bin',
       sizeBytes: 590 * 1024 * 1024,
       checksum: '',
-      description: 'Distil-Whisper Large v3, q5_0 — ~590 MB',
+      description: 'Distil-Whisper Large v3 (English), q5_0 — ~590 MB',
       quantization: 'q5_0',
+      languages: langsEn,
     ),
 
     // ----- Quantized variants (cstr mirrors) -----
@@ -1586,9 +1622,9 @@ class ModelService {
       repoId: 'ggerganov/whisper.cpp',
       baseName: 'ggml-',
       displayPrefix: 'Whisper',
-      description: 'Whisper (quantised GGML)',
+      description: 'Whisper (quantised GGML, 99 languages)',
       extension: '.bin',
-      defaultLanguages: langsAll,
+      defaultLanguages: langsWhisper99,
     ),
     'parakeet': BackendRepo(
       backend: 'parakeet',
@@ -1705,8 +1741,8 @@ class ModelService {
       repoId: 'cstr/vibevoice-asr-GGUF',
       baseName: 'vibevoice-asr',
       displayPrefix: 'VibeVoice ASR',
-      description: 'Multilingual large ASR (~4.5 GB)',
-      defaultLanguages: langsAll,
+      description: 'Multilingual large ASR (48 langs, ~4.5 GB)',
+      defaultLanguages: langsVibevoice48,
     ),
     // VibeVoice TTS — shares its HF repo with 20+ voicepack files,
     // hence `voicepackBaseName`. Main quants: q4_k / q8_0 /
@@ -1790,8 +1826,8 @@ class ModelService {
       repoId: 'cstr/funasr-mlt-nano-GGUF',
       baseName: 'funasr-mlt-nano-2512',
       displayPrefix: 'FunASR MLT Nano 2512',
-      description: 'FunASR multilingual Nano',
-      defaultLanguages: langsAll,
+      description: 'FunASR multilingual Nano (30 langs)',
+      defaultLanguages: langsFunasrMlt31,
     ),
     'paraformer': BackendRepo(
       backend: 'paraformer',
@@ -1811,14 +1847,17 @@ class ModelService {
     ),
     // Distil-Whisper Large v3 — .bin (not .gguf), uses the whisper
     // runtime. cstr/distil-large-v3-GGUF ships f16/q5_0/q4_k/q8_0/etc.
+    // Distil-Whisper Large v3 is English-only — the upstream
+    // distil-whisper/distil-large-v3 was trained on English data
+    // only despite being derived from multilingual large-v3.
     'distil-large-v3': BackendRepo(
       backend: 'whisper',
       repoId: 'cstr/distil-large-v3-GGUF',
       baseName: 'distil-large-v3',
       displayPrefix: 'Distil-Whisper Large v3',
-      description: 'Distilled Whisper Large v3 — ~6× faster',
+      description: 'Distilled Whisper Large v3 (English) — ~6× faster',
       extension: '.bin',
-      defaultLanguages: langsAll,
+      defaultLanguages: langsEn,
     ),
     // Kokoro — multilingual TTS (needs voicepack via setVoice).
     'kokoro': BackendRepo(
@@ -2079,7 +2118,11 @@ class ModelService {
       displayPrefix: 'Chatterbox S3Gen',
       description: 'Chatterbox S3Gen flow-matching vocoder',
       kind: ModelKind.codec,
-      defaultLanguages: langsEn,
+      // The vocoder is the same physical model used across all
+      // 23 Chatterbox languages — it's language-agnostic but the
+      // language filter surfaces it under each of the families
+      // that need it, same as the T3 talker.
+      defaultLanguages: langsChatterbox23,
     ),
     // IndexTTS 1.5 — repo split into GPT-AR + BigVGAN vocoder files.
     'indextts': BackendRepo(
