@@ -37,6 +37,19 @@ class CrispASREngine implements TranscriptionEngine {
   bool _cancelRequested = false;
   String? _currentModelId;
   String? _currentModelPath;
+  // §1 — the whisper main-isolate CrispASR handle is created lazily. Its
+  // ~10 s FFI ctor used to block the platform isolate at loadModel time.
+  // Since most whisper transcribes now run through `_sessionPool` (a
+  // worker isolate), the main-isolate handle is only needed for the niche
+  // paths with no session equivalent: whisper-only TranscribeOptions
+  // (tdrz / maxLen / splitOnWord), streaming, and language detection.
+  // Until one of those is hit, `_lazyModelPath` holds the path and
+  // `_model` stays null; `_ensureWhisperModel()` opens it on first use.
+  String? _lazyModelPath;
+  // Backend id of the currently-loaded model. The whisper-vs-session
+  // discriminator (`_isWhisper`) reads this so routing stays correct
+  // while `_model` is still null (deferred). Null when nothing is loaded.
+  String? _currentBackend;
   Map<String, dynamic> _config = {};
   ModelService? _modelService;
   AlignerService? _alignerService;
@@ -52,7 +65,36 @@ class CrispASREngine implements TranscriptionEngine {
   String get version => '0.5.4';
 
   @override
-  bool get supportsStreaming => _model?.supportsStreaming ?? _session != null;
+  // Whisper always supports streaming, so report true for a deferred
+  // whisper model (`_model` still null) too — otherwise transcribeStream
+  // callers would see false during the lazy window. Defer to the handle's
+  // own value once it's open.
+  bool get supportsStreaming =>
+      _model?.supportsStreaming ?? (_isWhisper ? true : _session != null);
+
+  bool get _isWhisper => _currentBackend == 'whisper';
+
+  /// Returns the main-isolate whisper handle, opening it on first use.
+  /// The ~10 s FFI ctor is deferred from loadModel (§1) to here. Callers
+  /// are the niche whisper-only paths (direct transcribe fallback,
+  /// streaming, LID). Caches after the first open; safe to call
+  /// repeatedly. Throws [ModelLoadException] only when no whisper model
+  /// is loaded at all.
+  crispasr.CrispASR _ensureWhisperModel() {
+    final existing = _model;
+    if (existing != null) return existing;
+    final path = _lazyModelPath ?? _currentModelPath;
+    if (path == null) {
+      throw const ModelLoadException(
+          'No whisper model loaded', 'crispasr', 'none');
+    }
+    Log.instance.i('crispasr',
+        'opening whisper model on first use (deferred from load)',
+        fields: {'path': path});
+    final m = crispasr.CrispASR(path);
+    _model = m;
+    return m;
+  }
 
   @override
   bool get supportsLanguageDetection => true;
@@ -257,7 +299,11 @@ class CrispASREngine implements TranscriptionEngine {
         'crispasr',
       );
     }
-    if (_currentModelId == modelId && (_model != null || _session != null)) {
+    if (_currentModelId == modelId &&
+        (_model != null ||
+            _session != null ||
+            _sessionPool != null ||
+            _lazyModelPath != null)) {
       onProgress?.call(1.0);
       return true;
     }
@@ -350,7 +396,11 @@ class CrispASREngine implements TranscriptionEngine {
         'bytes': fileBytes
       });
       if (def.backend == 'whisper') {
-        _model = crispasr.CrispASR(modelPath);
+        // §1 — defer the blocking CrispASR ctor. The worker pool below
+        // loads the model off the platform isolate for the common
+        // transcribe path; `_ensureWhisperModel()` opens the main-isolate
+        // handle lazily only for the niche paths that still need it.
+        _lazyModelPath = modelPath;
         // §15 — Spawn a 1-worker pool for whisper too so transcribe
         // calls don't block the UI isolate on Android. CrispASR's
         // session API can open whisper, so the same TranscriptionWorker
@@ -473,12 +523,15 @@ class CrispASREngine implements TranscriptionEngine {
       }
       _currentModelId = modelId;
       _currentModelPath = modelPath;
+      _currentBackend = def.backend;
       onProgress?.call(1.0);
       done();
       return true;
     } catch (e, st) {
       _model = null;
       _session = null;
+      _lazyModelPath = null;
+      _currentBackend = null;
       // Best-effort tear-down of any pool that managed to spawn
       // before the rest of init failed.
       final orphanedPool = _sessionPool;
@@ -517,6 +570,8 @@ class CrispASREngine implements TranscriptionEngine {
     if (pool != null) {
       await pool.shutdown();
     }
+    _lazyModelPath = null;
+    _currentBackend = null;
     _currentModelId = null;
     _currentModelPath = null;
   }
@@ -526,11 +581,17 @@ class CrispASREngine implements TranscriptionEngine {
   /// is from the pre-0.2.0 era (or the detection fails internally) — the
   /// caller should treat "null" as "keep whatever language was configured".
   Future<String?> detectLanguage(Float32List audio) async {
-    if (_model == null) {
-      return null; // Only whisper class supports LID currently
+    if (!_isWhisper) {
+      return null; // Only the whisper class supports LID currently
     }
-    if (!_model!.supportsExtended) return null;
-    final det = _model!.detectLanguage(audio);
+    final crispasr.CrispASR model;
+    try {
+      model = _ensureWhisperModel(); // §1 — lazy open if not yet created
+    } catch (_) {
+      return null;
+    }
+    if (!model.supportsExtended) return null;
+    final det = model.detectLanguage(audio);
     if (!det.ok) {
       Log.instance.w('crispasr',
           'Language detection unavailable (probability=${det.probability})');
@@ -736,7 +797,9 @@ class CrispASREngine implements TranscriptionEngine {
         'crispasr',
       );
     }
-    if (_model == null && _session == null) {
+    if (_model == null &&
+        _session == null &&
+        _lazyModelPath == null) {
       throw const ModelLoadException(
         'No model loaded — call loadModel() first',
         'crispasr',
@@ -766,7 +829,7 @@ class CrispASREngine implements TranscriptionEngine {
 
     Log.instance.i('crispasr', 'transcribe start', fields: {
       'model': _currentModelId,
-      'backend': _model != null ? 'whisper' : 'session',
+      'backend': _isWhisper ? 'whisper' : 'session',
       'samples': audioData.length,
       'audio_s': audioSeconds0.toStringAsFixed(2),
       'rms': rms.toStringAsFixed(6),
@@ -782,7 +845,7 @@ class CrispASREngine implements TranscriptionEngine {
     try {
       List<TranscriptionSegment> segments;
 
-      if (_model != null) {
+      if (_isWhisper) {
         // Whisper-specific path. For long audio (>60 s), slice into
         // 30 s chunks and dispatch each separately so segments stream
         // into the UI every ~10 s (assuming ~3× realtime decode on M1)
@@ -1177,6 +1240,19 @@ class CrispASREngine implements TranscriptionEngine {
           });
     }
 
+    // §2 — route each chunk through the worker pool (off the platform
+    // isolate → no Android ANR on long jobs) when it's safe. Conservative
+    // gate: mirrors the non-chunked branch's `!whisperOnlyOpts`, PLUS a
+    // `!wordTimestamps` guard. The session/pool path's whisper word-timing
+    // output isn't verified to match `transcribePcm`'s here, so word/SRT
+    // jobs keep the proven direct path (no regression). When the pool is
+    // down or either guard trips, we fall back to the per-chunk direct
+    // call, which lazily opens `_model` via `_ensureWhisperModel()`.
+    final whisperOnlyOpts =
+        advanced.tdrz || advanced.maxLen > 0 || advanced.splitOnWord;
+    final usePool =
+        _sessionPool != null && !whisperOnlyOpts && !wordTimestamps;
+
     final allSegments = <TranscriptionSegment>[];
     for (var i = firstChunk; i < nChunks; i++) {
       if (_cancelRequested) break;
@@ -1193,29 +1269,45 @@ class CrispASREngine implements TranscriptionEngine {
         'samples': chunk.length,
       });
 
-      final nativeSegments = await _runTranscription(
-        chunk,
-        language: language,
-        wordTimestamps: wordTimestamps,
-        translate: translate,
-        beamSearch: beamSearch,
-        initialPrompt: initialPrompt,
-        vad: false,
-        vadModelPath: null,
-        bestOf: bestOf,
-        advanced: advanced,
-      );
-
-      // Re-map with the chunk's time offset baked into each segment +
-      // word so absolute timestamps remain monotonic across chunks.
-      // Reuses the same builder as the single-call path; we apply the
-      // offset here rather than changing _mapWhisperSegments to keep
-      // the canonical mapper offset-agnostic.
-      final chunkSegments = _mapWhisperSegments(
-        nativeSegments,
-        wordTimestamps,
-        null, // we'll fire onSegment manually below with adjusted times
-      );
+      final List<TranscriptionSegment> chunkSegments;
+      if (usePool) {
+        // Pool path: worker-isolate FFI call, returns TranscriptionSegments
+        // directly. Word timestamps are gated off above, so this matches
+        // the non-chunked whisper pool branch's output shape.
+        chunkSegments = await _runSessionTranscriptionViaPool(
+          chunk,
+          language: language,
+          translate: translate,
+          initialPrompt: initialPrompt,
+          bestOf: bestOf,
+          vad: false,
+          vadModelPath: null,
+          advanced: advanced,
+        );
+      } else {
+        final nativeSegments = await _runTranscription(
+          chunk,
+          language: language,
+          wordTimestamps: wordTimestamps,
+          translate: translate,
+          beamSearch: beamSearch,
+          initialPrompt: initialPrompt,
+          vad: false,
+          vadModelPath: null,
+          bestOf: bestOf,
+          advanced: advanced,
+        );
+        // Re-map with the chunk's time offset baked into each segment +
+        // word so absolute timestamps remain monotonic across chunks.
+        // Reuses the same builder as the single-call path; we apply the
+        // offset here rather than changing _mapWhisperSegments to keep
+        // the canonical mapper offset-agnostic.
+        chunkSegments = _mapWhisperSegments(
+          nativeSegments,
+          wordTimestamps,
+          null, // we'll fire onSegment manually below with adjusted times
+        );
+      }
       for (final raw in chunkSegments) {
         final shifted = shiftSegmentByOffset(raw,
             offsetSeconds: offsetSeconds, chunkIndex: i);
@@ -1256,7 +1348,7 @@ class CrispASREngine implements TranscriptionEngine {
         ? null
         : initialPrompt.trim();
     final useVad = vad && vadModelPath != null && vadModelPath.isNotEmpty;
-    return _model!.transcribePcm(
+    return _ensureWhisperModel().transcribePcm(
       pcm,
       options: crispasr.TranscribeOptions(
         language: (language == null || language == 'auto') ? null : language,
@@ -1555,8 +1647,18 @@ class CrispASREngine implements TranscriptionEngine {
     // neither has anything streamable.
     final crispasr.StreamingSession session;
     final String streamRouteLabel;
-    if (_model != null && _model!.supportsStreaming) {
-      session = _model!.openStream(
+    if (_isWhisper) {
+      // §1 — lazily open the main-isolate whisper handle for streaming.
+      final crispasr.CrispASR model;
+      try {
+        model = _ensureWhisperModel();
+      } catch (e, st) {
+        Log.instance.w('crispasr', 'whisper model open for streaming failed',
+            error: e, stack: st);
+        return null;
+      }
+      if (!model.supportsStreaming) return null;
+      session = model.openStream(
         language: (language == null || language == 'auto') ? null : language,
         stepMs: 3000,
         lengthMs: 10000,
