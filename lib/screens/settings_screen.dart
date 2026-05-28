@@ -23,6 +23,27 @@ import '../widgets/cloud_llm_settings_form.dart';
 import '../widgets/hotkey_settings_form.dart';
 import '../widgets/local_llm_settings_form.dart';
 
+/// True when [path] points into Android's shared external storage
+/// (`/storage/emulated/0/...`, `/sdcard/...`, `/storage/self/primary/...`)
+/// — those paths only become readable after the user grants
+/// MANAGE_EXTERNAL_STORAGE ("All files access") in system settings, so
+/// the models-dir picker prompts for it. App-private dirs under
+/// `/Android/data/<package>/files/...` are sandboxed and need no special
+/// permission; we return false for those so the user isn't pestered when
+/// picking a sandboxed location. This predicate is the sole gate for the
+/// "All files access" dialog, so it is unit-tested directly.
+@visibleForTesting
+bool looksLikeAndroidSharedStoragePath(String path) {
+  if (path.startsWith('/storage/emulated/') ||
+      path.startsWith('/sdcard/') ||
+      path.startsWith('/storage/self/primary/')) {
+    // /Android/data/<pkg>/ is sandboxed — no special perm needed.
+    if (path.contains('/Android/data/')) return false;
+    return true;
+  }
+  return false;
+}
+
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
@@ -1012,7 +1033,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     // fails with "OS Error: Permission denied, errno = 13" — most
     // visibly after uninstall+reinstall, when Android resets the
     // grant but the saved customModelsDir path persists.
-    if (Platform.isAndroid && _looksLikeExternalStoragePath(picked)) {
+    if (Platform.isAndroid && looksLikeAndroidSharedStoragePath(picked)) {
       final status = await Permission.manageExternalStorage.status;
       if (!status.isGranted) {
         if (!mounted) return;
@@ -1065,23 +1086,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(l.settingsModelsDirSet(picked))),
     );
-  }
-
-  /// True when [path] points into Android's shared external storage
-  /// (/storage/emulated/0/...) — those paths only become readable
-  /// after the user grants MANAGE_EXTERNAL_STORAGE in system settings.
-  /// App-private dirs under /Android/data/[package]/files/... don't
-  /// need it; we skip the prompt for those so the user isn't pestered
-  /// when picking a sandboxed location.
-  bool _looksLikeExternalStoragePath(String path) {
-    if (path.startsWith('/storage/emulated/') ||
-        path.startsWith('/sdcard/') ||
-        path.startsWith('/storage/self/primary/')) {
-      // /Android/data/<pkg>/ is sandboxed — no special perm needed.
-      if (path.contains('/Android/data/')) return false;
-      return true;
-    }
-    return false;
   }
 
   void _showHfTokenDialog(SettingsService settings) {
