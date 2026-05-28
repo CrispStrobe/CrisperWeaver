@@ -351,6 +351,35 @@ class CrispASREngine implements TranscriptionEngine {
       });
       if (def.backend == 'whisper') {
         _model = crispasr.CrispASR(modelPath);
+        // §15 — Spawn a 1-worker pool for whisper too so transcribe
+        // calls don't block the UI isolate on Android. CrispASR's
+        // session API can open whisper, so the same TranscriptionWorker
+        // pattern works; the worker uses session.transcribe under the
+        // hood. Whisper-only options that don't have a session-side
+        // equivalent (tdrz / maxLen / splitOnWord — set via
+        // TranscribeOptions on _model) fall back to the direct
+        // _model.transcribePcm() path in _runTranscription.
+        try {
+          _sessionPool = await TranscriptionWorkerPool.spawn(
+            count: 1,
+            modelPath: modelPath,
+            backend: 'whisper',
+            useGpu: (_config['asrUseGpu'] as bool?) ?? true,
+            flashAttn: (_config['asrFlashAttn'] as bool?) ?? true,
+            nThreads: 4,
+            nGpuLayers: (_config['asrNGpuLayers'] as int?) ?? -1,
+          );
+          Log.instance.i('crispasr', 'whisper worker pool spawned',
+              fields: {'model': modelId});
+        } catch (e, st) {
+          Log.instance.w(
+              'crispasr',
+              'whisper worker pool spawn failed — UI may freeze '
+                  'during long transcribes',
+              error: e,
+              stack: st);
+          _sessionPool = null;
+        }
       } else {
         // CrispASR 0.6.1+: prefer the params-aware open so the
         // user-controlled asrUseGpu toggle takes effect at session-
@@ -786,32 +815,73 @@ class CrispASREngine implements TranscriptionEngine {
           final trimmed = startOffsetSec <= 0
               ? audioData
               : _trimLeadingSamples(audioData, startOffsetSec);
-          final nativeSegments = await _runTranscription(
-            trimmed,
-            language: language,
-            wordTimestamps: enableWordTimestamps,
-            translate: translate,
-            beamSearch: beamSearch,
-            initialPrompt: initialPrompt,
-            vad: vad,
-            vadModelPath: vadModelPath,
-            bestOf: bestOf,
-            advanced: advanced,
-          );
-          final mapped = _mapWhisperSegments(
-              nativeSegments, enableWordTimestamps, null);
-          segments = startOffsetSec <= 0
-              ? mapped
-              : mapped
-                  .map((s) => shiftSegmentForResume(s,
-                      offsetSeconds: startOffsetSec))
-                  .toList(growable: false);
-          // Re-fire onSegment with the post-shift timestamps so the
-          // streamed-into-the-UI stamps stay monotonic with the
-          // pre-loaded checkpoint segments.
-          if (onSegment != null) {
-            for (final s in segments) {
-              onSegment(s);
+          // §15 — route through the worker pool when (a) the pool is
+          // up and (b) none of the whisper-only TranscribeOptions are
+          // set (tdrz / maxLen / splitOnWord don't have CrispasrSession
+          // equivalents and would be silently dropped if dispatched
+          // through the pool). The pool path runs the FFI call on a
+          // worker isolate, so the UI thread stays responsive and
+          // Android's ANR detector doesn't kill the app mid-decode.
+          // Falls through to the legacy _runTranscription +
+          // _mapWhisperSegments path when any whisper-only option is
+          // requested or the pool failed to spawn.
+          final whisperOnlyOpts = advanced.tdrz ||
+              advanced.maxLen > 0 ||
+              advanced.splitOnWord;
+          if (_sessionPool != null && !whisperOnlyOpts) {
+            final mapped = await _runSessionTranscriptionViaPool(
+              trimmed,
+              language: language,
+              translate: translate,
+              initialPrompt: initialPrompt,
+              bestOf: bestOf,
+              vad: vad,
+              vadModelPath: vadModelPath,
+              advanced: advanced,
+            );
+            segments = startOffsetSec <= 0
+                ? mapped
+                : mapped
+                    .map((s) => shiftSegmentForResume(s,
+                        offsetSeconds: startOffsetSec))
+                    .toList(growable: false);
+            if (onSegment != null) {
+              for (final s in segments) {
+                onSegment(s);
+              }
+            }
+            // Pool path done — skip the legacy direct call below by
+            // dropping out of the `if (_sessionPool != null …)` branch
+            // straight into the bottom of the outer `if (_model != null)`
+            // arm (which then continues to the shared finalize block).
+          } else {
+            final nativeSegments = await _runTranscription(
+              trimmed,
+              language: language,
+              wordTimestamps: enableWordTimestamps,
+              translate: translate,
+              beamSearch: beamSearch,
+              initialPrompt: initialPrompt,
+              vad: vad,
+              vadModelPath: vadModelPath,
+              bestOf: bestOf,
+              advanced: advanced,
+            );
+            final mapped = _mapWhisperSegments(
+                nativeSegments, enableWordTimestamps, null);
+            segments = startOffsetSec <= 0
+                ? mapped
+                : mapped
+                    .map((s) => shiftSegmentForResume(s,
+                        offsetSeconds: startOffsetSec))
+                    .toList(growable: false);
+            // Re-fire onSegment with the post-shift timestamps so the
+            // streamed-into-the-UI stamps stay monotonic with the
+            // pre-loaded checkpoint segments.
+            if (onSegment != null) {
+              for (final s in segments) {
+                onSegment(s);
+              }
             }
           }
         }

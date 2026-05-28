@@ -59,6 +59,13 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
   // Model picker filters
   String _modelNameFilter = '';
   String _backendFilter = ''; // '' = any
+  // Local "Transcribe button was clicked, model is loading / pool is
+  // spawning right now" flag — kept ORed with appState.isTranscribing
+  // when computing whether the button is enabled. Without it the
+  // button stays clickable for the ~10 s a whisper-base load takes
+  // on Android (issue #13). Cleared in any _startTranscription
+  // early-return so a failed load lets the user retry.
+  bool _transcribePending = false;
   final TextEditingController _modelFilterController = TextEditingController();
   // Memoized init future — the first `_ensureEngineReady()` call kicks it
   // off and any subsequent callers await the same future rather than
@@ -1185,23 +1192,29 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
             spacing: 16,
             runSpacing: 16,
             children: [
-              // Transcribe Button
-              ElevatedButton.icon(
-                icon: appState.isTranscribing
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.transcribe),
-                label: Text(
-                    appState.isTranscribing ? l.transcribing : l.transcribe),
-                onPressed: appState.isTranscribing ? null : _startTranscription,
-                style: ElevatedButton.styleFrom(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                ),
-              ),
+              // Transcribe Button. `_transcribePending` (local) covers
+              // the click → model-load → pool-spawn window before
+              // appState.isTranscribing flips ~10 s later; OR'd so the
+              // button shows the in-progress affordance from click one
+              // (#13).
+              Builder(builder: (context) {
+                final busy = appState.isTranscribing || _transcribePending;
+                return ElevatedButton.icon(
+                  icon: busy
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.transcribe),
+                  label: Text(busy ? l.transcribing : l.transcribe),
+                  onPressed: busy ? null : _startTranscription,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 24, vertical: 16),
+                  ),
+                );
+              }),
 
               // Transcribe all — visible only when the queue has queued items.
               if (hasQueued && !appState.isTranscribing)
@@ -1499,6 +1512,19 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
       return;
     }
 
+    // Reflect the "queued / loading / transcribing" state on the
+    // button from click time, not from the post-load
+    // appStateNotifier.startTranscription() call below. On Android the
+    // model-load + worker-pool spawn before that call can take ~10 s;
+    // without the local flag the button stayed enabled the whole time
+    // and the user (issue #13) clicked again, scheduling a second
+    // parallel transcription. A local flag (rather than calling
+    // appState.startTranscription() up here) preserves the previous
+    // run's segments / historyEntryId until the real start, so an
+    // early-return between here and the actual transcribe doesn't
+    // wipe what the user was looking at.
+    setState(() => _transcribePending = true);
+
     if (!_engineReady) {
       await _ensureEngineReady();
     }
@@ -1539,6 +1565,11 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
         await transcriptionService.loadModel(_modelName);
       } catch (e) {
         if (mounted) {
+          // Drop the pending flag so the user can fix the
+          // download and click Transcribe again. Without this
+          // the button stays "Transcribing…" forever on a
+          // missing-model error.
+          setState(() => _transcribePending = false);
           final l = AppLocalizations.of(context);
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -1558,7 +1589,13 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
     }
 
     try {
+      // The real "wipe-previous-transcript + flip global isTranscribing"
+      // step. The local _transcribePending was just covering the
+      // pre-load window; now hand off to the global flag and clear
+      // ours so the button keeps showing the busy state via
+      // appState.isTranscribing.
       appStateNotifier.startTranscription();
+      if (mounted) setState(() => _transcribePending = false);
 
       final started = DateTime.now();
       List<TranscriptionSegment> segments = [];
@@ -1702,6 +1739,17 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
       }
     } catch (e) {
       appStateNotifier.setError(e.toString());
+    } finally {
+      // Safety net: appState.isTranscribing flips back to false in both
+      // setError / completeTranscription, so the *global* busy state
+      // is correct. The local _transcribePending should also be off
+      // by now (cleared right after the appStateNotifier.startTranscription
+      // hand-off earlier in this function), but clear it again here in
+      // case the model-load path failed in a way that skipped that
+      // line — keeps the button re-clickable for a fresh attempt.
+      if (mounted && _transcribePending) {
+        setState(() => _transcribePending = false);
+      }
     }
   }
 
