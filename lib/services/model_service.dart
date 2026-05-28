@@ -2333,6 +2333,11 @@ class ModelService {
     // without re-running initialize().
     await Directory(whisperCppDir())
         .create(recursive: true);
+
+    // Re-register any HF repos the user added by hand in a prior run.
+    // Best-effort and memoised — a network failure here never blocks
+    // the rest of initialize().
+    await _replayUserHfReposOnce();
   }
 
   /// Resolved directory where ASR / TTS / companion GGUFs live. When
@@ -2565,6 +2570,7 @@ class ModelService {
     required String repoId,
     required String backend,
     String? displayPrefix,
+    bool persist = true,
   }) async {
     final repoIdTrimmed = repoId.trim();
     if (repoIdTrimmed.isEmpty || !repoIdTrimmed.contains('/')) {
@@ -2621,7 +2627,60 @@ class ModelService {
     Log.instance.i('model',
         'probeHfRepoForBackend: ${out.length} model(s) from $repoIdTrimmed',
         fields: {'backend': backend});
+    // Persist the (repoId, backend) pair so the user's manually-added
+    // repo survives a restart — replayed from `initialize()`. Only when
+    // the probe actually found something, and not when the replay path
+    // itself is re-probing (persist: false) to avoid pointless writes.
+    if (persist && out.isNotEmpty) {
+      _settingsService.addHfUserRepo(repoIdTrimmed, backend,
+          displayPrefix: displayPrefix);
+    }
     return out;
+  }
+
+  /// Forget a user-added HF repo: drop its runtime ModelDefinitions and
+  /// its persisted (repoId, backend) entry. Downloaded files on disk are
+  /// left untouched — this only removes the catalogue listing.
+  void removeUserHfRepo({required String repoId, required String backend}) {
+    final repoIdTrimmed = repoId.trim();
+    final keyPrefix = '${repoIdTrimmed.replaceAll('/', '__')}--';
+    _discoveredModels.removeWhere(
+        (name, def) => name.startsWith(keyPrefix) && def.backend == backend);
+    _settingsService.removeHfUserRepo(repoIdTrimmed, backend);
+    Log.instance.i('model', 'removeUserHfRepo',
+        fields: {'repo': repoIdTrimmed, 'backend': backend});
+  }
+
+  // Replay user-added HF repos exactly once per ModelService lifetime.
+  // Memoised so concurrent `initialize()` callers await the same probe
+  // and we never re-issue the network fan-out.
+  Future<void>? _userRepoReplay;
+
+  Future<void> _replayUserHfReposOnce() {
+    return _userRepoReplay ??= () async {
+      final repos = _settingsService.hfUserRepos;
+      if (repos.isEmpty) return;
+      Log.instance.i('model',
+          'replaying ${repos.length} user-added HF repo(s)');
+      for (final r in repos) {
+        final repoId = r['repoId'] ?? '';
+        final backend = r['backend'] ?? '';
+        if (repoId.isEmpty || backend.isEmpty) continue;
+        try {
+          await probeHfRepoForBackend(
+            repoId: repoId,
+            backend: backend,
+            displayPrefix: r['displayPrefix'],
+            persist: false,
+          );
+        } catch (e) {
+          // Offline / 404 / private — keep the persisted entry so a
+          // later online refresh still surfaces it; just skip for now.
+          Log.instance.w('model', 'user HF repo replay failed — skipping',
+              error: e, fields: {'repo': repoId, 'backend': backend});
+        }
+      }
+    }();
   }
 
   /// Discover models from CrispASR's built-in C-side registry — no

@@ -7,6 +7,7 @@ import '../l10n/generated/app_localizations.dart';
 import '../main.dart' show modelServiceProvider;
 import '../services/log_service.dart';
 import '../services/model_service.dart';
+import '../services/settings_service.dart' show settingsServiceProvider;
 
 class ModelManagementScreen extends ConsumerStatefulWidget {
   /// Optional deep-link filter — when set, the kind-filter chip
@@ -222,6 +223,65 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
     }
   }
 
+  /// Lists the HF repos the user added by hand (persisted across
+  /// restarts) and lets them forget one. Removing drops the runtime
+  /// listings and the persisted entry; already-downloaded files on disk
+  /// stay put (manage those from the model list itself).
+  Future<void> _showManageHfReposDialog() async {
+    final settings = ref.read(settingsServiceProvider);
+    final modelService = ref.read(modelServiceProvider);
+    final removed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        var repos = settings.hfUserRepos;
+        var didRemove = false;
+        return StatefulBuilder(
+          builder: (ctx, setLocal) => AlertDialog(
+            title: const Text('Added HuggingFace repos'),
+            content: SizedBox(
+              width: 480,
+              child: repos.isEmpty
+                  ? const Text(
+                      'No repos added yet. Use “Add from HuggingFace repo…” '
+                      'to register one — it will persist across restarts.')
+                  : Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        for (final r in repos)
+                          ListTile(
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                            title: Text(r['repoId'] ?? ''),
+                            subtitle: Text('backend: ${r['backend'] ?? ''}'),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.delete_outline),
+                              tooltip: 'Forget this repo',
+                              onPressed: () {
+                                modelService.removeUserHfRepo(
+                                  repoId: r['repoId'] ?? '',
+                                  backend: r['backend'] ?? '',
+                                );
+                                didRemove = true;
+                                setLocal(() => repos = settings.hfUserRepos);
+                              },
+                            ),
+                          ),
+                      ],
+                    ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(didRemove),
+                child: const Text('Close'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+    if (removed == true && mounted) await _loadModels();
+  }
+
   /// Returns the runtime CrispASR backend list, plus a hard-coded
   /// 'whisper' fallback in case availableBackends() throws (e.g. the
   /// dylib is too old to expose the symbol — pre-0.5.15 builds had a
@@ -257,6 +317,11 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
             icon: const Icon(Icons.add_link),
             tooltip: 'Add from HuggingFace repo…',
             onPressed: _probing ? null : _showAddHfRepoDialog,
+          ),
+          IconButton(
+            icon: const Icon(Icons.playlist_remove),
+            tooltip: 'Manage added HuggingFace repos…',
+            onPressed: _probing ? null : _showManageHfReposDialog,
           ),
           IconButton(
             icon: const Icon(Icons.refresh),

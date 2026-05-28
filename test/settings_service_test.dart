@@ -76,6 +76,41 @@ void main() {
       expect(reloaded.customModelsDir, '/Volumes/backups/ai/crispasr-models');
     });
 
+    test('hfUserRepos: empty by default, add/remove round-trips', () {
+      expect(svc.hfUserRepos, isEmpty);
+
+      svc.addHfUserRepo('cstr/voxcpm2-GGUF', 'voxcpm2-tts',
+          displayPrefix: 'VoxCPM2');
+      svc.addHfUserRepo('cstr/foo-GGUF', 'whisper');
+
+      // Fresh instance reads both back from the same store.
+      final reloaded = SettingsService(prefs).hfUserRepos;
+      expect(reloaded, hasLength(2));
+      final vox = reloaded.firstWhere((m) => m['backend'] == 'voxcpm2-tts');
+      expect(vox['repoId'], 'cstr/voxcpm2-GGUF');
+      expect(vox['displayPrefix'], 'VoxCPM2');
+
+      // Re-adding the same (repoId, backend) replaces rather than dupes.
+      svc.addHfUserRepo('cstr/voxcpm2-GGUF', 'voxcpm2-tts');
+      expect(svc.hfUserRepos, hasLength(2));
+
+      // Same repo under a different backend is a distinct entry.
+      svc.addHfUserRepo('cstr/voxcpm2-GGUF', 'whisper');
+      expect(svc.hfUserRepos, hasLength(3));
+
+      svc.removeHfUserRepo('cstr/voxcpm2-GGUF', 'voxcpm2-tts');
+      final after = SettingsService(prefs).hfUserRepos;
+      expect(after, hasLength(2));
+      expect(after.any((m) => m['backend'] == 'voxcpm2-tts'), isFalse);
+    });
+
+    test('hfUserRepos tolerates a corrupt stored value', () async {
+      SharedPreferences.setMockInitialValues(
+          {'hf_user_repos': 'not json {{{'});
+      final p = await SharedPreferences.getInstance();
+      expect(SettingsService(p).hfUserRepos, isEmpty);
+    });
+
     test('appLocale = null clears the override', () {
       svc.appLocale = 'de';
       expect(svc.appLocale, 'de');

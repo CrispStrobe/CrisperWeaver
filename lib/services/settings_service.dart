@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -125,6 +126,55 @@ class SettingsService {
     Log.instance
         .d('settings', 'Saving hfToken: ${token.isNotEmpty ? "SET" : "EMPTY"}');
     _prefs.setString('hf_token', token);
+  }
+
+  /// User-added HuggingFace repos for the "Add from HuggingFace repo"
+  /// direct-download flow. Persisted as a JSON list of
+  /// `{repoId, backend, displayPrefix?}` maps so they survive a restart;
+  /// ModelService replays each through `probeHfRepoForBackend` on
+  /// initialize. Entries are keyed by the (repoId, backend) pair.
+  List<Map<String, String>> get hfUserRepos {
+    final raw = _prefs.getString('hf_user_repos');
+    if (raw == null || raw.isEmpty) return const [];
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return const [];
+      return decoded
+          .whereType<Map<String, dynamic>>()
+          .map((m) =>
+              m.map((k, v) => MapEntry(k.toString(), v?.toString() ?? '')))
+          .where((m) =>
+              (m['repoId'] ?? '').isNotEmpty && (m['backend'] ?? '').isNotEmpty)
+          .toList();
+    } catch (e) {
+      Log.instance.w('settings', 'hfUserRepos decode failed — ignoring',
+          error: e);
+      return const [];
+    }
+  }
+
+  set hfUserRepos(List<Map<String, String>> repos) {
+    _prefs.setString('hf_user_repos', jsonEncode(repos));
+  }
+
+  /// Add or replace a user HF repo entry (idempotent on the
+  /// repoId+backend key).
+  void addHfUserRepo(String repoId, String backend, {String? displayPrefix}) {
+    final list = List<Map<String, String>>.from(hfUserRepos)
+      ..removeWhere((m) => m['repoId'] == repoId && m['backend'] == backend);
+    final entry = <String, String>{'repoId': repoId, 'backend': backend};
+    if (displayPrefix != null && displayPrefix.isNotEmpty) {
+      entry['displayPrefix'] = displayPrefix;
+    }
+    list.add(entry);
+    hfUserRepos = list;
+  }
+
+  /// Forget a previously-added user HF repo.
+  void removeHfUserRepo(String repoId, String backend) {
+    final list = List<Map<String, String>>.from(hfUserRepos)
+      ..removeWhere((m) => m['repoId'] == repoId && m['backend'] == backend);
+    hfUserRepos = list;
   }
 
   /// Override directory for model GGUFs / .bin files. Empty / null
