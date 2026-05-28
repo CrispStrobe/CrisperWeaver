@@ -2396,6 +2396,46 @@ class ModelService {
         bakedDiscoveredModels[name];
   }
 
+  /// Resolve the language-picker codes for [def]. Single source of truth
+  /// used by the Transcribe screen's language dropdown AND the
+  /// catalogue-invariant tests so a regression in one is caught by
+  /// the other.
+  ///
+  /// Resolution order:
+  ///   1. `def.languages` if non-empty.
+  ///   2. The matching BackendRepo's `defaultLanguages` (by backend
+  ///      name) if non-empty. Lets a hardcoded Whisper quant inherit
+  ///      langsWhisper99 from the 'whisper' BackendRepo without
+  ///      tagging every entry.
+  ///   3. `['*']` from either path → expands to AppConstants' full
+  ///      code list (caller-supplied — we don't import constants
+  ///      from a UI-flavoured file here).
+  ///   4. Empty after all that → returns const empty; caller decides
+  ///      the fallback (Transcribe screen ships a 9-code default).
+  ///
+  /// `expandAll` is the function the caller uses to expand `['*']`
+  /// into a concrete code list; the Transcribe screen passes
+  /// AppConstants.supportedLanguages.keys.where(c != 'auto'),
+  /// tests pass a fixed fixture.
+  static List<String> resolveLanguageCodes(
+    ModelDefinition? def, {
+    required List<String> Function() expandAll,
+  }) {
+    if (def == null) return const [];
+    var codes = def.languages;
+    if (codes.isEmpty) {
+      for (final repo in backendRepos.values) {
+        if (repo.backend == def.backend && repo.defaultLanguages.isNotEmpty) {
+          codes = repo.defaultLanguages;
+          break;
+        }
+      }
+    }
+    if (codes.isEmpty) return const [];
+    if (codes.contains('*')) return expandAll();
+    return codes.toList();
+  }
+
   /// Whether a probe has succeeded at least once in this session.
   bool get hasProbedQuants => _lastProbeAt != null;
   DateTime? get lastQuantProbeAt => _lastProbeAt;

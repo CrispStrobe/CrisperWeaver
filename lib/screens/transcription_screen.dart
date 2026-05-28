@@ -1081,45 +1081,21 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
     );
   }
 
-  /// Codes the language dropdown should offer for [def]. Four cases:
-  ///   * `def.languages` set → use as-is.
-  ///   * `def.languages` empty BUT a BackendRepo with the same
-  ///     backend exists → use that repo's `defaultLanguages`. Lets us
-  ///     skip per-entry `languages:` tags on every hardcoded Whisper
-  ///     quant (`tiny-q5_0` / `base-q4_0` / etc.) — the lookup
-  ///     resolves through the BackendRepo's `langsWhisper99` instead.
-  ///   * Either path resolves to `['*']` → AppConstants' full code
-  ///     set minus 'auto' (~60 scrollable + searchable).
-  ///   * Empty / def null and no matching repo → legacy 9 codes as
-  ///     a sensible fallback for untagged HF-direct-import entries.
+  /// Codes the language dropdown should offer for [def]. Thin wrapper
+  /// over [ModelService.resolveLanguageCodes] — the shared helper
+  /// handles the def.languages → BackendRepo.defaultLanguages → `[*]`
+  /// expansion chain so the catalogue-invariant tests can exercise
+  /// the same code path. Local concern is only the fallback when
+  /// nothing resolves (UI-side: 9-code historical default).
   List<String> _languageCodesFor(ModelDefinition? def) {
-    if (def == null) {
-      return const ['en', 'es', 'fr', 'de', 'it', 'pt', 'zh', 'ja', 'ko'];
-    }
-    var codes = def.languages;
-    if (codes.isEmpty) {
-      // Look up the BackendRepo whose `backend` field matches. The
-      // repo's `defaultLanguages` is the source of truth for the
-      // family — every hardcoded whisper variant inherits
-      // langsWhisper99 from the 'whisper' BackendRepo, every parakeet
-      // variant inherits langsEU25 from the 'parakeet' BackendRepo,
-      // etc. No need to repeat the list on every quant.
-      for (final repo in ModelService.backendRepos.values) {
-        if (repo.backend == def.backend && repo.defaultLanguages.isNotEmpty) {
-          codes = repo.defaultLanguages;
-          break;
-        }
-      }
-    }
-    if (codes.isEmpty) {
-      return const ['en', 'es', 'fr', 'de', 'it', 'pt', 'zh', 'ja', 'ko'];
-    }
-    if (codes.contains('*')) {
-      return AppConstants.supportedLanguages.keys
+    final resolved = ModelService.resolveLanguageCodes(
+      def,
+      expandAll: () => AppConstants.supportedLanguages.keys
           .where((c) => c != 'auto')
-          .toList();
-    }
-    return codes.toList();
+          .toList(),
+    );
+    if (resolved.isNotEmpty) return resolved;
+    return const ['en', 'es', 'fr', 'de', 'it', 'pt', 'zh', 'ja', 'ko'];
   }
 
   /// Human-readable name for a language code. ARB localisation only

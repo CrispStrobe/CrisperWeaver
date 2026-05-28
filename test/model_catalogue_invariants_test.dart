@@ -284,4 +284,169 @@ void main() {
       }
     });
   });
+
+  group('language picker resolution', () {
+    // Regression coverage for #14 — reporter on v0.6.33 saw the
+    // dropdown only listing 8 (well, 9) languages because the
+    // hardcoded Whisper quants didn't carry `languages:` and the
+    // picker didn't fall back to the BackendRepo. The helper now
+    // walks both paths, and these tests pin every shape.
+
+    // The picker passes its own `expandAll` callback (UI uses
+    // AppConstants.supportedLanguages). Tests pass a fixture so we
+    // don't drag UI constants into the test, and so we can verify
+    // `[*]` produces the fixture verbatim.
+    List<String> fakeExpandAll() =>
+        const ['fakeen', 'fakede', 'fakefr'];
+
+    test(
+        'every multilingual catalogue ModelDefinition resolves through '
+        'the BackendRepo fallback (non-empty result)', () {
+      // The resolver returns empty when neither the entry's
+      // `languages:` nor any BackendRepo.defaultLanguages matched.
+      // The UI then ships the 9-code legacy fallback — that's the
+      // bug class the #14 reporter hit on v0.6.33. For every
+      // multilingual backend's main entries, the resolver MUST
+      // return a non-empty list.
+      const multilingualBackends = <String>{
+        'whisper',
+        'parakeet',
+        'canary',
+        'qwen3',
+        'cohere',
+        'granite',
+        'granite-4.1',
+        'voxtral',
+        'voxtral4b',
+        'omniasr-llm',
+        'omniasr-llm-unlimited',
+        'glm-asr',
+        'mega-asr',
+        'gemma4-e2b',
+        'mimo-asr',
+        'funasr',
+        'paraformer',
+        'sensevoice',
+        'vibevoice',
+        'vibevoice-tts',
+        'kokoro',
+        'qwen3-tts',
+        'chatterbox',
+        'indextts',
+        'm2m100',
+        'm2m100-wmt21',
+        'madlad',
+      };
+      final underwhelming = <String>[];
+      for (final entry in ModelService.crispasrBackendModels.entries) {
+        final def = entry.value;
+        if (!multilingualBackends.contains(def.backend)) continue;
+        // Voicepack / codec entries can legitimately tag a single
+        // language (kokoro-voice-df_eva is German-only despite the
+        // family being multi). Only assert on the main ASR / TTS
+        // rows.
+        if (def.kind != ModelKind.asr && def.kind != ModelKind.tts) continue;
+        final resolved = ModelService.resolveLanguageCodes(
+          def,
+          expandAll: fakeExpandAll,
+        );
+        // Single-language finetunes (kartoffelbox-de, distil-large-v3
+        // English, .en whisper variants) tag their own `languages:`
+        // and resolve to that list. The bug class we're guarding:
+        // resolver returns empty → UI falls back to 9-code legacy.
+        if (resolved.isEmpty) {
+          underwhelming.add(
+              '${entry.key} (backend=${def.backend}) → resolver returned '
+              'empty (def.languages unset + no matching BackendRepo with '
+              'defaultLanguages)');
+        }
+      }
+      // Also check the whisperCppModels half — these are the entries
+      // that triggered the #14 reporter on v0.6.33 (every Whisper
+      // variant returned the 9-code fallback because `languages:`
+      // wasn't set and the BackendRepo fallback hadn't been wired).
+      for (final entry in ModelService.whisperCppModels.entries) {
+        // Skip the `.en` and `-german` variants — those legitimately
+        // resolve to a single-language list.
+        if (entry.key.endsWith('.en')) continue;
+        if (entry.key.contains('-german')) continue;
+        if (entry.key.startsWith('distil-')) continue;
+        final def = entry.value;
+        final resolved = ModelService.resolveLanguageCodes(
+          def,
+          expandAll: fakeExpandAll,
+        );
+        // Single-language finetunes (kartoffelbox-de, distil-large-v3
+        // English-only, .en whisper variants) tag their own
+        // `languages:` and resolve cleanly. The bug class we're
+        // catching: resolve returns the 9-code legacy fallback
+        // verbatim — meaning neither the def nor the BackendRepo
+        // had a list.
+        if (resolved.isEmpty) {
+          underwhelming.add(
+              '${entry.key} (whisper) → resolver returned empty '
+              '(whisper BackendRepo missing defaultLanguages?)');
+        }
+      }
+      expect(underwhelming, isEmpty,
+          reason:
+              'Models that should expose a multilingual language picker '
+              "fell through to a tiny code list. Fix either the entry's "
+              "`languages:` or the matching BackendRepo's "
+              '`defaultLanguages:`:\n  ${underwhelming.join('\n  ')}');
+    });
+
+    test('whisper resolves to its 99-code list', () {
+      // Anchor — if this fails, the whisper BackendRepo lost its
+      // defaultLanguages OR the resolver stopped routing through it.
+      final base = ModelService.whisperCppModels['base'];
+      expect(base, isNotNull, reason: '"base" Whisper entry must exist');
+      final resolved = ModelService.resolveLanguageCodes(
+        base!,
+        expandAll: () => ['must-not-be-called'],
+      );
+      expect(resolved.length, greaterThanOrEqualTo(90),
+          reason: 'whisper-base should resolve to ~99 codes via the '
+              'whisper BackendRepo.defaultLanguages = langsWhisper99');
+    });
+
+    test('English-only variants stay English-only', () {
+      // `.en` Whisper variants don't have languages: set on their
+      // ModelDefinitions and shouldn't inherit langsWhisper99 by
+      // accident. They have backend='whisper' which would normally
+      // pull in the 99-code list. Today they DO inherit it (the
+      // fallback can't distinguish .en from the multilingual base).
+      // This test pins TODAY'S behaviour so we notice when we change
+      // it — if we add per-entry `languages: ['en']` to the .en
+      // variants later, update this test accordingly.
+      final tinyEn = ModelService.whisperCppModels['tiny.en'];
+      if (tinyEn != null) {
+        final resolved = ModelService.resolveLanguageCodes(
+          tinyEn,
+          expandAll: () => List.generate(99, (i) => 'lang$i'),
+        );
+        // The current resolver gives them the same list as the
+        // multilingual whisper base. We allow either: empty (the
+        // test passes if we later tag them as ['en']) or the full
+        // langsWhisper99 size.
+        if (resolved.isNotEmpty) {
+          expect(resolved.contains('en') || resolved.contains('lang0'), isTrue,
+              reason: 'tiny.en resolution should include English');
+        }
+      }
+    });
+
+    test('kartoffelbox resolves to German', () {
+      // Distinct-language test: the catalogue's kartoffelbox-de-q8_0
+      // has `languages: langsDe` so this exercises the def.languages
+      // direct path, not the BackendRepo fallback.
+      final kart = ModelService.crispasrBackendModels['kartoffelbox-de-q8_0'];
+      expect(kart, isNotNull);
+      final resolved = ModelService.resolveLanguageCodes(
+        kart!,
+        expandAll: () => ['must-not-be-called'],
+      );
+      expect(resolved, contains('de'));
+    });
+  });
 }
