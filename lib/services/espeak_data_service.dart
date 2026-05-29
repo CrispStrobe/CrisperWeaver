@@ -40,8 +40,16 @@ class EspeakDataService {
   /// when there is nothing to extract (placeholder tarball on
   /// desktop builds) or when the platform doesn't need this
   /// (desktop bundles the data dir directly).
+  ///
+  /// Runs on Android and iOS — both ship the data inside a packed app
+  /// bundle that libespeak-ng can't read in place, so we materialise it
+  /// to a writable dir. iOS only gains a working in-process phonemizer
+  /// when the build linked libespeak-ng AND shipped a real (non-
+  /// placeholder) data asset — see scripts/build_ios_xcframework.sh
+  /// (ESPEAK_NG=1). With the repo's placeholder asset this no-ops
+  /// gracefully via the < 4 KB check below, exactly as on desktop.
   static Future<String?> ensureExtractedAndSetEnv() async {
-    if (!Platform.isAndroid) return null;
+    if (!Platform.isAndroid && !Platform.isIOS) return null;
 
     try {
       final tarballBytes = await rootBundle.load(_assetKey);

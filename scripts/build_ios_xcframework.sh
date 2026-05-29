@@ -28,6 +28,22 @@
 #                         the Apple Neural Engine.
 #   CLEAN                 "1" to wipe build dirs first, "0" (default) to
 #                         resume from existing cmake caches.
+#   ESPEAK_NG             "1"/"ON" to cross-build libespeak-ng (+libucd)
+#                         for iOS and link it into the framework so kokoro
+#                         phonemizes in-process instead of shelling out to
+#                         a non-existent `espeak-ng` binary (kokoro's iOS
+#                         limitation). Default "OFF" — the build is then
+#                         byte-for-byte identical to before. When ON the
+#                         script also stages the real espeak-ng-data tree
+#                         as the `assets/espeak-ng-data.tar.gz` Flutter
+#                         asset (replacing the repo's placeholder) so the
+#                         phoneme tables ship with the dev build. Every
+#                         espeak step is non-fatal: on any failure it warns
+#                         and falls back to the no-espeak build so the
+#                         xcframework still gets produced.
+#   ESPEAK_NG_REF         espeak-ng git ref to build (default "master" —
+#                         tagged releases lack the cross-compile data
+#                         bypass; see the Android CI step for the why).
 
 set -euo pipefail
 
@@ -36,6 +52,8 @@ CRISPASR_DIR="${CRISPASR_DIR:-$(cd "$REPO_ROOT/.." && pwd)/CrispASR}"
 IOS_MIN_OS_VERSION="${IOS_MIN_OS_VERSION:-13.0}"
 COREML="${COREML:-ON}"
 CLEAN="${CLEAN:-0}"
+ESPEAK_NG="${ESPEAK_NG:-OFF}"
+ESPEAK_NG_REF="${ESPEAK_NG_REF:-master}"
 
 if [[ ! -d "$CRISPASR_DIR" ]]; then
   echo "error: sibling CrispASR repo not at $CRISPASR_DIR" >&2
@@ -82,16 +100,125 @@ COMMON_CMAKE_ARGS=(
   -DGGML_METAL_USE_BF16=ON
   -DGGML_NATIVE=OFF
   -DGGML_OPENMP=OFF
-  # Kokoro normally links against libespeak-ng for in-process
-  # phonemization. CrispASR's CMakeLists picks up homebrew's macOS
-  # build at configure time, which then fails to satisfy iOS arm64
-  # link-time symbols. Force OFF for iOS — kokoro falls back to its
-  # popen("espeak-ng …") shellout, which doesn't exist on iOS, so
-  # kokoro on iOS effectively can't phonemize. That's a known
-  # limitation; the other 30 backends still work.
-  -DCRISPASR_WITH_ESPEAK_NG=OFF
+  # CRISPASR_WITH_ESPEAK_NG is set PER SLICE below — historically forced
+  # OFF here (kokoro fell back to a popen("espeak-ng") shellout that
+  # doesn't exist on iOS, so kokoro couldn't phonemize). When ESPEAK_NG=1
+  # we cross-build libespeak-ng for the matching iOS slice and point the
+  # CrispASR cmake at it; otherwise it stays OFF and this build is
+  # identical to before.
   -DCMAKE_OSX_DEPLOYMENT_TARGET=$IOS_MIN_OS_VERSION
 )
+
+# ---------------------------------------------------------------------
+# Optional (ESPEAK_NG=1): cross-build libespeak-ng (+libucd) for each
+# iOS slice and point CrispASR's cmake at it, so kokoro phonemizes
+# in-process. Every step is non-fatal — on failure we warn and the
+# affected slice stays OFF (identical to the historical build), so the
+# xcframework is always produced. Defaults leave everything OFF.
+# ---------------------------------------------------------------------
+ESPEAK_SRC="${CRISPASR_DIR}/build-espeak-ng/espeak-ng-src"
+ESPEAK_ARGS_SIM=(-DCRISPASR_WITH_ESPEAK_NG=OFF)
+ESPEAK_ARGS_DEVICE=(-DCRISPASR_WITH_ESPEAK_NG=OFF)
+ESPEAK_LIBS_SIM=""
+ESPEAK_LIBS_DEVICE=""
+
+espeak_clone() {
+  [[ -d "$ESPEAK_SRC/.git" ]] && return 0
+  mkdir -p "$(dirname "$ESPEAK_SRC")"
+  git clone --depth=1 --branch "$ESPEAK_NG_REF" \
+    https://github.com/espeak-ng/espeak-ng.git "$ESPEAK_SRC" >&2
+}
+
+# Cross-build the static lib for one iOS sdk. Echoes "<inc>|<esp>|<ucd>"
+# on success; non-zero return on failure (caller keeps the slice OFF).
+# COMPILE_INTONATIONS=OFF: data ships as a Flutter asset, so we never run
+# the iOS binary. MACOSX_BUNDLE=OFF: otherwise CMake treats espeak-ng-bin
+# as an app bundle and its install() rule fails to configure under iOS.
+espeak_build_slice() {
+  local sdk="$1" bdir="$2"
+  local sysroot; sysroot="$(xcrun --sdk "$sdk" --show-sdk-path)" || return 1
+  local build="${ESPEAK_SRC}/${bdir}"
+  cmake -S "$ESPEAK_SRC" -B "$build" \
+    -DCMAKE_SYSTEM_NAME=iOS \
+    -DCMAKE_OSX_SYSROOT="$sysroot" \
+    -DCMAKE_OSX_ARCHITECTURES=arm64 \
+    -DCMAKE_OSX_DEPLOYMENT_TARGET="$IOS_MIN_OS_VERSION" \
+    -DCMAKE_BUILD_TYPE=Release -DCMAKE_MACOSX_BUNDLE=OFF \
+    -DBUILD_SHARED_LIBS=OFF -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+    -DUSE_ASYNC=OFF -DUSE_MBROLA=OFF -DUSE_KLATT=OFF \
+    -DUSE_LIBPCAUDIO=OFF -DUSE_LIBSONIC=OFF \
+    -DCOMPILE_INTONATIONS=OFF -DESPEAK_COMPAT=OFF -DENABLE_TESTS=OFF \
+    >&2 || return 1
+  cmake --build "$build" --target espeak-ng --config Release >&2 || return 1
+  local esp ucd
+  esp="$(find "$build" -name libespeak-ng.a | head -1)"
+  ucd="$(find "$build" -name libucd.a | head -1)"
+  [[ -f "$esp" && -f "$ucd" ]] || return 1
+  echo "${ESPEAK_SRC}/src/include|${esp}|${ucd}"
+}
+
+# Native (host macOS) build → generate espeak-ng-data + stage it as the
+# Flutter asset (replacing the repo placeholder) so libespeak-ng finds
+# its phoneme tables at runtime. Echoes the asset path on success.
+espeak_stage_data() {
+  local build="${ESPEAK_SRC}/build-native"
+  cmake -S "$ESPEAK_SRC" -B "$build" \
+    -DCMAKE_BUILD_TYPE=Release -DCMAKE_MACOSX_BUNDLE=OFF \
+    -DBUILD_SHARED_LIBS=OFF -DESPEAK_COMPAT=OFF \
+    -DUSE_ASYNC=OFF -DUSE_MBROLA=OFF -DUSE_KLATT=OFF \
+    -DUSE_LIBPCAUDIO=OFF -DUSE_LIBSONIC=OFF -DENABLE_TESTS=OFF >&2 || return 1
+  cmake --build "$build" --parallel --target espeak-ng-bin >&2 || return 1
+  cmake --build "$build" --parallel --target data >&2 || return 1
+  local data; data="$(find "$build" -type d -name espeak-ng-data | head -1)"
+  [[ -d "$data" && -f "$data/phontab" && -f "$data/phondata" ]] || return 1
+  local asset="${REPO_ROOT}/assets/espeak-ng-data.tar.gz"
+  tar -C "$data" -czf "$asset" . >&2 || return 1
+  echo "$asset"
+}
+
+if [[ "$ESPEAK_NG" == "1" || "$ESPEAK_NG" == "ON" ]]; then
+  echo "==> ESPEAK_NG=$ESPEAK_NG — cross-building libespeak-ng for iOS (kokoro phonemizer)"
+  # Neutralise pkg-config's espeak-ng lookup for the CrispASR iOS
+  # configures below. CrispASR's kokoro cmake tries pkg_check_modules
+  # FIRST — on a Mac with Homebrew's espeak-ng that resolves to the
+  # *macOS* lib and would be linked into the iOS slice, breaking the
+  # arm64 link (the original reason espeak was forced OFF here). With
+  # pkg-config pointed at an empty dir the snippet falls through to its
+  # find_path/find_library branch, which honours the
+  # -DESPEAK_NG_INCLUDE_DIR / -DESPEAK_NG_LIBRARY we pass per slice.
+  # BLAS on Apple uses the Accelerate framework (not pkg-config), so the
+  # rest of the build is unaffected. Only matters when espeak is ON.
+  export PKG_CONFIG_LIBDIR="$(mktemp -d)"
+  export PKG_CONFIG_PATH=""
+  if espeak_clone; then
+    if out=$(espeak_build_slice iphonesimulator build-ios-sim); then
+      ESPEAK_ARGS_SIM=(-DCRISPASR_WITH_ESPEAK_NG=ON \
+        -DESPEAK_NG_INCLUDE_DIR="${out%%|*}" \
+        -DESPEAK_NG_LIBRARY="$(echo "$out" | cut -d'|' -f2)")
+      ESPEAK_LIBS_SIM="$(echo "$out" | cut -d'|' -f2) $(echo "$out" | cut -d'|' -f3)"
+      echo "    simulator slice: espeak ON"
+    else
+      echo "::warning:: espeak-ng iOS-sim build failed — kokoro stays popen-only (simulator)" >&2
+    fi
+    if out=$(espeak_build_slice iphoneos build-ios-device); then
+      ESPEAK_ARGS_DEVICE=(-DCRISPASR_WITH_ESPEAK_NG=ON \
+        -DESPEAK_NG_INCLUDE_DIR="${out%%|*}" \
+        -DESPEAK_NG_LIBRARY="$(echo "$out" | cut -d'|' -f2)")
+      ESPEAK_LIBS_DEVICE="$(echo "$out" | cut -d'|' -f2) $(echo "$out" | cut -d'|' -f3)"
+      echo "    device slice: espeak ON"
+    else
+      echo "::warning:: espeak-ng iOS-device build failed — kokoro stays popen-only (device)" >&2
+    fi
+    if asset=$(espeak_stage_data); then
+      echo "    staged espeak-ng-data asset: $asset ($(du -h "$asset" | cut -f1))"
+      echo "    NOTE: this overwrote the repo's placeholder asset — do NOT commit it."
+    else
+      echo "::warning:: espeak-ng-data staging failed — kokoro will lack phoneme tables at runtime" >&2
+    fi
+  else
+    echo "::warning:: espeak-ng clone failed — building without the in-process phonemizer" >&2
+  fi
+fi
 
 # ---- Build iOS simulator slice (arm64, since Apple Silicon Mac) ----
 echo "==> cmake configure: iOS simulator"
@@ -106,6 +233,7 @@ cmake -B build-ios-sim -G Xcode \
   -DCMAKE_CXX_FLAGS="$COMMON_CXX_FLAGS" \
   -DCRISPASR_COREML="$EFFECTIVE_COREML" \
   -DCRISPASR_COREML_ALLOW_FALLBACK=ON \
+  "${ESPEAK_ARGS_SIM[@]}" \
   -S .
 echo "==> cmake build: iOS simulator"
 cmake --build build-ios-sim --config Release -- -quiet
@@ -123,6 +251,7 @@ cmake -B build-ios-device -G Xcode \
   -DCMAKE_CXX_FLAGS="$COMMON_CXX_FLAGS" \
   -DCRISPASR_COREML="$EFFECTIVE_COREML" \
   -DCRISPASR_COREML_ALLOW_FALLBACK=ON \
+  "${ESPEAK_ARGS_DEVICE[@]}" \
   -S .
 echo "==> cmake build: iOS device"
 cmake --build build-ios-device --config Release -- -quiet
@@ -195,6 +324,8 @@ combine() {
   local sdk="$3"              # iphonesimulator or iphoneos
   local archs="$4"            # arm64 (or arm64+x86_64 for sim, but we kept sim arm64 only)
   local min_flag="$5"         # -mios-version-min=… or -mios-simulator-version-min=…
+  local extra_libs="${6:-}"   # space-separated static libs to also force_load
+                              # (libespeak-ng.a + libucd.a when ESPEAK_NG=1)
   local plat_dir="${CRISPASR_DIR}/${build_dir}"
   local fw="${plat_dir}/framework/crispasr.framework"
   local out_lib="${fw}/crispasr"
@@ -224,6 +355,14 @@ combine() {
   if [[ -f "${plat_dir}/crisp_audio/${release_dir}/libcrisp_audio.a" ]]; then
     libs+=("${plat_dir}/crisp_audio/${release_dir}/libcrisp_audio.a")
   fi
+  # espeak-ng + ucd (when ESPEAK_NG=1): kokoro.a was compiled with
+  # CRISPASR_HAVE_ESPEAK_NG=1 and now references espeak_* / ucd_* symbols.
+  # Force-load both so they resolve in the framework. Built for the slice
+  # that matches $sdk, so device gets the iphoneos libs and sim the
+  # iphonesimulator ones — no arch mixing.
+  for el in $extra_libs; do
+    [[ -f "$el" ]] && libs+=("$el")
+  done
 
   local temp_dir="${plat_dir}/temp"
   rm -rf "$temp_dir"
@@ -300,12 +439,12 @@ combine() {
 echo "==> framework setup: simulator"
 setup_framework "build-ios-sim"
 combine "build-ios-sim" "Release-iphonesimulator" "iphonesimulator" "arm64" \
-  "-mios-simulator-version-min=$IOS_MIN_OS_VERSION"
+  "-mios-simulator-version-min=$IOS_MIN_OS_VERSION" "$ESPEAK_LIBS_SIM"
 
 echo "==> framework setup: device"
 setup_framework "build-ios-device"
 combine "build-ios-device" "Release-iphoneos" "iphoneos" "arm64" \
-  "-mios-version-min=$IOS_MIN_OS_VERSION"
+  "-mios-version-min=$IOS_MIN_OS_VERSION" "$ESPEAK_LIBS_DEVICE"
 
 # ---- xcframework with both slices ----
 mkdir -p build-apple
