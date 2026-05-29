@@ -164,7 +164,10 @@ void main() {
       // is rebuilt.
       //   indextts     — impl exists + CMake-linked, dispatch arm pending
       //   madlad       — no CrispASR implementation yet (Translate scaffold)
-      //   m2m100-wmt21 — needs a C-side alias onto the m2m100 open path
+      //   m2m100-wmt21 — wired upstream (CrispASR 9ebbb9fd accepts the
+      //                  backend string on the WMT21-capable m2m100
+      //                  engine); drop from `pending` once the bundled
+      //                  libcrispasr is rebuilt with that commit
       const pending = {'indextts', 'madlad', 'm2m100-wmt21'};
 
       final catalogueBackends = <String>{
