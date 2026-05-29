@@ -33,6 +33,8 @@ import 'package:crispasr/crispasr.dart' as crispasr;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
+import 'package:crisper_weaver/services/model_service.dart';
+
 // End-to-end synth/transcribe groups are gated behind the 'slow' tag
 // (set via the `tags:` argument on each `group(...)` below) — they
 // load gigabyte GGUFs and run minutes of LLM decode. Default
@@ -117,6 +119,73 @@ void main() {
         expect(backends, contains(name),
             reason: 'TTS backend $name should be exposed via the session API');
       }
+    }, skip: libSkipReason);
+
+    test('every catalogue ASR/TTS/translate backend has a dispatch arm', () {
+      // Catalogue-driven guard: every ModelDefinition / BackendRepo whose
+      // kind goes through CrispasrSession (asr / tts / translate) must
+      // have a matching arm in crispasr_session_open_explicit, i.e. must
+      // appear in availableBackends(). This is the invariant that would
+      // have flagged voxcpm2 as a dead catalogue entry before it was
+      // wired — it auto-covers future additions the hand-maintained lists
+      // above don't enumerate.
+      //
+      // Companion kinds (codec / voice) are loaded onto an already-open
+      // session, and punc / vad / lid / diarize / chatLlm are driven by
+      // their own services + C-API surfaces — none are session-opened, so
+      // they're excluded by the kind filter.
+      final backends = crispasr.CrispasrSession.availableBackends(
+        libPath: libPath,
+      ).toSet();
+      // Dev machines often have a stale libcrispasr lying around (an old
+      // build-flutter-bundle/ the resolver prefers). That would report
+      // half the catalogue missing and bury the real signal, so detect a
+      // clearly-outdated binary via backends that shipped many versions
+      // ago and skip instead of crying wolf. A current/CI-built dylib has
+      // all of these, so the strict check below still runs there.
+      const longShipped = ['funasr', 'paraformer', 'sensevoice', 'gemma4-e2b'];
+      final stale = longShipped.where((b) => !backends.contains(b)).toList();
+      if (stale.isNotEmpty) {
+        markTestSkipped(
+            'bundled libcrispasr looks stale (missing long-shipped backends '
+            '$stale) — rebuild CrispASR (scripts/build_macos.sh) to run this '
+            'catalogue-dispatch guard');
+        return;
+      }
+      const sessionKinds = {
+        ModelKind.asr,
+        ModelKind.tts,
+        ModelKind.translate,
+      };
+      // Backends catalogued AHEAD of their C-side dispatch arm — known,
+      // documented gaps. Keep this list tight: every entry is a deferred
+      // TODO, not a permanent exemption. Remove an entry the moment its
+      // dispatch arm lands in crispasr_c_api.cpp + the bundled libcrispasr
+      // is rebuilt.
+      //   indextts     — impl exists + CMake-linked, dispatch arm pending
+      //   madlad       — no CrispASR implementation yet (Translate scaffold)
+      //   m2m100-wmt21 — needs a C-side alias onto the m2m100 open path
+      const pending = {'indextts', 'madlad', 'm2m100-wmt21'};
+
+      final catalogueBackends = <String>{
+        for (final m in ModelService.crispasrBackendModels.values)
+          if (sessionKinds.contains(m.kind) && m.backend.isNotEmpty)
+            m.backend,
+        for (final r in ModelService.backendRepos.values)
+          if (sessionKinds.contains(r.kind) && r.backend.isNotEmpty)
+            r.backend,
+      };
+
+      final missing = catalogueBackends
+          .difference(backends)
+          .difference(pending)
+          .toList()
+        ..sort();
+      expect(missing, isEmpty,
+          reason: 'Catalogue backend(s) with no dispatch arm in the bundled '
+              'libcrispasr: $missing — add the arm in crispasr_c_api.cpp, or '
+              '(if intentionally ahead of the engine) add to the documented '
+              '`pending` set in this test.');
     }, skip: libSkipReason);
 
     test('open() with a non-existent file fails cleanly per backend', () {
