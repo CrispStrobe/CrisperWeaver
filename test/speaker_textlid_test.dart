@@ -9,6 +9,17 @@
 //         core of re-identification (does the embedding separate
 //         speakers?), without SpeakerDB file I/O.
 //
+//         NOTE: this verifies DISCRIMINABILITY (and that re-ID works
+//         self-consistently), NOT bit-parity with the NeMo reference.
+//         Reference parity is established + documented upstream
+//         (cstr/titanet-large-GGUF): encoder+decoder cos = 0.999997
+//         (mel-injected — the network is faithful), end-to-end cos =
+//         0.917 (a known float32 STFT precision gap in the mel front-end,
+//         not a model error). A reference-parity test would compare
+//         against a NeMo .npy dump (tools/reference_backends/titanet.py +
+//         models/titanet-dump-ref-embeddings.py → test-titanet --ref-emb)
+//         and needs the NeMo/PyTorch env — out of scope for this suite.
+//
 // Run the live tests:
 //   CRISPASR_LIB=/abs/libwhisper.dylib \
 //   CRISPASR_TEST_CLD3_MODEL=/abs/cld3-f16.gguf \
