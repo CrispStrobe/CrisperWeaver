@@ -168,7 +168,9 @@ void main() {
       //                  libcrispasr is rebuilt AND the clone audio is
       //                  verified on a real model (the 16→24 kHz ref
       //                  resample is not yet audio-tested)
-      //   madlad       — no CrispASR implementation yet (Translate scaffold)
+      //   madlad       — dispatch wired upstream (CrispASR 990fd9cd: t5
+      //                  translate engine, "<2xx>" tag); kept here until
+      //                  the bundled libcrispasr is rebuilt with it
       //   m2m100-wmt21 — wired upstream (CrispASR 9ebbb9fd accepts the
       //                  backend string on the WMT21-capable m2m100
       //                  engine); drop from `pending` once the bundled
@@ -544,5 +546,76 @@ void main() {
                 ? 'set CRISPASR_TEST_FULLSTOP_PUNC_MODEL to a downloaded '
                     'fullstop-punc-multilang-*.gguf'
                 : null);
+  });
+
+  // -------------------------------------------------------------------
+  // TTS → ASR roundtrip (opt-in). Synthesize a known phrase with a TTS
+  // backend, feed the audio straight into whisper, and check the words
+  // survive the round trip. Exercises the synthesize + transcribe FFI
+  // paths end-to-end — the pieces the Synthesize and Transcribe screens
+  // drive — in one test. Gated on model env vars; skipped when unset.
+  // -------------------------------------------------------------------
+  group('CrispASR TTS→ASR roundtrip (opt-in)', () {
+    final chatterboxT3 = Platform.environment['CRISPASR_TEST_CHATTERBOX_MODEL'];
+    final chatterboxS3gen =
+        Platform.environment['CRISPASR_TEST_CHATTERBOX_S3GEN'];
+    final whisperModel = Platform.environment['CRISPASR_TEST_WHISPER_MODEL'];
+
+    // TTS backends emit 24 kHz; whisper wants 16 kHz. Linear 3:2 decimate.
+    Float32List resample24kTo16k(Float32List src) {
+      if (src.isEmpty) return src;
+      final outN = (src.length * 16000) ~/ 24000;
+      final out = Float32List(outN);
+      for (var j = 0; j < outN; j++) {
+        final pos = j * 24000.0 / 16000.0;
+        final i0 = pos.floor();
+        final i1 = (i0 + 1 < src.length) ? i0 + 1 : src.length - 1;
+        final frac = pos - i0;
+        out[j] = src[i0] * (1 - frac) + src[i1] * frac;
+      }
+      return out;
+    }
+
+    test('chatterbox → whisper preserves the spoken words', tags: ['slow'],
+        () {
+      // 1) Synthesize a distinctive phrase with chatterbox (T3 + S3Gen).
+      final tts = crispasr.CrispasrSession.open(chatterboxT3!,
+          backend: 'chatterbox', libPath: libPath);
+      addTearDown(tts.close);
+      tts.setCodecPath(chatterboxS3gen!); // S3Gen flow-matching vocoder
+      const phrase = 'The quick brown fox jumps over the lazy dog.';
+      final pcm24 = tts.synthesize(phrase);
+      expect(pcm24.length, greaterThan(0),
+          reason: 'chatterbox should synthesize non-empty audio');
+
+      // 2) Transcribe the synthesized audio back with whisper.
+      final pcm16 = resample24kTo16k(pcm24);
+      final asr = crispasr.CrispasrSession.open(whisperModel!,
+          backend: 'whisper', libPath: libPath);
+      addTearDown(asr.close);
+      final segs = asr.transcribe(pcm16, language: 'en');
+      final text = segs.map((s) => s.text).join(' ').toLowerCase();
+      printOnFailure('roundtrip transcript: "$text"');
+
+      // 3) Fuzzy match — a TTS→ASR roundtrip (esp. with a tiny whisper)
+      // won't be exact, so require that several content words survive
+      // rather than an exact string.
+      const words = ['quick', 'brown', 'fox', 'lazy', 'dog'];
+      final hits = words.where((w) => text.contains(w)).length;
+      expect(text.trim(), isNotEmpty,
+          reason: 'whisper should transcribe the synthesized audio');
+      expect(hits, greaterThanOrEqualTo(2),
+          reason: 'roundtrip should preserve ≥2 of $words; got "$text"');
+    },
+        skip: !libAvailable
+            ? libSkipReason
+            : chatterboxT3 == null
+                ? 'set CRISPASR_TEST_CHATTERBOX_MODEL to a chatterbox-t3-*.gguf'
+                : chatterboxS3gen == null
+                    ? 'set CRISPASR_TEST_CHATTERBOX_S3GEN to a '
+                        'chatterbox-s3gen-*.gguf'
+                    : whisperModel == null
+                        ? 'set CRISPASR_TEST_WHISPER_MODEL to a ggml-*.bin'
+                        : null);
   });
 }
