@@ -218,23 +218,15 @@ void main() {
       // TODO, not a permanent exemption. Remove an entry the moment its
       // dispatch arm lands in crispasr_c_api.cpp + the bundled libcrispasr
       // is rebuilt.
-      //   indextts     — dispatch wired upstream (CrispASR 369e9ac0:
-      //                  open + BigVGAN companion + 24 kHz ref clone via
-      //                  set_voice); kept here until the bundled
-      //                  libcrispasr is rebuilt AND the clone audio is
-      //                  verified on a real model (the 16→24 kHz ref
-      //                  resample is not yet audio-tested)
-      //   madlad       — dispatch wired upstream (CrispASR 990fd9cd: t5
-      //                  translate engine, "<2xx>" tag); kept here until
-      //                  the bundled libcrispasr is rebuilt with it
-      //   m2m100-wmt21 — wired upstream (CrispASR 9ebbb9fd accepts the
-      //                  backend string on the WMT21-capable m2m100
-      //                  engine); drop from `pending` once the bundled
-      //                  libcrispasr is rebuilt with that commit
-      //   cosyvoice3-tts — dispatch wired upstream (CrispASR 36133247);
-      //                  catalogued here with auto-discovered flow/hift/
-      //                  voices companions. Drop after the dylib rebuild.
-      const pending = {'indextts', 'madlad', 'm2m100-wmt21', 'cosyvoice3-tts'};
+      //
+      // Empty as of CrispASR 0.6.11: indextts (369e9ac0), madlad
+      // (990fd9cd, t5_translate), m2m100-wmt21 (9ebbb9fd) and
+      // cosyvoice3-tts (36133247) were all wired upstream and now appear
+      // in availableBackends() — verified against a freshly rebuilt
+      // libcrispasr (40 backends; all four PRESENT). A stale bundled
+      // dylib that predates them is caught by the longShipped check above
+      // and skips this group rather than false-failing.
+      const pending = <String>{};
 
       final catalogueBackends = <String>{
         for (final m in ModelService.crispasrBackendModels.values)
