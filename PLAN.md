@@ -488,6 +488,62 @@ Q3 polish) shipped end-to-end. Full per-step write-up in
 - Signed Android APK.
 - Windows MSI / EXE installer.
 
+### 5.24 Backend wiring + catalogue follow-ups (post-0.6.42)
+
+Tracks the remaining work to bring every catalogued backend to
+fully-wired + verified, and to surface engine backends the app doesn't
+list yet. CrispASR edits go through an isolated `git worktree` off
+`origin/main` (parallel workers share that clone — see the
+crispasr-use-worktree memory).
+
+**A. Post-rebuild guard tightening (do once a libcrispasr built from
+CrispASR ≥ 990fd9cd ships, i.e. the v0.6.42 binaries).**
+- Drop `indextts`, `madlad`, `m2m100-wmt21` from the `pending` set in
+  `test/backend_dispatch_test.dart` — their dispatch arms are upstream;
+  `pending` only kept the guard green against not-yet-rebuilt dylibs.
+- Verify each now appears in `CrispasrSession.availableBackends()` by
+  running the guard against a fresh dylib (it skips on a stale one).
+
+**B. cosyvoice3 catalogue (blocked on the sibling's session dispatch).**
+- Trigger: `availableBackends()` contains `cosyvoice3-tts` (sibling lands
+  the open/synthesize arms in `crispasr_session_open_explicit`). It is
+  NOT dispatched as of this writing — do not catalogue ahead of it.
+- Then add, app-side (no CrispASR change):
+  - `ModelDefinition`s for the LLM (default) + companions flow / hift /
+    voices (the cstr/cosyvoice3-0.5b-2512-GGUF bundle; multi-companion,
+    mirror the kokoro extras pattern), backend `cosyvoice3-tts`,
+    `kind: tts`. Output is 24 kHz → no host-side resample.
+  - A `BackendRepo` `cosyvoice3-tts` (repoId `cstr/cosyvoice3-0.5b-2512-GGUF`)
+    with `defaultCompanions` + a real language list (9 langs + Chinese
+    dialects per the registry; surface the 9 standard codes).
+  - Re-run `scripts/check_model_languages.dart` (0 diffs) and the guard.
+
+**C. Reverse audit — engine backends not yet catalogued.** Several
+backends the bundled engine exposes (or models already on disk) aren't
+surfaced in the app catalogue, e.g. `canary-ctc`, bare `omniasr`,
+`data2vec-audio`, `bidirlm-omni`. Diff `availableBackends()` against the
+catalogue's backend set and decide per-backend whether to add a
+`ModelDefinition` + `BackendRepo` (with correct kind + languages) or
+leave it engine-only.
+
+**D. Verification matrix (use the TTS→ASR roundtrip harness + a
+translate live test).** Drop the "experimental" flags from CHANGELOG /
+docs only once each is confirmed on a real model:
+- indextts clone audio — roundtrip with indextts as the TTS leg +
+  a reference WAV.
+- voxcpm2 clone audio — roundtrip with voxcpm2 + a reference WAV.
+- madlad + m2m100-wmt21 translation — add an opt-in translate live test
+  (translate a known phrase, assert target-language keywords); confirm
+  output is sane.
+- Android ANR (lazy whisper load + chunked pool) and iOS kokoro
+  (espeak-ng) still need on-device runs (see §5.22).
+
+**E. Process.** Each new engine backend follows: CrispASR dispatch (in a
+worktree) → app `ModelDefinition` + `BackendRepo` → drop from guard
+`pending` after the dylib rebuild → release. The guard test fails any
+catalogue entry whose backend has no dispatch arm, so catalogue and
+engine can't silently drift.
+
 ---
 
 ## 6. Adding a new backend
