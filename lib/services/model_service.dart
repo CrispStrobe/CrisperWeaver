@@ -1076,6 +1076,54 @@ class ModelService {
       kind: ModelKind.tts,
       languages: langsEn,
     ),
+    // M-AILABS German voices — BSD-style license (commercial + redistribution
+    // OK if the copyright notice is retained; derived from LibriVox/Gutenberg
+    // public-domain sources). See cstr/piper-voices-GGUF model card.
+    'piper-de-eva_k-xlow': ModelDefinition(
+      name: 'piper-de-eva_k-xlow',
+      displayName: 'Piper de Eva K (x-low)',
+      fileName: 'piper-de_DE-eva_k-x_low-f16.gguf',
+      url:
+          'https://huggingface.co/cstr/piper-voices-GGUF/resolve/main/piper-de_DE-eva_k-x_low-f16.gguf',
+      sizeBytes: 10089344,
+      checksum: '',
+      description: 'Piper VITS TTS — German (Eva K, x-low, ~10 MB). '
+          'M-AILABS (BSD-style).',
+      quantization: 'f16',
+      backend: 'piper',
+      kind: ModelKind.tts,
+      languages: langsDe,
+    ),
+    'piper-de-karlsson-low': ModelDefinition(
+      name: 'piper-de-karlsson-low',
+      displayName: 'Piper de Karlsson (low)',
+      fileName: 'piper-de_DE-karlsson-low-f16.gguf',
+      url:
+          'https://huggingface.co/cstr/piper-voices-GGUF/resolve/main/piper-de_DE-karlsson-low-f16.gguf',
+      sizeBytes: 31369856,
+      checksum: '',
+      description: 'Piper VITS TTS — German (Karlsson, low, ~30 MB). '
+          'M-AILABS (BSD-style).',
+      quantization: 'f16',
+      backend: 'piper',
+      kind: ModelKind.tts,
+      languages: langsDe,
+    ),
+    'piper-de-ramona-low': ModelDefinition(
+      name: 'piper-de-ramona-low',
+      displayName: 'Piper de Ramona (low)',
+      fileName: 'piper-de_DE-ramona-low-f16.gguf',
+      url:
+          'https://huggingface.co/cstr/piper-voices-GGUF/resolve/main/piper-de_DE-ramona-low-f16.gguf',
+      sizeBytes: 31369856,
+      checksum: '',
+      description: 'Piper VITS TTS — German (Ramona, low, ~30 MB). '
+          'M-AILABS (BSD-style).',
+      quantization: 'f16',
+      backend: 'piper',
+      kind: ModelKind.tts,
+      languages: langsDe,
+    ),
     // CosyVoice3 0.5B-2512 (FunAudioLLM) — three-stage TTS (LLM AR → flow
     // Euler → HiFT vocoder), 24 kHz, zero-shot voice cloning via a baked
     // voices.gguf. The engine AUTO-DISCOVERS its flow/hift/voices (+
