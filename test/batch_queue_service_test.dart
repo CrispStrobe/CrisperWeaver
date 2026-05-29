@@ -24,22 +24,24 @@ void main() {
     });
 
     tearDown(() async {
+      // Drain in-flight fire-and-forget persist writes DETERMINISTICALLY
+      // before deleting the temp dir — else the delete races them and
+      // fails with FileSystemException (POSIX) / sharing-violation
+      // (Windows). The old fixed 50 ms delay lost this race under
+      // full-suite CPU/disk contention (the chronic flake).
+      await queue.whenPersisted();
       queue.dispose();
-      // Drain in-flight unawaited persist writes — _persist is fired
-      // fire-and-forget from every state mutation; without this
-      // settle the tempDir delete races them and fails with
-      // FileSystemException on POSIX or sharing-violation on Windows.
-      await Future<void>.delayed(const Duration(milliseconds: 50));
       if (await tempDir.exists()) {
         await tempDir.delete(recursive: true);
       }
     });
 
     Future<void> settle() async {
-      // The notifier fires _persist() as unawaited futures so the
-      // mutation returns immediately. Yield long enough for the write
-      // to land before assertions check disk.
-      await Future<void>.delayed(const Duration(milliseconds: 50));
+      // Deterministically await all in-flight persistence writes instead
+      // of sleeping and hoping — every mutation fires _persist()
+      // unawaited, and whenPersisted() drains them (incl. re-entrant
+      // writes) so disk assertions never race.
+      await queue.whenPersisted();
     }
 
     test('enqueue persists the new job to disk', () async {

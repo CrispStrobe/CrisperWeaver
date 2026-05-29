@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'audio_service.dart';
@@ -154,6 +155,26 @@ class BatchQueueNotifier extends StateNotifier<List<BatchJob>> {
   bool _loaded = false;
   int _lastLoadResumedCount = 0;
 
+  // Persistence writes are fired unawaited so the UI never blocks on
+  // disk. To let tests (and tearDown) know all writes have flushed
+  // deterministically — instead of sleeping and hoping — track the
+  // in-flight write futures and expose `whenPersisted()`.
+  final Set<Future<void>> _pendingWrites = {};
+  void _fireAndForget(Future<void> f) {
+    _pendingWrites.add(f);
+    f.whenComplete(() => _pendingWrites.remove(f));
+  }
+
+  /// Awaits all in-flight persistence writes (save / delete / clear).
+  /// Test-only — production never blocks on disk. Drains re-entrant
+  /// writes too, so callers can assert on-disk state without races.
+  @visibleForTesting
+  Future<void> whenPersisted() async {
+    while (_pendingWrites.isNotEmpty) {
+      await Future.wait(_pendingWrites.toList());
+    }
+  }
+
   /// How many resumable jobs (non-terminal + had a leftover
   /// `.ckpt.jsonl`) the most recent [load] call recovered. The UI
   /// reads this once after the first frame to show a one-shot
@@ -221,7 +242,7 @@ class BatchQueueNotifier extends StateNotifier<List<BatchJob>> {
       // Push only the mutated jobs back to disk — saves I/O on the
       // common case where every job round-trips unchanged.
       for (final j in repaired) {
-        if (dirtyIds.contains(j.id)) unawaited(_persist(j));
+        if (dirtyIds.contains(j.id)) _fireAndForget(_persist(j));
       }
       Log.instance.i('batch-queue',
           'hydrated ${repaired.length} job(s) from disk', fields: {
@@ -262,7 +283,7 @@ class BatchQueueNotifier extends StateNotifier<List<BatchJob>> {
       language: language,
     );
     state = [...state, job];
-    unawaited(_persist(job));
+    _fireAndForget(_persist(job));
     // §5.23 Q1 ETA probe — fire-and-forget. The job is queued
     // regardless of probe outcome; the durationSec field stays null
     // when the probe fails or returns null and the UI just doesn't
@@ -338,7 +359,7 @@ class BatchQueueNotifier extends StateNotifier<List<BatchJob>> {
 
   void remove(String id) {
     state = state.where((j) => j.id != id).toList(growable: false);
-    unawaited(_persistence.deleteJob(id));
+    _fireAndForget(_persistence.deleteJob(id));
   }
 
   void clearCompleted() {
@@ -354,13 +375,13 @@ class BatchQueueNotifier extends StateNotifier<List<BatchJob>> {
             j.status != BatchJobStatus.cancelled)
         .toList(growable: false);
     for (final id in toRemove) {
-      unawaited(_persistence.deleteJob(id));
+      _fireAndForget(_persistence.deleteJob(id));
     }
   }
 
   void clearAll() {
     state = const [];
-    unawaited(_persistence.clearAll());
+    _fireAndForget(_persistence.clearAll());
   }
 
   void _update(String id, BatchJob Function(BatchJob) fn) {
@@ -370,7 +391,7 @@ class BatchQueueNotifier extends StateNotifier<List<BatchJob>> {
       updated = fn(j);
       return updated!;
     }).toList(growable: false);
-    if (updated != null) unawaited(_persist(updated!));
+    if (updated != null) _fireAndForget(_persist(updated!));
   }
 
   void setRunning(String id) => _update(
@@ -390,7 +411,7 @@ class BatchQueueNotifier extends StateNotifier<List<BatchJob>> {
             ));
     // Clean up any leftover checkpoint file — the job finished cleanly
     // and the result is in the history entry now.
-    unawaited(_persistence.deleteCheckpoint(id));
+    _fireAndForget(_persistence.deleteCheckpoint(id));
   }
 
   void setError(String id, String message) => _update(
@@ -402,7 +423,7 @@ class BatchQueueNotifier extends StateNotifier<List<BatchJob>> {
 
   void setCancelled(String id) {
     _update(id, (j) => j.copyWith(status: BatchJobStatus.cancelled));
-    unawaited(_persistence.deleteCheckpoint(id));
+    _fireAndForget(_persistence.deleteCheckpoint(id));
   }
 
   /// Next still-queued job (or null if queue is empty / all terminal).
