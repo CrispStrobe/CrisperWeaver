@@ -504,19 +504,27 @@ CrispASR ≥ 990fd9cd ships, i.e. the v0.6.42 binaries).**
 - Verify each now appears in `CrispasrSession.availableBackends()` by
   running the guard against a fresh dylib (it skips on a stale one).
 
-**B. cosyvoice3 catalogue (blocked on the sibling's session dispatch).**
-- Trigger: `availableBackends()` contains `cosyvoice3-tts` (sibling lands
-  the open/synthesize arms in `crispasr_session_open_explicit`). It is
-  NOT dispatched as of this writing — do not catalogue ahead of it.
-- Then add, app-side (no CrispASR change):
-  - `ModelDefinition`s for the LLM (default) + companions flow / hift /
-    voices (the cstr/cosyvoice3-0.5b-2512-GGUF bundle; multi-companion,
-    mirror the kokoro extras pattern), backend `cosyvoice3-tts`,
-    `kind: tts`. Output is 24 kHz → no host-side resample.
-  - A `BackendRepo` `cosyvoice3-tts` (repoId `cstr/cosyvoice3-0.5b-2512-GGUF`)
-    with `defaultCompanions` + a real language list (9 langs + Chinese
-    dialects per the registry; surface the 9 standard codes).
-  - Re-run `scripts/check_model_languages.dart` (0 diffs) and the guard.
+**B. cosyvoice3 catalogue — ✅ UNBLOCKED (do next).** The sibling landed
+the session dispatch (CrispASR `36133247`, `cosyvoice3-tts` now in
+`availableBackends()`), so this is ready to catalogue app-side. Time-
+sensitive: once a libcrispasr with it ships (v0.6.42 onward), the reverse
+guard will flag `cosyvoice3-tts` as uncatalogued until this lands.
+- **Companion contract (verified from the dispatch):** cosyvoice3
+  AUTO-DISCOVERS its companions by filename adjacency next to the LLM
+  GGUF (or via `COSYVOICE3_*_PATH` env), NOT via `setCodecPath`/`setVoice`.
+  Required siblings: `cosyvoice3-flow-*.gguf`, `cosyvoice3-hift-*.gguf`,
+  `cosyvoice3-voices.gguf` (+ optional campplus / s3tok). So the catalogue
+  just needs to DOWNLOAD them into the models dir with those exact names;
+  `kind: codec` companions are fine (the engine's setCodecPath is a no-op
+  for cosyvoice3, and the loadModel loop still downloads them).
+- Add: `ModelDefinition`s for the LLM (default `cosyvoice3-llm-q4_k`) +
+  flow / hift / voices companions, backend `cosyvoice3-tts`, `kind: tts`,
+  24 kHz out (no host resample). A `BackendRepo` `cosyvoice3-tts`
+  (`cstr/cosyvoice3-0.5b-2512-GGUF`) with `defaultCompanions` + the 9
+  standard language codes. Re-run `check_model_languages.dart` + guard.
+- Caveat: the sibling's cosyvoice3 was still being fixed at time of
+  writing (`f69ca26c`) — confirm the companion filenames are stable
+  before pinning them in the catalogue.
 
 **C. Reverse audit — engine backends not yet catalogued. ✅ done.**
 Diffed `availableBackends()` (CrispASR origin/main) against the catalogue
@@ -527,8 +535,12 @@ engine-only (no catalogue entry warranted):
   word timestamps); no standalone canary-ctc ASR model is published.
 - `omniasr` (bare) — the dispatcher prefix; the concrete `omniasr-llm` /
   `omniasr-llm-unlimited` variants are catalogued.
-(`data2vec-audio`, `bidirlm-omni` etc. are models-on-disk only — the
-session API doesn't dispatch them, so they're not engine gaps.)
+**Update:** `data2vec-audio` IS dispatchable — its GGUF carries
+arch="wav2vec2" and the C-side open accepts `"wav2vec2"/"hubert"/
+"data2vec"`, so it runs through the existing `wav2vec2` backend. Now
+catalogued as a `BackendRepo` (`cstr/data2vec-audio-960h-GGUF`, backend
+`wav2vec2`, en) — no engine change needed. (`bidirlm-omni` is NOT an
+audio backend — see F.)
 Model-level CTC variants that ARE published (omniASR-CTC, parakeet-tdt_ctc,
 fastconformer xlarge/xxlarge) map to already-catalogued backends and are
 reachable via the Models-screen HF probe — no hardcoding needed.
@@ -555,6 +567,23 @@ worktree) → app `ModelDefinition` + `BackendRepo` → drop from guard
 `pending` after the dylib rebuild → release. The guard test fails any
 catalogue entry whose backend has no dispatch arm, so catalogue and
 engine can't silently drift.
+
+**F. Non-audio models — published, but no app surface (TODO if wanted).**
+Two cstr/* GGUFs exist on disk + HF but are NOT audio session backends,
+so there's nothing to wire into CrisperWeaver's ASR/TTS/translate flows
+today. The *runtimes* exist in CrispASR; what's missing is an app
+feature to consume them:
+- `bidirlm-omni-2.5b` (`cstr/bidirlm-omni-2.5b-GGUF`) — a TEXT-EMBEDDINGS
+  model (`crispembed`, feature-extraction; base BidirLM-Omni-2.5B-
+  Embedding). Only useful once CrisperWeaver grows an embedding-based
+  feature (e.g. semantic transcript search / dedup). Not a transcribe
+  backend — do NOT add it to the ASR catalogue.
+- `cld3` (`cstr/cld3-GGUF`) — TEXT language-ID (`text_lid_dispatch`,
+  CLD3 + GlotLID). CrisperWeaver's current LID is audio-based
+  (whisper detect-language / LidService); text-LID would only matter for
+  a post-transcription text-LID path. Low priority.
+Both now have tracked `hf_readmes/` cards (added this session). Revisit
+only if/when the corresponding app feature is built.
 
 ---
 

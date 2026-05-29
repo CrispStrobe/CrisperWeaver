@@ -1740,6 +1740,19 @@ class ModelService {
       description: 'Self-supervised (facebook/wav2vec2)',
       defaultLanguages: langsEn,
     ),
+    // Data2Vec-Audio (facebook) — wav2vec2-style CNN + transformer + CTC.
+    // GGUFs carry arch="wav2vec2" and load through the same wav2vec2
+    // backend (the C-side open accepts "wav2vec2"/"hubert"/"data2vec"),
+    // so it's a separate HF repo on the shared backend rather than a new
+    // engine arm. English (LibriSpeech 960h).
+    'data2vec-audio': BackendRepo(
+      backend: 'wav2vec2',
+      repoId: 'cstr/data2vec-audio-960h-GGUF',
+      baseName: 'data2vec-audio-base-960h',
+      displayPrefix: 'Data2Vec-Audio base 960h (en)',
+      description: 'Data2Vec-Audio CTC ASR (facebook, en)',
+      defaultLanguages: langsEn,
+    ),
     // OmniASR — multilingual LLM-based ASR. The CTC variant is omitted on
     // purpose: it has no language conditioning and degrades to gibberish on
     // simple inputs (jfk.wav). The LLM variant accepts a `lang=` hint.
