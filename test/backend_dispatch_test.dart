@@ -219,14 +219,16 @@ void main() {
       // dispatch arm lands in crispasr_c_api.cpp + the bundled libcrispasr
       // is rebuilt.
       //
-      // Empty as of CrispASR 0.6.11: indextts (369e9ac0), madlad
-      // (990fd9cd, t5_translate), m2m100-wmt21 (9ebbb9fd) and
-      // cosyvoice3-tts (36133247) were all wired upstream and now appear
-      // in availableBackends() — verified against a freshly rebuilt
-      // libcrispasr (40 backends; all four PRESENT). A stale bundled
-      // dylib that predates them is caught by the longShipped check above
-      // and skips this group rather than false-failing.
-      const pending = <String>{};
+      // indextts (369e9ac0), madlad (990fd9cd, t5_translate), m2m100-wmt21
+      // (9ebbb9fd) and cosyvoice3-tts (36133247) were wired upstream and
+      // verified present in a rebuilt libcrispasr (40 backends) — no longer
+      // pending.
+      //   piper — runtime + standalone C ABI shipped (CrispASR a3bb6586);
+      //           the unified-session dispatch arm + availableBackends entry
+      //           are wired but not yet on the bundled dylib. Catalogued
+      //           here ahead of the dylib rebuild; drop from `pending` once
+      //           the bundled libcrispasr exposes 'piper'.
+      const pending = {'piper'};
 
       final catalogueBackends = <String>{
         for (final m in ModelService.crispasrBackendModels.values)

@@ -963,6 +963,24 @@ class ModelService {
       kind: ModelKind.tts,
       languages: langsVoxcpm2_29,
     ),
+    // Piper (rhasspy/piper) — tiny single-file VITS voices (~15-60 MB),
+    // 22.05 kHz (the engine resamples to the host's 24 kHz), 30+ langs.
+    // No companion: the phoneme map + espeak voice are baked into the GGUF.
+    'piper-en-lessac-medium': ModelDefinition(
+      name: 'piper-en-lessac-medium',
+      displayName: 'Piper en_US lessac (medium)',
+      fileName: 'piper-en_US-lessac-medium-f16.gguf',
+      url:
+          'https://huggingface.co/cstr/piper-voices-GGUF/resolve/main/piper-en_US-lessac-medium-f16.gguf',
+      sizeBytes: 31418528,
+      checksum: '',
+      description: 'Piper VITS TTS — tiny (~30 MB), fast on CPU. English '
+          '(lessac, medium quality).',
+      quantization: 'f16',
+      backend: 'piper',
+      kind: ModelKind.tts,
+      languages: langsEn,
+    ),
     // CosyVoice3 0.5B-2512 (FunAudioLLM) — three-stage TTS (LLM AR → flow
     // Euler → HiFT vocoder), 24 kHz, zero-shot voice cloning via a baked
     // voices.gguf. The engine AUTO-DISCOVERS its flow/hift/voices (+
@@ -2405,6 +2423,18 @@ class ModelService {
         'cosyvoice3-campplus-f16',
       ],
       defaultLanguages: langsCosyvoice10,
+    ),
+    // Piper — single-file VITS voices, no companion. baseName 'piper' lets
+    // the HF-repo probe pick up sibling piper-*.gguf voices once hosted.
+    'piper': BackendRepo(
+      backend: 'piper',
+      repoId: 'cstr/piper-voices-GGUF',
+      baseName: 'piper',
+      displayPrefix: 'Piper',
+      description: 'Piper VITS TTS — tiny (~15-60 MB) single-file voices, '
+          '30+ languages',
+      kind: ModelKind.tts,
+      defaultLanguages: langsEn,
     ),
   };
 
