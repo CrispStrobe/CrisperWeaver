@@ -518,13 +518,25 @@ CrispASR ≥ 990fd9cd ships, i.e. the v0.6.42 binaries).**
     dialects per the registry; surface the 9 standard codes).
   - Re-run `scripts/check_model_languages.dart` (0 diffs) and the guard.
 
-**C. Reverse audit — engine backends not yet catalogued.** Several
-backends the bundled engine exposes (or models already on disk) aren't
-surfaced in the app catalogue, e.g. `canary-ctc`, bare `omniasr`,
-`data2vec-audio`, `bidirlm-omni`. Diff `availableBackends()` against the
-catalogue's backend set and decide per-backend whether to add a
-`ModelDefinition` + `BackendRepo` (with correct kind + languages) or
-leave it engine-only.
+**C. Reverse audit — engine backends not yet catalogued. ✅ done.**
+Diffed `availableBackends()` (CrispASR origin/main) against the catalogue
+backend set. Only two backend-level deltas, both intentionally
+engine-only (no catalogue entry warranted):
+- `canary-ctc` — shares the canary_ctc compute path, but the only
+  published GGUF is `canary-ctc-aligner` (consumed by AlignerService for
+  word timestamps); no standalone canary-ctc ASR model is published.
+- `omniasr` (bare) — the dispatcher prefix; the concrete `omniasr-llm` /
+  `omniasr-llm-unlimited` variants are catalogued.
+(`data2vec-audio`, `bidirlm-omni` etc. are models-on-disk only — the
+session API doesn't dispatch them, so they're not engine gaps.)
+Model-level CTC variants that ARE published (omniASR-CTC, parakeet-tdt_ctc,
+fastconformer xlarge/xxlarge) map to already-catalogued backends and are
+reachable via the Models-screen HF probe — no hardcoding needed.
+Operationalised as a **reverse guard test** (`backend_dispatch_test.dart`:
+"every engine backend is catalogued (or intentionally engine-only)") with
+an `engineOnly = {whisper, canary-ctc, omniasr}` allowlist — it fails the
+moment the engine gains a new backend (e.g. cosyvoice3) so the catalogue
+can't silently fall behind.
 
 **D. Verification matrix (use the TTS→ASR roundtrip harness + a
 translate live test).** Drop the "experimental" flags from CHANGELOG /

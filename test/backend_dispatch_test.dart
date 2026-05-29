@@ -254,6 +254,48 @@ void main() {
               '`pending` set in this test.');
     }, skip: libSkipReason);
 
+    test('every engine backend is catalogued (or intentionally engine-only)',
+        () {
+      // Reverse of the guard above: every backend the engine dispatches
+      // should have a catalogue entry, OR sit on the documented
+      // engine-only allowlist. Catches the moment the engine gains a new
+      // backend (e.g. cosyvoice3 once its session arm lands) so the
+      // catalogue doesn't silently fall behind. Safe against a stale
+      // dylib: an outdated binary exposes FEWER backends, so it can only
+      // under-check, never false-fail.
+      final backends = crispasr.CrispasrSession.availableBackends(
+        libPath: libPath,
+      ).toSet();
+      // Backends the engine exposes but the app deliberately puts no
+      // downloadable model behind:
+      //   whisper    — always-on default; whisper models live in the
+      //                separate whisperCppModels map, not the backend maps
+      //   canary-ctc — shares the canary_ctc compute path, but the only
+      //                published GGUF is the alignment model AlignerService
+      //                consumes, not a standalone ASR model
+      //   omniasr    — the bare prefix the dispatcher matches; the concrete
+      //                omniasr-llm / -unlimited variants are catalogued
+      const engineOnly = {'whisper', 'canary-ctc', 'omniasr'};
+
+      final catalogued = <String>{
+        for (final m in ModelService.crispasrBackendModels.values)
+          if (m.backend.isNotEmpty) m.backend,
+        for (final r in ModelService.backendRepos.values)
+          if (r.backend.isNotEmpty) r.backend,
+      };
+
+      final uncatalogued = backends
+          .difference(catalogued)
+          .difference(engineOnly)
+          .toList()
+        ..sort();
+      expect(uncatalogued, isEmpty,
+          reason: 'Engine exposes backend(s) with no catalogue entry: '
+              '$uncatalogued — add a ModelDefinition + BackendRepo (correct '
+              'kind + languages), or add to the documented `engineOnly` set '
+              'if it is internal/aligner-only.');
+    }, skip: libSkipReason);
+
     test('open() with a non-existent file fails cleanly per backend', () {
       // For every dispatch arm, a non-existent model path should make
       // the open() call throw — never crash, never hang. This catches
