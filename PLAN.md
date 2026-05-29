@@ -581,14 +581,16 @@ a CrisperWeaver feature, not the runtime.
   CrispEmbed (or expose an embedding C-ABI from CrispASR), (b) a Dart
   binding, (c) a search/retrieval feature to consume embeddings. Bigger
   than a catalogue entry — it's a new capability.
-- Text-LID (`cld3` = `cstr/cld3-GGUF`, plus GlotLID) — **CrispASR already
-  exposes text-LID via a stable C-ABI** (`crispasr_c_api.cpp` ~L4079,
-  wrapping `text_lid_dispatch`; CLD3 arch `lid-cld3`). The gap is purely
-  app-side: the Dart binding (`crispasr.dart`) doesn't wrap it and
-  `LidService` is audio-only. TODO to surface it: add the text-LID FFI
-  binding + a use (e.g. detect a pasted transcript's language, or
-  auto-detect the Translate screen's source language from the text).
-  Smaller than bidirlm — the engine side is done.
+- Text-LID (`cld3` = `cstr/cld3-GGUF`, plus GlotLID) — C-ABI
+  (`crispasr_text_detect_language`) AND the Dart wrapper are now both
+  done: `detectTextLanguage(text, modelPath)` → `TextLanguage(code,
+  confidence)` (CrispASR `1332c5a1`, live-verified de/en/fr/es ≥ 0.99).
+  **Remaining (app-side, blocked until the path-dep clone is on a branch
+  with `1332c5a1`):** (a) catalogue `cld3` (kind `lid`) so users can
+  download it, (b) a feature that calls `detectTextLanguage` — e.g.
+  auto-detect the Translate screen's source language from the typed text,
+  or label a pasted transcript. `LidService` stays audio-only; this is a
+  parallel text path.
 Both now have tracked `hf_readmes/` cards (added this session).
 
 ---
