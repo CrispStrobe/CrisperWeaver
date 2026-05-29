@@ -162,7 +162,12 @@ void main() {
       // TODO, not a permanent exemption. Remove an entry the moment its
       // dispatch arm lands in crispasr_c_api.cpp + the bundled libcrispasr
       // is rebuilt.
-      //   indextts     — impl exists + CMake-linked, dispatch arm pending
+      //   indextts     — dispatch wired upstream (CrispASR 369e9ac0:
+      //                  open + BigVGAN companion + 24 kHz ref clone via
+      //                  set_voice); kept here until the bundled
+      //                  libcrispasr is rebuilt AND the clone audio is
+      //                  verified on a real model (the 16→24 kHz ref
+      //                  resample is not yet audio-tested)
       //   madlad       — no CrispASR implementation yet (Translate scaffold)
       //   m2m100-wmt21 — wired upstream (CrispASR 9ebbb9fd accepts the
       //                  backend string on the WMT21-capable m2m100
