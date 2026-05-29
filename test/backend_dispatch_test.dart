@@ -63,8 +63,64 @@ String? _resolveLibPath() {
   return null;
 }
 
+/// Linear-resample 24 kHz → 16 kHz (3:2 decimation). TTS backends emit
+/// 24 kHz; whisper wants 16 kHz, so the TTS→ASR roundtrip feeds the
+/// synthesized PCM through this before transcribing. Pure + deterministic
+/// — unit-tested below independent of any model.
+Float32List resample24kTo16k(Float32List src) {
+  if (src.isEmpty) return src;
+  final outN = (src.length * 16000) ~/ 24000;
+  final out = Float32List(outN);
+  for (var j = 0; j < outN; j++) {
+    final pos = j * 24000.0 / 16000.0;
+    final i0 = pos.floor();
+    final i1 = (i0 + 1 < src.length) ? i0 + 1 : src.length - 1;
+    final frac = pos - i0;
+    out[j] = src[i0] * (1 - frac) + src[i1] * frac;
+  }
+  return out;
+}
+
 void main() {
   final libPath = _resolveLibPath();
+
+  // -------------------------------------------------------------------
+  // Pure unit tests (no dylib) for the roundtrip's resampler — resample
+  // correctness gates whether ASR sees valid audio.
+  // -------------------------------------------------------------------
+  group('resample24kTo16k', () {
+    test('empty stays empty', () {
+      expect(resample24kTo16k(Float32List(0)), isEmpty);
+    });
+
+    test('output length is 2/3 of input (24k→16k)', () {
+      expect(resample24kTo16k(Float32List(24000)).length, 16000);
+      expect(resample24kTo16k(Float32List(300)).length, 200);
+    });
+
+    test('preserves the first sample and a constant signal', () {
+      final src = Float32List.fromList(List<double>.filled(3000, 0.42));
+      final out = resample24kTo16k(src);
+      expect(out.first, closeTo(0.42, 1e-6));
+      for (final v in out) {
+        expect(v, closeTo(0.42, 1e-6));
+      }
+    });
+
+    test('linear ramp stays monotonic and bounded by its neighbours', () {
+      // src[i] = i → out should be a (scaled) monotonic ramp, each value
+      // between the input samples it interpolates.
+      final src = Float32List.fromList(
+          List<double>.generate(3000, (i) => i.toDouble()));
+      final out = resample24kTo16k(src);
+      for (var j = 1; j < out.length; j++) {
+        expect(out[j], greaterThanOrEqualTo(out[j - 1]),
+            reason: 'resampled ramp must stay monotonic');
+      }
+      // Mid-point sample j maps to src index j*1.5 — check a known value.
+      expect(out[2], closeTo(3.0, 1e-4)); // pos = 3.0 → src[3] = 3
+    });
+  });
 
   // Guard against running these tests on a machine where libwhisper
   // wasn't built yet — they need the real shared library, not a stub.
@@ -560,21 +616,6 @@ void main() {
     final chatterboxS3gen =
         Platform.environment['CRISPASR_TEST_CHATTERBOX_S3GEN'];
     final whisperModel = Platform.environment['CRISPASR_TEST_WHISPER_MODEL'];
-
-    // TTS backends emit 24 kHz; whisper wants 16 kHz. Linear 3:2 decimate.
-    Float32List resample24kTo16k(Float32List src) {
-      if (src.isEmpty) return src;
-      final outN = (src.length * 16000) ~/ 24000;
-      final out = Float32List(outN);
-      for (var j = 0; j < outN; j++) {
-        final pos = j * 24000.0 / 16000.0;
-        final i0 = pos.floor();
-        final i1 = (i0 + 1 < src.length) ? i0 + 1 : src.length - 1;
-        final frac = pos - i0;
-        out[j] = src[i0] * (1 - frac) + src[i1] * frac;
-      }
-      return out;
-    }
 
     test('chatterbox → whisper preserves the spoken words', tags: ['slow'],
         () {
