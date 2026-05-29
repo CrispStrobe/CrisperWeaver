@@ -1,3 +1,4 @@
+import 'package:crispasr/crispasr.dart' as crispasr;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -103,6 +104,57 @@ class _TranslateScreenState extends ConsumerState<TranslateScreen> {
     }
   }
 
+  /// Auto-detect the source language of the typed text via CrispASR's
+  /// text-LID (CLD3) and set the source-language dropdown. Niche path →
+  /// inline English copy (no ARB). Needs the cld3 model downloaded.
+  Future<void> _detectSourceLanguage() async {
+    final input = _inputController.text.trim();
+    if (input.isEmpty) return;
+    final modelService = ref.read(modelServiceProvider);
+    final cld3Path = await modelService.getWhisperCppModelPath('cld3-f16');
+    if (!mounted) return;
+    if (cld3Path == null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: const Text(
+            'Download the CLD3 text language-ID model to auto-detect.'),
+        action: SnackBarAction(
+          label: 'Models',
+          onPressed: () {
+            if (mounted) context.push('/models');
+          },
+        ),
+      ));
+      return;
+    }
+    crispasr.TextLanguage? result;
+    try {
+      result = crispasr.detectTextLanguage(input, cld3Path);
+    } catch (e, st) {
+      Log.instance.w('translate', 'text-LID failed', error: e, stack: st);
+    }
+    if (!mounted) return;
+    if (result == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Couldn't detect the language.")));
+      return;
+    }
+    final code = result.code;
+    final known =
+        TextTranslationService.supportedLanguages.any((e) => e.key == code);
+    final pct = (result.confidence * 100).round();
+    if (known) {
+      setState(() => _srcLang = code);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Detected source: $code ($pct%)'),
+        duration: const Duration(seconds: 2),
+      ));
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content:
+              Text("Detected '$code' ($pct%) — not a supported source.")));
+    }
+  }
+
   void _swapLanguages() {
     setState(() {
       final tmp = _srcLang;
@@ -188,6 +240,11 @@ class _TranslateScreenState extends ConsumerState<TranslateScreen> {
                       children: [
                         Expanded(child: _langDropdown(l.translateSourceLang, _srcLang,
                             (v) => setState(() => _srcLang = v))),
+                        IconButton(
+                          tooltip: 'Auto-detect source language (CLD3)',
+                          icon: const Icon(Icons.language),
+                          onPressed: _busy ? null : _detectSourceLanguage,
+                        ),
                         IconButton(
                           tooltip: l.translateSwap,
                           icon: const Icon(Icons.swap_horiz),

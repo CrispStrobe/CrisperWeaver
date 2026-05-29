@@ -1540,6 +1540,25 @@ class ModelService {
       backend: 'lid',
       kind: ModelKind.lid,
     ),
+    // CLD3 — Google Compact Language Detector v3 (cstr/cld3-GGUF).
+    // Unlike the audio LID models above, this is TEXT LID: it powers the
+    // Translate screen's source-language auto-detect via
+    // `detectTextLanguage` (the crispasr_text_detect_language C-ABI), not
+    // the audio LidService. Tiny (~430 KB).
+    'cld3-f16': ModelDefinition(
+      name: 'cld3-f16',
+      displayName: 'CLD3 text language-ID',
+      fileName: 'cld3-f16.gguf',
+      url: 'https://huggingface.co/cstr/cld3-GGUF/resolve/main/cld3-f16.gguf',
+      sizeBytes: 439712,
+      checksum: '',
+      description:
+          'Google CLD3 text language identification (100+ languages) — '
+          'powers Translate source-language auto-detect',
+      quantization: 'f16',
+      backend: 'lid',
+      kind: ModelKind.lid,
+    ),
     // TitaNet-Large speaker embedding — Nvidia NeMo TitaNet-Large
     // ported to GGUF, 192-d L2-normalised embeddings. Pairs with
     // `CrispasrTitaNet` + `CrispasrSpeakerDB` to resolve diarised
