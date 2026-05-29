@@ -5,6 +5,30 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 
 ## Unreleased
 
+## 0.6.42 — 2026-05-29
+
+Four catalogued backends that previously errored at load now actually
+run — this release rebuilds the bundled CrispASR engine with their
+dispatch arms:
+
+- **WMT21 Dense translation** (en↔X) — the `m2m100-wmt21` entries on the
+  Translate screen now load and translate (they route through the
+  WMT21-capable m2m100 engine).
+- **MADLAD-400 translation** (419 languages) — the `madlad` entry now
+  loads and translates via CrispASR's T5 engine (target language picked
+  from the `<2xx>` tag, wired to the Translate screen's language picker).
+- **IndexTTS** — now synthesizes on the Synthesize screen.
+  **Experimental:** it's a reference-cloning voice (pick a reference WAV
+  under *Custom voice*); the clone-audio quality hasn't been
+  end-to-end-verified yet.
+- **VoxCPM2 voice cloning** — supply a reference WAV under *Custom voice*
+  to clone a speaker (zero-shot synthesis already shipped in 0.6.41).
+  **Experimental** — clone audio not yet end-to-end-verified.
+
+Under the hood: a catalogue↔dispatch guard test (so a catalogued backend
+can't silently ship without an engine arm) and an opt-in TTS→ASR
+roundtrip live test (synthesize → transcribe → verify the words survive).
+
 ## 0.6.41 — 2026-05-29
 
 Follow-up batch — a new TTS backend, persistence + UX fixes, and an
