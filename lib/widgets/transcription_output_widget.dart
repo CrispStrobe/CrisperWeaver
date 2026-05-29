@@ -24,6 +24,19 @@ import '../services/transcript_cleanup_service.dart';
 import '../services/transcript_summarize_service.dart';
 import '../utils/responsive.dart';
 
+/// Pre-filled name for the "enroll speaker" dialog: the segment's chip
+/// label, unless it's a bare diarisation cluster id (`0`, `Speaker 1`)
+/// which isn't a real name — those seed an empty field so the user types
+/// the real name. Pure + [visibleForTesting].
+@visibleForTesting
+String speakerEnrollNameSeed(String? chipLabel) {
+  final current = chipLabel?.trim() ?? '';
+  if (RegExp(r'^(speaker\s*)?\d+$', caseSensitive: false).hasMatch(current)) {
+    return '';
+  }
+  return current;
+}
+
 class TranscriptionOutputWidget extends ConsumerStatefulWidget {
   final List<TranscriptionSegment> segments;
   final String? currentTranscription;
@@ -1053,14 +1066,7 @@ class _TranscriptionOutputWidgetState
   Future<void> _enrollSpeakerFromSegment(
       TranscriptionSegment segment, String audioPath) async {
     final messenger = ScaffoldMessenger.of(context);
-    // Pre-fill the name with the current chip label when it's a real
-    // name (skip bare numeric cluster labels like "0" / "Speaker 1").
-    final current = segment.speaker?.trim() ?? '';
-    final seed = RegExp(r'^(speaker\s*)?\d+$', caseSensitive: false)
-            .hasMatch(current)
-        ? ''
-        : current;
-    final name = await _promptSpeakerName(seed);
+    final name = await _promptSpeakerName(speakerEnrollNameSeed(segment.speaker));
     if (name == null || name.trim().isEmpty) return;
 
     final svc = ref.read(speakerIdServiceProvider);
