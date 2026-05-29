@@ -2,7 +2,7 @@
 
 **On-device speech recognition + text-to-speech. No cloud. 30+ model families, one app.**
 
-CrisperWeaver is a cross-platform Flutter app for fully-offline audio transcription and speech synthesis. Drop in a file, paste a URL, or record with the mic — audio never leaves the device. 29+ open-weight ASR families and 7 TTS families are supported through a single unified engine ([CrispASR][crispasr]): Whisper (+ Distil-Whisper), Parakeet, Canary, Voxtral, Qwen3-ASR (+ Mega-ASR LoRA), Cohere, Granite (3.x + 4.1 family), FastConformer-CTC, Canary-CTC, Wav2Vec2, OmniASR (+ streaming "unlimited" variant), FireRed, Kyutai-STT, GLM-ASR, Moonshine, VibeVoice ASR, MiMo ASR, **Gemma4-E2B** (140+ languages), **FunASR** (Mandarin + EN), **Paraformer-ZH**, **SenseVoice** (built-in language ID) — plus Kokoro / VibeVoice / Qwen3-TTS / Orpheus / **Chatterbox** / **Kartoffelbox** / **IndexTTS** for synthesis, **Pyannote v3** for ML diarisation, FireRedPunc + **fullstop-punc** for punctuation restoration, **Silero LID** for language detection, and FireRed/MarbleNet/Whisper-VAD-EncDec VAD options.
+CrisperWeaver is a cross-platform Flutter app for fully-offline audio transcription and speech synthesis. Drop in a file, paste a URL, or record with the mic — audio never leaves the device. 29+ open-weight ASR families and 8 TTS families are supported through a single unified engine ([CrispASR][crispasr]): Whisper (+ Distil-Whisper), Parakeet, Canary, Voxtral, Qwen3-ASR (+ Mega-ASR LoRA), Cohere, Granite (3.x + 4.1 family), FastConformer-CTC, Canary-CTC, Wav2Vec2, OmniASR (+ streaming "unlimited" variant), FireRed, Kyutai-STT, GLM-ASR, Moonshine, VibeVoice ASR, MiMo ASR, **Gemma4-E2B** (140+ languages), **FunASR** (Mandarin + EN), **Paraformer-ZH**, **SenseVoice** (built-in language ID) — plus Kokoro / VibeVoice / Qwen3-TTS / Orpheus / **Chatterbox** / **Kartoffelbox** / **IndexTTS** / **VoxCPM2** for synthesis, **Pyannote v3** for ML diarisation, FireRedPunc + **fullstop-punc** for punctuation restoration, **Silero LID** for language detection, and FireRed/MarbleNet/Whisper-VAD-EncDec VAD options.
 
 [crispasr]: https://github.com/CrispStrobe/CrispASR
 
@@ -105,6 +105,7 @@ One dispatcher (`CrispasrSession`) handles every backend; bundled `libcrispasr` 
 | **Orpheus**       | 3B + SNAC codec                 | 8 baked English speakers; SNAC via `setCodecPath` |
 | **Chatterbox**    | 850 MB base + turbo / Kartoffelbox (DE) | T3 AR + S3Gen flow-matching; voice cloning via baked GGUF |
 | **IndexTTS**      | 1.6 GB                          | GPT-2 AR + BigVGAN; zero-shot WAV cloning, ZH+EN |
+| **VoxCPM2**       | q4_k (1.6 GB) + f16             | Tokenizer-free diffusion AR; zero-shot, 29 languages, 48 kHz native |
 
 ### Post-processors
 

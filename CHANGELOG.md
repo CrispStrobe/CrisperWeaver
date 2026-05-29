@@ -5,6 +5,37 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 
 ## Unreleased
 
+## 0.6.41 — 2026-05-29
+
+Follow-up batch — a new TTS backend, persistence + UX fixes, and an
+Android responsiveness pass on the whisper path:
+
+- **VoxCPM2 TTS** — new tokenizer-free diffusion-AR synthesis backend
+  (`openbmb/VoxCPM2`), zero-shot, 29 languages, 48 kHz native (down-mixed
+  to the app's 24 kHz playback in the engine). Ships as `voxcpm2-q4_k`
+  (1.6 GB default) + `voxcpm2-f16`; appears in the Synthesize model
+  picker once downloaded. Wired end-to-end through CrispASR's unified
+  session API.
+- **HuggingFace repos now persist** — repos added via "Add from
+  HuggingFace repo…" survive an app restart (previously runtime-only and
+  lost on relaunch). A new "Manage added HuggingFace repos…" action on
+  the Models screen lists them and lets you forget one.
+- **Cancel during model load** — the Transcribe screen's loading row
+  gains a Cancel button so a long (~10 s) model open no longer traps you
+  behind an indeterminate bar. The model finishes loading in the
+  background, so a later Transcribe runs against it immediately.
+- **Faster first transcribe on Android (whisper)** — the blocking model
+  open is deferred off the platform isolate, so the first Transcribe tap
+  on whisper-base no longer freezes the UI for ~10 s. Long (>60 s) files
+  also stream through the worker isolate instead of freezing per chunk.
+  Word-timestamp / SRT output is unchanged (kept on the proven path).
+- **Models screen** — the backend filter is now a type-ahead Autocomplete
+  (matching the Transcribe screen's language picker) instead of a plain
+  dropdown.
+- **iOS groundwork** — `scripts/build_ios_xcframework.sh` can now
+  cross-build libespeak-ng for iOS (`ESPEAK_NG=1`), the first step toward
+  Kokoro phonemisation on iOS. Off by default; existing builds unchanged.
+
 ## 0.6.0 — 2026-05-17
 
 Big shipping release after a long week of feature work +
