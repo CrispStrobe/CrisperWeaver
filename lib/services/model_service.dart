@@ -966,16 +966,65 @@ class ModelService {
     // Piper (rhasspy/piper) — tiny single-file VITS voices (~15-60 MB),
     // 22.05 kHz (the engine resamples to the host's 24 kHz), 30+ langs.
     // No companion: the phoneme map + espeak voice are baked into the GGUF.
-    'piper-en-lessac-medium': ModelDefinition(
-      name: 'piper-en-lessac-medium',
-      displayName: 'Piper en_US lessac (medium)',
-      fileName: 'piper-en_US-lessac-medium-f16.gguf',
+    // Only permissively-licensed voices are catalogued: the German
+    // Thorsten-Voice set is CC0, en_GB-cori is public domain. (Restrictive
+    // upstream voices like en_US-lessac (Blizzard 2013, research-only) are
+    // deliberately excluded — see cstr/piper-voices-GGUF's model card.)
+    'piper-de-thorsten-medium': ModelDefinition(
+      name: 'piper-de-thorsten-medium',
+      displayName: 'Piper de Thorsten (medium)',
+      fileName: 'piper-de_DE-thorsten-medium-f16.gguf',
       url:
-          'https://huggingface.co/cstr/piper-voices-GGUF/resolve/main/piper-en_US-lessac-medium-f16.gguf',
+          'https://huggingface.co/cstr/piper-voices-GGUF/resolve/main/piper-de_DE-thorsten-medium-f16.gguf',
       sizeBytes: 31418528,
       checksum: '',
-      description: 'Piper VITS TTS — tiny (~30 MB), fast on CPU. English '
-          '(lessac, medium quality).',
+      description: 'Piper VITS TTS — German (Thorsten, medium). Tiny '
+          '(~30 MB), fast on CPU. CC0.',
+      quantization: 'f16',
+      backend: 'piper',
+      kind: ModelKind.tts,
+      languages: langsDe,
+    ),
+    'piper-de-thorsten-high': ModelDefinition(
+      name: 'piper-de-thorsten-high',
+      displayName: 'Piper de Thorsten (high)',
+      fileName: 'piper-de_DE-thorsten-high-f16.gguf',
+      url:
+          'https://huggingface.co/cstr/piper-voices-GGUF/resolve/main/piper-de_DE-thorsten-high-f16.gguf',
+      sizeBytes: 56770752,
+      checksum: '',
+      description: 'Piper VITS TTS — German (Thorsten, high quality, '
+          '~54 MB). CC0.',
+      quantization: 'f16',
+      backend: 'piper',
+      kind: ModelKind.tts,
+      languages: langsDe,
+    ),
+    'piper-de-thorsten-emotional': ModelDefinition(
+      name: 'piper-de-thorsten-emotional',
+      displayName: 'Piper de Thorsten (emotional)',
+      fileName: 'piper-de_DE-thorsten_emotional-medium-f16.gguf',
+      url:
+          'https://huggingface.co/cstr/piper-voices-GGUF/resolve/main/piper-de_DE-thorsten_emotional-medium-f16.gguf',
+      sizeBytes: 18048768,
+      checksum: '',
+      description: 'Piper VITS TTS — German (Thorsten emotional, ~17 MB). '
+          'CC0.',
+      quantization: 'f16',
+      backend: 'piper',
+      kind: ModelKind.tts,
+      languages: langsDe,
+    ),
+    'piper-en-cori': ModelDefinition(
+      name: 'piper-en-cori',
+      displayName: 'Piper en_GB Cori (medium)',
+      fileName: 'piper-en_GB-cori-medium-f16.gguf',
+      url:
+          'https://huggingface.co/cstr/piper-voices-GGUF/resolve/main/piper-en_GB-cori-medium-f16.gguf',
+      sizeBytes: 31418496,
+      checksum: '',
+      description: 'Piper VITS TTS — English (GB, Cori, medium, ~30 MB). '
+          'Public domain.',
       quantization: 'f16',
       backend: 'piper',
       kind: ModelKind.tts,
@@ -2431,10 +2480,10 @@ class ModelService {
       repoId: 'cstr/piper-voices-GGUF',
       baseName: 'piper',
       displayPrefix: 'Piper',
-      description: 'Piper VITS TTS — tiny (~15-60 MB) single-file voices, '
-          '30+ languages',
+      description: 'Piper VITS TTS — tiny (~15-60 MB) single-file voices '
+          '(German Thorsten CC0, en_GB Cori public domain)',
       kind: ModelKind.tts,
-      defaultLanguages: langsEn,
+      defaultLanguages: <String>['de', 'en'],
     ),
   };
 
