@@ -1030,6 +1030,52 @@ class ModelService {
       kind: ModelKind.tts,
       languages: langsEn,
     ),
+    'piper-de-kerstin-low': ModelDefinition(
+      name: 'piper-de-kerstin-low',
+      displayName: 'Piper de Kerstin (low)',
+      fileName: 'piper-de_DE-kerstin-low-f16.gguf',
+      url:
+          'https://huggingface.co/cstr/piper-voices-GGUF/resolve/main/piper-de_DE-kerstin-low-f16.gguf',
+      sizeBytes: 31369856,
+      checksum: '',
+      description: 'Piper VITS TTS — German (Kerstin, low, ~30 MB). CC0.',
+      quantization: 'f16',
+      backend: 'piper',
+      kind: ModelKind.tts,
+      languages: langsDe,
+    ),
+    // mls + libritts_r are CC-BY 4.0 — attribution required when shipping
+    // their audio (MLS / LibriTTS-R). See cstr/piper-voices-GGUF model card.
+    'piper-de-mls-medium': ModelDefinition(
+      name: 'piper-de-mls-medium',
+      displayName: 'Piper de MLS (medium)',
+      fileName: 'piper-de_DE-mls-medium-f16.gguf',
+      url:
+          'https://huggingface.co/cstr/piper-voices-GGUF/resolve/main/piper-de_DE-mls-medium-f16.gguf',
+      sizeBytes: 18282208,
+      checksum: '',
+      description: 'Piper VITS TTS — German (MLS, medium, ~17 MB). '
+          'CC-BY 4.0 (attribution).',
+      quantization: 'f16',
+      backend: 'piper',
+      kind: ModelKind.tts,
+      languages: langsDe,
+    ),
+    'piper-en-libritts-r-medium': ModelDefinition(
+      name: 'piper-en-libritts-r-medium',
+      displayName: 'Piper en_US LibriTTS-R (medium)',
+      fileName: 'piper-en_US-libritts_r-medium-f16.gguf',
+      url:
+          'https://huggingface.co/cstr/piper-voices-GGUF/resolve/main/piper-en_US-libritts_r-medium-f16.gguf',
+      sizeBytes: 18966336,
+      checksum: '',
+      description: 'Piper VITS TTS — English (US, LibriTTS-R, medium, '
+          '~18 MB). CC-BY 4.0 (attribution).',
+      quantization: 'f16',
+      backend: 'piper',
+      kind: ModelKind.tts,
+      languages: langsEn,
+    ),
     // CosyVoice3 0.5B-2512 (FunAudioLLM) — three-stage TTS (LLM AR → flow
     // Euler → HiFT vocoder), 24 kHz, zero-shot voice cloning via a baked
     // voices.gguf. The engine AUTO-DISCOVERS its flow/hift/voices (+
