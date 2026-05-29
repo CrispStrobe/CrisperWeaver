@@ -79,3 +79,6 @@ macos/Runner/Frameworks/libwhisper.dylib
 # get / desktop builds don't fail asset resolution; the real
 # multi-MB build artefact is created by the Android CI job and
 # never round-trips back to git.
+
+# Local-only scratch notes for Claude (env-specific; not shared)
+CLAUDE.md
