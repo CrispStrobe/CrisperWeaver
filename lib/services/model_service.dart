@@ -132,6 +132,12 @@ class ModelService {
     'ru', 'ar', 'hi', 'vi', 'th', 'id', 'ms', 'tl', 'tr', 'pl',
     'cs', 'sv', 'da', 'no', 'fi', 'el', 'he', 'uk', 'ro',
   ];
+  // CosyVoice3 0.5B-2512 (FunAudioLLM). cardData also lists 'yue'
+  // (Cantonese) but we surface it under 'zh' — same convention as
+  // funasr / sensevoice — so the language-parity check stays clean.
+  static const List<String> langsCosyvoice10 = <String>[
+    'zh', 'en', 'ja', 'ko', 'fr', 'de', 'es', 'pt', 'it', 'ru',
+  ];
   // The 99 languages whisper.cpp supports — from the whisper.cpp
   // source's lang_id table. Codes are ISO 639-1 where one exists;
   // a handful are 3-letter aliases (haw / yue) that the runtime
@@ -956,6 +962,100 @@ class ModelService {
       backend: 'voxcpm2-tts',
       kind: ModelKind.tts,
       languages: langsVoxcpm2_29,
+    ),
+    // CosyVoice3 0.5B-2512 (FunAudioLLM) — three-stage TTS (LLM AR → flow
+    // Euler → HiFT vocoder), 24 kHz, zero-shot voice cloning via a baked
+    // voices.gguf. The engine AUTO-DISCOVERS its flow/hift/voices (+
+    // s3tok/campplus) siblings by filename next to the LLM GGUF, so we
+    // list them all as companions — downloading the LLM pulls them into
+    // the same models dir, which is what the engine needs. (setCodecPath
+    // is a harmless no-op for cosyvoice3.)
+    'cosyvoice3-llm-q4_k': ModelDefinition(
+      name: 'cosyvoice3-llm-q4_k',
+      displayName: 'CosyVoice3 0.5B (q4_k)',
+      fileName: 'cosyvoice3-llm-q4_k.gguf',
+      url:
+          'https://huggingface.co/cstr/cosyvoice3-0.5b-2512-GGUF/resolve/main/cosyvoice3-llm-q4_k.gguf',
+      sizeBytes: 383891200,
+      checksum: '',
+      description:
+          'CosyVoice3 streaming multilingual TTS — pulls flow/hift/voices companions',
+      quantization: 'q4_k',
+      backend: 'cosyvoice3-tts',
+      kind: ModelKind.tts,
+      companions: [
+        'cosyvoice3-flow-q8_0',
+        'cosyvoice3-hift-f16',
+        'cosyvoice3-voices',
+        'cosyvoice3-s3tok-q4_k',
+        'cosyvoice3-campplus-f16',
+      ],
+      languages: langsCosyvoice10,
+    ),
+    'cosyvoice3-flow-q8_0': ModelDefinition(
+      name: 'cosyvoice3-flow-q8_0',
+      displayName: 'CosyVoice3 flow (q8_0)',
+      fileName: 'cosyvoice3-flow-q8_0.gguf',
+      url:
+          'https://huggingface.co/cstr/cosyvoice3-0.5b-2512-GGUF/resolve/main/cosyvoice3-flow-q8_0.gguf',
+      sizeBytes: 360751936,
+      checksum: '',
+      description: 'CosyVoice3 flow-matching companion (auto-discovered)',
+      quantization: 'q8_0',
+      backend: 'cosyvoice3-tts',
+      kind: ModelKind.codec,
+    ),
+    'cosyvoice3-hift-f16': ModelDefinition(
+      name: 'cosyvoice3-hift-f16',
+      displayName: 'CosyVoice3 HiFT vocoder (f16)',
+      fileName: 'cosyvoice3-hift-f16.gguf',
+      url:
+          'https://huggingface.co/cstr/cosyvoice3-0.5b-2512-GGUF/resolve/main/cosyvoice3-hift-f16.gguf',
+      sizeBytes: 41601888,
+      checksum: '',
+      description: 'CosyVoice3 HiFT vocoder companion (auto-discovered)',
+      quantization: 'f16',
+      backend: 'cosyvoice3-tts',
+      kind: ModelKind.codec,
+    ),
+    'cosyvoice3-voices': ModelDefinition(
+      name: 'cosyvoice3-voices',
+      displayName: 'CosyVoice3 voice bank',
+      fileName: 'cosyvoice3-voices.gguf',
+      url:
+          'https://huggingface.co/cstr/cosyvoice3-0.5b-2512-GGUF/resolve/main/cosyvoice3-voices.gguf',
+      sizeBytes: 665472,
+      checksum: '',
+      description: 'CosyVoice3 baked voice bank (auto-discovered)',
+      quantization: 'f16',
+      backend: 'cosyvoice3-tts',
+      kind: ModelKind.codec,
+    ),
+    'cosyvoice3-s3tok-q4_k': ModelDefinition(
+      name: 'cosyvoice3-s3tok-q4_k',
+      displayName: 'CosyVoice3 S3 tokenizer (q4_k)',
+      fileName: 'cosyvoice3-s3tok-q4_k.gguf',
+      url:
+          'https://huggingface.co/cstr/cosyvoice3-0.5b-2512-GGUF/resolve/main/cosyvoice3-s3tok-q4_k.gguf',
+      sizeBytes: 145258240,
+      checksum: '',
+      description: 'CosyVoice3 S3 speech tokenizer companion (auto-discovered)',
+      quantization: 'q4_k',
+      backend: 'cosyvoice3-tts',
+      kind: ModelKind.codec,
+    ),
+    'cosyvoice3-campplus-f16': ModelDefinition(
+      name: 'cosyvoice3-campplus-f16',
+      displayName: 'CosyVoice3 CAMPPlus speaker (f16)',
+      fileName: 'cosyvoice3-campplus-f16.gguf',
+      url:
+          'https://huggingface.co/cstr/cosyvoice3-0.5b-2512-GGUF/resolve/main/cosyvoice3-campplus-f16.gguf',
+      sizeBytes: 14153600,
+      checksum: '',
+      description: 'CosyVoice3 CAMPPlus speaker-embedding companion (auto-discovered)',
+      quantization: 'f16',
+      backend: 'cosyvoice3-tts',
+      kind: ModelKind.codec,
     ),
     // ---------------------- TTS voicepacks -----------------------
     'kokoro-voice-af_heart': ModelDefinition(
@@ -2267,6 +2367,25 @@ class ModelService {
       description: 'VoxCPM2 diffusion TTS (29 languages, zero-shot)',
       kind: ModelKind.tts,
       defaultLanguages: langsVoxcpm2_29,
+    ),
+    // CosyVoice3 — LLM + flow/hift/voices companions auto-discovered by
+    // the engine; the probe walks the cosyvoice3-llm baseName and the
+    // companions ride along via defaultCompanions.
+    'cosyvoice3-tts': BackendRepo(
+      backend: 'cosyvoice3-tts',
+      repoId: 'cstr/cosyvoice3-0.5b-2512-GGUF',
+      baseName: 'cosyvoice3-llm',
+      displayPrefix: 'CosyVoice3 0.5B',
+      description: 'CosyVoice3 streaming multilingual TTS (11 languages)',
+      kind: ModelKind.tts,
+      defaultCompanions: [
+        'cosyvoice3-flow-q8_0',
+        'cosyvoice3-hift-f16',
+        'cosyvoice3-voices',
+        'cosyvoice3-s3tok-q4_k',
+        'cosyvoice3-campplus-f16',
+      ],
+      defaultLanguages: langsCosyvoice10,
     ),
   };
 

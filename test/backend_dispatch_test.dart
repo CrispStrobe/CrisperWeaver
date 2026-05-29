@@ -231,7 +231,10 @@ void main() {
       //                  backend string on the WMT21-capable m2m100
       //                  engine); drop from `pending` once the bundled
       //                  libcrispasr is rebuilt with that commit
-      const pending = {'indextts', 'madlad', 'm2m100-wmt21'};
+      //   cosyvoice3-tts — dispatch wired upstream (CrispASR 36133247);
+      //                  catalogued here with auto-discovered flow/hift/
+      //                  voices companions. Drop after the dylib rebuild.
+      const pending = {'indextts', 'madlad', 'm2m100-wmt21', 'cosyvoice3-tts'};
 
       final catalogueBackends = <String>{
         for (final m in ModelService.crispasrBackendModels.values)
