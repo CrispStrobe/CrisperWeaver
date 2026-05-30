@@ -537,13 +537,21 @@ list yet. CrispASR edits go through an isolated `git worktree` off
 `origin/main` (parallel workers share that clone — see the
 crispasr-use-worktree memory).
 
-**A. Post-rebuild guard tightening (do once a libcrispasr built from
-CrispASR ≥ 990fd9cd ships, i.e. the v0.6.42 binaries).**
-- Drop `indextts`, `madlad`, `m2m100-wmt21` from the `pending` set in
-  `test/backend_dispatch_test.dart` — their dispatch arms are upstream;
-  `pending` only kept the guard green against not-yet-rebuilt dylibs.
-- Verify each now appears in `CrispasrSession.availableBackends()` by
-  running the guard against a fresh dylib (it skips on a stale one).
+**A. Post-rebuild guard tightening — ✅ mostly done.**
+- ✅ `indextts`, `madlad`, `m2m100-wmt21` (and `cosyvoice3-tts`) dropped
+  from the `pending` set in `test/backend_dispatch_test.dart`. Verified
+  2026-05-30 against the bundled `libcrispasr.0.6.11` dylib (the one app
+  v0.6.44/0.6.45 ship): `availableBackends()` returns 40 backends and all
+  four are present. The catalogue-dispatch guard runs green (not stale —
+  funasr / paraformer / sensevoice / gemma4-e2b all present).
+- ⏳ `piper` is the **only** remaining `pending` entry, and stays there for
+  now: the bundled dylib does **not** expose `piper` via the unified
+  session API (piper synthesis ships through a separate standalone C-ABI,
+  CrispASR `a3bb6586`; the unified-session dispatch arm + `availableBackends`
+  entry are wired upstream but not yet on the bundled dylib). Drop it from
+  `pending` once a rebuilt libcrispasr lists `piper` in
+  `CrispasrSession.availableBackends()`. Until then, removing it would red
+  the guard.
 
 **B. cosyvoice3 catalogue — ✅ DONE.** The sibling landed the session
 dispatch (CrispASR `36133247`); catalogued app-side: `cosyvoice3-llm-q4_k`
