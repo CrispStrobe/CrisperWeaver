@@ -187,14 +187,6 @@ class _TranscriptionOutputWidgetState
                       dense: true,
                     ),
                   ),
-                  PopupMenuItem(
-                    value: 'export',
-                    child: ListTile(
-                      leading: const Icon(Icons.download),
-                      title: Text(AppLocalizations.of(context).outputExport),
-                      dense: true,
-                    ),
-                  ),
                   // §5.1.6 — deterministic transcript cleanup.
                   PopupMenuItem(
                     value: 'cleanup',
@@ -733,9 +725,6 @@ class _TranscriptionOutputWidgetState
       case 'copy_all':
         _copyAllText();
         break;
-      case 'export':
-        _exportTranscription();
-        break;
       case 'cleanup':
         _openCleanupDialog();
         break;
@@ -959,23 +948,6 @@ class _TranscriptionOutputWidgetState
               if (ctx.mounted) Navigator.of(ctx).pop();
             },
             child: Text(AppLocalizations.of(ctx).ok),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _exportTranscription() {
-    // TODO: Implement transcription export
-    showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(AppLocalizations.of(context).outputExport),
-        content: Text(AppLocalizations.of(context).outputExportNotImplemented),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(AppLocalizations.of(context).ok),
           ),
         ],
       ),

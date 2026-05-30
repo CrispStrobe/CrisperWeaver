@@ -770,12 +770,6 @@ abstract class AppLocalizations {
   /// **'Copy all'**
   String get outputCopyAll;
 
-  /// No description provided for @outputExport.
-  ///
-  /// In en, this message translates to:
-  /// **'Export'**
-  String get outputExport;
-
   /// No description provided for @outputPlay.
   ///
   /// In en, this message translates to:
@@ -853,12 +847,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Reset to original'**
   String get outputRenameSpeakerReset;
-
-  /// No description provided for @outputExportNotImplemented.
-  ///
-  /// In en, this message translates to:
-  /// **'Export functionality not yet implemented'**
-  String get outputExportNotImplemented;
 
   /// No description provided for @outputSegmentCopied.
   ///

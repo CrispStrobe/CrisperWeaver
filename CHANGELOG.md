@@ -3,6 +3,13 @@
 Notable user-facing changes per release. Full diff per version on
 the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases).
 
+## Unreleased
+
+- **Cleanup** — removed a dead "Export" entry from the transcript output
+  overflow menu that only ever showed a "not implemented" dialog. Export
+  is unaffected: the transcript Save/Share menu (plain text / SRT / VTT /
+  JSON / audio bundle) remains the single working path.
+
 ## 0.6.45 — 2026-05-30
 
 - **Recommended models + one-tap setup** — each backend now flags its

@@ -372,9 +372,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get outputCopyAll => 'Copy all';
 
   @override
-  String get outputExport => 'Export';
-
-  @override
   String get outputPlay => 'Play';
 
   @override
@@ -416,10 +413,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get outputRenameSpeakerReset => 'Reset to original';
-
-  @override
-  String get outputExportNotImplemented =>
-      'Export functionality not yet implemented';
 
   @override
   String get outputSegmentCopied => 'Segment copied to clipboard';
