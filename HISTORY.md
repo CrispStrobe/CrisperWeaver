@@ -1089,6 +1089,12 @@ widget are now in *Advanced Options* on the transcription screen.
   using `core_beam_decode::run_with_probs`, not in the backend
   library; exposing it through the public C API needs per-backend
   refactor work tracked as CrispASR PLAN §90.
+  **Update (2026-05-30): granite / voxtral / qwen3 shipped** in
+  CrispASR `0c24178e` (an ancestor of tag `v0.6.11`, the bundled
+  dylib) — all three now consult `s->beam_size` in the unified
+  session path, bringing the wired count to nine. See PLAN §5.23
+  for the current breakdown; canary / cohere (AED) remain the only
+  genuine beam gap.
 
 ---
 
@@ -1265,6 +1271,15 @@ lives in CLI wrappers using `core_beam_decode::run_with_probs`,
 not in the backend library. Exposing it through the public C
 API needs per-backend refactor work tracked as CrispASR PLAN
 §90.
+
+**Update (2026-05-30):** granite / voxtral / qwen3 shipped in
+CrispASR `0c24178e` (ancestor of tag `v0.6.11` = the bundled
+dylib). qwen3-asr / granite now run beam via
+`core_beam_decode::run_with_probs` *inside* `transcribe_single`,
+voxtral via `run_voxtral_family(…, beam_size)` — nine session
+backends are beam-wired and no CrisperWeaver change was needed
+(the pool already drives `setBeamSize`). canary / cohere (AED,
+greedy-only) are now the sole remaining beam gap. See PLAN §5.23.
 
 ### Net result
 

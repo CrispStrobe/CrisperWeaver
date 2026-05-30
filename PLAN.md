@@ -508,18 +508,34 @@ expansion + drain-loop integration, Q3 resume-from-checkpoint,
 Q3 polish) shipped end-to-end. Full per-step write-up in
 [HISTORY.md → §5.23](HISTORY.md).
 
-**Still pending — small CrispASR-side follow-up:**
+**CrispASR-side beam follow-up — ✅ shipped upstream (CrispASR 0.6.11).**
+The earlier "granite / voxtral / qwen3 still pending" note here was
+**stale**. Verified 2026-05-30 against CrispASR `origin/main`: commit
+`0c24178e` ("feat(session): wire beam_size through qwen3-asr, granite,
+and voxtral", 2026-05-23) is an ancestor of tag `v0.6.11`, and the
+bundled dylib is `libcrispasr.0.6.11` — so all three families now consult
+`s->beam_size` in the unified session `transcribe_single` path
+(qwen3-asr / granite via `core_beam_decode::run_with_probs`, voxtral via
+`run_voxtral_family(…, beam_size)`). Together with the five previously
+wired (whisper native + glm-asr / kyutai-stt / firered / moonshine /
+omniasr-llm per-backend setters), **nine session backends are beam-wired**.
+No CrisperWeaver code change was needed: the worker pool + engine already
+drive `CrispasrSession.setBeamSize(...)` for beam-capable backends, so this
+is live in the shipped build. *Not yet audio-verified end-to-end in-app —
+a beam-vs-greedy spot check on a real clip is the only thing left here.*
 
-* Beam search via session API for granite / voxtral / qwen3 —
-  six of eleven beam-capable backends are wired (whisper +
-  kyutai-stt / moonshine / omniasr-LLM / glm-asr / firered);
-  the remaining three need their per-backend high-level
-  transcribe APIs to expose beam_size before
-  `crispasr_session_set_beam_size` can plumb through. Their
-  beam decode currently lives in CLI wrappers using
-  `core_beam_decode::run_with_probs`. ~1–1.5 days total
-  across the three families. Tracked as
-  [CrispASR PLAN §90](https://github.com/CrispStrobe/CrispASR/blob/main/PLAN.md).
+**Genuinely still unwired upstream (separate scope — tracked in CrispASR):**
+
+* **canary / cohere beam** — these are encoder-decoder AED models, still
+  greedy-only (`canary_transcribe_ex` / `cohere_transcribe_ex` take no
+  beam param). Real algorithmic work: a per-decoder beam reusing the
+  cross-attention KV across beams (the `run_with_probs_branched` shape),
+  not the replay helper the LLM backends use. Tracked as
+  [CrispASR PLAN §61h / §90](https://github.com/CrispStrobe/CrispASR/blob/main/PLAN.md).
+* **voxtral4b** — routes through the streaming API (`voxtral4b_stream_*`),
+  which has no beam hook; explicitly out of scope. CTC/NAR backends
+  (parakeet-ctc, fastconformer-ctc, wav2vec2, funasr, paraformer,
+  sensevoice) don't take a token-AR beam either.
 
 ---
 
