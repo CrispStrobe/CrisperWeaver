@@ -563,8 +563,9 @@ declares as `companions`/`defaultCompanions`, plus a `cosyvoice3-tts`
 to the LLM, and `_downloadModel` co-locates them (downloads the full
 `companions` list into the models dir) — so listing them is what makes it
 work; `setCodecPath` is a harmless no-op for cosyvoice3. `check_model_
-languages`: 0 diffs. Added to the forward-guard `pending` set until the
-bundled libcrispasr is rebuilt with `36133247`.
+languages`: 0 diffs. Verified present in the rebuilt libcrispasr
+(40 backends) and **dropped from the forward-guard `pending` set** —
+`backend_dispatch_test.dart`'s `pending` is now `{piper}` only (see A).
 - **NOT audio-verified** — needs a real cosyvoice3 synth run (LLM →
   flow → HiFT) to confirm output; treat as experimental until then.
 - Remaining: confirm the Synthesize-screen UX picks a sensible companion
