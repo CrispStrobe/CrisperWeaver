@@ -3,7 +3,7 @@
 Notable user-facing changes per release. Full diff per version on
 the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases).
 
-## Unreleased
+## 0.6.45 — 2026-05-30
 
 - **Recommended models + one-tap setup** — each backend now flags its
   recommended "start here" model with a **Recommended** badge (Model
