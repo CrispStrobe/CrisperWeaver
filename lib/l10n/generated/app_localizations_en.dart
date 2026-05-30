@@ -1851,6 +1851,18 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String synthBackendUnsupported(String backend) {
+    return '$backend synthesis isn\'t available in this build yet. This voice will work once an updated engine ships.';
+  }
+
+  @override
+  String get synthSpeakerLabel => 'Speaker';
+
+  @override
+  String get synthSpeakerHelper =>
+      'This voice has built-in speakers — pick one.';
+
+  @override
   String get advancedVadBackend => 'VAD backend';
 
   @override

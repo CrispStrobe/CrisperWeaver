@@ -918,6 +918,28 @@ class ModelService {
       kind: ModelKind.tts,
       companions: ['qwen3-tts-tokenizer-12hz'],
     ),
+    // #18 — qwen3-tts CustomVoice has no BackendRepo (the deep HF probe
+    // can't surface it), so without a hardcoded entry it never appears in
+    // the Synthesize picker on a fresh launch. Mirrors the base entry; the
+    // 9 baked preset speakers are selected via the Synthesize speaker
+    // dropdown (#17). 0.6B q8_0 = ~923 MB (HF blob size).
+    'qwen3-tts-12hz-0.6b-customvoice-q8_0': ModelDefinition(
+      name: 'qwen3-tts-12hz-0.6b-customvoice-q8_0',
+      displayName: 'Qwen3-TTS 0.6B CustomVoice 12 Hz (q8_0)',
+      fileName: 'qwen3-tts-12hz-0.6b-customvoice-q8_0.gguf',
+      url:
+          'https://huggingface.co/cstr/qwen3-tts-0.6b-customvoice-GGUF/resolve/main/qwen3-tts-12hz-0.6b-customvoice-q8_0.gguf',
+      sizeBytes: 967980192,
+      checksum: '',
+      description:
+          'Qwen3-TTS CustomVoice (9 preset speakers) — needs the '
+          'qwen3-tts-tokenizer-12hz codec GGUF; pick a speaker in Synthesize',
+      quantization: 'q8_0',
+      backend: 'qwen3-tts',
+      kind: ModelKind.tts,
+      companions: ['qwen3-tts-tokenizer-12hz'],
+      languages: langsQwen3TtsCustom9,
+    ),
     'orpheus-3b-base-q8_0': ModelDefinition(
       name: 'orpheus-3b-base-q8_0',
       displayName: 'Orpheus 3B base (q8_0)',
@@ -1365,6 +1387,29 @@ class ModelService {
       kind: ModelKind.tts,
       companions: ['chatterbox-s3gen-q8_0'],
       languages: langsChatterbox23,
+    ),
+    // #18 — the chatterbox-turbo-t3 BackendRepo lets the deep HF probe
+    // discover this, but it's absent from the baked snapshot, so it only
+    // showed up after a manual Model-Management refresh. Hardcode it so it
+    // lists on a fresh launch like the standard chatterbox T3 above. Same
+    // backend + companion as the BackendRepo defaults (so a probe-found
+    // entry of the same name reconciles cleanly); turbo-t3 q8_0 = ~628 MB.
+    'chatterbox-turbo-t3-q8_0': ModelDefinition(
+      name: 'chatterbox-turbo-t3-q8_0',
+      displayName: 'Chatterbox turbo T3 (q8_0)',
+      fileName: 'chatterbox-turbo-t3-q8_0.gguf',
+      url:
+          'https://huggingface.co/cstr/chatterbox-turbo-GGUF/resolve/main/chatterbox-turbo-t3-q8_0.gguf',
+      sizeBytes: 658897152,
+      checksum: '',
+      description:
+          'Chatterbox turbo TTS T3 (faster AR transformer) — needs a '
+          'chatterbox-s3gen-* companion',
+      quantization: 'q8_0',
+      backend: 'chatterbox',
+      kind: ModelKind.tts,
+      companions: ['chatterbox-s3gen-q8_0'],
+      languages: langsEn,
     ),
     // Chatterbox S3Gen flow-matching vocoder — companion of chatterbox-t3.
     'chatterbox-s3gen-q8_0': ModelDefinition(

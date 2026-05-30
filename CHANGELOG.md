@@ -3,6 +3,27 @@
 Notable user-facing changes per release. Full diff per version on
 the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases).
 
+## 0.6.47 — 2026-05-30
+
+- **Fix (#16) — Piper TTS no longer crashes the app.** Tapping Synthesize
+  with a Piper voice instantly killed the app on Android & Windows: the
+  bundled engine can't yet dispatch Piper through the unified session API,
+  and the native open segfaulted. The Synthesize screen now refuses
+  unsupported backends with a clear message instead of crashing, and will
+  start working automatically once an engine build that lists the backend
+  ships.
+- **Fix (#17) — Qwen3-TTS CustomVoice now produces audio.** CustomVoice
+  needs one of its built-in speakers selected; the Synthesize screen had
+  no speaker picker, so it always synthesised silence ("synthesis returned
+  no audio"). There's now a **Speaker** dropdown for voices with built-in
+  speakers (Qwen3-TTS CustomVoice, Orpheus), auto-filled with the first
+  speaker so one-tap synthesis just works.
+- **Fix (#18) — more TTS models show up without a deep refresh.** Qwen3-TTS
+  0.6B CustomVoice and Chatterbox turbo T3 were only listed after opening
+  Model Management and waiting for the HuggingFace probe. They're now in
+  the built-in catalogue, so they appear in the Synthesize picker on a
+  fresh launch like every other model.
+
 ## 0.6.46 — 2026-05-30
 
 - **Fix (alt-token picker)** — picking an alternative candidate for a

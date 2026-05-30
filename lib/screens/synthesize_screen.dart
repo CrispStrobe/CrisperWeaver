@@ -52,6 +52,21 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
   String? _selectedVoice;
   String? _selectedCodec;
   String? _selectedSpeaker;
+
+  /// #17 — preset speaker names baked into the selected model (orpheus,
+  /// qwen3-tts CustomVoice). Empty for backends without a preset-speaker
+  /// contract (kokoro / vibevoice / chatterbox / qwen3-tts Base &
+  /// VoiceDesign). Populated by [_loadSpeakers] once the session opens.
+  /// CustomVoice produces NO audio unless one of these is selected and
+  /// passed to setSpeakerName() — the previously-missing picker was why
+  /// qwen3-tts CustomVoice synthesised silence (issue #17).
+  List<String> _presetSpeakers = const [];
+  bool _loadingSpeakers = false;
+
+  /// Backends that may expose preset speakers. We only open the model to
+  /// enumerate speakers for these — opening kokoro / vibevoice / chatterbox
+  /// just to discover an always-empty speaker list would be wasted work.
+  static const _speakerCapableBackends = {'orpheus', 'qwen3-tts'};
   /// User-supplied reference WAV for runtime cloning (qwen3-tts Base,
   /// vibevoice-1.5b, indextts). Takes priority over the catalog-voice
   /// dropdown; pair with `_refTextController` for backends that need a
@@ -126,6 +141,13 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+    // NB: we deliberately do NOT enumerate speakers for the auto-selected
+    // model here. speakers() requires opening the model, and the open is a
+    // synchronous FFI call that would freeze the UI isolate for seconds on
+    // a large GGUF (qwen3-tts ~923 MB) right as the screen appears. Speaker
+    // discovery happens on an explicit model pick (_loadSpeakers in the
+    // dropdown's onChanged), and _synthesize has a fallback that auto-picks
+    // a speaker for the auto-selected model so the first synth still works.
   }
 
   /// Pick the first downloaded voicepack / codec whose backend matches
@@ -194,6 +216,10 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
   }
 
   void _autoSelectCompanions() {
+    // Model changed — drop any stale speaker selection; _loadSpeakers
+    // repopulates for the new model.
+    _selectedSpeaker = null;
+    _presetSpeakers = const [];
     final modelDef =
         ref.read(modelServiceProvider).lookupDefinition(_selectedModel ?? '');
     if (modelDef == null) return;
@@ -207,6 +233,55 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
         m.isDownloaded);
     _selectedVoice = voices.isEmpty ? null : voices.first.name;
     _selectedCodec = codecs.isEmpty ? null : codecs.first.name;
+  }
+
+  /// #17 — open the selected model (when its backend can carry preset
+  /// speakers) to enumerate the baked speaker names, and auto-select the
+  /// first so qwen3-tts CustomVoice / orpheus never synthesise silence for
+  /// want of a `setSpeakerName()` call. No-op for backends without preset
+  /// speakers, and degrades quietly when companions aren't downloaded yet
+  /// (the session can't open → no speakers → the dropdown stays hidden and
+  /// the existing missing-companion flow guides the user).
+  ///
+  /// Triggered on an explicit model pick (not on screen open) because the
+  /// underlying open is a synchronous FFI call — running it only when the
+  /// user deliberately selects a speaker-capable model keeps the heavy work
+  /// at a moment the user expects it.
+  Future<void> _loadSpeakers() async {
+    final modelName = _selectedModel;
+    if (modelName == null) return;
+    final svc = ref.read(modelServiceProvider);
+    final backend = svc.lookupDefinition(modelName)?.backend;
+    if (backend == null || !_speakerCapableBackends.contains(backend)) {
+      return;
+    }
+    setState(() => _loadingSpeakers = true);
+    try {
+      final tts = ref.read(ttsServiceProvider);
+      final status = await tts.prepare(
+        modelName: modelName,
+        voiceName: _selectedVoice,
+        codecName: _selectedCodec,
+      );
+      if (!mounted) return;
+      final speakers = status.ready ? tts.presetSpeakers : const <String>[];
+      setState(() {
+        _presetSpeakers = speakers;
+        // Auto-pick the first speaker so a one-tap synth Just Works;
+        // preserve a still-valid prior choice across rebuilds.
+        if (speakers.isEmpty) {
+          _selectedSpeaker = null;
+        } else if (_selectedSpeaker == null ||
+            !speakers.contains(_selectedSpeaker)) {
+          _selectedSpeaker = speakers.first;
+        }
+      });
+    } catch (e, st) {
+      Log.instance.w('synth', 'speaker enumeration failed',
+          error: e, stack: st, fields: {'model': modelName});
+    } finally {
+      if (mounted) setState(() => _loadingSpeakers = false);
+    }
   }
 
   Future<void> _clearPhonemeCache() async {
@@ -244,6 +319,18 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
       if (!status.ready) {
         if (!mounted) return;
         final l = AppLocalizations.of(context);
+        // #16 — a backend the bundled engine can't dispatch (piper today)
+        // gets its own clear message rather than the generic "missing
+        // companion" one, and crucially never reaches the native open
+        // that would crash the process.
+        if (status.unsupportedBackend != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content:
+                    Text(l.synthBackendUnsupported(status.unsupportedBackend!))),
+          );
+          return;
+        }
         final missing = status.missingModelName ??
             status.missingVoiceName ??
             status.missingCodecName ??
@@ -252,6 +339,28 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
           SnackBar(content: Text(l.synthMissingDependency(missing))),
         );
         return;
+      }
+
+      // #17 — belt-and-suspenders: if the model bakes in preset speakers
+      // (CustomVoice / orpheus) but none is selected yet — e.g. the codec
+      // finished downloading after _loadSpeakers ran — auto-pick the first
+      // and re-open with it. Without a speaker these backends emit no
+      // audio. instructPrompt is forced null here so prepare() takes the
+      // speaker branch rather than the (mutually-exclusive) instruct one.
+      if (_selectedSpeaker == null && tts.presetSpeakers.isNotEmpty) {
+        final speakers = tts.presetSpeakers;
+        if (mounted) {
+          setState(() {
+            _presetSpeakers = speakers;
+            _selectedSpeaker = speakers.first;
+          });
+        }
+        await tts.prepare(
+          modelName: _selectedModel!,
+          voiceName: _selectedVoice,
+          codecName: _selectedCodec,
+          speakerName: speakers.first,
+        );
       }
 
       // Pass the chatterbox-specific knobs unconditionally; the
@@ -473,10 +582,16 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
                                     overflow: TextOverflow.ellipsis),
                               ))
                           .toList(),
-                      onChanged: (v) => setState(() {
-                        _selectedModel = v;
-                        _autoSelectCompanions();
-                      }),
+                      onChanged: (v) {
+                        setState(() {
+                          _selectedModel = v;
+                          _autoSelectCompanions();
+                        });
+                        // Re-enumerate preset speakers for the new model
+                        // (#17); fire-and-forget so the dropdown stays
+                        // responsive.
+                        _loadSpeakers();
+                      },
                     ),
                     if (voices.isNotEmpty) ...[
                       const SizedBox(height: 8),
@@ -515,6 +630,31 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
                             .toList(),
                         onChanged: (v) => _onCodecPicked(v, codecs),
                       ),
+                    ],
+                    // #17 — preset-speaker picker for backends that bake
+                    // speakers in (qwen3-tts CustomVoice, orpheus). Without
+                    // a selection here CustomVoice synthesises silence.
+                    if (_presetSpeakers.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      DropdownButtonFormField<String>(
+                        decoration: InputDecoration(
+                          labelText: l.synthSpeakerLabel,
+                          helperText: l.synthSpeakerHelper,
+                        ),
+                        initialValue: _selectedSpeaker,
+                        items: _presetSpeakers
+                            .map((s) => DropdownMenuItem(
+                                  value: s,
+                                  child:
+                                      Text(s, overflow: TextOverflow.ellipsis),
+                                ))
+                            .toList(),
+                        onChanged: (v) =>
+                            setState(() => _selectedSpeaker = v),
+                      ),
+                    ] else if (_loadingSpeakers) ...[
+                      const SizedBox(height: 8),
+                      const LinearProgressIndicator(),
                     ],
                   ],
                   const SizedBox(height: 16),

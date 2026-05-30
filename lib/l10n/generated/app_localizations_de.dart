@@ -1866,6 +1866,18 @@ class AppLocalizationsDe extends AppLocalizations {
   }
 
   @override
+  String synthBackendUnsupported(String backend) {
+    return '$backend-Synthese ist in dieser Version noch nicht verfügbar. Diese Stimme funktioniert, sobald eine aktualisierte Engine ausgeliefert wird.';
+  }
+
+  @override
+  String get synthSpeakerLabel => 'Sprecher';
+
+  @override
+  String get synthSpeakerHelper =>
+      'Diese Stimme hat eingebaute Sprecher – bitte einen auswählen.';
+
+  @override
   String get advancedVadBackend => 'VAD-Backend';
 
   @override

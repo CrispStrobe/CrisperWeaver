@@ -43,6 +43,23 @@ class TtsService {
   String _makeKey(String? m, String? v, String? c) =>
       '${m ?? ""}|${v ?? ""}|${c ?? ""}';
 
+  // Cached snapshot of the backends the bundled libcrispasr can dispatch
+  // through the unified session API. The list is fixed for the life of
+  // the process (it's baked into the linked dylib), so probe once. Empty
+  // when the dylib is missing or predates the
+  // `crispasr_session_available_backends` symbol — callers treat empty
+  // as "unknown, don't gate" so they degrade rather than block.
+  static List<String>? _availBackendsCache;
+  static List<String> _availableBackends() {
+    return _availBackendsCache ??= () {
+      try {
+        return crispasr.CrispasrSession.availableBackends();
+      } catch (_) {
+        return const <String>[];
+      }
+    }();
+  }
+
   Future<String?> _resolvePath(String modelName) async {
     final p = await modelService.getWhisperCppModelPath(modelName);
     if (p == null) return null;
@@ -122,6 +139,27 @@ class TtsService {
       // try.
       final def = modelService.lookupDefinition(modelName);
       final backend = def?.backend;
+      // #16 — guard against backends the bundled libcrispasr can't
+      // dispatch through the unified session API. Piper TTS, for one,
+      // ships as a separate standalone C-ABI upstream; the unified-
+      // session dispatch arm + availableBackends() entry are wired
+      // upstream but NOT on the bundled dylib yet (see PLAN §5.24-A).
+      // Calling CrispasrSession.open(..., backend: 'piper') on such a
+      // dylib crashes the process *natively* (segfault) rather than
+      // throwing a catchable Dart error — so the app dies the instant
+      // the user taps Synthesize (issue #16, Android + Windows). Refuse
+      // here, before the native open, so the user gets a clear message
+      // instead of a hard crash. Gated on availableBackends() so the
+      // moment a rebuilt dylib lists the backend it starts working with
+      // no further code change.
+      if (backend != null && backend.isNotEmpty) {
+        final available = _availableBackends();
+        if (available.isNotEmpty && !available.contains(backend)) {
+          Log.instance.w('tts', 'backend not dispatchable in this build',
+              fields: {'backend': backend, 'available': available.length});
+          return TtsLoadStatus.unsupported(backend);
+        }
+      }
       // Per-backend GPU pinning happens via env vars set in
       // main.dart (see `applyKokoroMetalWorkaround()`), not by
       // gating session-open here. Open kokoro normally with
@@ -516,6 +554,11 @@ class TtsLoadStatus {
   final String? missingCodecName;
   final String? errorMessage;
 
+  /// When non-null, the selected model's backend isn't dispatchable through
+  /// the unified session API on this build's bundled libcrispasr (e.g.
+  /// piper — issue #16). Carries the backend id so the UI can name it.
+  final String? unsupportedBackend;
+
   const TtsLoadStatus._({
     required this.ready,
     this.backend,
@@ -523,6 +566,7 @@ class TtsLoadStatus {
     this.missingVoiceName,
     this.missingCodecName,
     this.errorMessage,
+    this.unsupportedBackend,
   });
 
   factory TtsLoadStatus.ready(String backend) =>
@@ -537,6 +581,8 @@ class TtsLoadStatus {
       );
   factory TtsLoadStatus.error(String msg) =>
       TtsLoadStatus._(ready: false, errorMessage: msg);
+  factory TtsLoadStatus.unsupported(String backend) =>
+      TtsLoadStatus._(ready: false, unsupportedBackend: backend);
 }
 
 final ttsServiceProvider = Provider<TtsService>((ref) {

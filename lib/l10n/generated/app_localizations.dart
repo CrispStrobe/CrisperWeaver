@@ -3224,6 +3224,24 @@ abstract class AppLocalizations {
   /// **'Missing required companion file: {name}'**
   String synthMissingDependency(String name);
 
+  /// No description provided for @synthBackendUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'{backend} synthesis isn\'t available in this build yet. This voice will work once an updated engine ships.'**
+  String synthBackendUnsupported(String backend);
+
+  /// No description provided for @synthSpeakerLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Speaker'**
+  String get synthSpeakerLabel;
+
+  /// No description provided for @synthSpeakerHelper.
+  ///
+  /// In en, this message translates to:
+  /// **'This voice has built-in speakers — pick one.'**
+  String get synthSpeakerHelper;
+
   /// No description provided for @advancedVadBackend.
   ///
   /// In en, this message translates to:

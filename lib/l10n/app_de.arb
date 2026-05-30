@@ -801,6 +801,12 @@
   "synthMissingDependency": "Fehlende Begleitdatei: {name}",
   "@synthMissingDependency": {"placeholders": {"name": {"type": "String"}}},
 
+  "synthBackendUnsupported": "{backend}-Synthese ist in dieser Version noch nicht verfügbar. Diese Stimme funktioniert, sobald eine aktualisierte Engine ausgeliefert wird.",
+  "@synthBackendUnsupported": {"placeholders": {"backend": {"type": "String"}}},
+
+  "synthSpeakerLabel": "Sprecher",
+  "synthSpeakerHelper": "Diese Stimme hat eingebaute Sprecher – bitte einen auswählen.",
+
   "advancedVadBackend": "VAD-Backend",
   "advancedVadBackendHelper": "Silero ist eingebettet (~885 KB). FireRed / MarbleNet / Whisper-VAD müssen über die Modellverwaltung geladen werden; fehlt die Datei, fällt CrisperWeaver auf Silero zurück.",
   "advancedVadBackendSilero": "Silero (eingebettet, Standard)",

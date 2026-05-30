@@ -803,6 +803,12 @@
   "synthMissingDependency": "Missing required companion file: {name}",
   "@synthMissingDependency": {"placeholders": {"name": {"type": "String"}}},
 
+  "synthBackendUnsupported": "{backend} synthesis isn't available in this build yet. This voice will work once an updated engine ships.",
+  "@synthBackendUnsupported": {"placeholders": {"backend": {"type": "String"}}},
+
+  "synthSpeakerLabel": "Speaker",
+  "synthSpeakerHelper": "This voice has built-in speakers — pick one.",
+
   "advancedVadBackend": "VAD backend",
   "advancedVadBackendHelper": "Silero is bundled (~885 KB). FireRed / MarbleNet / Whisper-VAD need a Model Management download; missing files fall back to Silero.",
   "advancedVadBackendSilero": "Silero (bundled, default)",
