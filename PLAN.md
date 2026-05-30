@@ -353,11 +353,12 @@ completeness — May 2026"](HISTORY.md). What's still pending:
       first-token alts cover most real ambiguity in practice.
       Documented in the C-ABI helper comment + the UI help
       string.
-    - **Widget test for the alt-picker popover**. The
-      transcript-editor edit dialog uses Riverpod providers +
-      AppLocalizations, both of which need scaffolding to pump
-      headlessly. Unit + preset round-trip tests cover the
-      data plumbing; the UI test is a nice-to-have.
+    - ~~**Widget test for the alt-picker popover**~~ —
+      **shipped May 2026** as `test/alt_picker_widget_test.dart`
+      (commit `7a54e5b`). Pumps the transcript-editor edit dialog
+      with the Riverpod + AppLocalizations scaffolding and exercises
+      the tap-to-pick chip row. Unit + preset round-trip tests still
+      cover the data plumbing underneath.
     - ~~**Live-tagged end-to-end test**~~ —
       **shipped May 2026** as
       `flutter/crispasr/test/alt_tokens_live_test.dart` on the
@@ -521,7 +522,47 @@ Q3 polish) shipped end-to-end. Full per-step write-up in
 
 ### 5.9 Dependency refresh
 
-37 packages have newer versions blocked by constraint overrides (`intl`, `material_color_utilities`, `record_linux`). Revisit after Flutter 3.39 lands: many of the overrides are there to paper over SDK transitions.
+The in-constraint tier is **done**: v0.6.46 bumped everything that
+resolves on the current toolchain, and `flutter pub upgrade --dry-run`
+now reports *"No dependencies would change"* — every resolvable package
+is at its ceiling.
+
+**Everything still outdated (32 packages as of 2026-05-30) is one
+coupled "tier 2" change, gated on a Flutter SDK upgrade.** Verified
+empirically by widening the constraints and resolving:
+
+- Current toolchain here is **Flutter 3.38.5 / Dart 3.10.4**. Latest
+  stable is 3.44.0.
+- The plus-family majors — `device_info_plus` 13, `package_info_plus`
+  10, `share_plus` 13 — and `record` 7, `riverpod` 3, `win32` 6, `xml`
+  7 all bumped (directly or transitively) to `win32 6.0.0`, which raises
+  the floor to **Dart ≥3.11 / Flutter ≥3.41.6**. None resolve on Dart
+  3.10.4.
+- `device_info_plus` has two extra snags: 12.4+ reintroduces the
+  `NSProcessInfo.isiOSAppOnVision` selector that the `<12.4.0` pin
+  exists to dodge (CI Xcode-SDK compile break — see the pubspec
+  comment), and 13.1.0 needs `win32 ^6.0.1`, which **conflicts with
+  `file_picker 11.0.2`** (`win32 ^5.9.0`). So `file_picker` has to move
+  in the same change.
+- App code is mostly ready: `share_plus` call sites already use the
+  modern `SharePlus.instance.share(ShareParams(...))` API, and
+  `device_info_plus` / `package_info_plus` use stable surfaces
+  (`DeviceInfoPlugin`, `PackageInfo.fromPlatform`).
+
+So this is an **SDK-upgrade project, not a constraint bump**: `flutter
+upgrade` 3.38.5 → ≥3.41.6, then `win32` 5→6 + `file_picker` + the three
+plus-majors + `record` 7 (and assess `riverpod` 2→3 separately — large
+migration) as one coordinated change, fix breakage, full
+analyze/test + a per-platform rebuild pass.
+
+**Also blocked right now on disk.** `flutter upgrade` is global
+(Homebrew install at `/opt/homebrew/share/flutter`, shared by every
+repo + parallel worker), and the data volume is at **100% capacity
+(3.1 GiB free, 2026-05-30)** — a half-written SDK download would break
+all shared clones at once. Free ≥~5 GiB first: the orphaned
+`/opt/homebrew/Caskroom/flutter/3.35.2` (4.0 GiB, *not* the active git
+checkout) + `dart pub cache clean` (~11 GiB cache). Rollback point for
+the active SDK if an upgrade goes wrong: revision `f6ff1529fd` (3.38.5).
 
 ### 5.10 Release polish
 
