@@ -630,16 +630,19 @@ a CrisperWeaver feature, not the runtime.
   CrispEmbed (or expose an embedding C-ABI from CrispASR), (b) a Dart
   binding, (c) a search/retrieval feature to consume embeddings. Bigger
   than a catalogue entry — it's a new capability.
-- Text-LID (`cld3` = `cstr/cld3-GGUF`, plus GlotLID) — C-ABI
-  (`crispasr_text_detect_language`) AND the Dart wrapper are now both
-  done: `detectTextLanguage(text, modelPath)` → `TextLanguage(code,
+- ~~Text-LID (`cld3` = `cstr/cld3-GGUF`, plus GlotLID)~~ —
+  **shipped May 2026 (v0.6.43)**. C-ABI
+  (`crispasr_text_detect_language`) + Dart wrapper
+  `detectTextLanguage(text, modelPath)` → `TextLanguage(code,
   confidence)` (CrispASR `1332c5a1`, live-verified de/en/fr/es ≥ 0.99).
-  **Remaining (app-side, blocked until the path-dep clone is on a branch
-  with `1332c5a1`):** (a) catalogue `cld3` (kind `lid`) so users can
-  download it, (b) a feature that calls `detectTextLanguage` — e.g.
-  auto-detect the Translate screen's source language from the typed text,
-  or label a pasted transcript. `LidService` stays audio-only; this is a
-  parallel text path.
+  Both app-side pieces landed: (a) `cld3-f16` is catalogued
+  (`kind: ModelKind.lid`, `cstr/cld3-GGUF`, ~430 KB) in
+  `model_service.dart`; (b) the Translate screen's *Auto-detect source
+  language* button runs `detectTextLanguage` over the typed text and sets
+  the source-language dropdown, prompting a CLD3 download if it isn't
+  present (`translate_screen.dart`). `LidService` stays audio-only; this
+  is a parallel text path. Still open as a future idea: labelling a
+  pasted transcript's language outside the Translate flow.
 Both now have tracked `hf_readmes/` cards (added this session).
 
 ---
