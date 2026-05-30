@@ -132,4 +132,41 @@ void main() {
     // The edit buffer now reads the swapped word; "apply now" is intact.
     expect(find.text('cubicle apply now'), findsOneWidget);
   });
+
+  group('replaceFirstWholeWord', () {
+    String swap(String text, String word, String repl) =>
+        TranscriptionOutputWidget.replaceFirstWholeWord(text, word, repl);
+
+    test('replaces a standalone word', () {
+      expect(swap('kubectl apply now', 'kubectl', 'cubicle'),
+          'cubicle apply now');
+    });
+
+    test('does NOT rewrite inside a longer earlier word', () {
+      // The bug a plain replaceFirst had: "cat" would hit "category".
+      expect(swap('the category is cat', 'cat', 'kat'),
+          'the category is kat');
+    });
+
+    test('replaces only the first standalone occurrence', () {
+      expect(swap('cat and cat', 'cat', 'kat'), 'kat and cat');
+    });
+
+    test('no-op when the word is absent as a standalone token', () {
+      expect(swap('category only', 'cat', 'kat'), 'category only');
+    });
+
+    test('handles regex metacharacters in the word literally', () {
+      expect(swap('a c++ b', 'c++', 'rust'), 'a rust b');
+      expect(swap('cost is \$5 today', '\$5', '\$9'), 'cost is \$9 today');
+    });
+
+    test('handles a word with trailing punctuation at a boundary', () {
+      expect(swap('wait. go', 'wait.', 'stop.'), 'stop. go');
+    });
+
+    test('empty word returns the text unchanged', () {
+      expect(swap('unchanged', '', 'x'), 'unchanged');
+    });
+  });
 }

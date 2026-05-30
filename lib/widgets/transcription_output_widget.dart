@@ -50,6 +50,25 @@ class TranscriptionOutputWidget extends ConsumerStatefulWidget {
   @override
   ConsumerState<TranscriptionOutputWidget> createState() =>
       _TranscriptionOutputWidgetState();
+
+  /// Replaces the first **whole-word** occurrence of [word] in [text]
+  /// with [replacement], returning [text] unchanged when [word] doesn't
+  /// appear as a standalone token. Used by the alt-token picker so
+  /// swapping the alt for "cat" never rewrites inside an earlier
+  /// "category" (a plain `replaceFirst` substring match would). A word
+  /// is "standalone" when it isn't flanked by ASCII letters/digits, so
+  /// leading/trailing punctuation on the token is handled correctly.
+  /// [word] is treated literally — regex metacharacters in it are
+  /// escaped, never interpreted.
+  @visibleForTesting
+  static String replaceFirstWholeWord(
+      String text, String word, String replacement) {
+    if (word.isEmpty) return text;
+    final escaped = word.replaceAllMapped(
+        RegExp(r'[.*+?^${}()|[\]\\]'), (m) => '\\${m[0]}');
+    final re = RegExp('(?<![A-Za-z0-9])$escaped(?![A-Za-z0-9])');
+    return text.replaceFirst(re, replacement);
+  }
 }
 
 class _TranscriptionOutputWidgetState
@@ -892,8 +911,9 @@ class _TranscriptionOutputWidgetState
                               replacement.startsWith(' ')
                                   ? replacement.substring(1)
                                   : replacement;
-                          final next = cur.replaceFirst(
-                              s.display, replacementClean);
+                          final next =
+                              TranscriptionOutputWidget.replaceFirstWholeWord(
+                                  cur, s.display, replacementClean);
                           controller.text = next;
                         },
                       ),
