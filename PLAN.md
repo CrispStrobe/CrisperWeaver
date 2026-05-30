@@ -394,70 +394,57 @@ completeness — May 2026"](HISTORY.md). What's still pending:
     confidence` not surfaced — it's a CLI output-formatting
     flag with no wparams analog.
 
-* **Auto-download default** — CrispASR's `-m auto` per backend.
-  **Design pass done (May 2026) — ready to implement.** The three
-  shapes previously sketched were (a) `recommendedDefault: true`
-  flag + "Recommended" badge, (b) "Quick start" AppBar bottom-sheet
-  with a curated combo, (c) per-backend collapsible sections each
-  with a "Download default" header button.
+* ~~**Auto-download default**~~ — CrispASR's `-m auto` per backend.
+  **✅ Option (a) shipped (May 2026).** The three shapes sketched
+  were (a) a per-backend recommended-default + "Recommended" badge,
+  (b) "Quick start" AppBar bottom-sheet with a curated combo, (c)
+  per-backend collapsible sections each with a "Download default"
+  header button.
 
-  **Decision: ship (a) as the v1 foundation; (b) layers on top of
-  it later; (c) is rejected.** Rationale + spec below.
+  **Shipped (a) as the v1 foundation; (b) layers on top later; (c)
+  rejected.** What landed:
+  - `ModelService.recommendedDefaultModels` — a `static const
+    Map<String,String>` (backend → catalogue model name). A **Map**
+    rather than the originally-sketched per-entry `bool` flag, so the
+    "at most one default per backend" invariant is *structural*
+    (unique keys) and curation lives in one auditable place. Covers
+    every user-facing ASR / TTS / chat / m2m100 entry point;
+    companions / post-proc / VAD / LID / diarisation are absent →
+    `defaultForBackend` returns `null` and callers degrade.
+  - `ModelService.defaultForBackend(backend)` resolves the pointer
+    through `lookupDefinition` (so the full def, with `companions`,
+    is ready for `downloadWhisperCppModel` — whose existing companion
+    co-download makes the one-tap fetch a complete, runnable setup =
+    `-m auto` parity with no new download plumbing).
+  - `ModelInfo.recommendedDefault` + a "Recommended" badge on the
+    Model Management card and a ⭐ on the Transcribe picker tile.
+  - Transcribe picker: when a backend filter is active and nothing
+    for it is downloaded, a top-of-list banner offers a one-tap
+    "Download recommended: {name} ({size})" (reuses the existing
+    download-confirm flow).
+  - Guard test `test/model_recommended_default_test.dart`: every
+    default resolves to a real entry whose backend matches the key;
+    at-most-one-per-backend; `defaultForBackend` / `isRecommended
+    Default` behaviour incl. `null` for unflagged backends.
+
+  Remaining: **(b) Quick-start bottom-sheet** — a pure consumer of
+  `defaultForBackend` across a curated starter set; build only if
+  onboarding feedback asks for it.
 
   *Why (a) first.* `-m auto`'s real semantic is "load the smallest
   functional model for backend X, fetching it if absent." The data
-  to express that is a single per-backend pointer — which is exactly
-  a `recommendedDefault` flag on `ModelDefinition`
-  (`lib/services/model_service.dart`). Crucially, the **one-click
-  functional setup is already solved** for the hard case: a flagged
-  entry's `companions` list is co-downloaded by the existing
-  `_downloadModel` path (it pulls the full companion set into the
-  models dir), so flagging `kokoro-*` / `qwen3-tts-*` / `vibevoice-*`
-  also pulls their voicepacks/codecs in the same tap. So (a) + the
-  existing companion machinery = `-m auto` parity with no new
-  download plumbing.
+  to express that is a single per-backend pointer. Crucially, the
+  **one-click functional setup is already solved** for the hard
+  case: a flagged entry's `companions` list is co-downloaded by the
+  existing `_downloadModel` path (it pulls the full companion set
+  into the models dir), so flagging `kokoro` / `qwen3-tts` /
+  `vibevoice-tts` also pulls their voicepacks/codecs in the same tap.
 
-  *Why not (c).* It restructures Model Management from per-quant
-  rows into per-backend collapsible groups — a large refactor of
-  `_buildModelList` / the filter chips, and it fights the
-  type-ahead backend filter that already exists. High effort, no
-  capability that (a)+(b) don't deliver.
-
-  **v1 spec (option a):**
-  1. **Schema** — add `final bool recommendedDefault;` to
-     `ModelDefinition` (default `false`, so every existing const
-     entry stays valid). Invariant: **at most one** entry per
-     `backend` carries it. Curate "smallest functional" per
-     backend: whisper → `whisper-base` (tiny is EN-weak; base is
-     the smallest genuinely-multilingual default), parakeet → its
-     sole variant, kokoro → `kokoro-*` (companions pull the
-     voicepack), voxtral → the `q4_k` not `f16`, etc. TTS/voice/
-     codec/LID/VAD/punc kinds: flag the one ASR/TTS entry users
-     actually start from; pure-companion rows never get the flag.
-  2. **Service** — `ModelDefinition? ModelService.defaultForBackend
-     (String backend)` returns the flagged entry (or `null`). A
-     guard test asserts the at-most-one-per-backend invariant over
-     the whole catalogue so a second flag can't silently slip in.
-  3. **UI** — a "Recommended" badge (`Chip`/`Badge`) on the
-     recommended model's card in Model Management, localised
-     (`modelsRecommendedBadge`). Optional: a "Recommended only"
-     filter chip alongside the kind chips.
-  4. **Behaviour (the actual `-m auto`)** — when the user selects a
-     backend on the Transcribe/Synthesize screen but has **no**
-     model of that backend on disk, surface a one-tap "Download
-     recommended ({displayName}, {size})" action that calls
-     `_downloadModel(defaultForBackend(b))`. This is the
-     auto-download; it reuses the companion-aware download path
-     verbatim.
-  5. **Tests** — invariant guard (step 2) + a `defaultForBackend`
-     unit test per major backend + a preset/no-op check that
-     unflagged backends return `null` and degrade gracefully.
-
-  **v2 (option b, follow-on, not now):** a "Quick start"
-  bottom-sheet that reads `defaultForBackend` across a curated
-  starter set (e.g. whisper-base ASR + one kokoro voice) and
-  downloads them together — pure consumer of the v1 flag, no new
-  schema. Build only if onboarding feedback asks for it.
+  *Why not (c).* It would restructure Model Management from
+  per-quant rows into per-backend collapsible groups — a large
+  refactor of `_buildModelList` / the filter chips that fights the
+  type-ahead backend filter already there. High effort, no
+  capability (a)+(b) don't deliver.
 
 ### 5.18 Test-suite speed — CoreML for whisper still pending
 

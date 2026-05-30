@@ -5,6 +5,13 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 
 ## Unreleased
 
+- **Recommended models + one-tap setup** — each backend now flags its
+  recommended "start here" model with a **Recommended** badge (Model
+  Management) and a ⭐ in the Transcribe model picker. When you filter
+  the picker to a backend you haven't downloaded anything for yet, a
+  one-tap **Download recommended** row appears at the top — it fetches
+  the right model *and* its companions (voicepacks/codecs) in a single
+  step, so the backend is immediately runnable.
 - **German localization completed** — the Model Management
   HuggingFace-repo dialogs (add / manage), the model filter chips and
   status messages, the Synthesize companion-download messages, and the

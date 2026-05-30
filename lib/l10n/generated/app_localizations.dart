@@ -4616,6 +4616,24 @@ abstract class AppLocalizations {
   /// **'Enrollment failed: {error}'**
   String enrollFailedReason(String error);
 
+  /// No description provided for @modelsRecommendedBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Recommended'**
+  String get modelsRecommendedBadge;
+
+  /// No description provided for @transcribeNoBackendModelHint.
+  ///
+  /// In en, this message translates to:
+  /// **'No {backend} model downloaded yet.'**
+  String transcribeNoBackendModelHint(String backend);
+
+  /// No description provided for @transcribeDownloadRecommended.
+  ///
+  /// In en, this message translates to:
+  /// **'Download recommended: {name} ({size})'**
+  String transcribeDownloadRecommended(String name, String size);
+
   /// No description provided for @synthDownloadingNamed.
   ///
   /// In en, this message translates to:

@@ -1043,22 +1043,52 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
                       ),
                     );
                   }
+                  // §5.4 — when a backend filter is active and nothing
+                  // for it is on disk, surface a one-tap "download the
+                  // recommended default" row at the top (CrispASR's
+                  // `-m auto`). Reuses the existing download-prompt flow.
+                  ModelInfo? recommended;
+                  if (_backendFilter.isNotEmpty &&
+                      !filtered.any((m) => m.isDownloaded)) {
+                    for (final m in filtered) {
+                      if (m.recommendedDefault) {
+                        recommended = m;
+                        break;
+                      }
+                    }
+                  }
+                  final bannerCount = recommended != null ? 1 : 0;
                   return ListView.builder(
                     shrinkWrap: true,
-                    itemCount: filtered.length,
+                    itemCount: filtered.length + bannerCount,
                     itemBuilder: (context, index) {
-                      final model = filtered[index];
+                      if (recommended != null && index == 0) {
+                        return _buildRecommendedBanner(recommended);
+                      }
+                      final model = filtered[index - bannerCount];
                       final isSelected = _modelName == model.name;
                       return ListTile(
                         dense: true,
                         selected: isSelected,
-                        title: Text(
-                          model.displayName,
-                          style: TextStyle(
-                            fontWeight: isSelected
-                                ? FontWeight.bold
-                                : FontWeight.normal,
-                          ),
+                        title: Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                model.displayName,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontWeight: isSelected
+                                      ? FontWeight.bold
+                                      : FontWeight.normal,
+                                ),
+                              ),
+                            ),
+                            if (model.recommendedDefault) ...[
+                              const SizedBox(width: 6),
+                              Icon(Icons.star,
+                                  size: 14, color: Colors.green.shade600),
+                            ],
+                          ],
                         ),
                         subtitle: Text(
                             '${model.size} • ${model.backend} • ${model.quantization.isEmpty ? "f16" : model.quantization}'),
@@ -1071,6 +1101,26 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
               ),
             ),
         ],
+      ),
+    );
+  }
+
+  /// §5.4 — top-of-list prompt to fetch a backend's recommended default
+  /// when nothing for it is downloaded yet. Tapping reuses the standard
+  /// download-confirm flow (whose companion co-download makes it a
+  /// complete, runnable setup).
+  Widget _buildRecommendedBanner(ModelInfo model) {
+    final l = AppLocalizations.of(context);
+    return Container(
+      color: Colors.green.shade50,
+      child: ListTile(
+        dense: true,
+        leading: Icon(Icons.recommend, color: Colors.green.shade700),
+        title: Text(l.transcribeNoBackendModelHint(_backendFilter)),
+        subtitle:
+            Text(l.transcribeDownloadRecommended(model.displayName, model.size)),
+        trailing: const Icon(Icons.download, size: 20),
+        onTap: () => _selectModelWithDownloadPrompt(model),
       ),
     );
   }

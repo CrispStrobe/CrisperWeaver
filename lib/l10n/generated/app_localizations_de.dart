@@ -2756,6 +2756,19 @@ class AppLocalizationsDe extends AppLocalizations {
   }
 
   @override
+  String get modelsRecommendedBadge => 'Empfohlen';
+
+  @override
+  String transcribeNoBackendModelHint(String backend) {
+    return 'Noch kein $backend-Modell heruntergeladen.';
+  }
+
+  @override
+  String transcribeDownloadRecommended(String name, String size) {
+    return 'Empfohlenes laden: $name ($size)';
+  }
+
+  @override
   String synthDownloadingNamed(String name) {
     return '$name wird heruntergeladen…';
   }

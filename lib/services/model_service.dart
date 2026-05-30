@@ -1834,6 +1834,61 @@ class ModelService {
     ),
   };
 
+  /// PLAN §5.4 — the "smallest functional default" model per backend
+  /// (CrispASR's `-m auto` parity). Keyed by backend id → the catalogue
+  /// `name` of the entry that backend should start from. A Map keeps the
+  /// "at most one default per backend" invariant *structural* — keys are
+  /// unique, so two defaults can't slip in for the same backend.
+  ///
+  /// Only the user-facing ASR / TTS / chat entry points are flagged —
+  /// the model a fresh user actually picks first. Pure companions
+  /// (codecs, tokenizers, voicepacks, BigVGAN), post-processors,
+  /// VAD / LID / diarisation / translation helpers are deliberately
+  /// absent: [defaultForBackend] returns `null` for them and every
+  /// caller degrades gracefully. Each referenced name must resolve via
+  /// [lookupDefinition] to a def whose `backend` equals the key — the
+  /// `model_recommended_default_test.dart` guard enforces both.
+  static const Map<String, String> recommendedDefaultModels = {
+    // ASR
+    'whisper': 'base',
+    'parakeet': 'parakeet-tdt-0.6b-v3-q4_k',
+    'canary': 'canary-1b-v2-q5_0',
+    'voxtral': 'voxtral-mini-3b-2507-q4_k',
+    'voxtral4b': 'voxtral-mini-4b-realtime-q4_k',
+    'qwen3': 'qwen3-asr-0.6b-q4_k',
+    'mega-asr': 'mega-asr-1.7b-q4_k',
+    'omniasr-llm': 'omniasr-llm-300m-v2-q4_k',
+    'omniasr-llm-unlimited': 'omniasr-llm-unlimited-q4_k',
+    'funasr': 'funasr-nano-2512-q4_k',
+    'paraformer': 'paraformer-zh-q4_k',
+    'sensevoice': 'sensevoice-small-q4_k',
+    'firered-asr': 'firered-asr2-aed-q4_k',
+    'kyutai-stt': 'kyutai-stt-1b-q4_k',
+    'glm-asr': 'glm-asr-nano-q4_k',
+    'moonshine': 'moonshine-tiny-q4_k',
+    'moonshine-streaming': 'moonshine-streaming-tiny-q4_k',
+    'vibevoice': 'vibevoice-asr-q4_k',
+    'mimo-asr': 'mimo-asr-q4_k',
+    'granite-4.1': 'granite-speech-4.1-2b-q4_k',
+    'granite-4.1-plus': 'granite-speech-4.1-plus-q4_k',
+    'granite-4.1-nar': 'granite-speech-4.1-nar-q4_k',
+    'gemma4-e2b': 'gemma4-e2b-q4_k',
+    // TTS
+    'kokoro': 'kokoro-82m-q8_0',
+    'vibevoice-tts': 'vibevoice-realtime-0.5b-tts-f16',
+    'qwen3-tts': 'qwen3-tts-12hz-0.6b-base-q8_0',
+    'orpheus': 'orpheus-3b-base-q8_0',
+    'voxcpm2-tts': 'voxcpm2-q4_k',
+    'piper': 'piper-en-cori',
+    'cosyvoice3-tts': 'cosyvoice3-llm-q4_k',
+    'chatterbox': 'chatterbox-en-q8_0',
+    'indextts': 'indextts-q8_0',
+    // Text translation (Translate screen entry points)
+    'm2m100': 'm2m100-418m-q4_k',
+    // Chat LLM (Tidy / Summarize)
+    'chat': 'smollm2-360m-instruct-q4_k_m',
+  };
+
   /// Multilingual TTS voicepack catalog. Generated from the HF repos
   /// `cstr/vibevoice-realtime-0.5b-GGUF` (26 voices: en/de/fr/it/jp/kr/
   /// nl/pl/pt/sp/in) and `cstr/kokoro-voices-GGUF` (7 voices: en/de/es/
@@ -2720,6 +2775,7 @@ class ModelService {
         backend: modelDef.backend,
         kind: modelDef.kind,
         languages: modelDef.languages,
+        recommendedDefault: isRecommendedDefault(modelDef.name),
       ));
     }
 
@@ -2763,6 +2819,7 @@ class ModelService {
         backend: modelDef.backend,
         kind: modelDef.kind,
         languages: modelDef.languages,
+        recommendedDefault: isRecommendedDefault(modelDef.name),
       ));
     }
 
@@ -2779,6 +2836,24 @@ class ModelService {
         _ttsVoicepacks[name] ??
         bakedDiscoveredModels[name];
   }
+
+  /// PLAN §5.4 — the recommended "start here" model for [backend], or
+  /// `null` when the backend has no curated default (companions,
+  /// post-processors, etc.). Resolves the [recommendedDefaultModels]
+  /// pointer through [lookupDefinition] so callers get the full
+  /// definition (with `companions`, size, url) ready for
+  /// `downloadWhisperCppModel` — whose existing companion co-download
+  /// makes the one-tap fetch a complete, runnable setup.
+  ModelDefinition? defaultForBackend(String backend) {
+    final name = recommendedDefaultModels[backend];
+    if (name == null) return null;
+    return lookupDefinition(name);
+  }
+
+  /// Whether [name] is the recommended default for its backend — drives
+  /// the "Recommended" badge in the model pickers.
+  static bool isRecommendedDefault(String name) =>
+      recommendedDefaultModels.containsValue(name);
 
   /// Resolve the language-picker codes for [def]. Single source of truth
   /// used by the Transcribe screen's language dropdown AND the
@@ -4152,6 +4227,11 @@ class ModelInfo {
   /// Filled in by the UI based on engine capability probing.
   final String? runtimeStatus;
 
+  /// PLAN §5.4 — true when this is the recommended "start here" model
+  /// for its backend (see [ModelService.recommendedDefaultModels]).
+  /// Drives the "Recommended" badge in the model pickers.
+  final bool recommendedDefault;
+
   const ModelInfo({
     required this.name,
     required this.displayName,
@@ -4166,6 +4246,7 @@ class ModelInfo {
     this.kind = ModelKind.asr,
     this.languages = const [],
     this.runtimeStatus,
+    this.recommendedDefault = false,
   });
 
   /// Same filter helper as [ModelDefinition.matchesLanguage] — kept on

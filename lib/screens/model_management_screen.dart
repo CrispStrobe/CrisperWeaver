@@ -657,6 +657,24 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
                   ),
                 ),
               ),
+            if (model.recommendedDefault) ...[
+              const SizedBox(width: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade100,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  AppLocalizations.of(context).modelsRecommendedBadge,
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green.shade900,
+                  ),
+                ),
+              ),
+            ],
             const SizedBox(width: 4),
             if (model.quantization.isNotEmpty && model.quantization != 'f16')
               Container(

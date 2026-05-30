@@ -1108,6 +1108,12 @@
   "enrollFailedReason": "Enrollment failed: {error}",
   "@enrollFailedReason": {"placeholders": {"error": {"type": "String"}}},
 
+  "modelsRecommendedBadge": "Recommended",
+  "transcribeNoBackendModelHint": "No {backend} model downloaded yet.",
+  "@transcribeNoBackendModelHint": {"placeholders": {"backend": {"type": "String"}}},
+  "transcribeDownloadRecommended": "Download recommended: {name} ({size})",
+  "@transcribeDownloadRecommended": {"placeholders": {"name": {"type": "String"}, "size": {"type": "String"}}},
+
   "synthDownloadingNamed": "Downloading {name}…",
   "@synthDownloadingNamed": {"placeholders": {"name": {"type": "String"}}},
   "synthDownloadFailedShort": "Download of {name} failed",

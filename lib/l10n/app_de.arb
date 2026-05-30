@@ -1106,6 +1106,12 @@
   "enrollFailedReason": "Anlegen fehlgeschlagen: {error}",
   "@enrollFailedReason": {"placeholders": {"error": {"type": "String"}}},
 
+  "modelsRecommendedBadge": "Empfohlen",
+  "transcribeNoBackendModelHint": "Noch kein {backend}-Modell heruntergeladen.",
+  "@transcribeNoBackendModelHint": {"placeholders": {"backend": {"type": "String"}}},
+  "transcribeDownloadRecommended": "Empfohlenes laden: {name} ({size})",
+  "@transcribeDownloadRecommended": {"placeholders": {"name": {"type": "String"}, "size": {"type": "String"}}},
+
   "synthDownloadingNamed": "{name} wird heruntergeladen…",
   "@synthDownloadingNamed": {"placeholders": {"name": {"type": "String"}}},
   "synthDownloadFailedShort": "Download von {name} fehlgeschlagen",
