@@ -3,12 +3,17 @@
 Notable user-facing changes per release. Full diff per version on
 the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases).
 
-## Unreleased
+## 0.6.46 — 2026-05-30
 
 - **Cleanup** — removed a dead "Export" entry from the transcript output
   overflow menu that only ever showed a "not implemented" dialog. Export
   is unaffected: the transcript Save/Share menu (plain text / SRT / VTT /
   JSON / audio bundle) remains the single working path.
+- **Dependency refresh** — in-constraint bumps of 25 packages
+  (desktop_drop, go_router, permission_handler, record, build_runner,
+  json_serializable, and transitives). No behaviour change; major
+  upgrades (device_info_plus 13, share_plus 13, riverpod 3, …) remain
+  deferred pending migration.
 
 ## 0.6.45 — 2026-05-30
 
