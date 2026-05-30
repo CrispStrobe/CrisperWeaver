@@ -1115,6 +1115,25 @@ class AppLocalizationsEn extends AppLocalizations {
   String get modelsReloadLocal => 'Reload local state';
 
   @override
+  String get modelsQuickStartTooltip => 'Quick start';
+
+  @override
+  String get quickStartTitle => 'Quick start';
+
+  @override
+  String get quickStartSubtitle =>
+      'Grab a small starter set — transcribe, synthesise speech, and tidy up text — in one tap.';
+
+  @override
+  String get quickStartDownloadAll => 'Download all missing';
+
+  @override
+  String get quickStartInstalled => 'Installed';
+
+  @override
+  String get quickStartAllInstalled => 'All starter models are installed.';
+
+  @override
   String get modelsProbedCountZero =>
       'No new quants discovered on HuggingFace.';
 

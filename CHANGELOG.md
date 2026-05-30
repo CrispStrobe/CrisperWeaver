@@ -5,6 +5,10 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 
 ## 0.6.48 — 2026-05-30
 
+- **Quick start** — Model Management has a new 🚀 action that opens a
+  one-tap starter sheet: a small curated set (Whisper base for transcription,
+  Kokoro for speech synthesis, a compact chat LLM for Tidy/Summarize) you can
+  grab individually or all at once. Companions download automatically.
 - **Detect transcript language** — the transcript output menu (⋮) now has a
   **Detect language** action that runs the on-device CLD3 text language-ID
   model over the transcript and reports the detected language, outside the

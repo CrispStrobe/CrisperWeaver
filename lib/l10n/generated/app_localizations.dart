@@ -1982,6 +1982,42 @@ abstract class AppLocalizations {
   /// **'Reload local state'**
   String get modelsReloadLocal;
 
+  /// No description provided for @modelsQuickStartTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Quick start'**
+  String get modelsQuickStartTooltip;
+
+  /// No description provided for @quickStartTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Quick start'**
+  String get quickStartTitle;
+
+  /// No description provided for @quickStartSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Grab a small starter set — transcribe, synthesise speech, and tidy up text — in one tap.'**
+  String get quickStartSubtitle;
+
+  /// No description provided for @quickStartDownloadAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Download all missing'**
+  String get quickStartDownloadAll;
+
+  /// No description provided for @quickStartInstalled.
+  ///
+  /// In en, this message translates to:
+  /// **'Installed'**
+  String get quickStartInstalled;
+
+  /// No description provided for @quickStartAllInstalled.
+  ///
+  /// In en, this message translates to:
+  /// **'All starter models are installed.'**
+  String get quickStartAllInstalled;
+
   /// No description provided for @modelsProbedCountZero.
   ///
   /// In en, this message translates to:

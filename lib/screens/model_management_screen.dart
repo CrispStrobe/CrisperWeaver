@@ -300,6 +300,12 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
       appBar: AppBar(
         title: Text(AppLocalizations.of(context).modelsTitle),
         actions: [
+          // §5.8(b) — one-tap curated starter set (ASR + TTS + chat-LLM).
+          IconButton(
+            icon: const Icon(Icons.rocket_launch_outlined),
+            tooltip: AppLocalizations.of(context).modelsQuickStartTooltip,
+            onPressed: (_downloadingModel != null) ? null : _showQuickStartSheet,
+          ),
           IconButton(
             icon: _probing
                 ? const SizedBox(
@@ -769,6 +775,113 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
         ],
       ),
     );
+  }
+
+  /// §5.8(b) — curated starter set spanning the app's three pillars:
+  /// transcribe (Whisper base), synthesise (Kokoro TTS) and tidy/summarise
+  /// (a small chat LLM). Curation lives in one place
+  /// (ModelService.recommendedDefaultModels) and is resolved here via
+  /// defaultForBackend, so this stays a pure consumer.
+  static const _quickStartBackends = <String>['whisper', 'kokoro', 'chat'];
+
+  IconData _quickStartIcon(ModelKind kind) {
+    switch (kind) {
+      case ModelKind.tts:
+        return Icons.record_voice_over_outlined;
+      case ModelKind.chatLlm:
+        return Icons.smart_toy_outlined;
+      default:
+        return Icons.mic_none;
+    }
+  }
+
+  void _showQuickStartSheet() {
+    final modelService = ref.read(modelServiceProvider);
+    // Resolve curated defaults to the already-loaded ModelInfo rows so we
+    // get live isDownloaded + size. Skip any backend with no curated
+    // default or no matching row.
+    final items = <ModelInfo>[];
+    for (final backend in _quickStartBackends) {
+      final def = modelService.defaultForBackend(backend);
+      if (def == null) continue;
+      for (final m in _whisperModels) {
+        if (m.name == def.name) {
+          items.add(m);
+          break;
+        }
+      }
+    }
+    if (items.isEmpty) return;
+    final l10n = AppLocalizations.of(context);
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetCtx) {
+        final missing = items.where((m) => !m.isDownloaded).toList();
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(l10n.quickStartTitle,
+                    style: Theme.of(sheetCtx).textTheme.titleLarge),
+                const SizedBox(height: 4),
+                Text(l10n.quickStartSubtitle,
+                    style: Theme.of(sheetCtx).textTheme.bodyMedium),
+                const SizedBox(height: 12),
+                for (final m in items)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(_quickStartIcon(m.kind)),
+                    title: Text(m.displayName,
+                        maxLines: 1, overflow: TextOverflow.ellipsis),
+                    subtitle: Text(m.size),
+                    trailing: m.isDownloaded
+                        ? Chip(
+                            visualDensity: VisualDensity.compact,
+                            avatar: const Icon(Icons.check, size: 16),
+                            label: Text(l10n.quickStartInstalled),
+                          )
+                        : IconButton(
+                            icon: const Icon(Icons.download),
+                            onPressed: () {
+                              Navigator.of(sheetCtx).pop();
+                              _downloadModel(m);
+                            },
+                          ),
+                  ),
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: missing.isEmpty
+                      ? Text(l10n.quickStartAllInstalled,
+                          style: Theme.of(sheetCtx).textTheme.bodySmall)
+                      : FilledButton.icon(
+                          icon: const Icon(Icons.download),
+                          label: Text(l10n.quickStartDownloadAll),
+                          onPressed: () {
+                            Navigator.of(sheetCtx).pop();
+                            _downloadMany(missing);
+                          },
+                        ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  /// Fetch several starter models sequentially, reusing the single-model
+  /// path so progress + error handling stay identical.
+  Future<void> _downloadMany(List<ModelInfo> models) async {
+    for (final m in models) {
+      if (!mounted) return;
+      await _downloadModel(m);
+    }
   }
 
   Future<void> _downloadModel(ModelInfo model) async {

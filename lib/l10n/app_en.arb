@@ -492,6 +492,12 @@
   "modelNoMatch": "No models match this filter.",
   "modelsRefreshFromHf": "Refresh quants from HuggingFace",
   "modelsReloadLocal": "Reload local state",
+  "modelsQuickStartTooltip": "Quick start",
+  "quickStartTitle": "Quick start",
+  "quickStartSubtitle": "Grab a small starter set — transcribe, synthesise speech, and tidy up text — in one tap.",
+  "quickStartDownloadAll": "Download all missing",
+  "quickStartInstalled": "Installed",
+  "quickStartAllInstalled": "All starter models are installed.",
   "modelsProbedCountZero": "No new quants discovered on HuggingFace.",
   "modelsProbedCount": "Discovered {count} new quant variant{plural}.",
   "@modelsProbedCount": {

@@ -1124,6 +1124,25 @@ class AppLocalizationsDe extends AppLocalizations {
   String get modelsReloadLocal => 'Lokalen Zustand neu laden';
 
   @override
+  String get modelsQuickStartTooltip => 'Schnellstart';
+
+  @override
+  String get quickStartTitle => 'Schnellstart';
+
+  @override
+  String get quickStartSubtitle =>
+      'Hol dir mit einem Tippen ein kleines Startpaket – transkribieren, Sprache erzeugen und Text aufräumen.';
+
+  @override
+  String get quickStartDownloadAll => 'Alle fehlenden laden';
+
+  @override
+  String get quickStartInstalled => 'Installiert';
+
+  @override
+  String get quickStartAllInstalled => 'Alle Startmodelle sind installiert.';
+
+  @override
   String get modelsProbedCountZero =>
       'Keine neuen Quants auf HuggingFace gefunden.';
 

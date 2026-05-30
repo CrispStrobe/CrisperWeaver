@@ -490,6 +490,12 @@
   "modelNoMatch": "Keine Modelle entsprechen diesem Filter.",
   "modelsRefreshFromHf": "Quants von HuggingFace aktualisieren",
   "modelsReloadLocal": "Lokalen Zustand neu laden",
+  "modelsQuickStartTooltip": "Schnellstart",
+  "quickStartTitle": "Schnellstart",
+  "quickStartSubtitle": "Hol dir mit einem Tippen ein kleines Startpaket – transkribieren, Sprache erzeugen und Text aufräumen.",
+  "quickStartDownloadAll": "Alle fehlenden laden",
+  "quickStartInstalled": "Installiert",
+  "quickStartAllInstalled": "Alle Startmodelle sind installiert.",
   "modelsProbedCountZero": "Keine neuen Quants auf HuggingFace gefunden.",
   "modelsProbedCount": "{count} neue Quant-Variante{plural} gefunden.",
   "@modelsProbedCount": {
