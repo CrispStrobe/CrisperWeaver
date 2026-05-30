@@ -2414,6 +2414,12 @@ abstract class AppLocalizations {
   /// **'Summarize…'**
   String get outputSummarize;
 
+  /// No description provided for @outputDetectLanguage.
+  ///
+  /// In en, this message translates to:
+  /// **'Detect language'**
+  String get outputDetectLanguage;
+
   /// No description provided for @outputSummarizeTitle.
   ///
   /// In en, this message translates to:

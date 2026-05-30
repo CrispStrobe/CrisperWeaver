@@ -15,7 +15,11 @@ import '../services/log_service.dart';
 import '../services/speaker_id_service.dart';
 import '../l10n/generated/app_localizations.dart';
 import '../main.dart'
-    show appStateProvider, historyServiceProvider, selectedAudioPathProvider;
+    show
+        appStateProvider,
+        historyServiceProvider,
+        modelServiceProvider,
+        selectedAudioPathProvider;
 import '../services/cloud_llm_cleanup_service.dart';
 import '../services/history_service.dart';
 import '../services/local_llm_cleanup_service.dart';
@@ -222,6 +226,17 @@ class _TranscriptionOutputWidgetState
                       leading: const Icon(Icons.summarize_outlined),
                       title:
                           Text(AppLocalizations.of(context).outputSummarize),
+                      dense: true,
+                    ),
+                  ),
+                  // §5.24-F — label the transcript's language via the CLD3
+                  // text-LID model, outside the Translate flow.
+                  PopupMenuItem(
+                    value: 'detect_language',
+                    child: ListTile(
+                      leading: const Icon(Icons.translate_outlined),
+                      title: Text(
+                          AppLocalizations.of(context).outputDetectLanguage),
                       dense: true,
                     ),
                   ),
@@ -750,7 +765,56 @@ class _TranscriptionOutputWidgetState
       case 'summarize':
         _openSummarizeDialog();
         break;
+      case 'detect_language':
+        _detectTranscriptLanguage();
+        break;
     }
+  }
+
+  /// §5.24-F — run CLD3 text-LID over the current transcript and report
+  /// the detected language. A niche, on-demand path (mirrors the Translate
+  /// screen's auto-detect), so the transient result messages stay inline
+  /// English rather than going through the ARB tables; only the menu label
+  /// is localized. Needs the cld3-f16 model downloaded.
+  Future<void> _detectTranscriptLanguage() async {
+    final text = (widget.currentTranscription ??
+            widget.segments.map((s) => s.text).join(' '))
+        .trim();
+    if (text.isEmpty) return;
+    final modelService = ref.read(modelServiceProvider);
+    final cld3Path = await modelService.getWhisperCppModelPath('cld3-f16');
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    if (cld3Path == null) {
+      messenger.showSnackBar(SnackBar(
+        content: const Text(
+            'Download the CLD3 text language-ID model to detect the language.'),
+        action: SnackBarAction(
+          label: 'Models',
+          onPressed: () {
+            if (mounted) context.push('/models');
+          },
+        ),
+      ));
+      return;
+    }
+    crispasr.TextLanguage? result;
+    try {
+      result = crispasr.detectTextLanguage(text, cld3Path);
+    } catch (e, st) {
+      Log.instance.w('output', 'text-LID failed', error: e, stack: st);
+    }
+    if (!mounted) return;
+    if (result == null) {
+      messenger.showSnackBar(
+          const SnackBar(content: Text("Couldn't detect the language.")));
+      return;
+    }
+    final pct = (result.confidence * 100).round();
+    messenger.showSnackBar(SnackBar(
+      content: Text('Detected language: ${result.code} ($pct%)'),
+      duration: const Duration(seconds: 3),
+    ));
   }
 
   void _handleSegmentAction(String action, TranscriptionSegment segment) {

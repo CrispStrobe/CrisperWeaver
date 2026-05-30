@@ -605,6 +605,7 @@
   },
   "presetsDeleteTooltip": "Löschen",
   "outputSummarize": "Zusammenfassen…",
+  "outputDetectLanguage": "Sprache erkennen",
   "outputSummarizeTitle": "Transkript zusammenfassen",
   "outputSummarizeHelp": "Sendet das Transkript an {model} und fordert eine strukturierte Zusammenfassung an. Ausgabe als Markdown-Aufzählungslisten.",
   "@outputSummarizeHelp": {

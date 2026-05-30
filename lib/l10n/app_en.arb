@@ -610,6 +610,7 @@
   },
   "presetsDeleteTooltip": "Delete",
   "outputSummarize": "Summarize…",
+  "outputDetectLanguage": "Detect language",
   "outputSummarizeTitle": "Summarize transcript",
   "outputSummarizeHelp": "Sends the transcript to {model} and asks for a structured summary. Output is Markdown-formatted bullet lists.",
   "@outputSummarizeHelp": {

@@ -3,6 +3,13 @@
 Notable user-facing changes per release. Full diff per version on
 the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases).
 
+## 0.6.48 — 2026-05-30
+
+- **Detect transcript language** — the transcript output menu (⋮) now has a
+  **Detect language** action that runs the on-device CLD3 text language-ID
+  model over the transcript and reports the detected language, outside the
+  Translate flow. Prompts to download CLD3 if it isn't present.
+
 ## 0.6.47 — 2026-05-30
 
 - **Fix (#16) — Piper TTS no longer crashes the app.** Tapping Synthesize

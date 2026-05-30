@@ -1370,6 +1370,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get outputSummarize => 'Summarize…';
 
   @override
+  String get outputDetectLanguage => 'Detect language';
+
+  @override
   String get outputSummarizeTitle => 'Summarize transcript';
 
   @override

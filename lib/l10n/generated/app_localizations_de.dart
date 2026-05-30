@@ -1384,6 +1384,9 @@ class AppLocalizationsDe extends AppLocalizations {
   String get outputSummarize => 'Zusammenfassen…';
 
   @override
+  String get outputDetectLanguage => 'Sprache erkennen';
+
+  @override
   String get outputSummarizeTitle => 'Transkript zusammenfassen';
 
   @override
