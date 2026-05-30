@@ -5,6 +5,10 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 
 ## 0.6.46 — 2026-05-30
 
+- **Fix (alt-token picker)** — picking an alternative candidate for a
+  word now swaps that whole word only. Previously it replaced the first
+  substring match, so picking the alt for e.g. "cat" could rewrite
+  inside an earlier "category".
 - **Cleanup** — removed a dead "Export" entry from the transcript output
   overflow menu that only ever showed a "not implemented" dialog. Export
   is unaffected: the transcript Save/Share menu (plain text / SRT / VTT /
