@@ -428,9 +428,12 @@ completeness — May 2026"](HISTORY.md). What's still pending:
     at-most-one-per-backend; `defaultForBackend` / `isRecommended
     Default` behaviour incl. `null` for unflagged backends.
 
-  Remaining: **(b) Quick-start bottom-sheet** — a pure consumer of
-  `defaultForBackend` across a curated starter set; build only if
-  onboarding feedback asks for it.
+  ~~Remaining: **(b) Quick-start bottom-sheet**~~ — **shipped May 2026
+  (v0.6.48)**. A 🚀 action on the Model Management AppBar opens a
+  bottom sheet with a curated starter set (Whisper base / Kokoro /
+  small chat-LLM), resolved through `defaultForBackend` (curation
+  stays in `recommendedDefaultModels`), with per-item + one-tap
+  "download all". Reuses the companion-aware `_downloadModel` path.
 
   *Why (a) first.* `-m auto`'s real semantic is "load the smallest
   functional model for backend X, fetching it if absent." The data
@@ -593,6 +596,12 @@ crispasr-use-worktree memory).
   `pending` once a rebuilt libcrispasr lists `piper` in
   `CrispasrSession.availableBackends()`. Until then, removing it would red
   the guard.
+  - **Runtime guard added (v0.6.48, issue #16):** tapping Synthesize with
+    a piper voice used to crash the app — `CrispasrSession.open(backend:
+    'piper')` segfaults natively on a dylib that can't dispatch it.
+    `TtsService.prepare()` now checks `availableBackends()` and returns
+    `TtsLoadStatus.unsupported` (clear message) before the native open;
+    it self-heals once a rebuilt dylib lists the backend.
 
 **B. cosyvoice3 catalogue — ✅ DONE.** The sibling landed the session
 dispatch (CrispASR `36133247`); catalogued app-side: `cosyvoice3-llm-q4_k`
@@ -683,9 +692,29 @@ a CrisperWeaver feature, not the runtime.
   language* button runs `detectTextLanguage` over the typed text and sets
   the source-language dropdown, prompting a CLD3 download if it isn't
   present (`translate_screen.dart`). `LidService` stays audio-only; this
-  is a parallel text path. Still open as a future idea: labelling a
-  pasted transcript's language outside the Translate flow.
+  is a parallel text path. ~~Still open as a future idea: labelling a
+  pasted transcript's language outside the Translate flow.~~ —
+  **shipped May 2026 (v0.6.48)**: a "Detect language" action on the
+  transcript output overflow menu runs `detectTextLanguage` over the
+  current transcript and reports the language + confidence.
 Both now have tracked `hf_readmes/` cards (added this session).
+
+**G. User-reported TTS bug batch (GitHub #16/#17/#18) — ✅ fixed
+(v0.6.47/0.6.48), on-device confirm pending.**
+- **#16 piper crash (Android & Windows)** — see A: `TtsService.prepare()`
+  now gates non-dispatchable backends via `availableBackends()` before the
+  native open. *Native no-crash behaviour still wants an on-device run.*
+- **#17 qwen3-tts CustomVoice = silence** — CustomVoice needs a
+  `setSpeakerName()`; the Synthesize screen had no speaker picker so
+  `_selectedSpeaker` was always null. Added a **Speaker** dropdown
+  (`session.speakers()`), auto-selecting the first, + a fallback auto-pick
+  in `_synthesize`. *Audio output still wants an on-device run.*
+- **#18 TTS models hidden until deep refresh** — qwen3-tts custom-voice +
+  chatterbox turbo T3 added to the static catalogue; the bake script was
+  also synced with `backendRepos` (35→63 repos, 206 entries) so all
+  drifted models list on a fresh launch. Fully verified by the catalogue
+  tests. Re-run `scripts/bake_models_catalog.dart` whenever a `BackendRepo`
+  is added — the script's `_repos` list is now in sync.
 
 ---
 
