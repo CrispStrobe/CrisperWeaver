@@ -708,7 +708,13 @@ Both now have tracked `hf_readmes/` cards (added this session).
   `setSpeakerName()`; the Synthesize screen had no speaker picker so
   `_selectedSpeaker` was always null. Added a **Speaker** dropdown
   (`session.speakers()`), auto-selecting the first, + a fallback auto-pick
-  in `_synthesize`. *Audio output still wants an on-device run.*
+  in `_synthesize`. The selection decision was extracted to a pure static
+  `SynthesizeScreen.resolveSpeakerSelection(speakers, current)` (empty→null,
+  preserve a still-valid choice, else first) and is now locked by 4 unit
+  tests in `test/tts_issue_fixes_test.dart` — the picker's *rendering* still
+  sits behind a synchronous FFI session open, so it needs a real
+  libcrispasr / on-device run; the *selection contract* no longer does.
+  *Audio output still wants an on-device run.*
 - **#18 TTS models hidden until deep refresh** — qwen3-tts custom-voice +
   chatterbox turbo T3 added to the static catalogue; the bake script was
   also synced with `backendRepos` (35→63 repos, 206 entries) so all

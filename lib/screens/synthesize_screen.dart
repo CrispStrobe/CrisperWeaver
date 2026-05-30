@@ -34,6 +34,22 @@ class SynthesizeScreen extends ConsumerStatefulWidget {
   final String? initialVoiceWavPath;
   final String? initialRefText;
 
+  /// #17 — decide which preset speaker should be selected given the
+  /// freshly-enumerated [speakers] and the [current] selection:
+  ///   * empty list → `null` (the backend has no preset-speaker contract);
+  ///   * a still-valid [current] choice is preserved across re-enumeration;
+  ///   * otherwise auto-pick the first, so a one-tap synth Just Works and
+  ///     CustomVoice never synthesises silence for want of a speaker.
+  /// Pure + static so the selection contract is unit-testable without
+  /// opening an FFI session (mirrors
+  /// [TranscriptionOutputWidget.replaceFirstWholeWord]).
+  static String? resolveSpeakerSelection(
+      List<String> speakers, String? current) {
+    if (speakers.isEmpty) return null;
+    if (current != null && speakers.contains(current)) return current;
+    return speakers.first;
+  }
+
   @override
   ConsumerState<SynthesizeScreen> createState() => _SynthesizeScreenState();
 }
@@ -269,12 +285,8 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
         _presetSpeakers = speakers;
         // Auto-pick the first speaker so a one-tap synth Just Works;
         // preserve a still-valid prior choice across rebuilds.
-        if (speakers.isEmpty) {
-          _selectedSpeaker = null;
-        } else if (_selectedSpeaker == null ||
-            !speakers.contains(_selectedSpeaker)) {
-          _selectedSpeaker = speakers.first;
-        }
+        _selectedSpeaker =
+            SynthesizeScreen.resolveSpeakerSelection(speakers, _selectedSpeaker);
       });
     } catch (e, st) {
       Log.instance.w('synth', 'speaker enumeration failed',
