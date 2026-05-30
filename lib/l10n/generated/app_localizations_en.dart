@@ -433,10 +433,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get settingsHfTokenSubtitle =>
-      'Required for gated or private repositories.';
-
-  @override
   String get settingsLoading => 'Loading…';
 
   @override
@@ -809,6 +805,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsHfTokenTitle => 'Hugging Face API Token';
 
   @override
+  String get settingsHfTokenSubtitle =>
+      'Required for gated or private repositories.';
+
+  @override
   String get settingsHfTokenSave => 'SAVE';
 
   @override
@@ -945,18 +945,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get logsCopyVisible => 'Copy visible';
-
-  @override
-  String get logsCopyAll => 'Copy all';
-
-  @override
-  String get logsExport => 'Export to file';
-
-  @override
-  String get logsShare => 'Share as file';
-
-  @override
   String get diarizationAuto => 'Auto';
 
   @override
@@ -1042,6 +1030,18 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get logsFilterHint => 'Filter by message, tag, or error…';
+
+  @override
+  String get logsCopyVisible => 'Copy visible';
+
+  @override
+  String get logsCopyAll => 'Copy all';
+
+  @override
+  String get logsExport => 'Export to file';
+
+  @override
+  String get logsShare => 'Share as file';
 
   @override
   String get modelsTitle => 'Model management';
@@ -2549,4 +2549,209 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get synthClearPhonemeCacheUnsupported =>
       'This backend doesn\'t use a phoneme cache (or the open session is too old).';
+
+  @override
+  String modelsLoadFailed(String error) {
+    return 'Failed to load models: $error';
+  }
+
+  @override
+  String modelsProbeFailed(String error) {
+    return 'HuggingFace probe failed: $error';
+  }
+
+  @override
+  String modelsSkippedRepos(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count private/gated repos',
+      one: '1 private/gated repo',
+    );
+    return ' Skipped $_temp0.';
+  }
+
+  @override
+  String get modelsHfRepoTitle => 'Add from HuggingFace repo';
+
+  @override
+  String get modelsHfRepoAddTooltip => 'Add from HuggingFace repo…';
+
+  @override
+  String get modelsHfReposManageTooltip => 'Manage added HuggingFace repos…';
+
+  @override
+  String get modelsHfRepoBody =>
+      'Paste a HuggingFace repo id like \"cstr/voxtral-mini-3b-2507-GGUF\". CrisperWeaver lists every .gguf / .bin file in the repo, registers each as a downloadable model under the backend you pick, and adds them to the models list.';
+
+  @override
+  String get modelsHfRepoIdLabel => 'Repo id (OWNER/NAME)';
+
+  @override
+  String get modelsHfRepoIdHint => 'e.g. cstr/voxtral-mini-3b-2507-GGUF';
+
+  @override
+  String get modelsHfRepoBackendLabel => 'Backend';
+
+  @override
+  String get modelsHfRepoBackendHelper => 'How the model should be loaded.';
+
+  @override
+  String get modelsHfRepoProbe => 'Probe';
+
+  @override
+  String modelsHfRepoNoneFound(String repo) {
+    return 'No .gguf / .bin files found in $repo.';
+  }
+
+  @override
+  String modelsHfRepoAdded(int count, String repo) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count models',
+      one: '1 model',
+    );
+    return 'Added $_temp0 from $repo.';
+  }
+
+  @override
+  String modelsHfRepoProbeFailed(String repo, String error) {
+    return 'Failed to probe $repo:\n$error';
+  }
+
+  @override
+  String get modelsHfReposTitle => 'Added HuggingFace repos';
+
+  @override
+  String get modelsHfReposEmpty =>
+      'No repos added yet. Use “Add from HuggingFace repo…” to register one — it will persist across restarts.';
+
+  @override
+  String modelsHfRepoBackendValue(String backend) {
+    return 'backend: $backend';
+  }
+
+  @override
+  String get modelsHfRepoForget => 'Forget this repo';
+
+  @override
+  String get modelsAnyLanguage => 'Any language';
+
+  @override
+  String get modelsCategoryEmpty =>
+      'No models in this category yet — try the cloud-refresh button or download one from another category first.';
+
+  @override
+  String get modelsFilterAll => 'All';
+
+  @override
+  String get modelsFilterAsr => 'ASR';
+
+  @override
+  String get modelsFilterTts => 'TTS';
+
+  @override
+  String get modelsFilterVoices => 'Voices';
+
+  @override
+  String get modelsFilterCodecs => 'Codecs';
+
+  @override
+  String get modelsFilterPostproc => 'Post-processors';
+
+  @override
+  String get modelsFilterTranslate => 'Translate';
+
+  @override
+  String get modelsFilterAllLangs => 'All langs';
+
+  @override
+  String modelsDownloadedOne(String name) {
+    return '$name downloaded';
+  }
+
+  @override
+  String modelsDownloadedMany(int count, String names) {
+    return '$count files downloaded: $names';
+  }
+
+  @override
+  String modelsDeletedNamed(String name) {
+    return '$name deleted';
+  }
+
+  @override
+  String modelsTotalSize(String size) {
+    return 'Total size: $size';
+  }
+
+  @override
+  String modelsDownloadFailedNamed(String name) {
+    return 'Failed to download $name';
+  }
+
+  @override
+  String modelsDownloadFailedReason(String error) {
+    return 'Download failed: $error';
+  }
+
+  @override
+  String modelsDeleteFailedNamed(String name) {
+    return 'Failed to delete $name';
+  }
+
+  @override
+  String modelsDeleteFailedReason(String error) {
+    return 'Delete failed: $error';
+  }
+
+  @override
+  String get enrollFromSegment => 'Enroll speaker from this segment…';
+
+  @override
+  String get enrollSpeakerTitle => 'Enroll speaker';
+
+  @override
+  String get enrollSpeakerNameLabel => 'Speaker name';
+
+  @override
+  String get enrollSpeakerNameHint => 'e.g. Alex';
+
+  @override
+  String get enrollAction => 'Enroll';
+
+  @override
+  String get enrollInProgress => 'Enrolling…';
+
+  @override
+  String get enrollNoAudio => 'Segment has no audio to enroll.';
+
+  @override
+  String enrollSucceeded(String name) {
+    return 'Enrolled \"$name\" — future recordings will be matched.';
+  }
+
+  @override
+  String get enrollFailedShort => 'Enrollment failed.';
+
+  @override
+  String enrollFailedReason(String error) {
+    return 'Enrollment failed: $error';
+  }
+
+  @override
+  String synthDownloadingNamed(String name) {
+    return 'Downloading $name…';
+  }
+
+  @override
+  String synthDownloadFailedShort(String name) {
+    return 'Download of $name failed';
+  }
+
+  @override
+  String synthDownloadFailedNamed(String name, String error) {
+    return 'Download of $name failed: $error';
+  }
 }

@@ -75,6 +75,7 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
   }
 
   Future<void> _loadModels() async {
+    final l10n = AppLocalizations.of(context);
     setState(() => _isLoading = true);
 
     try {
@@ -86,7 +87,7 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
       modelService.refreshFromCrispasrRegistry();
       _whisperModels = await modelService.getWhisperCppModels();
     } catch (e) {
-      _showErrorDialog('Failed to load models: $e');
+      _showErrorDialog(l10n.modelsLoadFailed(e.toString()));
     }
 
     setState(() => _isLoading = false);
@@ -95,20 +96,21 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
   bool _probing = false;
 
   Future<void> _probeHf() async {
+    final l10n = AppLocalizations.of(context);
     setState(() => _probing = true);
     try {
       final result =
           await ref.read(modelServiceProvider).refreshAvailableQuants();
       if (!mounted) return;
       final base = result.added == 0
-          ? 'No new quants discovered on HuggingFace.'
-          : 'Discovered ${result.added} new quant variant${result.added == 1 ? "" : "s"}.';
+          ? l10n.modelsProbedCountZero
+          : l10n.modelsProbedCount(
+              result.added, result.added == 1 ? '' : 's');
       // Surface gated / 401 repos so the user knows some sources
       // weren't reachable — historically this was silent and they
       // wondered why "we only see q4_k" for everything.
-      final detail = result.hasFailures
-          ? ' Skipped ${result.failedRepos.length} private/gated repo${result.failedRepos.length == 1 ? "" : "s"}.'
-          : '';
+      final detail =
+          result.hasFailures ? l10n.modelsSkippedRepos(result.failedRepos.length) : '';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('$base$detail'),
@@ -117,7 +119,7 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
       );
       await _loadModels();
     } catch (e) {
-      _showErrorDialog('HuggingFace probe failed: $e');
+      _showErrorDialog(l10n.modelsProbeFailed(e.toString()));
     } finally {
       if (mounted) setState(() => _probing = false);
     }
@@ -130,6 +132,7 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
   /// out of the box; this is the escape hatch for repos that aren't
   /// in [ModelService.backendRepos] yet.
   Future<void> _showAddHfRepoDialog() async {
+    final l10n = AppLocalizations.of(context);
     final repoController = TextEditingController();
     final allBackends = _safeAvailableBackends();
     final initialBackend =
@@ -140,34 +143,29 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
         String selectedBackend = initialBackend;
         return StatefulBuilder(
           builder: (ctx, setLocal) => AlertDialog(
-            title: const Text('Add from HuggingFace repo'),
+            title: Text(l10n.modelsHfRepoTitle),
             content: SizedBox(
               width: 480,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Paste a HuggingFace repo id like "cstr/voxtral-mini-3b-2507-GGUF". '
-                    'CrisperWeaver lists every .gguf / .bin file in the repo, registers '
-                    'each as a downloadable model under the backend you pick, and adds '
-                    'them to the models list.',
-                  ),
+                  Text(l10n.modelsHfRepoBody),
                   const SizedBox(height: 16),
                   TextField(
                     controller: repoController,
                     autofocus: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Repo id (OWNER/NAME)',
-                      hintText: 'e.g. cstr/voxtral-mini-3b-2507-GGUF',
+                    decoration: InputDecoration(
+                      labelText: l10n.modelsHfRepoIdLabel,
+                      hintText: l10n.modelsHfRepoIdHint,
                     ),
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
                     initialValue: selectedBackend,
-                    decoration: const InputDecoration(
-                      labelText: 'Backend',
-                      helperText: 'How the model should be loaded.',
+                    decoration: InputDecoration(
+                      labelText: l10n.modelsHfRepoBackendLabel,
+                      helperText: l10n.modelsHfRepoBackendHelper,
                     ),
                     items: [
                       for (final b in allBackends)
@@ -183,7 +181,7 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(ctx).pop(null),
-                child: const Text('Cancel'),
+                child: Text(l10n.cancel),
               ),
               FilledButton(
                 onPressed: () {
@@ -193,7 +191,7 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
                     _AddHfRepoForm(repoId: id, backend: selectedBackend),
                   );
                 },
-                child: const Text('Probe'),
+                child: Text(l10n.modelsHfRepoProbe),
               ),
             ],
           ),
@@ -210,14 +208,14 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
               );
       if (!mounted) return;
       final msg = added.isEmpty
-          ? 'No .gguf / .bin files found in ${result.repoId}.'
-          : 'Added ${added.length} model${added.length == 1 ? '' : 's'} from ${result.repoId}.';
+          ? l10n.modelsHfRepoNoneFound(result.repoId)
+          : l10n.modelsHfRepoAdded(added.length, result.repoId);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
       await _loadModels();
     } catch (e, st) {
       Log.instance.w('models', 'HF custom-repo probe failed', error: e, stack: st);
       if (!mounted) return;
-      _showErrorDialog('Failed to probe ${result.repoId}:\n$e');
+      _showErrorDialog(l10n.modelsHfRepoProbeFailed(result.repoId, e.toString()));
     } finally {
       if (mounted) setState(() => _probing = false);
     }
@@ -228,6 +226,7 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
   /// listings and the persisted entry; already-downloaded files on disk
   /// stay put (manage those from the model list itself).
   Future<void> _showManageHfReposDialog() async {
+    final l10n = AppLocalizations.of(context);
     final settings = ref.read(settingsServiceProvider);
     final modelService = ref.read(modelServiceProvider);
     final removed = await showDialog<bool>(
@@ -237,13 +236,11 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
         var didRemove = false;
         return StatefulBuilder(
           builder: (ctx, setLocal) => AlertDialog(
-            title: const Text('Added HuggingFace repos'),
+            title: Text(l10n.modelsHfReposTitle),
             content: SizedBox(
               width: 480,
               child: repos.isEmpty
-                  ? const Text(
-                      'No repos added yet. Use “Add from HuggingFace repo…” '
-                      'to register one — it will persist across restarts.')
+                  ? Text(l10n.modelsHfReposEmpty)
                   : Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -252,10 +249,11 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
                             dense: true,
                             contentPadding: EdgeInsets.zero,
                             title: Text(r['repoId'] ?? ''),
-                            subtitle: Text('backend: ${r['backend'] ?? ''}'),
+                            subtitle:
+                                Text(l10n.modelsHfRepoBackendValue(r['backend'] ?? '')),
                             trailing: IconButton(
                               icon: const Icon(Icons.delete_outline),
-                              tooltip: 'Forget this repo',
+                              tooltip: l10n.modelsHfRepoForget,
                               onPressed: () {
                                 modelService.removeUserHfRepo(
                                   repoId: r['repoId'] ?? '',
@@ -272,7 +270,7 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(ctx).pop(didRemove),
-                child: const Text('Close'),
+                child: Text(l10n.close),
               ),
             ],
           ),
@@ -315,12 +313,12 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.add_link),
-            tooltip: 'Add from HuggingFace repo…',
+            tooltip: AppLocalizations.of(context).modelsHfRepoAddTooltip,
             onPressed: _probing ? null : _showAddHfRepoDialog,
           ),
           IconButton(
             icon: const Icon(Icons.playlist_remove),
-            tooltip: 'Manage added HuggingFace repos…',
+            tooltip: AppLocalizations.of(context).modelsHfReposManageTooltip,
             onPressed: _probing ? null : _showManageHfReposDialog,
           ),
           IconButton(
@@ -384,8 +382,7 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
                   child: Padding(
                     padding: const EdgeInsets.all(24),
                     child: Text(
-                      'No models in this category yet — try the cloud-refresh '
-                      'button or download one from another category first.',
+                      AppLocalizations.of(context).modelsCategoryEmpty,
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
@@ -407,6 +404,7 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
   /// Filter chips: "All / ASR / TTS / Voices / Codecs / Post-processors".
   /// Counts in parens make it obvious which buckets are populated.
   Widget _buildKindFilterRow(List<ModelInfo> models) {
+    final l10n = AppLocalizations.of(context);
     int countOf(ModelKind? k) =>
         k == null ? models.length : models.where((m) => m.kind == k).length;
 
@@ -427,16 +425,16 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: Row(
         children: [
-          chip('All', null),
-          chip('ASR', ModelKind.asr),
-          chip('TTS', ModelKind.tts),
-          chip('Voices', ModelKind.voice),
-          chip('Codecs', ModelKind.codec),
-          chip('Post-processors', ModelKind.punc),
+          chip(l10n.modelsFilterAll, null),
+          chip(l10n.modelsFilterAsr, ModelKind.asr),
+          chip(l10n.modelsFilterTts, ModelKind.tts),
+          chip(l10n.modelsFilterVoices, ModelKind.voice),
+          chip(l10n.modelsFilterCodecs, ModelKind.codec),
+          chip(l10n.modelsFilterPostproc, ModelKind.punc),
           // Translate filter — surfaces M2M-100 / WMT21 / MADLAD-400
           // text-to-text models. Also reachable by deep-link from the
           // Translate screen's "Open Model Management" button.
-          chip('Translate', ModelKind.translate),
+          chip(l10n.modelsFilterTranslate, ModelKind.translate),
           // §5.1.6 v3.1 — chat-LLM catalogue. Localised string so
           // future families (additional non-ASR/TTS kinds) can
           // tag-along easily.
@@ -515,7 +513,9 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
           DropdownButton<String>(
             value: _languageFilter,
             items: [
-              const DropdownMenuItem(value: '', child: Text('Any language')),
+              DropdownMenuItem(
+                  value: '',
+                  child: Text(AppLocalizations.of(context).modelsAnyLanguage)),
               for (final entry in AppConstants.supportedLanguages.entries)
                 if (entry.key != 'auto')
                   DropdownMenuItem(
@@ -561,7 +561,8 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
       padding: const EdgeInsets.fromLTRB(8, 0, 8, 4),
       child: Row(
         children: [
-          chip('All langs', '', voices.length),
+          chip(AppLocalizations.of(context).modelsFilterAllLangs, '',
+              voices.length),
           for (final l in langs) chip(l, l, langCounts[l]!),
         ],
       ),
@@ -600,7 +601,7 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
                   Text(
-                    'Total size: $totalSize',
+                    AppLocalizations.of(context).modelsTotalSize(totalSize),
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: Colors.grey.shade600,
                         ),
@@ -753,6 +754,7 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
   }
 
   Future<void> _downloadModel(ModelInfo model) async {
+    final l10n = AppLocalizations.of(context);
     final modelService = ref.read(modelServiceProvider);
     // Build the download queue: the main model first, then any
     // companions it declares (TTS voicepacks, codec/tokenizer GGUFs,
@@ -794,19 +796,19 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
           },
         );
         if (!ok) {
-          _showErrorDialog('Failed to download ${item.displayName}');
+          _showErrorDialog(l10n.modelsDownloadFailedNamed(item.displayName));
           return;
         }
         fetched.add(item.displayName);
       }
       if (!mounted) return;
       final summary = fetched.length == 1
-          ? '${fetched.first} downloaded'
-          : '${fetched.length} files downloaded: ${fetched.join(", ")}';
+          ? l10n.modelsDownloadedOne(fetched.first)
+          : l10n.modelsDownloadedMany(fetched.length, fetched.join(', '));
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(summary)));
       await _loadModels();
     } catch (e) {
-      _showErrorDialog('Download failed: $e');
+      _showErrorDialog(l10n.modelsDownloadFailedReason(e.toString()));
     } finally {
       if (mounted) {
         setState(() {
@@ -818,6 +820,7 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
   }
 
   Future<void> _deleteModel(ModelInfo model) async {
+    final l10n = AppLocalizations.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -846,14 +849,14 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
       if (!mounted) return;
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${model.displayName} deleted')),
+          SnackBar(content: Text(l10n.modelsDeletedNamed(model.displayName))),
         );
         await _loadModels();
       } else {
-        _showErrorDialog('Failed to delete ${model.displayName}');
+        _showErrorDialog(l10n.modelsDeleteFailedNamed(model.displayName));
       }
     } catch (e) {
-      _showErrorDialog('Delete failed: $e');
+      _showErrorDialog(l10n.modelsDeleteFailedReason(e.toString()));
     }
   }
 

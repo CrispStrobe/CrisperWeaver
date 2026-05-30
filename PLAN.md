@@ -117,7 +117,7 @@ The same unified dispatcher is shared with the Python (`crispasr.Session`) and R
 | Language auto-detect (Whisper)             | ✅ via CrispASR 0.2.0 `crispasr_detect_language`                      |
 | VAD (Silero) — end to end                  | ✅ shipped in v0.1.7 via CrispASR 0.4.4 `crispasr_session_transcribe_vad`; single Advanced Options toggle, Silero GGUF bundled as asset, whisper + session paths both wired |
 | Streaming transcription (Whisper)          | ✅ via CrispASR 0.3.0 `crispasr_stream_*` — 10s window / 3s step       |
-| i18n (en + de)                             | ⚠️ Scaffold via `flutter_localizations` + `lib/l10n/*.arb`; main screens migrated, widgets + older Settings strings still hardcoded |
+| i18n (en + de)                             | ✅ `flutter_localizations` + `lib/l10n/*.arb` (756 keys each, full en/de parity). All screens + widgets migrated, including the Model Management HF-repo dialogs and the speaker-enroll flow (May 2026). Two paths stay deliberately inline (documented in-code): the Android-only "All files access" Settings dialog and the Translate auto-detect niche path — both carry an explicit "keep inline" rationale. |
 | Real speaker diarization (library API)     | ✅ via CrispASR 0.4.5 `crispasr_diarize_segments_abi` — `lib/services/diarization_service.dart` now calls the shared lib (energy / xcorr / vad-turns / pyannote). MFCC/k-means stopgap removed. |
 | Language auto-detect for non-Whisper backends | ✅ via CrispASR 0.4.6 `crispasr_detect_language_pcm` — `LidService` (`lib/services/lid_service.dart`) runs whisper-tiny LID before session backends when the user picks "auto" and any multilingual whisper model is downloaded. |
 | Word timestamps for LLM backends           | ✅ via CrispASR 0.4.7 `crispasr_align_words_abi` — `AlignerService` (`lib/services/aligner_service.dart`) runs canary-CTC / qwen3-fa as a post-step for qwen3 / voxtral / granite when the user has word-timestamps enabled and an aligner GGUF is on disk. |
@@ -395,15 +395,69 @@ completeness — May 2026"](HISTORY.md). What's still pending:
     flag with no wparams analog.
 
 * **Auto-download default** — CrispASR's `-m auto` per backend.
-  *Needs a design pass before becoming a dev task:* model catalog
-  has no `isDefault` flag, Model Management is per-quant not
-  per-backend, and "smallest functional default" varies wildly
-  (whisper-tiny standalone; parakeet has one variant; kokoro
-  needs a voicepack; voxtral-q4_k is gigabytes). Three plausible
-  shapes — (a) `recommendedDefault: true` flag + "Recommended"
-  badge, (b) "Quick start" AppBar bottom-sheet with curated
-  combo, (c) per-backend collapsible sections each with a
-  "Download default" header button. Pick one before implementing.
+  **Design pass done (May 2026) — ready to implement.** The three
+  shapes previously sketched were (a) `recommendedDefault: true`
+  flag + "Recommended" badge, (b) "Quick start" AppBar bottom-sheet
+  with a curated combo, (c) per-backend collapsible sections each
+  with a "Download default" header button.
+
+  **Decision: ship (a) as the v1 foundation; (b) layers on top of
+  it later; (c) is rejected.** Rationale + spec below.
+
+  *Why (a) first.* `-m auto`'s real semantic is "load the smallest
+  functional model for backend X, fetching it if absent." The data
+  to express that is a single per-backend pointer — which is exactly
+  a `recommendedDefault` flag on `ModelDefinition`
+  (`lib/services/model_service.dart`). Crucially, the **one-click
+  functional setup is already solved** for the hard case: a flagged
+  entry's `companions` list is co-downloaded by the existing
+  `_downloadModel` path (it pulls the full companion set into the
+  models dir), so flagging `kokoro-*` / `qwen3-tts-*` / `vibevoice-*`
+  also pulls their voicepacks/codecs in the same tap. So (a) + the
+  existing companion machinery = `-m auto` parity with no new
+  download plumbing.
+
+  *Why not (c).* It restructures Model Management from per-quant
+  rows into per-backend collapsible groups — a large refactor of
+  `_buildModelList` / the filter chips, and it fights the
+  type-ahead backend filter that already exists. High effort, no
+  capability that (a)+(b) don't deliver.
+
+  **v1 spec (option a):**
+  1. **Schema** — add `final bool recommendedDefault;` to
+     `ModelDefinition` (default `false`, so every existing const
+     entry stays valid). Invariant: **at most one** entry per
+     `backend` carries it. Curate "smallest functional" per
+     backend: whisper → `whisper-base` (tiny is EN-weak; base is
+     the smallest genuinely-multilingual default), parakeet → its
+     sole variant, kokoro → `kokoro-*` (companions pull the
+     voicepack), voxtral → the `q4_k` not `f16`, etc. TTS/voice/
+     codec/LID/VAD/punc kinds: flag the one ASR/TTS entry users
+     actually start from; pure-companion rows never get the flag.
+  2. **Service** — `ModelDefinition? ModelService.defaultForBackend
+     (String backend)` returns the flagged entry (or `null`). A
+     guard test asserts the at-most-one-per-backend invariant over
+     the whole catalogue so a second flag can't silently slip in.
+  3. **UI** — a "Recommended" badge (`Chip`/`Badge`) on the
+     recommended model's card in Model Management, localised
+     (`modelsRecommendedBadge`). Optional: a "Recommended only"
+     filter chip alongside the kind chips.
+  4. **Behaviour (the actual `-m auto`)** — when the user selects a
+     backend on the Transcribe/Synthesize screen but has **no**
+     model of that backend on disk, surface a one-tap "Download
+     recommended ({displayName}, {size})" action that calls
+     `_downloadModel(defaultForBackend(b))`. This is the
+     auto-download; it reuses the companion-aware download path
+     verbatim.
+  5. **Tests** — invariant guard (step 2) + a `defaultForBackend`
+     unit test per major backend + a preset/no-op check that
+     unflagged backends return `null` and degrade gracefully.
+
+  **v2 (option b, follow-on, not now):** a "Quick start"
+  bottom-sheet that reads `defaultForBackend` across a curated
+  starter set (e.g. whisper-base ASR + one kokoro voice) and
+  downloads them together — pure consumer of the v1 flag, no new
+  schema. Build only if onboarding feedback asks for it.
 
 ### 5.18 Test-suite speed — CoreML for whisper still pending
 

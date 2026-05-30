@@ -878,12 +878,6 @@ abstract class AppLocalizations {
   /// **'Playing segment: {time}'**
   String outputPlayingSegment(String time);
 
-  /// No description provided for @settingsHfTokenSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Required for gated or private repositories.'**
-  String get settingsHfTokenSubtitle;
-
   /// No description provided for @settingsLoading.
   ///
   /// In en, this message translates to:
@@ -1454,6 +1448,12 @@ abstract class AppLocalizations {
   /// **'Hugging Face API Token'**
   String get settingsHfTokenTitle;
 
+  /// No description provided for @settingsHfTokenSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Required for gated or private repositories.'**
+  String get settingsHfTokenSubtitle;
+
   /// No description provided for @settingsHfTokenSave.
   ///
   /// In en, this message translates to:
@@ -1682,30 +1682,6 @@ abstract class AppLocalizations {
   /// **'Show {level} and above'**
   String logsShowLevel(String level);
 
-  /// No description provided for @logsCopyVisible.
-  ///
-  /// In en, this message translates to:
-  /// **'Copy visible'**
-  String get logsCopyVisible;
-
-  /// No description provided for @logsCopyAll.
-  ///
-  /// In en, this message translates to:
-  /// **'Copy all'**
-  String get logsCopyAll;
-
-  /// No description provided for @logsExport.
-  ///
-  /// In en, this message translates to:
-  /// **'Export to file'**
-  String get logsExport;
-
-  /// No description provided for @logsShare.
-  ///
-  /// In en, this message translates to:
-  /// **'Share as file'**
-  String get logsShare;
-
   /// No description provided for @diarizationAuto.
   ///
   /// In en, this message translates to:
@@ -1849,6 +1825,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Filter by message, tag, or error…'**
   String get logsFilterHint;
+
+  /// No description provided for @logsCopyVisible.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy visible'**
+  String get logsCopyVisible;
+
+  /// No description provided for @logsCopyAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy all'**
+  String get logsCopyAll;
+
+  /// No description provided for @logsExport.
+  ///
+  /// In en, this message translates to:
+  /// **'Export to file'**
+  String get logsExport;
+
+  /// No description provided for @logsShare.
+  ///
+  /// In en, this message translates to:
+  /// **'Share as file'**
+  String get logsShare;
 
   /// No description provided for @modelsTitle.
   ///
@@ -4333,6 +4333,306 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This backend doesn\'t use a phoneme cache (or the open session is too old).'**
   String get synthClearPhonemeCacheUnsupported;
+
+  /// No description provided for @modelsLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to load models: {error}'**
+  String modelsLoadFailed(String error);
+
+  /// No description provided for @modelsProbeFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'HuggingFace probe failed: {error}'**
+  String modelsProbeFailed(String error);
+
+  /// No description provided for @modelsSkippedRepos.
+  ///
+  /// In en, this message translates to:
+  /// **' Skipped {count, plural, one{1 private/gated repo} other{{count} private/gated repos}}.'**
+  String modelsSkippedRepos(int count);
+
+  /// No description provided for @modelsHfRepoTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add from HuggingFace repo'**
+  String get modelsHfRepoTitle;
+
+  /// No description provided for @modelsHfRepoAddTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Add from HuggingFace repo…'**
+  String get modelsHfRepoAddTooltip;
+
+  /// No description provided for @modelsHfReposManageTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage added HuggingFace repos…'**
+  String get modelsHfReposManageTooltip;
+
+  /// No description provided for @modelsHfRepoBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste a HuggingFace repo id like \"cstr/voxtral-mini-3b-2507-GGUF\". CrisperWeaver lists every .gguf / .bin file in the repo, registers each as a downloadable model under the backend you pick, and adds them to the models list.'**
+  String get modelsHfRepoBody;
+
+  /// No description provided for @modelsHfRepoIdLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Repo id (OWNER/NAME)'**
+  String get modelsHfRepoIdLabel;
+
+  /// No description provided for @modelsHfRepoIdHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. cstr/voxtral-mini-3b-2507-GGUF'**
+  String get modelsHfRepoIdHint;
+
+  /// No description provided for @modelsHfRepoBackendLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Backend'**
+  String get modelsHfRepoBackendLabel;
+
+  /// No description provided for @modelsHfRepoBackendHelper.
+  ///
+  /// In en, this message translates to:
+  /// **'How the model should be loaded.'**
+  String get modelsHfRepoBackendHelper;
+
+  /// No description provided for @modelsHfRepoProbe.
+  ///
+  /// In en, this message translates to:
+  /// **'Probe'**
+  String get modelsHfRepoProbe;
+
+  /// No description provided for @modelsHfRepoNoneFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No .gguf / .bin files found in {repo}.'**
+  String modelsHfRepoNoneFound(String repo);
+
+  /// No description provided for @modelsHfRepoAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'Added {count, plural, one{1 model} other{{count} models}} from {repo}.'**
+  String modelsHfRepoAdded(int count, String repo);
+
+  /// No description provided for @modelsHfRepoProbeFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to probe {repo}:\n{error}'**
+  String modelsHfRepoProbeFailed(String repo, String error);
+
+  /// No description provided for @modelsHfReposTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Added HuggingFace repos'**
+  String get modelsHfReposTitle;
+
+  /// No description provided for @modelsHfReposEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No repos added yet. Use “Add from HuggingFace repo…” to register one — it will persist across restarts.'**
+  String get modelsHfReposEmpty;
+
+  /// No description provided for @modelsHfRepoBackendValue.
+  ///
+  /// In en, this message translates to:
+  /// **'backend: {backend}'**
+  String modelsHfRepoBackendValue(String backend);
+
+  /// No description provided for @modelsHfRepoForget.
+  ///
+  /// In en, this message translates to:
+  /// **'Forget this repo'**
+  String get modelsHfRepoForget;
+
+  /// No description provided for @modelsAnyLanguage.
+  ///
+  /// In en, this message translates to:
+  /// **'Any language'**
+  String get modelsAnyLanguage;
+
+  /// No description provided for @modelsCategoryEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No models in this category yet — try the cloud-refresh button or download one from another category first.'**
+  String get modelsCategoryEmpty;
+
+  /// No description provided for @modelsFilterAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get modelsFilterAll;
+
+  /// No description provided for @modelsFilterAsr.
+  ///
+  /// In en, this message translates to:
+  /// **'ASR'**
+  String get modelsFilterAsr;
+
+  /// No description provided for @modelsFilterTts.
+  ///
+  /// In en, this message translates to:
+  /// **'TTS'**
+  String get modelsFilterTts;
+
+  /// No description provided for @modelsFilterVoices.
+  ///
+  /// In en, this message translates to:
+  /// **'Voices'**
+  String get modelsFilterVoices;
+
+  /// No description provided for @modelsFilterCodecs.
+  ///
+  /// In en, this message translates to:
+  /// **'Codecs'**
+  String get modelsFilterCodecs;
+
+  /// No description provided for @modelsFilterPostproc.
+  ///
+  /// In en, this message translates to:
+  /// **'Post-processors'**
+  String get modelsFilterPostproc;
+
+  /// No description provided for @modelsFilterTranslate.
+  ///
+  /// In en, this message translates to:
+  /// **'Translate'**
+  String get modelsFilterTranslate;
+
+  /// No description provided for @modelsFilterAllLangs.
+  ///
+  /// In en, this message translates to:
+  /// **'All langs'**
+  String get modelsFilterAllLangs;
+
+  /// No description provided for @modelsDownloadedOne.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} downloaded'**
+  String modelsDownloadedOne(String name);
+
+  /// No description provided for @modelsDownloadedMany.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} files downloaded: {names}'**
+  String modelsDownloadedMany(int count, String names);
+
+  /// No description provided for @modelsDeletedNamed.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} deleted'**
+  String modelsDeletedNamed(String name);
+
+  /// No description provided for @modelsTotalSize.
+  ///
+  /// In en, this message translates to:
+  /// **'Total size: {size}'**
+  String modelsTotalSize(String size);
+
+  /// No description provided for @modelsDownloadFailedNamed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to download {name}'**
+  String modelsDownloadFailedNamed(String name);
+
+  /// No description provided for @modelsDownloadFailedReason.
+  ///
+  /// In en, this message translates to:
+  /// **'Download failed: {error}'**
+  String modelsDownloadFailedReason(String error);
+
+  /// No description provided for @modelsDeleteFailedNamed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to delete {name}'**
+  String modelsDeleteFailedNamed(String name);
+
+  /// No description provided for @modelsDeleteFailedReason.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete failed: {error}'**
+  String modelsDeleteFailedReason(String error);
+
+  /// No description provided for @enrollFromSegment.
+  ///
+  /// In en, this message translates to:
+  /// **'Enroll speaker from this segment…'**
+  String get enrollFromSegment;
+
+  /// No description provided for @enrollSpeakerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Enroll speaker'**
+  String get enrollSpeakerTitle;
+
+  /// No description provided for @enrollSpeakerNameLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Speaker name'**
+  String get enrollSpeakerNameLabel;
+
+  /// No description provided for @enrollSpeakerNameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. Alex'**
+  String get enrollSpeakerNameHint;
+
+  /// No description provided for @enrollAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Enroll'**
+  String get enrollAction;
+
+  /// No description provided for @enrollInProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Enrolling…'**
+  String get enrollInProgress;
+
+  /// No description provided for @enrollNoAudio.
+  ///
+  /// In en, this message translates to:
+  /// **'Segment has no audio to enroll.'**
+  String get enrollNoAudio;
+
+  /// No description provided for @enrollSucceeded.
+  ///
+  /// In en, this message translates to:
+  /// **'Enrolled \"{name}\" — future recordings will be matched.'**
+  String enrollSucceeded(String name);
+
+  /// No description provided for @enrollFailedShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Enrollment failed.'**
+  String get enrollFailedShort;
+
+  /// No description provided for @enrollFailedReason.
+  ///
+  /// In en, this message translates to:
+  /// **'Enrollment failed: {error}'**
+  String enrollFailedReason(String error);
+
+  /// No description provided for @synthDownloadingNamed.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading {name}…'**
+  String synthDownloadingNamed(String name);
+
+  /// No description provided for @synthDownloadFailedShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Download of {name} failed'**
+  String synthDownloadFailedShort(String name);
+
+  /// No description provided for @synthDownloadFailedNamed.
+  ///
+  /// In en, this message translates to:
+  /// **'Download of {name} failed: {error}'**
+  String synthDownloadFailedNamed(String name, String error);
 }
 
 class _AppLocalizationsDelegate

@@ -5,6 +5,46 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 
 ## Unreleased
 
+- **German localization completed** — the Model Management
+  HuggingFace-repo dialogs (add / manage), the model filter chips and
+  status messages, the Synthesize companion-download messages, and the
+  "Enroll speaker from this segment" flow are now fully translated. The
+  `en`/`de` string tables are at full parity.
+
+## 0.6.44 — 2026-05-29
+
+- **Piper VITS TTS** — a new `piper` synthesis backend with 10 small,
+  permissively-licensed single-file VITS voices (~15–60 MB each), all
+  redistributable:
+  - **German** — Thorsten (medium / high / emotional), Kerstin, MLS,
+    Eva K, Karlsson, Ramona.
+  - **English** — Cori (en-GB), LibriTTS-R.
+
+  Each voice's upstream licence (CC0 / public-domain / BSD-style /
+  CC-BY 4.0) is recorded in its catalogue entry; the Blizzard
+  research-only voices are deliberately excluded. The voices appear in
+  the Synthesize model picker once downloaded.
+
+## 0.6.43 — 2026-05-29
+
+Catalogue additions on top of the 0.6.42 engine rebuild:
+
+- **CosyVoice3 TTS** — new multilingual (10 languages) synthesis backend
+  on the Synthesize screen; downloads its flow / HiFT / voice-pack
+  companions automatically alongside the LLM weights.
+  **Experimental** — output not yet end-to-end audio-verified.
+- **Translate → Auto-detect source language** — a new button on the
+  Translate screen runs on-device text language-ID (CLD3, ~430 KB) over
+  the typed text and sets the source-language dropdown. Prompts to
+  download CLD3 if it isn't present.
+- **Enroll a named speaker from a transcript segment** — long-press a
+  segment → *Enroll speaker from this segment…* to name a speaker from a
+  result. Future recordings then re-identify that speaker when *Identify
+  speakers* is on (closes the speaker re-ID loop; matching already
+  existed).
+- **data2vec-audio** — English ASR model catalogued (runs on the
+  existing wav2vec2 backend, no engine change).
+
 ## 0.6.42 — 2026-05-29
 
 Four catalogued backends that previously errored at load now actually

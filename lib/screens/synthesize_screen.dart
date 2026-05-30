@@ -163,10 +163,11 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
   /// the user knows the work is happening; refreshes the model list when
   /// done so the "(not downloaded)" suffix clears.
   Future<void> _downloadCompanion(ModelInfo info) async {
+    final l10n = AppLocalizations.of(context);
     final svc = ref.read(modelServiceProvider);
     final messenger = ScaffoldMessenger.of(context);
     messenger.showSnackBar(SnackBar(
-      content: Text('Downloading ${info.displayName}…'),
+      content: Text(l10n.synthDownloadingNamed(info.displayName)),
       duration: const Duration(seconds: 30),
     ));
     try {
@@ -175,8 +176,8 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
       messenger.hideCurrentSnackBar();
       messenger.showSnackBar(SnackBar(
         content: Text(ok
-            ? '${info.displayName} downloaded'
-            : 'Download of ${info.displayName} failed'),
+            ? l10n.modelsDownloadedOne(info.displayName)
+            : l10n.synthDownloadFailedShort(info.displayName)),
       ));
       if (ok) await _refresh();
     } catch (e, st) {
@@ -185,7 +186,8 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
       if (mounted) {
         messenger.hideCurrentSnackBar();
         messenger.showSnackBar(SnackBar(
-          content: Text('Download of ${info.displayName} failed: $e'),
+          content: Text(
+              l10n.synthDownloadFailedNamed(info.displayName, e.toString())),
         ));
       }
     }

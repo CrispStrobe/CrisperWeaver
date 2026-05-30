@@ -436,10 +436,6 @@ class AppLocalizationsDe extends AppLocalizations {
   }
 
   @override
-  String get settingsHfTokenSubtitle =>
-      'Erforderlich für gesperrte oder private Repositories.';
-
-  @override
   String get settingsLoading => 'Lade…';
 
   @override
@@ -817,6 +813,10 @@ class AppLocalizationsDe extends AppLocalizations {
   String get settingsHfTokenTitle => 'Hugging Face API-Token';
 
   @override
+  String get settingsHfTokenSubtitle =>
+      'Erforderlich für gesperrte oder private Repositories.';
+
+  @override
   String get settingsHfTokenSave => 'SPEICHERN';
 
   @override
@@ -954,18 +954,6 @@ class AppLocalizationsDe extends AppLocalizations {
   }
 
   @override
-  String get logsCopyVisible => 'Sichtbare kopieren';
-
-  @override
-  String get logsCopyAll => 'Alle kopieren';
-
-  @override
-  String get logsExport => 'In Datei exportieren';
-
-  @override
-  String get logsShare => 'Als Datei teilen';
-
-  @override
   String get diarizationAuto => 'Auto';
 
   @override
@@ -1051,6 +1039,18 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get logsFilterHint => 'Nach Nachricht, Tag oder Fehler filtern…';
+
+  @override
+  String get logsCopyVisible => 'Sichtbare kopieren';
+
+  @override
+  String get logsCopyAll => 'Alle kopieren';
+
+  @override
+  String get logsExport => 'In Datei exportieren';
+
+  @override
+  String get logsShare => 'Als Datei teilen';
 
   @override
   String get modelsTitle => 'Modell-Verwaltung';
@@ -2563,4 +2563,210 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get synthClearPhonemeCacheUnsupported =>
       'Dieses Backend verwendet keinen Phonem-Cache (oder die aktive Session ist zu alt).';
+
+  @override
+  String modelsLoadFailed(String error) {
+    return 'Modelle konnten nicht geladen werden: $error';
+  }
+
+  @override
+  String modelsProbeFailed(String error) {
+    return 'HuggingFace-Abfrage fehlgeschlagen: $error';
+  }
+
+  @override
+  String modelsSkippedRepos(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count private/gesperrte Repos',
+      one: '1 privates/gesperrtes Repo',
+    );
+    return ' $_temp0 übersprungen.';
+  }
+
+  @override
+  String get modelsHfRepoTitle => 'Aus HuggingFace-Repo hinzufügen';
+
+  @override
+  String get modelsHfRepoAddTooltip => 'Aus HuggingFace-Repo hinzufügen…';
+
+  @override
+  String get modelsHfReposManageTooltip =>
+      'Hinzugefügte HuggingFace-Repos verwalten…';
+
+  @override
+  String get modelsHfRepoBody =>
+      'Füge eine HuggingFace-Repo-ID ein, z. B. „cstr/voxtral-mini-3b-2507-GGUF“. CrisperWeaver listet jede .gguf-/.bin-Datei im Repo auf, registriert jede als herunterladbares Modell unter dem von dir gewählten Backend und fügt sie zur Modellliste hinzu.';
+
+  @override
+  String get modelsHfRepoIdLabel => 'Repo-ID (OWNER/NAME)';
+
+  @override
+  String get modelsHfRepoIdHint => 'z. B. cstr/voxtral-mini-3b-2507-GGUF';
+
+  @override
+  String get modelsHfRepoBackendLabel => 'Backend';
+
+  @override
+  String get modelsHfRepoBackendHelper => 'Wie das Modell geladen werden soll.';
+
+  @override
+  String get modelsHfRepoProbe => 'Abfragen';
+
+  @override
+  String modelsHfRepoNoneFound(String repo) {
+    return 'Keine .gguf-/.bin-Dateien in $repo gefunden.';
+  }
+
+  @override
+  String modelsHfRepoAdded(int count, String repo) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count Modelle',
+      one: '1 Modell',
+    );
+    return '$_temp0 aus $repo hinzugefügt.';
+  }
+
+  @override
+  String modelsHfRepoProbeFailed(String repo, String error) {
+    return 'Abfrage von $repo fehlgeschlagen:\n$error';
+  }
+
+  @override
+  String get modelsHfReposTitle => 'Hinzugefügte HuggingFace-Repos';
+
+  @override
+  String get modelsHfReposEmpty =>
+      'Noch keine Repos hinzugefügt. Nutze „Aus HuggingFace-Repo hinzufügen…“, um eines zu registrieren — es bleibt über Neustarts hinweg erhalten.';
+
+  @override
+  String modelsHfRepoBackendValue(String backend) {
+    return 'Backend: $backend';
+  }
+
+  @override
+  String get modelsHfRepoForget => 'Dieses Repo entfernen';
+
+  @override
+  String get modelsAnyLanguage => 'Beliebige Sprache';
+
+  @override
+  String get modelsCategoryEmpty =>
+      'Noch keine Modelle in dieser Kategorie — nutze die Cloud-Aktualisierung oder lade zuerst eines aus einer anderen Kategorie herunter.';
+
+  @override
+  String get modelsFilterAll => 'Alle';
+
+  @override
+  String get modelsFilterAsr => 'ASR';
+
+  @override
+  String get modelsFilterTts => 'TTS';
+
+  @override
+  String get modelsFilterVoices => 'Stimmen';
+
+  @override
+  String get modelsFilterCodecs => 'Codecs';
+
+  @override
+  String get modelsFilterPostproc => 'Nachbearbeitung';
+
+  @override
+  String get modelsFilterTranslate => 'Übersetzen';
+
+  @override
+  String get modelsFilterAllLangs => 'Alle Sprachen';
+
+  @override
+  String modelsDownloadedOne(String name) {
+    return '$name heruntergeladen';
+  }
+
+  @override
+  String modelsDownloadedMany(int count, String names) {
+    return '$count Dateien heruntergeladen: $names';
+  }
+
+  @override
+  String modelsDeletedNamed(String name) {
+    return '$name gelöscht';
+  }
+
+  @override
+  String modelsTotalSize(String size) {
+    return 'Gesamtgröße: $size';
+  }
+
+  @override
+  String modelsDownloadFailedNamed(String name) {
+    return 'Download von $name fehlgeschlagen';
+  }
+
+  @override
+  String modelsDownloadFailedReason(String error) {
+    return 'Download fehlgeschlagen: $error';
+  }
+
+  @override
+  String modelsDeleteFailedNamed(String name) {
+    return 'Löschen von $name fehlgeschlagen';
+  }
+
+  @override
+  String modelsDeleteFailedReason(String error) {
+    return 'Löschen fehlgeschlagen: $error';
+  }
+
+  @override
+  String get enrollFromSegment => 'Sprecher aus diesem Segment anlegen…';
+
+  @override
+  String get enrollSpeakerTitle => 'Sprecher anlegen';
+
+  @override
+  String get enrollSpeakerNameLabel => 'Sprechername';
+
+  @override
+  String get enrollSpeakerNameHint => 'z. B. Alex';
+
+  @override
+  String get enrollAction => 'Anlegen';
+
+  @override
+  String get enrollInProgress => 'Wird angelegt…';
+
+  @override
+  String get enrollNoAudio => 'Segment hat kein Audio zum Anlegen.';
+
+  @override
+  String enrollSucceeded(String name) {
+    return '„$name“ angelegt — künftige Aufnahmen werden zugeordnet.';
+  }
+
+  @override
+  String get enrollFailedShort => 'Anlegen fehlgeschlagen.';
+
+  @override
+  String enrollFailedReason(String error) {
+    return 'Anlegen fehlgeschlagen: $error';
+  }
+
+  @override
+  String synthDownloadingNamed(String name) {
+    return '$name wird heruntergeladen…';
+  }
+
+  @override
+  String synthDownloadFailedShort(String name) {
+    return 'Download von $name fehlgeschlagen';
+  }
+
+  @override
+  String synthDownloadFailedNamed(String name, String error) {
+    return 'Download von $name fehlgeschlagen: $error';
+  }
 }

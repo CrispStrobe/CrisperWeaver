@@ -1046,7 +1046,7 @@ class _TranscriptionOutputWidgetState
             // "Identify speakers" toggle). Niche path → inline English.
             ListTile(
               leading: const Icon(Icons.record_voice_over),
-              title: const Text('Enroll speaker from this segment…'),
+              title: Text(AppLocalizations.of(context).enrollFromSegment),
               onTap: () {
                 Navigator.of(sheetCtx).pop();
                 _enrollSpeakerFromSegment(segment, audioPath);
@@ -1065,6 +1065,7 @@ class _TranscriptionOutputWidgetState
   /// SpeakerIdService.enroll under a name the user types.
   Future<void> _enrollSpeakerFromSegment(
       TranscriptionSegment segment, String audioPath) async {
+    final l10n = AppLocalizations.of(context);
     final messenger = ScaffoldMessenger.of(context);
     final name = await _promptSpeakerName(speakerEnrollNameSeed(segment.speaker));
     if (name == null || name.trim().isEmpty) return;
@@ -1072,10 +1073,9 @@ class _TranscriptionOutputWidgetState
     final svc = ref.read(speakerIdServiceProvider);
     if (!await svc.isAvailable) {
       messenger.showSnackBar(SnackBar(
-        content: const Text(
-            'Download the TitaNet speaker model to enroll speakers.'),
+        content: Text(l10n.speakersDownloadModelHint),
         action: SnackBarAction(
-          label: 'Models',
+          label: l10n.menuModels,
           onPressed: () {
             if (mounted) context.push('/models');
           },
@@ -1083,8 +1083,9 @@ class _TranscriptionOutputWidgetState
       ));
       return;
     }
-    messenger.showSnackBar(const SnackBar(
-        content: Text('Enrolling…'), duration: Duration(seconds: 1)));
+    messenger.showSnackBar(SnackBar(
+        content: Text(l10n.enrollInProgress),
+        duration: const Duration(seconds: 1)));
     try {
       // decodeAudioFile is a synchronous FFI decode of the whole file;
       // run it off the platform thread so a long recording doesn't jank
@@ -1105,8 +1106,7 @@ class _TranscriptionOutputWidgetState
         }
       }
       if (end <= start) {
-        messenger.showSnackBar(const SnackBar(
-            content: Text('Segment has no audio to enroll.')));
+        messenger.showSnackBar(SnackBar(content: Text(l10n.enrollNoAudio)));
         return;
       }
       final pcm = Float32List.sublistView(decoded.samples, start, end);
@@ -1114,15 +1114,15 @@ class _TranscriptionOutputWidgetState
       if (!mounted) return;
       messenger.showSnackBar(SnackBar(
         content: Text(ok
-            ? 'Enrolled "${name.trim()}" — future recordings will be matched.'
-            : 'Enrollment failed.'),
+            ? l10n.enrollSucceeded(name.trim())
+            : l10n.enrollFailedShort),
       ));
     } catch (e, st) {
       Log.instance.w('speakers', 'enroll-from-segment failed',
           error: e, stack: st);
       if (mounted) {
         messenger.showSnackBar(
-            SnackBar(content: Text('Enrollment failed: $e')));
+            SnackBar(content: Text(l10n.enrollFailedReason(e.toString()))));
       }
     }
   }
@@ -1130,29 +1130,30 @@ class _TranscriptionOutputWidgetState
   /// Small name-entry dialog for speaker enrollment. Returns the entered
   /// name, or null on cancel.
   Future<String?> _promptSpeakerName(String seed) {
+    final l10n = AppLocalizations.of(context);
     final controller = TextEditingController(text: seed);
     return showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Enroll speaker'),
+        title: Text(l10n.enrollSpeakerTitle),
         content: TextField(
           controller: controller,
           autofocus: true,
           textCapitalization: TextCapitalization.words,
-          decoration: const InputDecoration(
-            labelText: 'Speaker name',
-            hintText: 'e.g. Alex',
+          decoration: InputDecoration(
+            labelText: l10n.enrollSpeakerNameLabel,
+            hintText: l10n.enrollSpeakerNameHint,
           ),
           onSubmitted: (v) => Navigator.of(ctx).pop(v),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel'),
+            child: Text(l10n.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.of(ctx).pop(controller.text),
-            child: const Text('Enroll'),
+            child: Text(l10n.enrollAction),
           ),
         ],
       ),
