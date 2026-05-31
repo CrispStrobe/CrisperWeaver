@@ -985,6 +985,27 @@ class ModelService {
       kind: ModelKind.tts,
       languages: langsVoxcpm2_29,
     ),
+    // F5-TTS v1 Base (cstr/f5-tts-GGUF) — DiT flow-matching TTS with a
+    // baked-in Vocos vocoder, so it ships as a single self-contained GGUF
+    // (no codec/vocoder companion). 24 kHz, character-level tokenizer,
+    // zero-shot voice cloning from a reference WAV + its transcript.
+    // English. EXPERIMENTAL — wired + dispatchable but not yet
+    // audio-verified in-app (see PLAN §5.24-D).
+    'f5-tts-v1-base-f16': ModelDefinition(
+      name: 'f5-tts-v1-base-f16',
+      displayName: 'F5-TTS v1 Base (f16)',
+      fileName: 'f5-tts-v1-base-f16.gguf',
+      url:
+          'https://huggingface.co/cstr/f5-tts-GGUF/resolve/main/f5-tts-v1-base-f16.gguf',
+      sizeBytes: 999097152,
+      checksum: '',
+      description:
+          'F5-TTS DiT flow-matching TTS — zero-shot voice clone from a reference WAV (English, 24 kHz). Experimental.',
+      quantization: 'f16',
+      backend: 'f5-tts',
+      kind: ModelKind.tts,
+      languages: langsEn,
+    ),
     // Piper (rhasspy/piper) — tiny single-file VITS voices (~15-60 MB),
     // 22.05 kHz (the engine resamples to the host's 24 kHz), 30+ langs.
     // No companion: the phoneme map + espeak voice are baked into the GGUF.
@@ -2648,6 +2669,18 @@ class ModelService {
       kind: ModelKind.tts,
       defaultLanguages: langsVoxcpm2_29,
     ),
+    // F5-TTS — single self-contained GGUF (DiT + baked-in Vocos vocoder),
+    // zero-shot voice clone from a reference WAV + transcript. No companion.
+    // EXPERIMENTAL — not yet audio-verified in-app (PLAN §5.24-D).
+    'f5-tts': BackendRepo(
+      backend: 'f5-tts',
+      repoId: 'cstr/f5-tts-GGUF',
+      baseName: 'f5-tts-v1-base',
+      displayPrefix: 'F5-TTS',
+      description: 'F5-TTS DiT flow-matching TTS — zero-shot voice clone (English)',
+      kind: ModelKind.tts,
+      defaultLanguages: langsEn,
+    ),
     // CosyVoice3 — LLM + flow/hift/voices companions auto-discovered by
     // the engine; the probe walks the cosyvoice3-llm baseName and the
     // companions ride along via defaultCompanions.
@@ -3254,6 +3287,7 @@ class ModelService {
       'orpheus',
       'chatterbox',
       'indextts',
+      'f5-tts',
     };
     const punc = {'firered-punc', 'fullstop-punc'};
     const diarize = {'pyannote'};

@@ -2342,6 +2342,18 @@ const Map<String, ModelDefinition> bakedDiscoveredModels = {
     backend: 'voxcpm2-tts',
     kind: ModelKind.tts,
   ),
+  'f5-tts-v1-base-f16': ModelDefinition(
+    name: 'f5-tts-v1-base-f16',
+    displayName: 'F5-TTS (f16)',
+    fileName: 'f5-tts-v1-base-f16.gguf',
+    url: 'https://huggingface.co/cstr/f5-tts-GGUF/resolve/main/f5-tts-v1-base-f16.gguf',
+    sizeBytes: 999097152,
+    checksum: '',
+    description: 'F5-TTS DiT flow-matching TTS — zero-shot voice clone (English) — 952.8 MB',
+    quantization: 'f16',
+    backend: 'f5-tts',
+    kind: ModelKind.tts,
+  ),
   'cosyvoice3-llm-f16': ModelDefinition(
     name: 'cosyvoice3-llm-f16',
     displayName: 'CosyVoice3 0.5B (f16)',

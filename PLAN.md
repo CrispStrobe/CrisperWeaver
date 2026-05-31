@@ -537,24 +537,34 @@ test-fixture model (added a `!text.empty()` stub-guard). Whisper beam still
 wants an in-app beam-vs-greedy spot check on a real clip, but the engine
 path is confirmed sound.
 
-**canary / cohere beam — ⏳ wired upstream on `origin/main`, NOT yet in a
-release (so not live in-app).** Verified 2026-05-31: commit `52cfec83`
-("feat(beam): wire canary + cohere AED beam search via
-`run_with_probs_branched`") adds `canary_set_beam_size` /
-`cohere_set_beam_size` and a per-decoder beam that **shares the
-cross-attention KV across beams and snapshots only the self-attention KV
-per beam** (the AED-correct shape), wired into the `transcribe_single`
-dispatch behind `s->beam_size > 1`; greedy stays the default branch. This
-brings the upstream count to **11 beam-wired session backends**. Caveats
-before this is usable in-app: (1) `52cfec83` is on `origin/main` only —
-**not in any tag**, so it is *not* in the bundled `libcrispasr.0.6.11`;
-(2) it is **syntax-checked but unbuilt/unvalidated** — the greedy
-no-regression + beam-2/4 functional checks (and the cohere greedy-loop
-re-indent it introduced) still need a real build. Lands in-app when a
-CrispASR release past `52cfec83` is bundled. The session-beam regression
-suite (`tests/test-session-beam.cpp`, commits `ef3c37e4` + `3a04b672`)
-now covers whisper (native) / qwen3-asr (replay) / glm-asr (setter); a
-canary/cohere AED live case is the remaining test gap.
+**canary / cohere beam — ✅ now BUILT + bundled (off `origin/main`); live
+functional run still postponed.** Commit `52cfec83` ("feat(beam): wire
+canary + cohere AED beam search via `run_with_probs_branched`") adds
+`canary_set_beam_size` / `cohere_set_beam_size` and a per-decoder beam that
+**shares the cross-attention KV across beams and snapshots only the
+self-attention KV per beam** (the AED-correct shape), wired into the
+`transcribe_single` dispatch behind `s->beam_size > 1`; greedy stays the
+default branch. This brings the upstream count to **11 beam-wired session
+backends**.
+
+**Build-validated 2026-05-31** (this dev box, M1/Metal): a full libwhisper
+rebuilt off `origin/main` (`d846274d`, which contains `52cfec83`) **compiles
+clean** and ships both symbols — `nm -gU libwhisper.dylib` shows
+`_canary_set_beam_size` + `_cohere_set_beam_size`. The rebuilt dylib is
+bundled into the local macOS `.app` (via `scripts/build_macos.sh release`).
+So the earlier "not in any tag / not in bundled 0.6.11 / unbuilt" caveat is
+resolved on the build axis. **Note:** the source still self-identifies as
+`0.6.11` (version string not bumped upstream), but the binary is 35 commits
+ahead; CI/release build CrispASR from `CRISPASR_REF: main`, so this ships on
+the next CrisperWeaver release automatically.
+
+**Still postponed (deliberately, this session):** the greedy no-regression
++ beam-2/4 *functional* run on a real canary/cohere clip — i.e. confirming
+beam actually changes/improves the decode, not just that the symbols link.
+That AED live case remains the test gap. The session-beam regression suite
+(`tests/test-session-beam.cpp`, commits `ef3c37e4` + `3a04b672`) covers
+whisper (native) / qwen3-asr (replay) / glm-asr (setter); canary/cohere AED
+is the one still needing a live assertion.
 
 **Genuinely out of scope (no beam):** **voxtral4b** routes through the
 streaming API (`voxtral4b_stream_*`), which has no beam hook; CTC/NAR
@@ -628,14 +638,29 @@ crispasr-use-worktree memory).
   v0.6.44/0.6.45 ship): `availableBackends()` returns 40 backends and all
   four are present. The catalogue-dispatch guard runs green (not stale —
   funasr / paraformer / sensevoice / gemma4-e2b all present).
-- ⏳ `piper` is the **only** remaining `pending` entry, and stays there for
-  now: the bundled dylib does **not** expose `piper` via the unified
-  session API (piper synthesis ships through a separate standalone C-ABI,
-  CrispASR `a3bb6586`; the unified-session dispatch arm + `availableBackends`
-  entry are wired upstream but not yet on the bundled dylib). Drop it from
-  `pending` once a rebuilt libcrispasr lists `piper` in
-  `CrispasrSession.availableBackends()`. Until then, removing it would red
-  the guard.
+- ✅ `piper` **build-verified present** in a rebuilt engine. A libwhisper
+  rebuilt off CrispASR `origin/main` (`d846274d`, 2026-05-31, this dev box)
+  lists `piper` in `CrispasrSession.availableBackends()`: the unified-session
+  dispatch arm (`crispasr_c_api.cpp`, `"piper"/"piper-tts"`) + the
+  `availableBackends` entry + the CMake `piper-tts` static target are all
+  live (piper synthesis also still ships through the separate standalone
+  C-ABI, CrispASR `a3bb6586`). `scripts/build_macos.sh` was missing
+  `piper-tts` from its explicit `BACKEND_TARGETS` list — fixed in the same
+  change.
+  - **Kept in `pending`** (alongside the new `f5-tts`, see C) rather than
+    dropped: the guard auto-resolves the DEFAULT local dylib
+    (`../CrispASR/build-flutter-bundle`), and older bundled / not-yet-rebuilt
+    dylibs predate both backends, so emptying `pending` reds the forward
+    guard against any stale engine. (CI's `analyze-and-test` job checks out
+    CrispASR for the path-dependency but does **not** build it, so the
+    `CRISPASR_LIB`-gated guard *skips* in CI; it only runs locally against a
+    resolvable dylib.) Verified green both ways 2026-05-31:
+    `CRISPASR_LIB=<rebuilt dylib> flutter test test/backend_dispatch_test.dart`
+    (fresh engine, has piper+f5-tts) AND the default `flutter test` (stale
+    local dylib, lacks them — `pending` covers it). Drop both once the
+    standard sibling-build / bundled dylib is past `d846274d`. CI/release
+    build CrispASR from `CRISPASR_REF: main`, so the runtime ships on the
+    next release automatically.
   - **Runtime guard added (v0.6.48, issue #16):** tapping Synthesize with
     a piper voice used to crash the app — `CrispasrSession.open(backend:
     'piper')` segfaults natively on a dylib that can't dispatch it.
@@ -686,6 +711,15 @@ Operationalised as a **reverse guard test** (`backend_dispatch_test.dart`:
 an `engineOnly = {whisper, canary-ctc, omniasr}` allowlist — it fails the
 moment the engine gains a new backend (e.g. cosyvoice3) so the catalogue
 can't silently fall behind.
+**Update 2026-05-31:** this guard did its job — the libwhisper rebuilt off
+`origin/main` (`d846274d`) exposed a new `f5-tts` backend (CrispASR landed
+F5-TTS, a DiT flow-matching zero-shot voice-clone TTS) that the catalogue
+didn't list, so the reverse guard went red. Now catalogued: a `BackendRepo`
++ `ModelDefinition` (`cstr/f5-tts-GGUF` → `f5-tts-v1-base-f16.gguf`,
+~953 MB, single self-contained GGUF with a baked-in Vocos vocoder, English,
+`kind: tts`, backend `f5-tts`), added to `_kindForBackend`'s TTS set, and
+re-baked into `baked_models_catalog.dart` (206 → 207 entries). Marked
+**experimental** (not yet audio-verified — see D). Both guards green again.
 
 **D. Verification matrix (use the TTS→ASR roundtrip harness + a
 translate live test).** Drop the "experimental" flags from CHANGELOG /
@@ -693,6 +727,9 @@ docs only once each is confirmed on a real model:
 - indextts clone audio — roundtrip with indextts as the TTS leg +
   a reference WAV.
 - voxcpm2 clone audio — roundtrip with voxcpm2 + a reference WAV.
+- f5-tts clone audio — roundtrip with f5-tts as the TTS leg + a reference
+  WAV + its transcript (F5-TTS clones from `--voice <ref.wav>` +
+  `--ref-text`). Catalogued 2026-05-31; engine-dispatchable but unverified.
 - madlad + m2m100-wmt21 translation — add an opt-in translate live test
   (translate a known phrase, assert target-language keywords); confirm
   output is sane.

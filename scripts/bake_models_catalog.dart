@@ -508,6 +508,14 @@ const _repos = <RepoSpec>[
     kind: 'tts',
   ),
   RepoSpec(
+    backend: 'f5-tts',
+    repoId: 'cstr/f5-tts-GGUF',
+    baseName: 'f5-tts-v1-base',
+    displayPrefix: 'F5-TTS',
+    description: 'F5-TTS DiT flow-matching TTS — zero-shot voice clone (English)',
+    kind: 'tts',
+  ),
+  RepoSpec(
     backend: 'cosyvoice3-tts',
     repoId: 'cstr/cosyvoice3-0.5b-2512-GGUF',
     baseName: 'cosyvoice3-llm',

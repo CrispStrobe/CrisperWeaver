@@ -223,12 +223,18 @@ void main() {
       // (9ebbb9fd) and cosyvoice3-tts (36133247) were wired upstream and
       // verified present in a rebuilt libcrispasr (40 backends) — no longer
       // pending.
-      //   piper — runtime + standalone C ABI shipped (CrispASR a3bb6586);
-      //           the unified-session dispatch arm + availableBackends entry
-      //           are wired but not yet on the bundled dylib. Catalogued
-      //           here ahead of the dylib rebuild; drop from `pending` once
-      //           the bundled libcrispasr exposes 'piper'.
-      const pending = {'piper'};
+      //   piper / f5-tts — dispatch arms + availableBackends entries are
+      //     live on CrispASR origin/main (piper: CMake `piper-tts` +
+      //     crispasr_c_api.cpp "piper"/"piper-tts"; f5-tts: "f5-tts"/"f5"),
+      //     and a libwhisper rebuilt off origin/main (d846274d, 2026-05-31,
+      //     verified on this dev box) lists both in availableBackends().
+      //     They stay in `pending` because the DEFAULT-resolved local dylib
+      //     (../CrispASR/build-flutter-bundle) and older bundled dylibs
+      //     predate them, so the guard would otherwise red against any
+      //     not-yet-rebuilt engine. Drop them once the standard bundled /
+      //     sibling-build dylib is past d846274d. (CI's analyze-and-test job
+      //     doesn't build CrispASR, so this guard skips there regardless.)
+      const pending = {'piper', 'f5-tts'};
 
       final catalogueBackends = <String>{
         for (final m in ModelService.crispasrBackendModels.values)

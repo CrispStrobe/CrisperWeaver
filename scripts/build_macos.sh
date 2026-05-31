@@ -99,7 +99,7 @@ BACKEND_TARGETS=(
   voxtral voxtral4b wav2vec2-ggml glm-asr kyutai-stt firered-asr firered-vad
   marblenet-vad firered-lid omniasr vibevoice ecapa-lid moonshine
   moonshine_streaming gemma4_e2b mimo_tokenizer mimo_asr qwen3_tts orpheus
-  kokoro pyannote-seg silero-lid fireredpunc
+  kokoro pyannote-seg silero-lid fireredpunc piper-tts
 )
 
 echo "==> build backend statics (${#BACKEND_TARGETS[@]} targets)"

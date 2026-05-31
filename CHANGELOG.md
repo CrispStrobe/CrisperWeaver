@@ -3,6 +3,21 @@
 Notable user-facing changes per release. Full diff per version on
 the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases).
 
+## 0.6.49 — 2026-05-31
+
+- **F5-TTS (experimental)** — added F5-TTS v1 Base to the model catalogue:
+  a DiT flow-matching text-to-speech model with zero-shot voice cloning
+  from a short reference clip + its transcript (English, single ~953 MB
+  download, no companion). Listed in the Synthesize / Model Management
+  pickers; treat as experimental until audio-verified.
+- **Piper TTS now dispatches through the engine.** The crash-guard added in
+  0.6.47 self-heals: builds carrying the rebuilt engine now list `piper`
+  among the available backends, so Piper voices synthesise instead of being
+  refused as unsupported.
+- **Engine refresh** — bundled CrispASR engine rebuilt off the latest
+  upstream, which (among other things) wires beam search through the
+  canary/cohere decoders. No UI change.
+
 ## 0.6.48 — 2026-05-30
 
 - **Quick start** — Model Management has a new 🚀 action that opens a
