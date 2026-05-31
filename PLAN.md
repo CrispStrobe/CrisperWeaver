@@ -521,8 +521,21 @@ wired (whisper native + glm-asr / kyutai-stt / firered / moonshine /
 omniasr-llm per-backend setters), **nine session backends are beam-wired**.
 No CrisperWeaver code change was needed: the worker pool + engine already
 drive `CrispasrSession.setBeamSize(...)` for beam-capable backends, so this
-is live in the shipped build. *Not yet audio-verified end-to-end in-app —
-a beam-vs-greedy spot check on a real clip is the only thing left here.*
+is live in the shipped build.
+
+**Build-validated 2026-05-31** (this dev box, M1/Metal, CrispASR
+`origin/main` worktree, `test-session-beam`): all three beam *mechanisms*
+pass on real models — **whisper** (native BEAM_SEARCH: greedy
+no-regression at beam=1, non-empty at beam 2/4), **qwen3-asr** (the
+`0c24178e` `run_with_probs` replay path: no-regression + beam=2), and
+**glm-asr** (per-backend `_set_beam_size` setter: no-regression + beam=2).
+The exercise also caught two bugs in the upstream test suite, both fixed in
+CrispASR (`fix/session-beam-test`): the qwen3 case opened backend
+`"qwen3-asr"` (the dispatch string is `"qwen3"`) so it never opened a
+session, and the no-regression cases passed *vacuously* on a tensorless
+test-fixture model (added a `!text.empty()` stub-guard). Whisper beam still
+wants an in-app beam-vs-greedy spot check on a real clip, but the engine
+path is confirmed sound.
 
 **canary / cohere beam — ⏳ wired upstream on `origin/main`, NOT yet in a
 release (so not live in-app).** Verified 2026-05-31: commit `52cfec83`
