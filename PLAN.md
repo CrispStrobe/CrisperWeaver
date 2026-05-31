@@ -524,18 +524,29 @@ drive `CrispasrSession.setBeamSize(...)` for beam-capable backends, so this
 is live in the shipped build. *Not yet audio-verified end-to-end in-app —
 a beam-vs-greedy spot check on a real clip is the only thing left here.*
 
-**Genuinely still unwired upstream (separate scope — tracked in CrispASR):**
+**canary / cohere beam — ⏳ wired upstream on `origin/main`, NOT yet in a
+release (so not live in-app).** Verified 2026-05-31: commit `52cfec83`
+("feat(beam): wire canary + cohere AED beam search via
+`run_with_probs_branched`") adds `canary_set_beam_size` /
+`cohere_set_beam_size` and a per-decoder beam that **shares the
+cross-attention KV across beams and snapshots only the self-attention KV
+per beam** (the AED-correct shape), wired into the `transcribe_single`
+dispatch behind `s->beam_size > 1`; greedy stays the default branch. This
+brings the upstream count to **11 beam-wired session backends**. Caveats
+before this is usable in-app: (1) `52cfec83` is on `origin/main` only —
+**not in any tag**, so it is *not* in the bundled `libcrispasr.0.6.11`;
+(2) it is **syntax-checked but unbuilt/unvalidated** — the greedy
+no-regression + beam-2/4 functional checks (and the cohere greedy-loop
+re-indent it introduced) still need a real build. Lands in-app when a
+CrispASR release past `52cfec83` is bundled. The session-beam regression
+suite (`tests/test-session-beam.cpp`, commits `ef3c37e4` + `3a04b672`)
+now covers whisper (native) / qwen3-asr (replay) / glm-asr (setter); a
+canary/cohere AED live case is the remaining test gap.
 
-* **canary / cohere beam** — these are encoder-decoder AED models, still
-  greedy-only (`canary_transcribe_ex` / `cohere_transcribe_ex` take no
-  beam param). Real algorithmic work: a per-decoder beam reusing the
-  cross-attention KV across beams (the `run_with_probs_branched` shape),
-  not the replay helper the LLM backends use. Tracked as
-  [CrispASR PLAN §61h / §90](https://github.com/CrispStrobe/CrispASR/blob/main/PLAN.md).
-* **voxtral4b** — routes through the streaming API (`voxtral4b_stream_*`),
-  which has no beam hook; explicitly out of scope. CTC/NAR backends
-  (parakeet-ctc, fastconformer-ctc, wav2vec2, funasr, paraformer,
-  sensevoice) don't take a token-AR beam either.
+**Genuinely out of scope (no beam):** **voxtral4b** routes through the
+streaming API (`voxtral4b_stream_*`), which has no beam hook; CTC/NAR
+backends (parakeet-ctc, fastconformer-ctc, wav2vec2, funasr, paraformer,
+sensevoice) don't take a token-AR beam either.
 
 ---
 
