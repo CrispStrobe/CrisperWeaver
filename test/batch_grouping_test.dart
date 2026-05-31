@@ -145,10 +145,6 @@ void main() {
       }
     });
 
-    Future<void> settle() async {
-      await Future<void>.delayed(const Duration(milliseconds: 50));
-    }
-
     test('stamps durationSec from the injected probe', () async {
       // Fake probe: returns 12.5 seconds for any path.
       final queue = BatchQueueNotifier(
@@ -157,8 +153,11 @@ void main() {
       );
 
       queue.enqueue('/tmp/foo.wav');
-      // Probe is unawaited; let the microtask queue drain.
-      await settle();
+      // Deterministically drain the fire-and-forget probe → stamp →
+      // persist chain (whenPersisted tracks the probe too), instead of
+      // racing a fixed sleep — the disk read below flaked under parallel
+      // load when the persist hadn't flushed within a 50 ms settle.
+      await queue.whenPersisted();
 
       expect(queue.state.single.durationSec, closeTo(12.5, 1e-9));
       // The stamp is also persisted (so a restart doesn't re-probe
@@ -176,7 +175,7 @@ void main() {
       );
 
       queue.enqueue('/tmp/unknown.wav');
-      await settle();
+      await queue.whenPersisted();
 
       expect(queue.state.single.durationSec, isNull);
       queue.dispose();
@@ -192,7 +191,7 @@ void main() {
       final id = queue.enqueue('/tmp/explody.wav');
       expect(id, isNotEmpty);
       expect(queue.state.single.filePath, '/tmp/explody.wav');
-      await settle();
+      await queue.whenPersisted();
       // Probe threw → no durationSec, but the job is still queued.
       expect(queue.state.single.durationSec, isNull);
       expect(queue.state.single.status, BatchJobStatus.queued);
@@ -208,7 +207,7 @@ void main() {
         durationProbe: (_) async => Duration.zero,
       );
       queue.enqueue('/tmp/empty.wav');
-      await settle();
+      await queue.whenPersisted();
       expect(queue.state.single.durationSec, isNull);
       queue.dispose();
     });
@@ -217,7 +216,7 @@ void main() {
       // Default ctor: no durationProbe. enqueue() must not crash.
       final queue = BatchQueueNotifier(persistence: persistence);
       queue.enqueue('/tmp/foo.wav');
-      await settle();
+      await queue.whenPersisted();
       expect(queue.state.single.durationSec, isNull);
       queue.dispose();
     });

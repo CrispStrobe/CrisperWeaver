@@ -5,11 +5,13 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 
 ## 0.6.49 — 2026-05-31
 
-- **F5-TTS (experimental)** — added F5-TTS v1 Base to the model catalogue:
-  a DiT flow-matching text-to-speech model with zero-shot voice cloning
-  from a short reference clip + its transcript (English, single ~953 MB
-  download, no companion). Listed in the Synthesize / Model Management
-  pickers; treat as experimental until audio-verified.
+- **F5-TTS** — added F5-TTS v1 Base to the model catalogue: a DiT
+  flow-matching text-to-speech model with zero-shot voice cloning from a
+  short reference clip + its transcript (English, single ~953 MB download,
+  no companion). Listed in the Synthesize / Model Management pickers.
+  Audio-verified end-to-end. Heads-up: synthesis is currently very slow.
+- **cosyvoice3 verified** — the catalogued CosyVoice3 TTS (LLM → flow →
+  HiFT) is now confirmed to synthesise intelligible audio end-to-end.
 - **Piper TTS now dispatches through the engine.** The crash-guard added in
   0.6.47 self-heals: builds carrying the rebuilt engine now list `piper`
   among the available backends, so Piper voices synthesise instead of being

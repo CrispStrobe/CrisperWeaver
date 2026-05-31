@@ -989,8 +989,9 @@ class ModelService {
     // baked-in Vocos vocoder, so it ships as a single self-contained GGUF
     // (no codec/vocoder companion). 24 kHz, character-level tokenizer,
     // zero-shot voice cloning from a reference WAV + its transcript.
-    // English. EXPERIMENTAL — wired + dispatchable but not yet
-    // audio-verified in-app (see PLAN §5.24-D).
+    // English. Audio-verified 2026-05-31 (TTS→ASR roundtrip, words survive
+    // cleanly) — but the DiT synth is VERY slow on the current CPU/Metal
+    // build (~tens of minutes per sentence), so the description warns users.
     'f5-tts-v1-base-f16': ModelDefinition(
       name: 'f5-tts-v1-base-f16',
       displayName: 'F5-TTS v1 Base (f16)',
@@ -1000,7 +1001,7 @@ class ModelService {
       sizeBytes: 999097152,
       checksum: '',
       description:
-          'F5-TTS DiT flow-matching TTS — zero-shot voice clone from a reference WAV (English, 24 kHz). Experimental.',
+          'F5-TTS DiT flow-matching TTS — zero-shot voice clone from a reference WAV (English, 24 kHz). Note: synthesis is very slow.',
       quantization: 'f16',
       backend: 'f5-tts',
       kind: ModelKind.tts,

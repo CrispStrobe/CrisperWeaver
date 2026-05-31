@@ -165,9 +165,11 @@ class BatchQueueNotifier extends StateNotifier<List<BatchJob>> {
     f.whenComplete(() => _pendingWrites.remove(f));
   }
 
-  /// Awaits all in-flight persistence writes (save / delete / clear).
-  /// Test-only — production never blocks on disk. Drains re-entrant
-  /// writes too, so callers can assert on-disk state without races.
+  /// Awaits all in-flight async work fired by mutations — persistence
+  /// writes (save / delete / clear) AND the post-enqueue duration probe
+  /// (which itself stamps + persists). Test-only — production never blocks
+  /// on disk. Drains re-entrant writes too (the while-loop), so callers can
+  /// assert on stamped state or on-disk state without racing a fixed sleep.
   @visibleForTesting
   Future<void> whenPersisted() async {
     while (_pendingWrites.isNotEmpty) {
@@ -289,7 +291,12 @@ class BatchQueueNotifier extends StateNotifier<List<BatchJob>> {
     // when the probe fails or returns null and the UI just doesn't
     // show an ETA badge for that one.
     if (_durationProbe != null) {
-      unawaited(_probeAndStamp(job.id, filePath));
+      // Tracked (not bare `unawaited`) so `whenPersisted()` drains the
+      // probe → stamp → persist chain too — otherwise a test that asserts
+      // on the stamped durationSec (in memory or on disk) races the
+      // fire-and-forget probe. Harmless in prod: the future is removed
+      // from the pending set on completion, and the UI never awaits it.
+      _fireAndForget(_probeAndStamp(job.id, filePath));
     }
     return job.id;
   }

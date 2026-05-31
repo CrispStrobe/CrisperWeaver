@@ -679,10 +679,17 @@ to the LLM, and `_downloadModel` co-locates them (downloads the full
 `companions` list into the models dir) — so listing them is what makes it
 work; `setCodecPath` is a harmless no-op for cosyvoice3. `check_model_
 languages`: 0 diffs. Verified present in the rebuilt libcrispasr
-(40 backends) and **dropped from the forward-guard `pending` set** —
-`backend_dispatch_test.dart`'s `pending` is now `{piper}` only (see A).
-- **NOT audio-verified** — needs a real cosyvoice3 synth run (LLM →
-  flow → HiFT) to confirm output; treat as experimental until then.
+(40 backends) and **dropped from the forward-guard `pending` set** (see A
+for the current `pending` contents).
+- **✅ AUDIO-VERIFIED 2026-05-31** — real cosyvoice3 synth run (LLM →
+  flow → HiFT) on the origin/main dylib + local models: a TTS→ASR
+  roundtrip ("The quick brown fox…" → whisper-base) came back
+  "the quick ground fox jumps over the lazy dog" (~3 s of 24 kHz audio,
+  4/5 content words — only brown→ground, a tiny-whisper artefact). Voice
+  selection: leave it unset → synth uses the first baked voice in
+  `voices.gguf` (`voice_name = NULL`); no `setVoice`/`setCodecPath`
+  needed. Codified as a `slow`-tagged roundtrip in
+  `backend_dispatch_test.dart` (`CRISPASR_TEST_COSYVOICE3_MODEL`).
 - Remaining: confirm the Synthesize-screen UX picks a sensible companion
   (it auto-selects the first `kind: codec` of the backend → some
   cosyvoice3 codec; the others are still on disk for auto-discovery, so
@@ -718,18 +725,25 @@ didn't list, so the reverse guard went red. Now catalogued: a `BackendRepo`
 + `ModelDefinition` (`cstr/f5-tts-GGUF` → `f5-tts-v1-base-f16.gguf`,
 ~953 MB, single self-contained GGUF with a baked-in Vocos vocoder, English,
 `kind: tts`, backend `f5-tts`), added to `_kindForBackend`'s TTS set, and
-re-baked into `baked_models_catalog.dart` (206 → 207 entries). Marked
-**experimental** (not yet audio-verified — see D). Both guards green again.
+re-baked into `baked_models_catalog.dart` (206 → 207 entries). Both guards
+green again. **✅ Audio-verified 2026-05-31** (see D): a TTS→ASR roundtrip
+(zero-shot clone from `test/jfk.wav` via `setVoice(wav, refText:)`)
+returned the target phrase cleanly. Caveat: the DiT synth is **extremely
+slow** on the current CPU/Metal build (~50 min for one short sentence), so
+the catalogue description warns users and the roundtrip test is opt-in only.
 
 **D. Verification matrix (use the TTS→ASR roundtrip harness + a
 translate live test).** Drop the "experimental" flags from CHANGELOG /
 docs only once each is confirmed on a real model:
+- ✅ **cosyvoice3** — audio-verified 2026-05-31 (see B); `slow` roundtrip
+  test added (`CRISPASR_TEST_COSYVOICE3_MODEL`).
+- ✅ **f5-tts** — audio-verified 2026-05-31; `slow` roundtrip test added
+  (`CRISPASR_TEST_F5TTS_MODEL`). Zero-shot clone from `test/jfk.wav` via
+  `setVoice(wav, refText:)`; target phrase round-tripped cleanly. Synth is
+  extremely slow (~50 min/sentence on M1 Metal) — opt-in only.
 - indextts clone audio — roundtrip with indextts as the TTS leg +
   a reference WAV.
 - voxcpm2 clone audio — roundtrip with voxcpm2 + a reference WAV.
-- f5-tts clone audio — roundtrip with f5-tts as the TTS leg + a reference
-  WAV + its transcript (F5-TTS clones from `--voice <ref.wav>` +
-  `--ref-text`). Catalogued 2026-05-31; engine-dispatchable but unverified.
 - madlad + m2m100-wmt21 translation — add an opt-in translate live test
   (translate a known phrase, assert target-language keywords); confirm
   output is sane.

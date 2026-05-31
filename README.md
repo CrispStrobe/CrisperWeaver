@@ -215,6 +215,13 @@ flutter run -d macos        # or: linux, windows, android, ios
 Useful Settings:
 - **Preferred engine** — CrispASR is the default.
 - **Default model / language** — pre-select across new transcriptions.
+- **Custom models directory** — point CrisperWeaver at an existing GGUF
+  library on an external disk (the *Models directory* picker), e.g.
+  `/Volumes/backups/ai/crispasr`, to reuse already-downloaded models
+  instead of re-fetching into the app sandbox. Cross-platform; the model
+  picker reads flat GGUFs from that folder and "Use default" restores the
+  sandbox `<app-docs>/models/whisper_cpp` location. (On Android 11+ an
+  external/shared-storage path needs the one-time "All files access" grant.)
 - **Skip checksum verification** — custom / mirrored GGUFs.
 - **Log level + file sink** — `<app-docs>/logs/session.log` for bug reports.
 
@@ -248,9 +255,17 @@ CRISPASR_TEST_ORPHEUS_MODEL=$M/orpheus-3b-base-q8_0.gguf \
 CRISPASR_TEST_ORPHEUS_CODEC=$M/snac-24khz.gguf \
 CRISPASR_TEST_MIMO_ASR_MODEL=$M/mimo/mimo-asr-q4_k.gguf \
 CRISPASR_TEST_MIMO_ASR_TOKENIZER=$M/mimo/mimo-tokenizer-q4_k.gguf \
+CRISPASR_TEST_COSYVOICE3_MODEL=$M/cosyvoice3-llm-q4_k.gguf \
 CRISPASR_TEST_WHISPER_MODEL=$M/ggml-tiny.bin \
 flutter test --tags slow test/backend_dispatch_test.dart
 ```
+
+The cosyvoice3 roundtrip needs its `flow` / `hift` / `voices` companions
+sitting beside the LLM GGUF (auto-discovered by filename). There is also
+an `f5-tts` roundtrip (`CRISPASR_TEST_F5TTS_MODEL=$M/f5-tts-v1-base-f16.gguf`,
+zero-shot clone from `test/jfk.wav`) — left out of the line above on
+purpose: its DiT synth is *extremely* slow (~50 min for one short sentence
+on M1 Metal), so opt into it only deliberately and on its own.
 
 A single sweep takes ~25 min on M1 Metal end-to-end (full sweep —
 6 backends including a 3 B Llama and a 4 GB f32 vibevoice). Each

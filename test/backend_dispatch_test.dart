@@ -661,6 +661,8 @@ void main() {
     final chatterboxS3gen =
         Platform.environment['CRISPASR_TEST_CHATTERBOX_S3GEN'];
     final whisperModel = Platform.environment['CRISPASR_TEST_WHISPER_MODEL'];
+    final cosyvoice3Llm = Platform.environment['CRISPASR_TEST_COSYVOICE3_MODEL'];
+    final f5ttsModel = Platform.environment['CRISPASR_TEST_F5TTS_MODEL'];
 
     test('chatterbox → whisper preserves the spoken words', tags: ['slow'],
         () {
@@ -703,5 +705,102 @@ void main() {
                     : whisperModel == null
                         ? 'set CRISPASR_TEST_WHISPER_MODEL to a ggml-*.bin'
                         : null);
+
+    test('cosyvoice3 → whisper preserves the spoken words', tags: ['slow'],
+        () {
+      // cosyvoice3 auto-discovers its flow / hift / voices companions by
+      // filename next to the LLM GGUF (so they must sit in the same dir).
+      // No setVoice / setCodecPath: with no voice selected, synth uses the
+      // first baked voice in voices.gguf (voice_name = NULL). Verified
+      // 2026-05-31 on the origin/main dylib — transcript came back
+      // "the quick ground fox jumps over the lazy dog" (≈3 s of audio).
+      final tts = crispasr.CrispasrSession.open(cosyvoice3Llm!,
+          backend: 'cosyvoice3-tts', libPath: libPath);
+      addTearDown(tts.close);
+      const phrase = 'The quick brown fox jumps over the lazy dog.';
+      final pcm24 = tts.synthesize(phrase);
+      expect(pcm24.length, greaterThan(0),
+          reason: 'cosyvoice3 should synthesize non-empty audio');
+
+      final pcm16 = resample24kTo16k(pcm24);
+      final asr = crispasr.CrispasrSession.open(whisperModel!,
+          backend: 'whisper', libPath: libPath);
+      addTearDown(asr.close);
+      final text = asr
+          .transcribe(pcm16, language: 'en')
+          .map((s) => s.text)
+          .join(' ')
+          .toLowerCase();
+      printOnFailure('cosyvoice3 roundtrip: "$text"');
+      // "brown" sometimes lands as "ground" through the tiny-whisper leg,
+      // so assert on the more robust content words.
+      const words = ['quick', 'fox', 'lazy', 'dog'];
+      final hits = words.where((w) => text.contains(w)).length;
+      expect(text.trim(), isNotEmpty,
+          reason: 'whisper should transcribe the cosyvoice3 audio');
+      expect(hits, greaterThanOrEqualTo(2),
+          reason: 'roundtrip should preserve ≥2 of $words; got "$text"');
+    },
+        skip: !libAvailable
+            ? libSkipReason
+            : cosyvoice3Llm == null
+                ? 'set CRISPASR_TEST_COSYVOICE3_MODEL to a cosyvoice3-llm-*.gguf '
+                    '(flow / hift / voices companions beside it)'
+                : whisperModel == null
+                    ? 'set CRISPASR_TEST_WHISPER_MODEL to a ggml-*.bin'
+                    : null);
+
+    test('f5-tts → whisper preserves the spoken words', tags: ['slow'], () {
+      // F5-TTS is zero-shot: clone from a reference WAV + its transcript
+      // via setVoice(wav, refText:). Verified 2026-05-31 on the
+      // origin/main dylib — the target phrase came back cleanly (prefixed
+      // by the usual short ref-text echo).
+      //
+      // WARNING: the DiT flow-matching synth is *extremely* slow on this
+      // CPU/Metal build — a single short sentence took ~50 min wall-clock
+      // here. This case is `slow`-tagged AND only runs when its env var is
+      // set, so it never touches the default or normal `--tags slow` sweep
+      // unless you explicitly opt in. Keep the phrase short.
+      final tts = crispasr.CrispasrSession.open(f5ttsModel!,
+          backend: 'f5-tts', libPath: libPath);
+      addTearDown(tts.close);
+      // Reference: the bundled jfk.wav + a transcript of its opening.
+      final refWav =
+          Platform.environment['CRISPASR_TEST_JFK_WAV'] ?? 'test/jfk.wav';
+      tts.setVoice(refWav,
+          refText: 'And so my fellow Americans ask not what your country '
+              'can do for you.');
+      const phrase = 'The lazy dog sleeps.';
+      final pcm24 = tts.synthesize(phrase);
+      expect(pcm24.length, greaterThan(0),
+          reason: 'f5-tts should synthesize non-empty audio');
+
+      final pcm16 = resample24kTo16k(pcm24);
+      final asr = crispasr.CrispasrSession.open(whisperModel!,
+          backend: 'whisper', libPath: libPath);
+      addTearDown(asr.close);
+      final text = asr
+          .transcribe(pcm16, language: 'en')
+          .map((s) => s.text)
+          .join(' ')
+          .toLowerCase();
+      printOnFailure('f5-tts roundtrip: "$text"');
+      // Distinctive target words, none of which appear in the JFK ref text
+      // (so an echoed prefix can't satisfy the assertion by accident).
+      const words = ['lazy', 'dog', 'sleep'];
+      final hits = words.where((w) => text.contains(w)).length;
+      expect(text.trim(), isNotEmpty,
+          reason: 'whisper should transcribe the f5-tts audio');
+      expect(hits, greaterThanOrEqualTo(2),
+          reason: 'roundtrip should preserve ≥2 of $words; got "$text"');
+    },
+        skip: !libAvailable
+            ? libSkipReason
+            : f5ttsModel == null
+                ? 'set CRISPASR_TEST_F5TTS_MODEL to an f5-tts-*.gguf '
+                    '(very slow synth — see the test comment)'
+                : whisperModel == null
+                    ? 'set CRISPASR_TEST_WHISPER_MODEL to a ggml-*.bin'
+                    : null);
   });
 }
