@@ -3,6 +3,29 @@
 Notable user-facing changes per release. Full diff per version on
 the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases).
 
+## 0.6.50 — 2026-06-01
+
+- **Fix — Qwen3-TTS 1.7B CustomVoice now visible on fresh launch.** The
+  parity guard test we added caught a fourth instance of the #18 root cause:
+  `qwen3-tts-1.7b-customvoice` had a HuggingFace probe entry but no static
+  catalogue entry, making it invisible in the Synthesize picker until the user
+  visited Model Management. Fixed.
+- **CI fix — macOS test flake resolved.** The `batch_queue_service_test`
+  intermittently failed on macOS CI with "Directory not empty" because
+  fire-and-forget persistence writes from secondary notifiers raced the temp
+  directory cleanup. Writes are now drained deterministically before dispose.
+- **Structural guard against #18 recurrence.** New CI test validates that
+  every `BackendRepo` with kind=asr/tts has at least one matching static
+  catalogue entry. The three independently-maintained lists (BackendRepo,
+  crispasrBackendModels, bake script) can no longer silently drift — adding
+  a new HF repo without a static entry now fails CI.
+- **Expanded regression tests for #16/#17/#18.** Unit tests now cover the
+  exact crash-report model (Piper en_US LibriTTS-R), all piper catalogue
+  invariants, single-speaker edge cases, CustomVoice companion codec wiring,
+  and the qwen3-tts base model. New live FFI tests (tag-gated `slow`)
+  exercise the actual native paths: `availableBackends()` gate, CustomVoice
+  speaker enumeration + synthesis, and session-open for all #18 models.
+
 ## 0.6.49 — 2026-05-31
 
 - **F5-TTS** — added F5-TTS v1 Base to the model catalogue: a DiT
