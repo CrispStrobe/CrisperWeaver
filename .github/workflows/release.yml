@@ -32,7 +32,10 @@ concurrency:
 env:
   FLUTTER_VERSION: "3.38.5"
   CRISPASR_REPO: CrispStrobe/CrispASR
-  CRISPASR_REF: main
+  # Pin to last known-good commit for Windows builds. CrispASR main
+  # added zonos_tts.cpp which uses popen/pclose — not available on
+  # MSVC (needs _popen/_pclose). Unpin once the upstream fix lands.
+  CRISPASR_REF: 2d7a3cb6425b
 
 jobs:
   build-macos:
