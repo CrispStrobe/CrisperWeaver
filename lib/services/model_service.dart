@@ -1534,6 +1534,26 @@ class ModelService {
       backend: 'indextts',
       kind: ModelKind.codec,
     ),
+    // Qwen3-TTS 1.7B CustomVoice — same #18 pattern as the 0.6B variant.
+    // Without this entry, the 1.7B CustomVoice only surfaces after the HF
+    // deep refresh in Model Management. Approximate size from HF blob.
+    'qwen3-tts-12hz-1.7b-customvoice-q8_0': ModelDefinition(
+      name: 'qwen3-tts-12hz-1.7b-customvoice-q8_0',
+      displayName: 'Qwen3-TTS 1.7B CustomVoice 12 Hz (q8_0)',
+      fileName: 'qwen3-tts-12hz-1.7b-customvoice-q8_0.gguf',
+      url:
+          'https://huggingface.co/cstr/qwen3-tts-1.7b-customvoice-GGUF/resolve/main/qwen3-tts-12hz-1.7b-customvoice-q8_0.gguf',
+      sizeBytes: 1900 * 1024 * 1024,
+      checksum: '',
+      description:
+          'Qwen3-TTS 1.7B CustomVoice (9 preset speakers) — needs the '
+          'qwen3-tts-tokenizer-12hz codec GGUF; pick a speaker in Synthesize',
+      quantization: 'q8_0',
+      backend: 'qwen3-tts',
+      kind: ModelKind.tts,
+      companions: ['qwen3-tts-tokenizer-12hz'],
+      languages: langsQwen3TtsCustom9,
+    ),
     // Qwen3-TTS VoiceDesign — natural-language voice description.
     'qwen3-tts-12hz-1.7b-voicedesign-q8_0': ModelDefinition(
       name: 'qwen3-tts-12hz-1.7b-voicedesign-q8_0',

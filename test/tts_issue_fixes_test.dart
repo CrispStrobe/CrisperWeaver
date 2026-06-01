@@ -122,6 +122,7 @@ void main() {
     const expected = {
       'qwen3-tts-12hz-0.6b-base-q8_0': 'qwen3-tts',
       'qwen3-tts-12hz-0.6b-customvoice-q8_0': 'qwen3-tts',
+      'qwen3-tts-12hz-1.7b-customvoice-q8_0': 'qwen3-tts',
       'chatterbox-turbo-t3-q8_0': 'chatterbox',
     };
 

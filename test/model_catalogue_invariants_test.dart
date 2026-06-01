@@ -281,6 +281,14 @@ void main() {
 
     test('every non-lazy BackendRepo has ≥1 matching static catalogue entry',
         () {
+      // Merge both static catalogs — whisper models live in
+      // whisperCppModels, everything else in crispasrBackendModels.
+      // Both are checked on fresh launch by getWhisperCppModels().
+      final allStatic = <String, ModelDefinition>{
+        ...ModelService.crispasrBackendModels,
+        ...ModelService.whisperCppModels,
+      };
+
       final orphaned = <String>[];
       for (final repoEntry in ModelService.backendRepos.entries) {
         if (lazyOnlyBackendRepos.contains(repoEntry.key)) continue;
@@ -293,19 +301,19 @@ void main() {
         if (repo.kind != ModelKind.asr && repo.kind != ModelKind.tts) {
           continue;
         }
-        // Check that at least one crispasrBackendModels entry has a
-        // fileName whose stem starts with the repo's baseName AND
-        // shares the same backend.
-        final hasStaticEntry =
-            ModelService.crispasrBackendModels.values.any((def) =>
-                def.backend == repo.backend &&
-                (def.kind == ModelKind.asr || def.kind == ModelKind.tts) &&
-                def.fileName.startsWith(repo.baseName));
+        // Check that at least one static entry has a fileName whose
+        // stem starts with the repo's baseName. Whisper models use
+        // backend='' (unset) so skip the backend check for those.
+        final hasStaticEntry = allStatic.values.any((def) =>
+            def.fileName.startsWith(repo.baseName) &&
+            (def.backend == repo.backend ||
+             def.backend == null ||
+             def.backend!.isEmpty));
         if (!hasStaticEntry) {
           orphaned.add(
               'BackendRepo[${repoEntry.key}] '
               '(backend=${repo.backend}, base=${repo.baseName}) '
-              'has no matching crispasrBackendModels entry — model '
+              'has no matching static catalogue entry — model '
               'will be invisible until Model Management deep refresh '
               '(issue #18 root cause)');
         }
