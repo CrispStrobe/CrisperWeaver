@@ -64,10 +64,63 @@ void main() {
       // baked speaker set doesn't include the previously-picked name.
       expect(resolve(const ['Ethan', 'Chelsie'], 'Ryan'), 'Ethan');
     });
+
+    test('single-speaker list always returns that speaker', () {
+      expect(resolve(const ['Solo'], null), 'Solo');
+      expect(resolve(const ['Solo'], 'Solo'), 'Solo');
+      expect(resolve(const ['Solo'], 'Other'), 'Solo');
+    });
+
+    test('qwen3-tts CustomVoice has a companion codec declared', () {
+      // Without the codec, the session can't open and speakers can't be
+      // enumerated. Verify the catalog wires the dependency.
+      final def = ModelService
+          .crispasrBackendModels['qwen3-tts-12hz-0.6b-customvoice-q8_0'];
+      expect(def, isNotNull);
+      expect(def!.companions, isNotEmpty,
+          reason: 'CustomVoice needs a codec companion');
+      // The companion must itself be catalogued.
+      for (final c in def.companions) {
+        expect(ModelService.crispasrBackendModels.containsKey(c), isTrue,
+            reason: 'companion "$c" must resolve in the catalog');
+      }
+    });
+  });
+
+  group('#16 — piper models are in catalog with correct backend', () {
+    test('the model from the crash report is catalogued as piper', () {
+      // Issue #16 specifically mentions "Piper en_US LibriTTS-R (medium)".
+      final def =
+          ModelService.crispasrBackendModels['piper-en-libritts-r-medium'];
+      expect(def, isNotNull,
+          reason: 'the exact model from the #16 crash report must be '
+              'in the static catalog');
+      expect(def!.backend, 'piper');
+      expect(def.kind, ModelKind.tts);
+    });
+
+    test('all piper entries have backend=piper and kind=tts', () {
+      final piperEntries = ModelService.crispasrBackendModels.entries
+          .where((e) => e.value.backend == 'piper')
+          .toList();
+      expect(piperEntries, isNotEmpty,
+          reason: 'at least one piper voice should be in the catalog');
+      for (final e in piperEntries) {
+        expect(e.value.kind, ModelKind.tts,
+            reason: '${e.key} should be kind=tts');
+        expect(e.value.companions, isEmpty,
+            reason: 'piper GGUFs are self-contained, no companions');
+      }
+    });
   });
 
   group('#18 — TTS variants are statically catalogued', () {
+    // Issue #18 lists three models that were missing on fresh launch:
+    //   * Chatterbox turbo T3
+    //   * Qwen3-TTS 0.6B base
+    //   * Qwen3-TTS 0.6B custom-voice
     const expected = {
+      'qwen3-tts-12hz-0.6b-base-q8_0': 'qwen3-tts',
       'qwen3-tts-12hz-0.6b-customvoice-q8_0': 'qwen3-tts',
       'chatterbox-turbo-t3-q8_0': 'chatterbox',
     };

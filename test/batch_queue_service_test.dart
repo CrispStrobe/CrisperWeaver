@@ -176,6 +176,7 @@ void main() {
       // Demotion was persisted too.
       final diskAfter = await persistence.loadAllJobs();
       expect(diskAfter.single.status, BatchJobStatus.queued);
+      await reborn.whenPersisted();
       reborn.dispose();
     });
 
@@ -192,6 +193,7 @@ void main() {
       // initial disk snapshot.
       await reborn.load();
       expect(reborn.state.length, firstSnapshot.length + 1);
+      await reborn.whenPersisted();
       reborn.dispose();
     });
 

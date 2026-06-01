@@ -261,6 +261,64 @@ void main() {
     });
   });
 
+  group('BackendRepo → static catalogue parity (#18 root cause)', () {
+    // Issue #18: models with a BackendRepo but no crispasrBackendModels
+    // entry are invisible on fresh launch — they only appear after the
+    // user visits Model Management and waits for the HF deep refresh.
+    // This test catches the gap at CI time so it can't silently recur.
+    //
+    // Backends intentionally populated only via the HF probe (naming
+    // drift too wide for a reliable hardcoded entry). If you add a new
+    // BackendRepo that truly can't have a static entry, add it here
+    // with a comment explaining why.
+    const lazyOnlyBackendRepos = <String>{
+      'cohere',            // naming drift (comment at model_service line 502)
+      'granite',           // granite 4.0, same
+      'fastconformer-ctc', // same
+      'wav2vec2',          // same
+      'data2vec-audio',    // same
+    };
+
+    test('every non-lazy BackendRepo has ≥1 matching static catalogue entry',
+        () {
+      final orphaned = <String>[];
+      for (final repoEntry in ModelService.backendRepos.entries) {
+        if (lazyOnlyBackendRepos.contains(repoEntry.key)) continue;
+        final repo = repoEntry.value;
+        // A BackendRepo for a codec/voice is a companion — those are
+        // looked up by name from the main model's `companions:` list,
+        // not browsed in the Synthesize dropdown. Only main-model repos
+        // (kind=asr/tts) need a matching static entry for cold-start
+        // visibility.
+        if (repo.kind != ModelKind.asr && repo.kind != ModelKind.tts) {
+          continue;
+        }
+        // Check that at least one crispasrBackendModels entry has a
+        // fileName whose stem starts with the repo's baseName AND
+        // shares the same backend.
+        final hasStaticEntry =
+            ModelService.crispasrBackendModels.values.any((def) =>
+                def.backend == repo.backend &&
+                (def.kind == ModelKind.asr || def.kind == ModelKind.tts) &&
+                def.fileName.startsWith(repo.baseName));
+        if (!hasStaticEntry) {
+          orphaned.add(
+              'BackendRepo[${repoEntry.key}] '
+              '(backend=${repo.backend}, base=${repo.baseName}) '
+              'has no matching crispasrBackendModels entry — model '
+              'will be invisible until Model Management deep refresh '
+              '(issue #18 root cause)');
+        }
+      }
+      expect(orphaned, isEmpty,
+          reason: 'BackendRepo entries without a static catalogue '
+              'counterpart. Either add a crispasrBackendModels entry '
+              '(so it shows on fresh launch) or add the repo key to '
+              'lazyOnlyBackendRepos above with a justification:\n  '
+              '${orphaned.join('\n  ')}');
+    });
+  });
+
   group('voicepack language extraction (parity)', () {
     // _voicepackLanguages is private. Indirect test: build a
     // synthetic BackendRepo for kokoro / vibevoice and verify the
