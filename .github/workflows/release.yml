@@ -35,7 +35,7 @@ env:
   # Pin to last known-good commit for Windows builds. CrispASR main
   # added zonos_tts.cpp which uses popen/pclose — not available on
   # MSVC (needs _popen/_pclose). Unpin once the upstream fix lands.
-  CRISPASR_REF: 2d7a3cb6425b
+  CRISPASR_REF: 2d7a3cb6425b69989a421b85a89700c6b0afa571
 
 jobs:
   build-macos:
