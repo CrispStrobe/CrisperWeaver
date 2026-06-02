@@ -32,10 +32,7 @@ concurrency:
 env:
   FLUTTER_VERSION: "3.38.5"
   CRISPASR_REPO: CrispStrobe/CrispASR
-  # Pin to last known-good commit for Windows builds. CrispASR main
-  # added zonos_tts.cpp which uses popen/pclose — not available on
-  # MSVC (needs _popen/_pclose). Unpin once the upstream fix lands.
-  CRISPASR_REF: 2d7a3cb6425b69989a421b85a89700c6b0afa571
+  CRISPASR_REF: main
 
 jobs:
   build-macos:
@@ -807,6 +804,19 @@ jobs:
             Write-Error "espeak-ng dev files missing (.lib=$espeakLib, header=$espeakInc\espeak-ng\speak_lib.h)"
             exit 1
           }
+          # Patch POSIX popen/pclose → MSVC _popen/_pclose in any
+          # CrispASR source that uses them (zonos_tts.cpp today).
+          # Upstream fix pending; this keeps the Windows build green.
+          Get-ChildItem src -Recurse -Filter *.cpp |
+            Where-Object { (Get-Content $_.FullName -Raw) -match '\bpopen\b' } |
+            ForEach-Object {
+              $content = Get-Content $_.FullName -Raw
+              if ($content -notmatch '#define popen _popen') {
+                $patch = "#ifdef _MSC_VER`n#define popen _popen`n#define pclose _pclose`n#endif`n"
+                Set-Content $_.FullName ($patch + $content)
+                Write-Host "  patched $($_.Name) with popen→_popen compat"
+              }
+            }
           cmake -B build `
             -DCMAKE_BUILD_TYPE=Release `
             -DBUILD_SHARED_LIBS=ON `
