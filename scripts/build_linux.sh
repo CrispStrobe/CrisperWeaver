@@ -86,7 +86,7 @@ cmake --build "$BUILDDIR" $JOBS_FLAG --target "${BACKEND_TARGETS[@]}" 2>&1 \
   | grep -E "(Built target|error:|Error)" || true
 
 echo "==> link libwhisper.so"
-cmake --build "$BUILDDIR" $JOBS_FLAG --target crispasr 2>&1 \
+cmake --build "$BUILDDIR" $JOBS_FLAG --target crispasr-lib 2>&1 \
   | grep -E "(Built target|Linking|error:|Error)" || true
 
 LIBPATH="$BUILDDIR/src/libwhisper.so"

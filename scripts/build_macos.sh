@@ -82,8 +82,8 @@ fi
 # (libwhisper.dylib).
 #
 # CMake's "build target X" only pulls in dependencies declared via
-# target_link_libraries. The per-backend libs are linked into crispasr
-# via `if (TARGET <name>) target_link_libraries(crispasr PUBLIC <name>)`,
+# target_link_libraries. The per-backend libs are linked into crispasr-lib
+# via `if (TARGET <name>) target_link_libraries(crispasr-lib PUBLIC <name>)`,
 # which is a runtime check on the dependency graph — not a hard link
 # the way `target_link_libraries(... PUBLIC ggml)` would be. So we have
 # to ask cmake to build the static archives FIRST, then re-link
@@ -107,7 +107,7 @@ cmake --build "$BUILDDIR" $JOBS_FLAG --target "${BACKEND_TARGETS[@]}" 2>&1 \
   | grep -E "(Built target|error:|Error)" || true
 
 echo "==> link libwhisper.dylib"
-cmake --build "$BUILDDIR" $JOBS_FLAG --target crispasr 2>&1 \
+cmake --build "$BUILDDIR" $JOBS_FLAG --target crispasr-lib 2>&1 \
   | grep -E "(Built target|Linking|error:|Error)" || true
 
 # Sanity: at least the basic ASR backends should be linked in. If not,

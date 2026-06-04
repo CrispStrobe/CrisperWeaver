@@ -52,7 +52,7 @@ function Find-Dll($baseDir, $name) {
 # Core library — whisper.dll. Required.
 $whisperDll = Find-Dll $cBase "whisper"
 if (-not $whisperDll) {
-    throw "whisper.dll not found under $cBase. Run scripts\build_windows.ps1 (or `cmake --build $crispasrBuildSubdir --config Release --target crispasr`) first."
+    throw "whisper.dll not found under $cBase. Run scripts\build_windows.ps1 (or `cmake --build $crispasrBuildSubdir --config Release --target crispasr-lib`) first."
 }
 
 Write-Host "Bundling from: $whisperDll"

@@ -94,7 +94,7 @@ jobs:
           cache: true
 
       # Use the same end-to-end macOS build script we run locally.
-      # The earlier hand-rolled `cmake -B build … --target crispasr`
+      # The earlier hand-rolled `cmake -B build … --target crispasr-lib`
       # diverged from `scripts/build_macos.sh` in a few load-bearing
       # ways: it didn't disable CRISPASR_BUILD_TESTS / EXAMPLES /
       # SERVER (so cmake configure pulled in unrelated source trees

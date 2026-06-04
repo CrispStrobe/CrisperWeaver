@@ -1337,12 +1337,12 @@ toggle defaults to "behaves like v0.4.0".
 **CI**
 - macOS + Linux CI jobs aligned to the same build scripts devs run
   locally (`scripts/build_macos.sh`, `scripts/build_linux.sh`).
-  Earlier hand-rolled `cmake … --target crispasr` invocations
+  Earlier hand-rolled `cmake … --target crispasr-lib` invocations
   diverged from the local scripts in two load-bearing ways:
   (a) skipped `-DCRISPASR_BUILD_TESTS=OFF` so cmake configure pulled
   in unrelated source trees and tripped on the OBJCXX language
   requirement that comes in via the CoreML wrappers; (b) only built
-  the `crispasr` target without first building the 30 per-backend
+  the `crispasr-lib` target without first building the 30 per-backend
   STATIC archives, so the resulting libwhisper.dylib was missing
   every backend except whisper at runtime.
 - iOS release job updated to call `scripts/build_ios_xcframework.sh`
