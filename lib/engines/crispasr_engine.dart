@@ -686,6 +686,18 @@ class CrispASREngine implements TranscriptionEngine {
             'setAsk rejected by ${_session?.backend}: $e');
       }
     }
+    // Native punctuation: Canary/Cohere/LLM backends can produce
+    // punctuated + capitalized output natively (no extra model
+    // needed). Always enable — the setter silently no-ops on
+    // backends that don't support it (whisper, wav2vec2, etc.).
+    if (_session != null) {
+      try {
+        _session!.setPunctuation(true);
+      } catch (e) {
+        Log.instance.d('crispasr',
+            'setPunctuation rejected by ${_session?.backend}: $e');
+      }
+    }
     // Decoder temperature: 0.0 = greedy (the historical default).
     // Set on every dispatch so a previous non-zero value doesn't stick
     // when the user drags the slider back to 0. setTemperature returns
@@ -789,6 +801,18 @@ class CrispASREngine implements TranscriptionEngine {
       } catch (e) {
         Log.instance.d('crispasr',
             'setGrammar rejected by ${_session?.backend}: $e');
+      }
+    }
+    // Guard against runaway generation on LLM-style backends
+    // (Qwen3-ASR, Granite, GLM-ASR, Voxtral). A sane cap prevents
+    // token loops from burning CPU; the C side silently ignores this
+    // on backends without an AR decode step.
+    if (_session != null) {
+      try {
+        _session!.setMaxNewTokens(4096);
+      } catch (e) {
+        Log.instance.d('crispasr',
+            'setMaxNewTokens rejected by ${_session?.backend}: $e');
       }
     }
     if (!_isInitialized) {
