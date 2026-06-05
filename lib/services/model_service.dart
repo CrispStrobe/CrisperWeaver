@@ -2048,6 +2048,40 @@ class ModelService {
       backend: 'kugelaudio',
       kind: ModelKind.tts,
     ),
+    // Zonos v0.1 — Zyphra 500M-param transformer TTS with emotion/pitch/rate
+    // control, speaker cloning, 44.1 kHz native via DAC codec. Apache 2.0.
+    'zonos-v0.1-transformer-q4_k': ModelDefinition(
+      name: 'zonos-v0.1-transformer-q4_k',
+      displayName: 'Zonos v0.1 (q4_k)',
+      fileName: 'zonos-v0.1-transformer-q4_k.gguf',
+      url:
+          'https://huggingface.co/cstr/zonos-v0.1-transformer-GGUF/resolve/main/zonos-v0.1-transformer-q4_k.gguf',
+      sizeBytes: 872 * 1024 * 1024,
+      checksum: '',
+      description:
+          'Zonos v0.1 TTS — emotion/pitch/rate control, speaker clone, 44.1 kHz, ~872 MB',
+      quantization: 'q4_k',
+      backend: 'zonos',
+      kind: ModelKind.tts,
+      companions: ['dac-44khz'],
+      languages: langsAll,
+    ),
+    'zonos-v0.1-transformer-f16': ModelDefinition(
+      name: 'zonos-v0.1-transformer-f16',
+      displayName: 'Zonos v0.1 (f16)',
+      fileName: 'zonos-v0.1-transformer-f16.gguf',
+      url:
+          'https://huggingface.co/cstr/zonos-v0.1-transformer-GGUF/resolve/main/zonos-v0.1-transformer-f16.gguf',
+      sizeBytes: 3100 * 1024 * 1024,
+      checksum: '',
+      description:
+          'Zonos v0.1 TTS reference quality — emotion/pitch/rate control, ~3.1 GB',
+      quantization: 'f16',
+      backend: 'zonos',
+      kind: ModelKind.tts,
+      companions: ['dac-44khz'],
+      languages: langsAll,
+    ),
     // Qwen3-TTS 1.7B Base — larger variant, same ICL voice-clone path.
     'qwen3-tts-12hz-1.7b-base-q8_0': ModelDefinition(
       name: 'qwen3-tts-12hz-1.7b-base-q8_0',
@@ -2557,6 +2591,7 @@ class ModelService {
     'pocket-tts': 'pocket-tts-english-f16',
     'speecht5': 'speecht5-tts-f16',
     'kugelaudio': 'kugelaudio-0-open-f16',
+    'zonos': 'zonos-v0.1-transformer-q4_k',
     // Text translation (Translate screen entry points)
     'm2m100': 'm2m100-418m-q4_k',
     // Chat LLM (Tidy / Summarize)
@@ -3430,6 +3465,16 @@ class ModelService {
       displayPrefix: 'KugelAudio',
       description: 'KugelAudio 0 Open — large TTS model',
       kind: ModelKind.tts,
+    ),
+    'zonos': BackendRepo(
+      backend: 'zonos',
+      repoId: 'cstr/zonos-v0.1-transformer-GGUF',
+      baseName: 'zonos-v0.1-transformer',
+      displayPrefix: 'Zonos',
+      description: 'Zonos v0.1 TTS — emotion/pitch/rate control, voice cloning, 44.1 kHz',
+      kind: ModelKind.tts,
+      defaultCompanions: ['dac-44khz'],
+      defaultLanguages: langsAll,
     ),
     // ----- New TTS variant BackendRepos -----
     'lahgtna-chatterbox': BackendRepo(

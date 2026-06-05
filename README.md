@@ -118,6 +118,7 @@ One dispatcher (`CrispasrSession`) handles every backend; bundled `libcrispasr` 
 | **Parler-TTS**    | Mini v1.1 (~900 MB)             | Describe voice in natural language via `setInstruct`, EN    |
 | **Pocket TTS**    | 100M (~220 MB)                  | Kyutai continuous-latent AR; voice clone from WAV, EN       |
 | **SpeechT5**      | 80M (~300 MB)                   | Microsoft AR mel decoder + HiFi-GAN, EN                     |
+| **Zonos**         | v0.1 (q4_k ~872 MB, f16 ~3.1 GB) + DAC codec | Zyphra 500M — emotion, pitch, rate control, speaker cloning, 44.1 kHz |
 | **KugelAudio**    | 0 Open (f16 ~14 GB)            | Large TTS model                                              |
 | **Piper**         | 15-60 MB per voice              | VITS, 250+ community voices, 30+ languages                  |
 
