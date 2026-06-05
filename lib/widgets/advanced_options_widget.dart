@@ -512,11 +512,14 @@ class AdvancedOptions {
     'voxtral',
     'voxtral4b',
     'qwen3',
-    // Granite + GLM-ASR also expose --ask in the CrispASR CLI.
     'granite',
     'granite-4.1',
     'granite-4.1-plus',
+    'granite-4.1-nar',
     'glm-asr',
+    'gemma4-e2b',
+    'mimo-asr',
+    'moss-audio',
   };
 
   /// Backends that honour `crispasr_session_set_temperature` per the
@@ -542,6 +545,8 @@ class AdvancedOptions {
     'gemma4-e2b',
     'omniasr-llm',
     'omniasr-llm-unlimited',
+    'mimo-asr',
+    'moss-audio',
   };
 
   /// §5.1.2 — Backends whose vocabulary bias is delivered via the
@@ -565,12 +570,14 @@ class AdvancedOptions {
     'granite',
     'granite-4.1',
     'granite-4.1-plus',
+    'granite-4.1-nar',
     'glm-asr',
     'kyutai-stt',
     'gemma4-e2b',
     'omniasr-llm',
     'omniasr-llm-unlimited',
     'mimo-asr',
+    'moss-audio',
   };
 
   /// Convenience union — every backend that supports vocabulary
