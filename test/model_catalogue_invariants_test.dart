@@ -41,6 +41,10 @@ void main() {
     'orpheus',             // SNAC codec (setCodecPath)
     'chatterbox',          // S3Gen vocoder (setCodecPath)
     'indextts',            // BigVGAN vocoder (setCodecPath)
+    'dia',                 // DAC 44.1 kHz codec (setCodecPath)
+    'melotts',             // BERT conditioning (setCodecPath)
+    'outetts',             // WavTokenizer decoder (setCodecPath)
+    'zonos',               // DAC 44.1 kHz codec (setCodecPath)
   };
 
   // Every code that should be acceptable as a `defaultLanguages`
