@@ -504,6 +504,11 @@ class AdvancedOptions {
     'omniasr-llm',
     'omniasr-llm-unlimited',
     'moonshine',
+    'moss-audio',
+    'sensevoice',
+    'funasr',
+    'paraformer',
+    'vibevoice',
   };
 
   /// Backends that accept a free-form Q&A prompt (instruct-tuned
