@@ -83,6 +83,13 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
   /// enumerate speakers for these — opening kokoro / vibevoice / chatterbox
   /// just to discover an always-empty speaker list would be wasted work.
   static const _speakerCapableBackends = {'orpheus', 'qwen3-tts'};
+
+  /// Backends with integer-indexed speakers (melotts, piper, fastpitch).
+  /// Uses setSpeakerID(int) instead of setSpeakerName(String).
+  static const _speakerIdCapableBackends = {'melotts', 'piper', 'fastpitch'};
+  int _nSpeakers = 0;
+  int? _selectedSpeakerId;
+
   /// User-supplied reference WAV for runtime cloning (qwen3-tts Base,
   /// vibevoice-1.5b, indextts). Takes priority over the catalog-voice
   /// dropdown; pair with `_refTextController` for backends that need a
@@ -235,6 +242,8 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
     // Model changed — drop any stale speaker selection; _loadSpeakers
     // repopulates for the new model.
     _selectedSpeaker = null;
+    _selectedSpeakerId = null;
+    _nSpeakers = 0;
     _presetSpeakers = const [];
     final modelDef =
         ref.read(modelServiceProvider).lookupDefinition(_selectedModel ?? '');
@@ -268,6 +277,10 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
     if (modelName == null) return;
     final svc = ref.read(modelServiceProvider);
     final backend = svc.lookupDefinition(modelName)?.backend;
+    // Named-speaker backends (orpheus, qwen3-tts CustomVoice).
+    if (backend != null && _speakerIdCapableBackends.contains(backend)) {
+      return _loadSpeakersById();
+    }
     if (backend == null || !_speakerCapableBackends.contains(backend)) {
       return;
     }
@@ -290,6 +303,37 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
       });
     } catch (e, st) {
       Log.instance.w('synth', 'speaker enumeration failed',
+          error: e, stack: st, fields: {'model': modelName});
+    } finally {
+      if (mounted) setState(() => _loadingSpeakers = false);
+    }
+  }
+
+  /// Load speaker count for integer-indexed backends (melotts, piper,
+  /// fastpitch). Opens the session to query nSpeakers.
+  Future<void> _loadSpeakersById() async {
+    final modelName = _selectedModel;
+    if (modelName == null) return;
+    setState(() => _loadingSpeakers = true);
+    try {
+      final tts = ref.read(ttsServiceProvider);
+      final status = await tts.prepare(
+        modelName: modelName,
+        voiceName: _selectedVoice,
+        codecName: _selectedCodec,
+      );
+      if (!mounted) return;
+      if (status.ready) {
+        final n = tts.session?.nSpeakers ?? 0;
+        setState(() {
+          _nSpeakers = n;
+          _selectedSpeakerId = (n > 0) ? (_selectedSpeakerId ?? 0).clamp(0, n - 1) : null;
+          // Clear named speakers so the UI shows the ID picker instead.
+          _presetSpeakers = const [];
+        });
+      }
+    } catch (e, st) {
+      Log.instance.w('synth', 'speaker ID enumeration failed',
           error: e, stack: st, fields: {'model': modelName});
     } finally {
       if (mounted) setState(() => _loadingSpeakers = false);
@@ -325,6 +369,7 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
         codecName: _selectedCodec,
         refText: refText.isEmpty ? null : refText,
         speakerName: _selectedSpeaker,
+        speakerId: _selectedSpeakerId,
         instructPrompt: instructPrompt.isEmpty ? null : instructPrompt,
         voiceWavPath: _customVoiceWavPath,
       );
@@ -663,6 +708,25 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
                             .toList(),
                         onChanged: (v) =>
                             setState(() => _selectedSpeaker = v),
+                      ),
+                    ] else if (_nSpeakers > 1) ...[
+                      // Integer-indexed speaker picker (melotts, piper, fastpitch).
+                      const SizedBox(height: 8),
+                      DropdownButtonFormField<int>(
+                        decoration: InputDecoration(
+                          labelText: l.synthSpeakerLabel,
+                          helperText: '${_nSpeakers} speakers available (0-indexed)',
+                        ),
+                        value: _selectedSpeakerId ?? 0,
+                        items: List.generate(
+                          _nSpeakers,
+                          (i) => DropdownMenuItem(
+                            value: i,
+                            child: Text('Speaker $i'),
+                          ),
+                        ),
+                        onChanged: (v) =>
+                            setState(() => _selectedSpeakerId = v),
                       ),
                     ] else if (_loadingSpeakers) ...[
                       const SizedBox(height: 8),

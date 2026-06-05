@@ -92,6 +92,7 @@ class TtsService {
     String? refText,
     String? voiceWavPath,
     String? speakerName,
+    int? speakerId,
     String? instructPrompt,
   }) async {
     final modelPath = await _resolvePath(modelName);
@@ -112,7 +113,8 @@ class TtsService {
       return TtsLoadStatus.missing(codecName: codecName);
     }
 
-    final key = _makeKey('$modelPath#${speakerName ?? ''}#${instructPrompt ?? ''}',
+    final key = _makeKey(
+        '$modelPath#${speakerName ?? ''}#${speakerId ?? ''}#${instructPrompt ?? ''}',
         voicePath, codecPath);
     if (_session != null && _key == key) {
       return TtsLoadStatus.ready(_backend!);
@@ -184,6 +186,13 @@ class TtsService {
           Log.instance.d('tts', 'setSpeakerName rejected',
               fields: {'name': speakerName, 'err': e.toString()});
         }
+      } else if (speakerId != null) {
+        try {
+          s.setSpeakerID(speakerId);
+        } catch (e) {
+          Log.instance.d('tts', 'setSpeakerID rejected',
+              fields: {'id': speakerId, 'err': e.toString()});
+        }
       } else if (voicePath != null) {
         // refText pairs with WAV-cloning voices on qwen3-tts /
         // vibevoice-1.5b; baked GGUFs ignore it. The Dart binding
@@ -208,6 +217,10 @@ class TtsService {
       return TtsLoadStatus.error(e.toString());
     }
   }
+
+  /// The underlying session, for callers that need direct access
+  /// (e.g. querying nSpeakers). Null when no model is loaded.
+  crispasr.CrispasrSession? get session => _session;
 
   /// Whether the active session is a qwen3-tts CustomVoice variant.
   /// Surfaces the CrispASR FFI capability to the UI so the Synthesize
