@@ -1679,6 +1679,9 @@ class _AdvancedDecodingSectionState
         initialValue: opts.puncFamily,
         items: [
           DropdownMenuItem(
+              value: 'pcs',
+              child: Text(l.advancedPuncFamilyPcs)),
+          DropdownMenuItem(
               value: 'firered',
               child: Text(l.advancedPuncFamilyFirered)),
           DropdownMenuItem(

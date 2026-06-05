@@ -924,7 +924,8 @@
   "advancedAltNSubtitle": "Erfasst bei jedem Whisper-Greedy-Schritt die Top-N-Alternativtoken. Im Transkript-Editor lässt sich dann auf ein mehrdeutiges Wort tippen, um ein konkurrierendes Kandidat-Token zu wählen (kubectl / Quark / …). 0 = aus (Standard). Funktioniert am besten mit Greedy-Decoding — Beam Search wird nicht unterstützt. Vor Version 0.5.13 wird der Wert ignoriert.",
 
   "advancedPuncFamily": "Interpunktionsmodell",
-  "advancedPuncFamilyHelper": "Nur sichtbar, wenn Interpunktion wiederherstellen aktiviert ist. Wahl zwischen FireRedPunc (ZH+EN) und fullstop-punc (EN/DE/FR/IT). Fällt automatisch auf das vorhandene Modell zurück.",
+  "advancedPuncFamilyHelper": "PCS ist All-in-one (Interpunktion + Groß-/Kleinschreibung + Satzerkennung, 47 Sprachen). FireRedPunc und fullstop-punc werden mit dem Truecaser verkettet.",
+  "advancedPuncFamilyPcs": "PCS (47 Sprachen, All-in-one)",
   "advancedPuncFamilyFirered": "FireRedPunc (Chinesisch + Englisch)",
   "advancedPuncFamilyFullstop": "Fullstop-punc multilingual (EN/DE/FR/IT)",
 

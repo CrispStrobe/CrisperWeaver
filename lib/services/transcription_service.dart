@@ -436,15 +436,13 @@ class TranscriptionService {
 
       // Step 4: Punctuation + truecasing restoration (5% of progress) —
       // runs after diarization so the speaker-aware splits stay intact.
-      // Priority: PCS (all-in-one) > FireRedPunc + truecaser chain.
+      // Routes by user-picked puncFamily: 'pcs' → all-in-one PcsModel,
+      // 'firered'/'fullstop' → PuncModel + truecaser chain.
       if (restorePunctuation && segments.isNotEmpty) {
         onProgress?.call(0.95);
-        // Try PCS first — handles punct + truecase + SBD in one pass.
-        final pcsResult = await _puncService.restorePcs(segments);
-        if (!identical(pcsResult, segments)) {
-          segments = pcsResult;
+        if (advanced.puncFamily == 'pcs') {
+          segments = await _puncService.restorePcs(segments);
         } else {
-          // Fall back to FireRedPunc/fullstop-punc + truecaser chain.
           segments = await _puncService.restore(segments);
           segments = await _puncService.restoreTruecase(segments);
         }
@@ -758,13 +756,14 @@ class TranscriptionService {
 
   /// Run punctuation + truecasing restoration on already-transcribed
   /// segments. Same use case as [diarize] — pool path calls this after
-  /// the worker returns. PCS > FireRedPunc + truecaser chain.
+  /// the worker returns. Tries PCS first (all-in-one), falls back to
+  /// FireRedPunc + truecaser chain.
   Future<List<TranscriptionSegment>> restorePunctuation(
       List<TranscriptionSegment> segments) async {
-    // PCS handles everything in one pass when available.
+    // Try PCS first when available.
     final pcsResult = await _puncService.restorePcs(segments);
     if (!identical(pcsResult, segments)) return pcsResult;
-    // Fall back to legacy chain.
+    // Fall back to FireRedPunc/fullstop-punc + truecaser chain.
     var result = await _puncService.restore(segments);
     result = await _puncService.restoreTruecase(result);
     return result;

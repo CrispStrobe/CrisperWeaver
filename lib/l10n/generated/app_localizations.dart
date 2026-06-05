@@ -3797,8 +3797,14 @@ abstract class AppLocalizations {
   /// No description provided for @advancedPuncFamilyHelper.
   ///
   /// In en, this message translates to:
-  /// **'Visible only when Restore punctuation is on. Switch between FireRedPunc (ZH+EN) and fullstop-punc (EN/DE/FR/IT). Auto-fallback to whichever is downloaded.'**
+  /// **'PCS is all-in-one (punct + truecase + SBD, 47 langs). FireRedPunc and fullstop-punc chain with the truecaser.'**
   String get advancedPuncFamilyHelper;
+
+  /// No description provided for @advancedPuncFamilyPcs.
+  ///
+  /// In en, this message translates to:
+  /// **'PCS (47 languages, all-in-one)'**
+  String get advancedPuncFamilyPcs;
 
   /// No description provided for @advancedPuncFamilyFirered.
   ///

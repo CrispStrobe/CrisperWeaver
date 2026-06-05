@@ -2211,7 +2211,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get advancedPuncFamilyHelper =>
-      'Visible only when Restore punctuation is on. Switch between FireRedPunc (ZH+EN) and fullstop-punc (EN/DE/FR/IT). Auto-fallback to whichever is downloaded.';
+      'PCS is all-in-one (punct + truecase + SBD, 47 langs). FireRedPunc and fullstop-punc chain with the truecaser.';
+
+  @override
+  String get advancedPuncFamilyPcs => 'PCS (47 languages, all-in-one)';
 
   @override
   String get advancedPuncFamilyFirered => 'FireRedPunc (Chinese + English)';

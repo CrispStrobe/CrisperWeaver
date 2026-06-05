@@ -926,7 +926,8 @@
   "advancedAltNSubtitle": "Capture the top-N runner-up tokens at each Whisper greedy step. Lets you tap an ambiguous word in the transcript editor and pick a competing candidate (kubectl / cubicle / …). 0 = off (default). Best with greedy decoding — beam search not supported. Pre-0.5.13 dylibs silently ignore.",
 
   "advancedPuncFamily": "Punctuation model",
-  "advancedPuncFamilyHelper": "Visible only when Restore punctuation is on. Switch between FireRedPunc (ZH+EN) and fullstop-punc (EN/DE/FR/IT). Auto-fallback to whichever is downloaded.",
+  "advancedPuncFamilyHelper": "PCS is all-in-one (punct + truecase + SBD, 47 langs). FireRedPunc and fullstop-punc chain with the truecaser.",
+  "advancedPuncFamilyPcs": "PCS (47 languages, all-in-one)",
   "advancedPuncFamilyFirered": "FireRedPunc (Chinese + English)",
   "advancedPuncFamilyFullstop": "Fullstop-punc multilang (EN/DE/FR/IT)",
 

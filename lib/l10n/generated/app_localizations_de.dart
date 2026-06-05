@@ -2223,7 +2223,10 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get advancedPuncFamilyHelper =>
-      'Nur sichtbar, wenn Interpunktion wiederherstellen aktiviert ist. Wahl zwischen FireRedPunc (ZH+EN) und fullstop-punc (EN/DE/FR/IT). Fällt automatisch auf das vorhandene Modell zurück.';
+      'PCS ist All-in-one (Interpunktion + Groß-/Kleinschreibung + Satzerkennung, 47 Sprachen). FireRedPunc und fullstop-punc werden mit dem Truecaser verkettet.';
+
+  @override
+  String get advancedPuncFamilyPcs => 'PCS (47 Sprachen, All-in-one)';
 
   @override
   String get advancedPuncFamilyFirered => 'FireRedPunc (Chinesisch + Englisch)';
