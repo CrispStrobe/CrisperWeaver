@@ -675,7 +675,13 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
                     minLines: 4,
                     maxLines: 8,
                     decoration: InputDecoration(
-                      hintText: l.synthTextHint,
+                      hintText: modelDef?.backend == 'dia'
+                          ? l.synthDiaTextHint
+                          : l.synthTextHint,
+                      helperText: modelDef?.backend == 'dia'
+                          ? l.synthDiaHelper
+                          : null,
+                      helperMaxLines: 2,
                       border: const OutlineInputBorder(),
                     ),
                   ),

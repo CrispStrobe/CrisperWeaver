@@ -1828,6 +1828,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get synthTextHint => 'Type text to synthesise…';
 
   @override
+  String get synthDiaTextHint => '[S1] Hello, how are you? [S2] I\'m doing great, thanks!';
+
+  @override
+  String get synthDiaHelper => 'Dia uses [S1] and [S2] tags to mark different speakers in dialogue. Use 100+ character prompts for best results.';
+
+  @override
   String get synthRunButton => 'Synthesize';
 
   @override
@@ -2248,11 +2254,11 @@ class AppLocalizationsEn extends AppLocalizations {
       'Required when pairing a WAV voice with qwen3-tts Base or vibevoice-1.5b for runtime cloning. Empty for baked GGUF voices.';
 
   @override
-  String get synthInstruct => 'Voice description (qwen3-tts VoiceDesign only)';
+  String get synthInstruct => 'Voice description (VoiceDesign / Parler-TTS)';
 
   @override
   String get synthInstructHelper =>
-      'Natural-language description of the desired voice (\"warm female narrator, slight British accent\"). Silently ignored on every other backend.';
+      'Natural-language description of the desired voice (\"warm female narrator, slight British accent\"). Used by qwen3-tts VoiceDesign and Parler-TTS; ignored on other backends.';
 
   @override
   String get synthTrimSilence => 'Trim silence';

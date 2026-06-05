@@ -74,11 +74,23 @@ JOBS_FLAG=""
 if [[ -n "${JOBS:-}" ]]; then JOBS_FLAG="-j $JOBS"; else JOBS_FLAG="--parallel"; fi
 
 BACKEND_TARGETS=(
+  # ASR
   parakeet canary canary_ctc qwen3_asr cohere granite_speech granite_nle
-  voxtral voxtral4b wav2vec2-ggml glm-asr kyutai-stt firered-asr firered-vad
-  marblenet-vad firered-lid omniasr vibevoice ecapa-lid moonshine
-  moonshine_streaming gemma4_e2b mimo_tokenizer mimo_asr qwen3_tts orpheus
-  kokoro pyannote-seg silero-lid fireredpunc
+  voxtral voxtral4b wav2vec2-ggml glm-asr kyutai-stt firered-asr
+  funasr paraformer sensevoice omniasr
+  moonshine moonshine_streaming gemma4_e2b mimo_tokenizer mimo_asr vibevoice
+  # TTS
+  qwen3_tts orpheus chatterbox indextts kokoro piper-tts
+  voxcpm2_tts cosyvoice3_tts f5-tts outetts
+  bark-tts csm-tts dia-tts fastpitch-tts parler-tts speecht5-tts
+  pocket-tts zonos-tts melotts bert-encoder openvoice2
+  # Translation
+  m2m100 t5_translate
+  # Post-processing & LID
+  fireredpunc pcs truecaser truecaser_crf truecaser_lstm
+  pyannote-seg silero-lid ecapa-lid firered-lid firered-vad marblenet-vad
+  crispasr-vad-encdec titanet ctc-align
+  lid-cld3 lid-fasttext text-lid-dispatch
 )
 
 echo "==> build backend statics (${#BACKEND_TARGETS[@]} targets)"

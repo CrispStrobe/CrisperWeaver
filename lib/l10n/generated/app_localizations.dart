@@ -3194,6 +3194,18 @@ abstract class AppLocalizations {
   /// **'Type text to synthesise…'**
   String get synthTextHint;
 
+  /// No description provided for @synthDiaTextHint.
+  ///
+  /// In en, this message translates to:
+  /// **'[S1] Hello, how are you? [S2] I\'m doing great, thanks!'**
+  String get synthDiaTextHint;
+
+  /// No description provided for @synthDiaHelper.
+  ///
+  /// In en, this message translates to:
+  /// **'Dia uses [S1] and [S2] tags to mark different speakers in dialogue. Use 100+ character prompts for best results.'**
+  String get synthDiaHelper;
+
   /// No description provided for @synthRunButton.
   ///
   /// In en, this message translates to:
@@ -3863,13 +3875,13 @@ abstract class AppLocalizations {
   /// No description provided for @synthInstruct.
   ///
   /// In en, this message translates to:
-  /// **'Voice description (qwen3-tts VoiceDesign only)'**
+  /// **'Voice description (VoiceDesign / Parler-TTS)'**
   String get synthInstruct;
 
   /// No description provided for @synthInstructHelper.
   ///
   /// In en, this message translates to:
-  /// **'Natural-language description of the desired voice (\"warm female narrator, slight British accent\"). Silently ignored on every other backend.'**
+  /// **'Natural-language description of the desired voice (\"warm female narrator, slight British accent\"). Used by qwen3-tts VoiceDesign and Parler-TTS; ignored on other backends.'**
   String get synthInstructHelper;
 
   /// No description provided for @synthTrimSilence.

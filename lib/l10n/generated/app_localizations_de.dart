@@ -1843,6 +1843,12 @@ class AppLocalizationsDe extends AppLocalizations {
   String get synthTextHint => 'Text zum Synthetisieren eingeben…';
 
   @override
+  String get synthDiaTextHint => '[S1] Hallo, wie geht es dir? [S2] Mir geht es gut, danke!';
+
+  @override
+  String get synthDiaHelper => 'Dia verwendet [S1]- und [S2]-Tags für verschiedene Sprecher im Dialog. Verwende Texte mit 100+ Zeichen für beste Ergebnisse.';
+
+  @override
   String get synthRunButton => 'Synthetisieren';
 
   @override
@@ -2261,11 +2267,11 @@ class AppLocalizationsDe extends AppLocalizations {
       'Erforderlich, wenn eine WAV-Stimme mit qwen3-tts Base oder vibevoice-1.5b für Laufzeit-Klonen kombiniert wird. Leer lassen bei vorgebackenen GGUF-Stimmen.';
 
   @override
-  String get synthInstruct => 'Stimm-Beschreibung (nur qwen3-tts VoiceDesign)';
+  String get synthInstruct => 'Stimm-Beschreibung (VoiceDesign / Parler-TTS)';
 
   @override
   String get synthInstructHelper =>
-      'Natursprachliche Beschreibung der gewünschten Stimme („warmer weiblicher Erzähler, leichter britischer Akzent“). Wird bei anderen Backends ignoriert.';
+      'Natursprachliche Beschreibung der gewünschten Stimme („warmer weiblicher Erzähler, leichter britischer Akzent”). Verwendet von qwen3-tts VoiceDesign und Parler-TTS; bei anderen Backends ignoriert.';
 
   @override
   String get synthTrimSilence => 'Stille beschneiden';
