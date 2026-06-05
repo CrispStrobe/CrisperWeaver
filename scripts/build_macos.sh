@@ -101,6 +101,7 @@ BACKEND_TARGETS=(
   voxtral voxtral4b wav2vec2-ggml glm-asr kyutai-stt firered-asr
   funasr paraformer sensevoice omniasr
   moonshine moonshine_streaming gemma4_e2b mimo_tokenizer mimo_asr vibevoice
+  moss_audio
   # TTS
   qwen3_tts orpheus chatterbox indextts kokoro piper-tts
   voxcpm2_tts cosyvoice3_tts f5-tts outetts

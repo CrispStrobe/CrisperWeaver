@@ -1334,6 +1334,21 @@ class ModelService {
       quantization: 'q4_k',
       backend: 'gemma4-e2b',
     ),
+    // MOSS-Audio-4B-Instruct — Whisper encoder + Qwen3 LLM (audio
+    // understanding: ASR + audio QA + scene description). ~3.8 GB Q4_K.
+    'moss-audio-4b-instruct-q4_k': ModelDefinition(
+      name: 'moss-audio-4b-instruct-q4_k',
+      displayName: 'MOSS-Audio 4B Instruct (q4_k)',
+      fileName: 'moss-audio-4b-instruct-q4_k.gguf',
+      url:
+          'https://huggingface.co/cstr/MOSS-Audio-4B-Instruct-GGUF/resolve/main/moss-audio-4b-instruct-q4_k.gguf',
+      sizeBytes: 3800 * 1024 * 1024,
+      checksum: '',
+      description:
+          'MOSS-Audio 4B — ASR + audio QA + scene description (Whisper encoder + Qwen3 LLM), ~3.8 GB',
+      quantization: 'q4_k',
+      backend: 'moss-audio',
+    ),
     // OmniASR LLM unlimited — streaming variant, 15 s protocol.
     'omniasr-llm-unlimited-q4_k': ModelDefinition(
       name: 'omniasr-llm-unlimited-q4_k',
@@ -2520,6 +2535,7 @@ class ModelService {
     'granite-4.1-plus': 'granite-speech-4.1-plus-q4_k',
     'granite-4.1-nar': 'granite-speech-4.1-nar-q4_k',
     'gemma4-e2b': 'gemma4-e2b-q4_k',
+    'moss-audio': 'moss-audio-4b-instruct-q4_k',
     // TTS
     'kokoro': 'kokoro-82m-q8_0',
     'vibevoice-tts': 'vibevoice-realtime-0.5b-tts-f16',
@@ -3102,6 +3118,14 @@ class ModelService {
       baseName: 'gemma4-e2b-it',
       displayPrefix: 'Gemma4-E2B-it',
       description: 'Multilingual ASR (140+ languages, instruction-tuned)',
+      defaultLanguages: langsAll,
+    ),
+    'moss-audio': BackendRepo(
+      backend: 'moss-audio',
+      repoId: 'cstr/MOSS-Audio-4B-Instruct-GGUF',
+      baseName: 'moss-audio-4b-instruct',
+      displayPrefix: 'MOSS-Audio 4B',
+      description: 'ASR + audio QA + scene description (Whisper enc + Qwen3 LLM)',
       defaultLanguages: langsAll,
     ),
     // OmniASR LLM unlimited streaming variant.

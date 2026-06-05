@@ -94,6 +94,7 @@ One dispatcher (`CrispasrSession`) handles every backend; bundled `libcrispasr` 
 | **FunASR Nano**       | 2512 (f16 / q4_k), MLT 2512         | zh + en (nano) / multi (mlt)| Alibaba's compact ASR, 70-block SANM  |
 | **Paraformer-ZH**     | base (f16 / q4_k / q8_0)            | zh                          | FunASR family, NAR Mandarin ASR       |
 | **SenseVoice**        | small (f16 / q4_k / q8_0)           | zh en ja ko yue             | Built-in LID + use_itn punctuation    |
+| **MOSS-Audio**        | 4B Instruct (q4_k ~3.8 GB)         | multilingual                | ASR + audio QA + scene description (Whisper enc + Qwen3 LLM) |
 
 ### TTS
 
