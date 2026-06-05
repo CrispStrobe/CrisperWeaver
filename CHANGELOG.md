@@ -3,6 +3,20 @@
 Notable user-facing changes per release. Full diff per version on
 the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases).
 
+## 0.7.3 — 2026-06-05
+
+- **PCS post-processor** — all-in-one punctuation + capitalization + sentence
+  boundary detection in a single pass, 47 languages via XLM-RoBERTa-base.
+  Published at [cstr/pcs-xlmr-base-GGUF](https://huggingface.co/cstr/pcs-xlmr-base-GGUF)
+  (Q4_K ~155 MB, F16 ~903 MB). Third option in the Advanced Options punctuation
+  family picker alongside FireRedPunc and fullstop-punc.
+- **Punctuation family picker** now has three options: PCS (all-in-one, 47 langs),
+  FireRedPunc (ZH+EN), fullstop-punc (EN/DE/FR/IT). PCS routes to `PcsModel`
+  directly; others chain `PuncModel` + truecaser.
+- **Baked catalog regenerated** — 95 repos probed, 287 entries baked. All new
+  quant variants for v0.7.x backends are now available offline.
+- **TTS verification checklist** added at `docs/tts-verify-checklist.md`.
+
 ## 0.7.1 — 2026-06-05
 
 - **Zonos v0.1 TTS** — Zyphra 500M-param transformer TTS with 8-axis emotion
