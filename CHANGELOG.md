@@ -3,6 +3,16 @@
 Notable user-facing changes per release. Full diff per version on
 the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases).
 
+## 0.7.1 — 2026-06-05
+
+- **MOSS-Audio 4B** — new ASR + audio QA backend (Whisper encoder + Qwen3 LLM,
+  ~3.8 GB Q4_K). Supports instruction-tuned audio understanding: transcription,
+  audio question answering, and scene description.
+- **Backend capability sets expanded** — Audio Q&A prompt field, temperature
+  slider, vocabulary chips, and source-language picker now appear for all
+  applicable backends: moss-audio, mimo-asr, gemma4-e2b, granite-4.1-nar,
+  sensevoice, funasr, paraformer, vibevoice.
+
 ## 0.7.0 — 2026-06-05
 
 **Full CrispASR parity release** — CrisperWeaver now leverages every backend
