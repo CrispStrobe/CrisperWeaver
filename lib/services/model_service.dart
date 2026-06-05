@@ -2301,6 +2301,80 @@ class ModelService {
       backend: 'lid',
       kind: ModelKind.lid,
     ),
+    // ---------- Truecaser models (cstr/truecaser-de) ----------
+    // BiLSTM character-level truecaser — restores capitalization on
+    // lowercased text. .bin format, loaded via TruecaseModel.
+    'truecaser-lstm-de': ModelDefinition(
+      name: 'truecaser-lstm-de',
+      displayName: 'Truecaser BiLSTM German',
+      fileName: 'truecaser-lstm-de.bin',
+      url:
+          'https://huggingface.co/cstr/truecaser-de/resolve/main/truecaser-lstm-de.bin',
+      sizeBytes: 3182823,
+      checksum: '',
+      description:
+          'BiLSTM truecaser for German (97.9% F1) — ~3 MB. Best quality.',
+      quantization: '',
+      backend: 'truecaser',
+      kind: ModelKind.punc,
+      languages: langsDe,
+    ),
+    'truecaser-lstm-en': ModelDefinition(
+      name: 'truecaser-lstm-en',
+      displayName: 'Truecaser BiLSTM English',
+      fileName: 'truecaser-lstm-en.bin',
+      url:
+          'https://huggingface.co/cstr/truecaser-de/resolve/main/truecaser-lstm-en.bin',
+      sizeBytes: 3243382,
+      checksum: '',
+      description: 'BiLSTM truecaser for English — ~3 MB',
+      quantization: '',
+      backend: 'truecaser',
+      kind: ModelKind.punc,
+      languages: langsEn,
+    ),
+    'truecaser-lstm-es': ModelDefinition(
+      name: 'truecaser-lstm-es',
+      displayName: 'Truecaser BiLSTM Spanish',
+      fileName: 'truecaser-lstm-es.bin',
+      url:
+          'https://huggingface.co/cstr/truecaser-de/resolve/main/truecaser-lstm-es.bin',
+      sizeBytes: 3180167,
+      checksum: '',
+      description: 'BiLSTM truecaser for Spanish — ~3 MB',
+      quantization: '',
+      backend: 'truecaser',
+      kind: ModelKind.punc,
+      languages: langsEs,
+    ),
+    'truecaser-lstm-ru': ModelDefinition(
+      name: 'truecaser-lstm-ru',
+      displayName: 'Truecaser BiLSTM Russian',
+      fileName: 'truecaser-lstm-ru.bin',
+      url:
+          'https://huggingface.co/cstr/truecaser-de/resolve/main/truecaser-lstm-ru.bin',
+      sizeBytes: 4095045,
+      checksum: '',
+      description: 'BiLSTM truecaser for Russian — ~4 MB',
+      quantization: '',
+      backend: 'truecaser',
+      kind: ModelKind.punc,
+      languages: langsRu,
+    ),
+    'truecaser-crf-de': ModelDefinition(
+      name: 'truecaser-crf-de',
+      displayName: 'Truecaser CRF German',
+      fileName: 'truecaser-crf-de.bin',
+      url:
+          'https://huggingface.co/cstr/truecaser-de/resolve/main/truecaser-crf-de.bin',
+      sizeBytes: 8520626,
+      checksum: '',
+      description: 'CRF truecaser for German — ~8 MB',
+      quantization: '',
+      backend: 'truecaser',
+      kind: ModelKind.punc,
+      languages: langsDe,
+    ),
     // ─────────────────────────────────────────────────────────────
     // §5.1.6 v3.1 — Curated chat-LLM catalogue.
     //
@@ -3458,6 +3532,17 @@ class ModelService {
       displayPrefix: 'Parakeet RNNT 1.1B',
       description: 'Parakeet RNN-Transducer 1.1B (English)',
       defaultLanguages: langsEn,
+    ),
+    // ----- Truecaser BackendRepo -----
+    'truecaser-de': BackendRepo(
+      backend: 'truecaser',
+      repoId: 'cstr/truecaser-de',
+      baseName: 'truecaser',
+      displayPrefix: 'Truecaser',
+      description: 'Character-level truecaser (DE/EN/ES/RU) — restores capitalization',
+      extension: '.bin',
+      kind: ModelKind.punc,
+      defaultLanguages: <String>['de', 'en', 'es', 'ru'],
     ),
   };
 

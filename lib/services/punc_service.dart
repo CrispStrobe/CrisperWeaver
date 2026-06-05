@@ -9,19 +9,18 @@ import '../main.dart' show modelServiceProvider;
 import 'log_service.dart';
 import 'model_service.dart';
 
-/// Punctuation restoration via CrispASR's `PuncModel` (FireRedPunc).
+/// Punctuation + truecasing restoration via CrispASR post-processors.
 ///
-/// Several backends in the unified session API emit unpunctuated lowercase
-/// text — wav2vec2 / fastconformer-ctc / firered-asr. FireRedPunc is a
-/// small BERT model that restores capitalization and punctuation in one
-/// pass over the full transcript. CrispASR ships it as a stand-alone GGUF
-/// at `cstr/fireredpunc-GGUF`; this service finds whichever quant the
-/// user downloaded and applies it on demand.
+/// Two families of models:
+///   1. **PuncModel** (FireRedPunc / fullstop-punc) — GGUF, restores
+///      punctuation AND capitalization. Best for backends that emit
+///      lowercased, unpunctuated text (wav2vec2, fastconformer-ctc).
+///   2. **TruecaseModel** (truecaser-lstm-*.bin) — .bin, restores ONLY
+///      capitalization. Best for backends that already emit punctuation
+///      but lowercase everything (parakeet-ctc). Requires C-ABI ≥0.5.3
+///      (`feat/truecase-abi` branch).
 ///
-/// Lifecycle: a single PuncModel is loaded lazily on the first call and
-/// cached for the rest of the process. Loading is cheap (~100 MB mmap)
-/// but inference is per-segment, so the model is kept resident rather
-/// than reopened on every transcription.
+/// Lifecycle: models are loaded lazily and cached for the session.
 class PuncService {
   /// Filenames the service recognises as a punctuation GGUF. Both
   /// FireRedPunc (ZH+EN) and fullstop-punc (EN/DE/FR/IT) load through
@@ -35,6 +34,17 @@ class PuncService {
     'fullstop-punc-multilang-q8_0.gguf',
     'fullstop-punc-multilang-q4_k.gguf',
     'fullstop-punc-multilang-f16.gguf',
+  ];
+
+  /// Filenames recognised as truecaser models. Loaded via TruecaseModel
+  /// (C-ABI ≥0.5.3). Preference order: LSTM > CRF > statistical.
+  static const List<String> _truecaseFilenames = [
+    'truecaser-lstm-de.bin',
+    'truecaser-lstm-en.bin',
+    'truecaser-lstm-es.bin',
+    'truecaser-lstm-ru.bin',
+    'truecaser-crf-de.bin',
+    'truecaser-de.bin',
   ];
 
   /// Optional ModelService injection. When present we honour the
@@ -181,6 +191,140 @@ class PuncService {
     return out;
   }
 
+  // ---- Truecaser (capitalization-only, C-ABI ≥0.5.3) ----
+
+  crispasr.TruecaseModel? _truecaseModel;
+  String? _truecaseLoadedPath;
+  bool _truecaseSearched = false;
+  String? _truecaseCachedPath;
+
+  /// Preferred truecaser language (e.g. 'de', 'en'). Used to pick
+  /// the right language-specific model when multiple are on disk.
+  String? preferredTruecaseLang;
+
+  /// Locate a downloaded truecaser .bin model.
+  Future<String?> _findTruecaseModel() async {
+    if (_truecaseSearched) return _truecaseCachedPath;
+    _truecaseSearched = true;
+    try {
+      await modelService?.initialize();
+      final dirPath = modelService?.whisperCppDir() ??
+          p.join(Directory.systemTemp.path, 'crisper_weaver_models',
+              'whisper_cpp');
+      final modelsDir = Directory(dirPath);
+      if (!await modelsDir.exists()) return null;
+      final entries = await modelsDir.list().toList();
+      final matches = <File>[];
+      for (final e in entries) {
+        if (e is! File) continue;
+        final base = p.basename(e.path);
+        if (_truecaseFilenames.contains(base) ||
+            base.startsWith('truecaser-')) {
+          matches.add(e);
+        }
+      }
+      if (matches.isEmpty) return null;
+      // Prefer language-matched LSTM model.
+      final lang = preferredTruecaseLang?.toLowerCase();
+      if (lang != null && lang.isNotEmpty) {
+        for (final f in matches) {
+          final base = p.basename(f.path).toLowerCase();
+          if (base.contains('lstm') && base.contains(lang)) {
+            _truecaseCachedPath = f.path;
+            return _truecaseCachedPath;
+          }
+        }
+        // Fall back to any model matching the language.
+        for (final f in matches) {
+          if (p.basename(f.path).toLowerCase().contains(lang)) {
+            _truecaseCachedPath = f.path;
+            return _truecaseCachedPath;
+          }
+        }
+      }
+      // Prefer LSTM over CRF over statistical.
+      for (final f in matches) {
+        if (p.basename(f.path).contains('lstm')) {
+          _truecaseCachedPath = f.path;
+          return _truecaseCachedPath;
+        }
+      }
+      _truecaseCachedPath = matches.first.path;
+      return _truecaseCachedPath;
+    } catch (e, st) {
+      Log.instance.w('punc', 'truecaser search failed', error: e, stack: st);
+      return null;
+    }
+  }
+
+  Future<crispasr.TruecaseModel?> _ensureTruecaseLoaded() async {
+    final path = await _findTruecaseModel();
+    if (path == null) return null;
+    if (_truecaseModel != null && _truecaseLoadedPath == path) {
+      return _truecaseModel;
+    }
+    _truecaseModel?.close();
+    _truecaseModel = null;
+    try {
+      _truecaseModel = crispasr.TruecaseModel.open(path);
+      _truecaseLoadedPath = path;
+      Log.instance.i('punc', 'loaded truecaser',
+          fields: {'path': p.basename(path)});
+      return _truecaseModel;
+    } catch (e, st) {
+      Log.instance.w('punc', 'TruecaseModel.open failed',
+          error: e, stack: st, fields: {'path': p.basename(path)});
+      return null;
+    }
+  }
+
+  /// Apply truecasing (capitalization only) to segment texts.
+  /// No-ops when no truecaser model is on disk or the C-ABI lacks
+  /// the `crispasr_truecase_*` symbols (pre-0.5.3 builds).
+  Future<List<TranscriptionSegment>> restoreTruecase(
+      List<TranscriptionSegment> segments) async {
+    if (segments.isEmpty) return segments;
+    final model = await _ensureTruecaseLoaded();
+    if (model == null) return segments;
+    final out = <TranscriptionSegment>[];
+    var changed = 0;
+    for (final s in segments) {
+      final src = s.text.trim();
+      if (src.isEmpty) {
+        out.add(s);
+        continue;
+      }
+      String dst;
+      try {
+        dst = model.process(src);
+      } catch (e, st) {
+        Log.instance.w('punc', 'TruecaseModel.process threw',
+            error: e, stack: st);
+        out.add(s);
+        continue;
+      }
+      if (dst.trim().isEmpty || dst == src) {
+        out.add(s);
+        continue;
+      }
+      changed++;
+      out.add(TranscriptionSegment(
+        text: dst,
+        startTime: s.startTime,
+        endTime: s.endTime,
+        speaker: s.speaker,
+        confidence: s.confidence,
+        words: s.words,
+        metadata: s.metadata,
+      ));
+    }
+    Log.instance.i('punc', 'truecasing restored', fields: {
+      'segments': segments.length,
+      'changed': changed,
+    });
+    return out;
+  }
+
   /// Drop the loaded model. Safe to call multiple times.
   void dispose() {
     _model?.close();
@@ -188,6 +332,11 @@ class PuncService {
     _loadedPath = null;
     _searched = false;
     _cachedPath = null;
+    _truecaseModel?.close();
+    _truecaseModel = null;
+    _truecaseLoadedPath = null;
+    _truecaseSearched = false;
+    _truecaseCachedPath = null;
   }
 }
 
