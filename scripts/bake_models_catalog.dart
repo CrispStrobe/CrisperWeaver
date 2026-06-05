@@ -597,6 +597,9 @@ const _repos = <RepoSpec>[
   // ----- Truecaser (non-GGUF .bin format) -----
   RepoSpec(backend: 'truecaser', repoId: 'cstr/truecaser-de', baseName: 'truecaser',
     displayPrefix: 'Truecaser', description: 'BiLSTM truecaser (DE/EN/ES/RU)', kind: 'punc', extension: '.bin'),
+  // ----- PCS (all-in-one punct + truecase + SBD) -----
+  RepoSpec(backend: 'pcs', repoId: 'cstr/pcs-xlmr-base-GGUF', baseName: 'pcs-xlmr-base',
+    displayPrefix: 'PCS', description: 'Punctuation + Capitalization + Segmentation (47 langs)', kind: 'punc'),
 ];
 
 String _formatSize(int bytes) {

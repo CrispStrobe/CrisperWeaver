@@ -126,6 +126,7 @@ One dispatcher (`CrispasrSession`) handles every backend; bundled `libcrispasr` 
 
 | Family            | Languages          | Notes                                       |
 | ----------------- | ------------------ | ------------------------------------------- |
+| **PCS**           | 47 languages       | All-in-one: punctuation + truecasing + sentence boundaries (XLM-R) |
 | **FireRedPunc**   | ZH + EN            | BERT-based punctuation + capitalisation     |
 | **Fullstop-punc** | EN / DE / FR / IT  | Multilingual punctuation restoration        |
 | **Truecaser LSTM**| DE / EN / ES / RU  | BiLSTM character-level truecasing (97.9% F1 German) |

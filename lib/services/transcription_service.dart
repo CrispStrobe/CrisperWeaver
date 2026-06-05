@@ -436,16 +436,18 @@ class TranscriptionService {
 
       // Step 4: Punctuation + truecasing restoration (5% of progress) —
       // runs after diarization so the speaker-aware splits stay intact.
-      // PuncModel (FireRedPunc / fullstop-punc) handles both punctuation
-      // and capitalization; TruecaseModel handles capitalization only.
-      // Both silently no-op when their model isn't on disk.
+      // Priority: PCS (all-in-one) > FireRedPunc + truecaser chain.
       if (restorePunctuation && segments.isNotEmpty) {
         onProgress?.call(0.95);
-        segments = await _puncService.restore(segments);
-        // Chain truecasing after punctuation — catches cases where
-        // the punc model didn't restore capitalization (e.g. CTC
-        // backends that already have punctuation but no casing).
-        segments = await _puncService.restoreTruecase(segments);
+        // Try PCS first — handles punct + truecase + SBD in one pass.
+        final pcsResult = await _puncService.restorePcs(segments);
+        if (!identical(pcsResult, segments)) {
+          segments = pcsResult;
+        } else {
+          // Fall back to FireRedPunc/fullstop-punc + truecaser chain.
+          segments = await _puncService.restore(segments);
+          segments = await _puncService.restoreTruecase(segments);
+        }
       }
 
       onProgress?.call(1.0);
@@ -756,9 +758,13 @@ class TranscriptionService {
 
   /// Run punctuation + truecasing restoration on already-transcribed
   /// segments. Same use case as [diarize] — pool path calls this after
-  /// the worker returns. No-op when no models are on disk.
+  /// the worker returns. PCS > FireRedPunc + truecaser chain.
   Future<List<TranscriptionSegment>> restorePunctuation(
       List<TranscriptionSegment> segments) async {
+    // PCS handles everything in one pass when available.
+    final pcsResult = await _puncService.restorePcs(segments);
+    if (!identical(pcsResult, segments)) return pcsResult;
+    // Fall back to legacy chain.
     var result = await _puncService.restore(segments);
     result = await _puncService.restoreTruecase(result);
     return result;

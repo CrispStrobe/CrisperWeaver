@@ -2438,6 +2438,39 @@ class ModelService {
       kind: ModelKind.punc,
       languages: langsDe,
     ),
+    // ---------- PCS (Punctuation + Capitalization + Segmentation) ----------
+    // XLM-RoBERTa-base + 4 classification heads. 47 languages, MIT license.
+    // All-in-one: punctuation + truecasing + sentence boundary detection.
+    'pcs-xlmr-base-q4_k': ModelDefinition(
+      name: 'pcs-xlmr-base-q4_k',
+      displayName: 'PCS XLM-R base (q4_k)',
+      fileName: 'pcs-xlmr-base-q4_k.gguf',
+      url:
+          'https://huggingface.co/cstr/pcs-xlmr-base-GGUF/resolve/main/pcs-xlmr-base-q4_k.gguf',
+      sizeBytes: 155 * 1024 * 1024,
+      checksum: '',
+      description:
+          'PCS — punctuation + truecasing + sentence boundaries in one pass (47 languages), ~155 MB',
+      quantization: 'q4_k',
+      backend: 'pcs',
+      kind: ModelKind.punc,
+      languages: langsAll,
+    ),
+    'pcs-xlmr-base-f16': ModelDefinition(
+      name: 'pcs-xlmr-base-f16',
+      displayName: 'PCS XLM-R base (f16)',
+      fileName: 'pcs-xlmr-base.gguf',
+      url:
+          'https://huggingface.co/cstr/pcs-xlmr-base-GGUF/resolve/main/pcs-xlmr-base.gguf',
+      sizeBytes: 903 * 1024 * 1024,
+      checksum: '',
+      description:
+          'PCS — punctuation + truecasing + sentence boundaries, reference quality, ~903 MB',
+      quantization: 'f16',
+      backend: 'pcs',
+      kind: ModelKind.punc,
+      languages: langsAll,
+    ),
     // ─────────────────────────────────────────────────────────────
     // §5.1.6 v3.1 — Curated chat-LLM catalogue.
     //
@@ -3635,6 +3668,15 @@ class ModelService {
       extension: '.bin',
       kind: ModelKind.punc,
       defaultLanguages: <String>['de', 'en', 'es', 'ru'],
+    ),
+    'pcs': BackendRepo(
+      backend: 'pcs',
+      repoId: 'cstr/pcs-xlmr-base-GGUF',
+      baseName: 'pcs-xlmr-base',
+      displayPrefix: 'PCS',
+      description: 'Punctuation + Capitalization + Segmentation (47 languages)',
+      kind: ModelKind.punc,
+      defaultLanguages: langsAll,
     ),
   };
 

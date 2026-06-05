@@ -36,6 +36,16 @@ class PuncService {
     'fullstop-punc-multilang-f16.gguf',
   ];
 
+  /// Filenames recognised as PCS GGUF models. Loaded via PcsModel
+  /// (C-ABI ≥0.5.3). PCS handles all three tasks (punct + truecase + SBD)
+  /// in one pass — when available, it supersedes both PuncModel and
+  /// TruecaseModel for supported languages (47 via XLM-R).
+  static const List<String> _pcsFilenames = [
+    'pcs-xlmr-base-q4_k.gguf',
+    'pcs-xlmr-base-q8_0.gguf',
+    'pcs-xlmr-base.gguf',
+  ];
+
   /// Filenames recognised as truecaser models. Loaded via TruecaseModel
   /// (C-ABI ≥0.5.3). Preference order: LSTM > CRF > statistical.
   static const List<String> _truecaseFilenames = [
@@ -325,6 +335,107 @@ class PuncService {
     return out;
   }
 
+  // ---- PCS (all-in-one: punct + truecase + SBD, C-ABI ≥0.5.3) ----
+
+  crispasr.PcsModel? _pcsModel;
+  String? _pcsLoadedPath;
+  bool _pcsSearched = false;
+  String? _pcsCachedPath;
+
+  /// Locate a downloaded PCS GGUF model.
+  Future<String?> _findPcsModel() async {
+    if (_pcsSearched) return _pcsCachedPath;
+    _pcsSearched = true;
+    try {
+      await modelService?.initialize();
+      final dirPath = modelService?.whisperCppDir() ??
+          p.join(Directory.systemTemp.path, 'crisper_weaver_models',
+              'whisper_cpp');
+      final modelsDir = Directory(dirPath);
+      if (!await modelsDir.exists()) return null;
+      final entries = await modelsDir.list().toList();
+      for (final e in entries) {
+        if (e is! File) continue;
+        final base = p.basename(e.path);
+        if (_pcsFilenames.contains(base) || base.startsWith('pcs-')) {
+          _pcsCachedPath = e.path;
+          Log.instance.d('punc', 'found PCS model',
+              fields: {'path': e.path});
+          return _pcsCachedPath;
+        }
+      }
+      return null;
+    } catch (e, st) {
+      Log.instance.w('punc', 'PCS model search failed', error: e, stack: st);
+      return null;
+    }
+  }
+
+  Future<crispasr.PcsModel?> _ensurePcsLoaded() async {
+    final path = await _findPcsModel();
+    if (path == null) return null;
+    if (_pcsModel != null && _pcsLoadedPath == path) return _pcsModel;
+    _pcsModel?.close();
+    _pcsModel = null;
+    try {
+      _pcsModel = crispasr.PcsModel.open(path);
+      _pcsLoadedPath = path;
+      Log.instance.i('punc', 'loaded PCS model',
+          fields: {'path': p.basename(path)});
+      return _pcsModel;
+    } catch (e, st) {
+      Log.instance.w('punc', 'PcsModel.open failed',
+          error: e, stack: st, fields: {'path': p.basename(path)});
+      return null;
+    }
+  }
+
+  /// Apply PCS (punctuation + truecasing + sentence boundaries) in one
+  /// pass. Supersedes both [restore] (FireRedPunc) and [restoreTruecase]
+  /// when a PCS model is on disk. No-ops otherwise.
+  Future<List<TranscriptionSegment>> restorePcs(
+      List<TranscriptionSegment> segments) async {
+    if (segments.isEmpty) return segments;
+    final model = await _ensurePcsLoaded();
+    if (model == null) return segments;
+    final out = <TranscriptionSegment>[];
+    var changed = 0;
+    for (final s in segments) {
+      final src = s.text.trim();
+      if (src.isEmpty) {
+        out.add(s);
+        continue;
+      }
+      String dst;
+      try {
+        dst = model.process(src);
+      } catch (e, st) {
+        Log.instance.w('punc', 'PcsModel.process threw', error: e, stack: st);
+        out.add(s);
+        continue;
+      }
+      if (dst.trim().isEmpty || dst == src) {
+        out.add(s);
+        continue;
+      }
+      changed++;
+      out.add(TranscriptionSegment(
+        text: dst,
+        startTime: s.startTime,
+        endTime: s.endTime,
+        speaker: s.speaker,
+        confidence: s.confidence,
+        words: s.words,
+        metadata: s.metadata,
+      ));
+    }
+    Log.instance.i('punc', 'PCS restored', fields: {
+      'segments': segments.length,
+      'changed': changed,
+    });
+    return out;
+  }
+
   /// Drop the loaded model. Safe to call multiple times.
   void dispose() {
     _model?.close();
@@ -337,6 +448,11 @@ class PuncService {
     _truecaseLoadedPath = null;
     _truecaseSearched = false;
     _truecaseCachedPath = null;
+    _pcsModel?.close();
+    _pcsModel = null;
+    _pcsLoadedPath = null;
+    _pcsSearched = false;
+    _pcsCachedPath = null;
   }
 }
 
