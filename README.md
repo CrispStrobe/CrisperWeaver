@@ -1,8 +1,8 @@
 # CrisperWeaver
 
-**On-device speech recognition + text-to-speech. No cloud. 30+ model families, one app.**
+**On-device speech recognition + text-to-speech. No cloud. 40+ model families, one app.**
 
-CrisperWeaver is a cross-platform Flutter app for fully-offline audio transcription and speech synthesis. Drop in a file, paste a URL, or record with the mic — audio never leaves the device. 29+ open-weight ASR families and 8 TTS families are supported through a single unified engine ([CrispASR][crispasr]): Whisper (+ Distil-Whisper), Parakeet, Canary, Voxtral, Qwen3-ASR (+ Mega-ASR LoRA), Cohere, Granite (3.x + 4.1 family), FastConformer-CTC, Canary-CTC, Wav2Vec2, OmniASR (+ streaming "unlimited" variant), FireRed, Kyutai-STT, GLM-ASR, Moonshine, VibeVoice ASR, MiMo ASR, **Gemma4-E2B** (140+ languages), **FunASR** (Mandarin + EN), **Paraformer-ZH**, **SenseVoice** (built-in language ID) — plus Kokoro / VibeVoice / Qwen3-TTS / Orpheus / **Chatterbox** / **Kartoffelbox** / **IndexTTS** / **VoxCPM2** for synthesis, **Pyannote v3** for ML diarisation, FireRedPunc + **fullstop-punc** for punctuation restoration, **Silero LID** for language detection, and FireRed/MarbleNet/Whisper-VAD-EncDec VAD options.
+CrisperWeaver is a cross-platform Flutter app for fully-offline audio transcription and speech synthesis. Drop in a file, paste a URL, or record with the mic — audio never leaves the device. 40+ open-weight ASR families and 20+ TTS families are supported through a single unified engine ([CrispASR][crispasr]): Whisper (+ Distil-Whisper), Parakeet (TDT/CTC/RNNT variants + Japanese), Canary, Voxtral, Qwen3-ASR (+ Mega-ASR LoRA), Cohere, Granite (3.x + 4.1 family), FastConformer-CTC, Canary-CTC, Wav2Vec2 / HuBERT / Data2Vec, OmniASR (CTC + LLM + streaming), FireRed, Kyutai-STT, GLM-ASR, Moonshine (+ German variants), VibeVoice ASR, MiMo ASR, Gemma4-E2B (140+ languages), FunASR (+ 31-lang MLT), Paraformer-ZH, SenseVoice (built-in language ID) — plus Kokoro / VibeVoice / Qwen3-TTS (0.6B + 1.7B + VoiceDesign + Gwen-TTS) / Orpheus (+ German variants) / Chatterbox (+ Turbo + Kartoffelbox + Lahgtna Arabic) / IndexTTS / VoxCPM2 / CosyVoice3 / F5-TTS / Bark / CSM / Dia / FastPitch / MeloTTS / OuteTTS / Parler-TTS / Pocket TTS / SpeechT5 / KugelAudio / Piper for synthesis, Pyannote v3 for ML diarisation, FireRedPunc + fullstop-punc + BiLSTM truecaser for punctuation/capitalisation restoration, CLD3 + GlotLID + FastText LID-176 for text language detection, Silero LID for audio language detection, and FireRed/MarbleNet/Whisper-VAD-EncDec VAD options.
 
 [crispasr]: https://github.com/CrispStrobe/CrispASR
 
@@ -12,7 +12,7 @@ CrisperWeaver is a cross-platform Flutter app for fully-offline audio transcript
 
 | Project | Role |
 |---|---|
-| **[CrispASR](https://github.com/CrispStrobe/CrispASR)** | C++ ASR + TTS engine powering this app — 24+ backends, CLI + C-ABI, 3.8x faster than voxtral.c |
+| **[CrispASR](https://github.com/CrispStrobe/CrispASR)** | C++ ASR + TTS engine powering this app — 40+ ASR + 20+ TTS backends, CLI + C-ABI |
 | **CrisperWeaver** | This app — Flutter GUI for CrispASR |
 | **[CrispEmbed](https://github.com/CrispStrobe/CrispEmbed)** | Text embedding engine (ggml) — XLM-R, Qwen3-Embed, Gemma3, dense + sparse + ColBERT |
 | **[Susurrus](https://github.com/CrispStrobe/Susurrus)** | Python ASR GUI with 9 backends (faster-whisper, mlx-whisper, voxtral, ...) |
@@ -71,7 +71,7 @@ One dispatcher (`CrispasrSession`) handles every backend; bundled `libcrispasr` 
 | --------------------- | ----------------------------------- | --------------------------- | ------------------------------------ |
 | **Whisper**           | tiny → large-v3 + q4_0/q5_0/q8_0    | 99                          | Word-level ts, lang-detect, streaming |
 | **Distil-Whisper**    | distil-large-v3 (f16 / q5_0 / q4_k) | 99                          | ~6× faster than large-v3, ~50% smaller |
-| **Parakeet** (NVIDIA) | tdt-0.6b-v3, v2, 1.1b               | 25 EU (auto-detect)         | Fast, native word timestamps          |
+| **Parakeet** (NVIDIA) | TDT 0.6b v2/v3, 1.1b; CTC 0.6b/1.1b; TDT+CTC 110m/1.1b; RNNT 0.6b/1.1b; JA 0.6b | 25 EU (auto-detect) / JA | Fast, native word timestamps |
 | **Canary** (NVIDIA)   | 1b-v2                               | 25 EU (explicit src/tgt)    | Speech translation X ↔ en             |
 | **Qwen3-ASR**         | 0.6b, 1.7b                          | 30 + 22 Chinese dialects    | Multilingual                          |
 | **Mega-ASR**          | 1.7b (Qwen3-ASR + robustness LoRA)  | 30 + 22 Chinese dialects    | LoRA merged offline, qwen3 runtime    |
@@ -81,13 +81,13 @@ One dispatcher (`CrispasrSession`) handles every backend; bundled `libcrispasr` 
 | **FastConformer-CTC** | small → xxlarge                     | en                          | Low-latency CTC                       |
 | **Canary-CTC**        | 1b                                  | 25 EU                       | CTC variant of canary                 |
 | **Voxtral Mini**      | 3B (2507), 4B realtime (2602)       | 8 / 13                      | Speech translation; realtime 4B       |
-| **Wav2Vec2**          | large-xlsr-53-english + variants    | per-model (en, de, multi)   | Self-supervised CTC                   |
-| **OmniASR LLM**       | 300M v2, 1B                         | multilingual                | LLM-based ASR with `lang=` hint       |
+| **Wav2Vec2 / HuBERT / Data2Vec** | large-xlsr-53 (EN, DE, multi) + HuBERT-Large + Data2Vec-Base | per-model | Self-supervised CTC family |
+| **OmniASR**           | CTC 300M/1B, LLM 300M/1B           | 1600+ languages             | CTC + LLM variants                    |
 | **OmniASR LLM unlim.**| 300M v2 streaming                   | 1600+ languages             | Streaming, 15 s protocol, unlimited audio |
 | **FireRed ASR2**      | aed-2b                              | zh / en                     | AED-style                             |
 | **Kyutai STT**        | 1b                                  | en                          | Streaming-style                       |
 | **GLM-ASR Nano**      | nano                                | multilingual                | GLM-family                            |
-| **Moonshine**         | tiny / base + streaming             | en                          | Tiny CPU-friendly, BPE tokenizer companion |
+| **Moonshine**         | tiny / base + streaming + DE variants | en / de                   | Tiny CPU-friendly, BPE tokenizer companion |
 | **VibeVoice ASR**     | large                               | multilingual                | Large multilingual ASR (~4.5 GB)      |
 | **MiMo ASR**          | 2.5B + tokenizer companion          | en zh                       | XiaomiMiMo, two-file (model + codec)  |
 | **Gemma4-E2B**        | 2B (q4_k)                           | 140+ languages              | USM Conformer + Gemma-4 35L          |
@@ -101,11 +101,24 @@ One dispatcher (`CrispasrSession`) handles every backend; bundled `libcrispasr` 
 | ----------------- | ------------------------------ | ------------------------------------------- |
 | **Kokoro**        | 82M + voicepacks               | Multilingual, espeak-ng phonemiser bundled  |
 | **VibeVoice**     | realtime 0.5B (f32 + tokenizer), 1.5B base | + voicepack via `setVoice`; 1.5B supports runtime WAV cloning |
-| **Qwen3-TTS**     | 0.6B base + customvoice + codec, 1.7B VoiceDesign | Customvoice has 9 baked speakers; VoiceDesign accepts natural-language voice descriptions via `setInstruct` |
-| **Orpheus**       | 3B + SNAC codec                 | 8 baked English speakers; SNAC via `setCodecPath` |
-| **Chatterbox**    | 850 MB base + turbo / Kartoffelbox (DE) | T3 AR + S3Gen flow-matching; voice cloning via baked GGUF |
+| **Qwen3-TTS**     | 0.6B base + customvoice + codec, 1.7B base/CV/VoiceDesign, Gwen-TTS (Vietnamese) | Customvoice has 9 baked speakers; VoiceDesign + Parler-TTS accept natural-language voice descriptions via `setInstruct` |
+| **Orpheus**       | 3B + SNAC codec + German variants (lex-au, Kartoffel natural/synthetic) | 8 baked English speakers; SNAC via `setCodecPath` |
+| **Chatterbox**    | 850 MB base + turbo / Kartoffelbox (DE) / Lahgtna (Arabic) | T3 AR + S3Gen flow-matching; voice cloning via baked GGUF |
 | **IndexTTS**      | 1.6 GB                          | GPT-2 AR + BigVGAN; zero-shot WAV cloning, ZH+EN |
 | **VoxCPM2**       | q4_k (1.6 GB) + f16             | Tokenizer-free diffusion AR; zero-shot, 29 languages, 48 kHz native |
+| **CosyVoice3**    | 0.5B (LLM + flow + HiFT + voices) | 9 languages + 18 Chinese dialects; zero-shot voice cloning |
+| **F5-TTS**        | v1 Base (~953 MB)               | DiT flow-matching; zero-shot voice clone from 3-15 s WAV   |
+| **Bark**          | small (~500 MB)                 | 3-stage GPT-2; multilingual, 10 German speakers             |
+| **CSM**           | 1B (q4_k ~1.4 GB)              | Sesame CSM-1B conversational TTS, single EN voice           |
+| **Dia**           | 1.6B (f16 ~3 GB) + DAC codec   | Dialogue TTS with `[S1]`/`[S2]` speaker tags, English       |
+| **FastPitch**     | 60M (~120 MB)                   | NVIDIA non-autoregressive parallel TTS, deterministic, EN   |
+| **MeloTTS**       | v2 (4 EN speakers) + v3 + BERT companion | VITS2, 44.1 kHz                            |
+| **OuteTTS**       | 0.3 1B + WavTokenizer decoder   | OLMo-1B + VQ-GAN; voice clone via JSON speaker, EN          |
+| **Parler-TTS**    | Mini v1.1 (~900 MB)             | Describe voice in natural language via `setInstruct`, EN    |
+| **Pocket TTS**    | 100M (~220 MB)                  | Kyutai continuous-latent AR; voice clone from WAV, EN       |
+| **SpeechT5**      | 80M (~300 MB)                   | Microsoft AR mel decoder + HiFi-GAN, EN                     |
+| **KugelAudio**    | 0 Open (f16 ~14 GB)            | Large TTS model                                              |
+| **Piper**         | 15-60 MB per voice              | VITS, 250+ community voices, 30+ languages                  |
 
 ### Post-processors
 
@@ -113,13 +126,20 @@ One dispatcher (`CrispasrSession`) handles every backend; bundled `libcrispasr` 
 | ----------------- | ------------------ | ------------------------------------------- |
 | **FireRedPunc**   | ZH + EN            | BERT-based punctuation + capitalisation     |
 | **Fullstop-punc** | EN / DE / FR / IT  | Multilingual punctuation restoration        |
+| **Truecaser LSTM**| DE / EN / ES / RU  | BiLSTM character-level truecasing (97.9% F1 German) |
 
 ### Diarisation / LID / VAD GGUFs
 
 | Family                | Role                | Notes                                                       |
 | --------------------- | ------------------- | ----------------------------------------------------------- |
 | **Pyannote v3 seg**   | Diarisation         | ML segmentation, up to 3 speakers per slice                 |
-| **Silero LID 95**     | Language ID         | 95-language classifier, ~16 MB GGUF — faster than Whisper LID |
+| **TitaNet-Large**     | Speaker embedding   | 192-d L2-normalised; pair with enrolled speakers            |
+| **Silero LID 95**     | Audio language ID   | 95-language classifier, ~16 MB GGUF — faster than Whisper LID |
+| **ECAPA-TDNN LID**    | Audio language ID   | 107 languages, ~42 MB                                       |
+| **FireRed LID**       | Audio language ID   | 120 languages, ~300 MB                                      |
+| **CLD3**              | Text language ID    | 109 languages, ~440 KB — powers Translate auto-detect       |
+| **GlotLID v3**        | Text language ID    | 2102 languages (ISO 639-3), ~250 MB                         |
+| **FastText LID-176**  | Text language ID    | 176 languages, ~63 MB                                       |
 | **FireRedVAD**        | VAD                 | F1 97.57%, ~3 MB                                            |
 | **MarbleNet VAD**     | VAD                 | Small (~500 KB), EN/DE/FR/ES/RU/ZH                          |
 | **Whisper-VAD-EncDec**| VAD (experimental)  | Japanese-trained (works on EN too), ~22 MB                  |

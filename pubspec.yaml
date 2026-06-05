@@ -1,9 +1,9 @@
 name: crisper_weaver
-description: A cross-platform Flutter app for fully-offline audio transcription + speech synthesis. 24+ ASR + TTS families via CrispASR.
+description: A cross-platform Flutter app for fully-offline audio transcription + speech synthesis. 40+ ASR + 20+ TTS families via CrispASR.
 
 publish_to: 'none'
 
-version: 0.6.50+51
+version: 0.7.0+52
 
 environment:
   sdk: '>=3.0.0 <4.0.0'

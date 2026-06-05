@@ -3,6 +3,61 @@
 Notable user-facing changes per release. Full diff per version on
 the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases).
 
+## 0.7.0 — 2026-06-05
+
+**Full CrispASR parity release** — CrisperWeaver now leverages every backend
+CrispASR supports, jumping from ~30 to 60+ compiled backend targets and from
+8 to 20+ TTS families.
+
+### New TTS backends (10)
+
+- **Bark** — 3-stage GPT-2 TTS, multilingual, 10 German speakers (~500 MB)
+- **CSM** — Sesame CSM-1B conversational TTS, single EN voice (~1.4 GB)
+- **Dia** — Nari Labs 1.6B dialogue TTS with `[S1]`/`[S2]` speaker tags + DAC codec (~3 GB). Synthesize screen shows dialogue-mode hint when Dia is active.
+- **FastPitch** — NVIDIA deterministic parallel TTS, English, 60M params (~120 MB)
+- **MeloTTS** — VITS2, 4 English speakers, 44.1 kHz; v2 + v3 variants with BERT companion (~102 MB + ~52 MB)
+- **OuteTTS** — OLMo-1B + WavTokenizer VQ-GAN, voice clone via JSON speaker (~1.3 GB + ~130 MB decoder)
+- **Parler-TTS** — prompt-conditioned TTS: describe the voice in natural language via the Instruct field (~900 MB)
+- **Pocket TTS** — Kyutai 100M continuous-latent AR TTS, voice clone from WAV (~220 MB)
+- **SpeechT5** — Microsoft 80M AR mel decoder + HiFi-GAN (~300 MB)
+- **KugelAudio** — large TTS model (~14 GB F16)
+
+### New TTS variants
+
+- **Qwen3-TTS 1.7B Base** — higher-quality variant with runtime voice cloning
+- **Gwen-TTS** — Vietnamese-optimised Qwen3-TTS finetune
+- **Lahgtna Chatterbox** — Arabic T3 finetune
+- **lex-au Orpheus DE** — German Orpheus-3B fine-tune
+- **VibeVoice 1.5B** — larger VibeVoice variant
+
+### New ASR models
+
+- **Moonshine German** — base (6.9% WER) + tiny (11.4% WER) fidoriel fine-tunes
+- **HuBERT Large** — wav2vec2-family English CTC (~200 MB)
+- **Wav2Vec2 German** — XLSR-53 German CTC (~222 MB)
+- **OmniASR CTC 300M** — 1600+ languages, tiny variant (~194 MB)
+- **Parakeet Japanese** — TDT 0.6B JA fine-tune (F16 recommended)
+- **Parakeet CTC** — 0.6B + 1.1B CTC-only English models
+- **Parakeet TDT+CTC** — 110M tiny hybrid + 1.1B multilingual hybrid
+- **Parakeet RNNT** — 0.6B + 1.1B RNN-Transducer variants
+
+### Post-processing
+
+- **Truecaser** — BiLSTM character-level truecasing models for DE/EN/ES/RU from `cstr/truecaser-de`. Chained automatically after punctuation restoration; auto-selects the right language model. German model achieves 97.9% F1.
+- **Native punctuation** — session-level `setPunctuation(true)` now fires on every dispatch. Canary, Cohere, and LLM-style backends produce punctuated + capitalised output natively without requiring a separate FireRedPunc model.
+- **Token generation cap** — `setMaxNewTokens(4096)` on every session dispatch prevents runaway generation on LLM-style ASR backends.
+
+### Text language identification
+
+- **GlotLID v3** — 2102 languages (ISO 639-3), ~250 MB
+- **FastText LID-176** — 176 languages, ~63 MB (CC-BY-SA-3.0)
+
+### Build & infrastructure
+
+- Build scripts (Linux/macOS/Windows) expanded from ~30 to ~60 backend targets, covering all ASR, TTS, translation, and post-processing backends.
+- Instruct field label updated: "VoiceDesign / Parler-TTS" (was "qwen3-tts VoiceDesign only").
+- Dia dialogue hint in Synthesize text input explains `[S1]`/`[S2]` tag syntax.
+
 ## 0.6.50 — 2026-06-01
 
 - **Fix — Qwen3-TTS 1.7B CustomVoice now visible on fresh launch.** The
