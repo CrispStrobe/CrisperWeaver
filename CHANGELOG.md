@@ -5,6 +5,12 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 
 ## 0.7.1 — 2026-06-05
 
+- **Zonos v0.1 TTS** — Zyphra 500M-param transformer TTS with 8-axis emotion
+  control (happiness, sadness, fear, anger...), pitch/speaking-rate tuning,
+  speaker cloning from reference audio, and native 44.1 kHz output. Q4_K
+  (~872 MB) + F16 (~3.1 GB) published at
+  [cstr/zonos-v0.1-transformer-GGUF](https://huggingface.co/cstr/zonos-v0.1-transformer-GGUF).
+  Shares the DAC 44.1 kHz codec companion with Dia.
 - **MOSS-Audio 4B** — new ASR + audio QA backend (Whisper encoder + Qwen3 LLM,
   ~3.8 GB Q4_K). Supports instruction-tuned audio understanding: transcription,
   audio question answering, and scene description.
@@ -12,6 +18,8 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
   slider, vocabulary chips, and source-language picker now appear for all
   applicable backends: moss-audio, mimo-asr, gemma4-e2b, granite-4.1-nar,
   sensevoice, funasr, paraformer, vibevoice.
+- **Bake script synced** — `bake_models_catalog.dart` now has RepoSpecs for all
+  31 new backends added in v0.7.0/0.7.1.
 
 ## 0.7.0 — 2026-06-05
 
