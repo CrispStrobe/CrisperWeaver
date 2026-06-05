@@ -83,7 +83,7 @@ BACKEND_TARGETS=(
   qwen3_tts orpheus chatterbox indextts kokoro piper-tts
   voxcpm2_tts cosyvoice3_tts f5-tts outetts
   bark-tts csm-tts dia-tts fastpitch-tts parler-tts speecht5-tts
-  pocket-tts zonos-tts melotts bert-encoder openvoice2
+  pocket-tts zonos-tts melotts bert-encoder openvoice2 kugelaudio
   # Translation
   m2m100 t5_translate
   # Post-processing & LID

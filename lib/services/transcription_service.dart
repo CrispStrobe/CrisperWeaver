@@ -328,6 +328,7 @@ class TranscriptionService {
     // Apply sticky service-level preferences before transcription so
     // each invocation sees the user's current picks.
     _puncService.preferredFamily = advanced.puncFamily;
+    _puncService.preferredTruecaseLang = language;
     _puncService.invalidate();
     // LidService is owned by the engine, not us — engine.transcribe
     // reads `advanced.lidMethod` from the passed-through options.
@@ -433,12 +434,18 @@ class TranscriptionService {
         );
       }
 
-      // Step 4: Punctuation restoration (5% of progress) — runs after
-      // diarization so the speaker-aware splits stay intact. Silently
-      // no-ops when no fireredpunc-*.gguf is on disk.
+      // Step 4: Punctuation + truecasing restoration (5% of progress) —
+      // runs after diarization so the speaker-aware splits stay intact.
+      // PuncModel (FireRedPunc / fullstop-punc) handles both punctuation
+      // and capitalization; TruecaseModel handles capitalization only.
+      // Both silently no-op when their model isn't on disk.
       if (restorePunctuation && segments.isNotEmpty) {
         onProgress?.call(0.95);
         segments = await _puncService.restore(segments);
+        // Chain truecasing after punctuation — catches cases where
+        // the punc model didn't restore capitalization (e.g. CTC
+        // backends that already have punctuation but no casing).
+        segments = await _puncService.restoreTruecase(segments);
       }
 
       onProgress?.call(1.0);
@@ -747,13 +754,14 @@ class TranscriptionService {
     );
   }
 
-  /// Run punctuation restoration on already-transcribed segments.
-  /// Same use case as [diarize] — pool path calls this after the
-  /// worker returns. No-op when no firered-punc / fullstop-punc
-  /// GGUF is on disk.
+  /// Run punctuation + truecasing restoration on already-transcribed
+  /// segments. Same use case as [diarize] — pool path calls this after
+  /// the worker returns. No-op when no models are on disk.
   Future<List<TranscriptionSegment>> restorePunctuation(
-      List<TranscriptionSegment> segments) {
-    return _puncService.restore(segments);
+      List<TranscriptionSegment> segments) async {
+    var result = await _puncService.restore(segments);
+    result = await _puncService.restoreTruecase(result);
+    return result;
   }
 
   /// Resolve the VAD model path on disk for [backend]. The pool

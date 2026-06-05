@@ -2019,6 +2019,20 @@ class ModelService {
       kind: ModelKind.tts,
       languages: langsEn,
     ),
+    // KugelAudio — large TTS model (~14 GB F16). Single GGUF.
+    'kugelaudio-0-open-f16': ModelDefinition(
+      name: 'kugelaudio-0-open-f16',
+      displayName: 'KugelAudio 0 Open (f16)',
+      fileName: 'kugelaudio-0-open-f16.gguf',
+      url:
+          'https://huggingface.co/cstr/kugelaudio-0-open-GGUF/resolve/main/kugelaudio-0-open-f16.gguf',
+      sizeBytes: 14 * 1024 * 1024 * 1024,
+      checksum: '',
+      description: 'KugelAudio 0 Open TTS — large model, ~14 GB',
+      quantization: 'f16',
+      backend: 'kugelaudio',
+      kind: ModelKind.tts,
+    ),
     // Qwen3-TTS 1.7B Base — larger variant, same ICL voice-clone path.
     'qwen3-tts-12hz-1.7b-base-q8_0': ModelDefinition(
       name: 'qwen3-tts-12hz-1.7b-base-q8_0',
@@ -2526,6 +2540,7 @@ class ModelService {
     'parler-tts': 'parler-mini-v1.1-q8_0',
     'pocket-tts': 'pocket-tts-english-f16',
     'speecht5': 'speecht5-tts-f16',
+    'kugelaudio': 'kugelaudio-0-open-f16',
     // Text translation (Translate screen entry points)
     'm2m100': 'm2m100-418m-q4_k',
     // Chat LLM (Tidy / Summarize)
@@ -3383,6 +3398,14 @@ class ModelService {
       description: 'Microsoft SpeechT5 80M TTS (English)',
       kind: ModelKind.tts,
       defaultLanguages: langsEn,
+    ),
+    'kugelaudio': BackendRepo(
+      backend: 'kugelaudio',
+      repoId: 'cstr/kugelaudio-0-open-GGUF',
+      baseName: 'kugelaudio-0-open',
+      displayPrefix: 'KugelAudio',
+      description: 'KugelAudio 0 Open — large TTS model',
+      kind: ModelKind.tts,
     ),
     // ----- New TTS variant BackendRepos -----
     'lahgtna-chatterbox': BackendRepo(
