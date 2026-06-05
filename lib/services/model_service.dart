@@ -3322,7 +3322,7 @@ class ModelService {
     ),
     // F5-TTS — single self-contained GGUF (DiT + baked-in Vocos vocoder),
     // zero-shot voice clone from a reference WAV + transcript. No companion.
-    // EXPERIMENTAL — not yet audio-verified in-app (PLAN §5.24-D).
+    // Audio-verified end-to-end in v0.6.49.
     'f5-tts': BackendRepo(
       backend: 'f5-tts',
       repoId: 'cstr/f5-tts-GGUF',

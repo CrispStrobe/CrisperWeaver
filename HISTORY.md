@@ -15,6 +15,9 @@ pending.
 
 | Tag | Date | Highlights |
 |---|---|---|
+| [v0.7.2](https://github.com/CrispStrobe/CrisperWeaver/releases/tag/v0.7.2) | 2026-06-05 | Zonos v0.1 TTS (emotion/pitch/rate/voice-clone), MOSS-Audio 4B ASR, bake script sync. |
+| [v0.7.1](https://github.com/CrispStrobe/CrisperWeaver/releases/tag/v0.7.1) | 2026-06-05 | MOSS-Audio backend, backend capability set expansion. |
+| [v0.7.0](https://github.com/CrispStrobe/CrisperWeaver/releases/tag/v0.7.0) | 2026-06-05 | Full CrispASR parity — 10 new TTS backends (bark, csm, dia, fastpitch, melotts, outetts, parler-tts, pocket-tts, speecht5, kugelaudio), 8 new ASR model families, truecaser post-processing, native punctuation, text LID models. Build scripts expanded from ~30 to ~60 targets. |
 | [v0.4.1](https://github.com/CrispStrobe/CrisperWeaver/releases/tag/v0.4.1) | 2026-05-10 | CrispASR-0.6.2 parity sweep (rounds 1–6) — see §"May 2026 parity sweep" below. Pairs with [CrispASR v0.6.2](https://github.com/CrispStrobe/CrispASR/releases/tag/v0.6.2). |
 | v0.4.0 | 2026-05-03 | First iOS IPA. Real ASR everywhere (macOS / Linux / Windows / Android / iOS). xcframework wiring shipped. |
 | v0.3.0 | 2026-05-02 | Windows release; mic-streaming live transcript; per-backend Storage tab. |
