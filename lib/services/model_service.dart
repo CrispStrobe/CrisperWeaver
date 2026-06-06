@@ -1956,6 +1956,24 @@ class ModelService {
       backend: 'melotts',
       kind: ModelKind.codec,
     ),
+    // MeloTTS v3 — newest checkpoint, 1 EN speaker, MIT.
+    // Shares bert-base-uncased BERT companion with v2.
+    'melotts-en-v3-f16': ModelDefinition(
+      name: 'melotts-en-v3-f16',
+      displayName: 'MeloTTS EN v3 (f16)',
+      fileName: 'melotts-en-v3-f16.gguf',
+      url:
+          'https://huggingface.co/cstr/melotts-en-v3-GGUF/resolve/main/melotts-en-v3-f16.gguf',
+      sizeBytes: 97259520,
+      checksum: '',
+      description:
+          'MeloTTS v3 newest checkpoint (1 EN speaker) — needs BERT companion, ~93 MB',
+      quantization: 'f16',
+      backend: 'melotts',
+      kind: ModelKind.tts,
+      companions: ['bert-base-uncased-q4k'],
+      languages: langsEn,
+    ),
     // OuteTTS 0.3 1B — OLMo-1B LLM + WavTokenizer VQ-GAN, 24 kHz, CC BY 4.0.
     'outetts-0.3-1b-q8_0': ModelDefinition(
       name: 'outetts-0.3-1b-q8_0',
@@ -3451,7 +3469,7 @@ class ModelService {
       displayPrefix: 'MeloTTS v3',
       description: 'MeloTTS v3 newest checkpoint (1 EN speaker)',
       kind: ModelKind.tts,
-      defaultCompanions: ['bert-base-uncased'],
+      defaultCompanions: ['bert-base-uncased-q4k'],
       defaultLanguages: langsEn,
     ),
     'outetts': BackendRepo(
