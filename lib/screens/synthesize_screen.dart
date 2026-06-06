@@ -715,9 +715,9 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
                       DropdownButtonFormField<int>(
                         decoration: InputDecoration(
                           labelText: l.synthSpeakerLabel,
-                          helperText: '${_nSpeakers} speakers available (0-indexed)',
+                          helperText: '$_nSpeakers speakers available (0-indexed)',
                         ),
-                        value: _selectedSpeakerId ?? 0,
+                        initialValue: _selectedSpeakerId ?? 0,
                         items: List.generate(
                           _nSpeakers,
                           (i) => DropdownMenuItem(

@@ -1,4 +1,3 @@
-import 'dart:math';
 import 'dart:typed_data';
 
 /// Spread-spectrum LSB audio watermarking for synthetic speech provenance.

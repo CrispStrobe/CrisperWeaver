@@ -341,6 +341,7 @@ class _EnrolSpeakerScreenState extends ConsumerState<_EnrolSpeakerScreen> {
       }
       // Persist the consent record alongside the speaker profile.
       await svc.saveConsent(_nameCtrl.text.trim());
+      if (!mounted) return;
       Navigator.of(context).pop(true);
     } catch (e, st) {
       Log.instance.e('speakers', 'enrol failed', error: e, stack: st);

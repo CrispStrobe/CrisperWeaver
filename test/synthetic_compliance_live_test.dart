@@ -148,7 +148,7 @@ void main() {
           }
           if (compDef != null && compDef.kind == ModelKind.voice) {
             final vp = _resolveModel(companion);
-            if (vp != null) session.setVoice(vp, '');
+            if (vp != null) session.setVoice(vp);
           }
         }
 
