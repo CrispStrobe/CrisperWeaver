@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:ffi';
 import 'dart:io';
 import 'dart:typed_data';
@@ -132,11 +133,62 @@ class SpeakerIdService {
         return false;
       }
     }
+    // Also remove the companion consent record (GDPR Art. 17 erasure).
+    final consentFile = File(p.join(dir.path, '$name.consent.json'));
+    if (await consentFile.exists()) {
+      try {
+        await consentFile.delete();
+      } catch (_) {}
+    }
     // Force the DB to re-scan next time it's opened — it caches profiles
     // on load.
     _closeHandles();
     Log.instance.i('speakers', 'deleted speaker', fields: {'name': name});
     return true;
+  }
+
+  /// Save a biometric-consent record for [name]. Called after the user
+  /// explicitly consents to voice-embedding storage (GDPR Art. 9(2)(a)).
+  Future<void> saveConsent(String name) async {
+    final dir = await _ensureDbDir();
+    final file = File(p.join(dir.path, '${name.trim()}.consent.json'));
+    await file.writeAsString(jsonEncode({
+      'speaker': name.trim(),
+      'consentedAt': DateTime.now().toUtc().toIso8601String(),
+      'purpose': 'Speaker identification via TitaNet voice embeddings',
+      'lawfulBasis': 'GDPR Art. 9(2)(a) — explicit consent',
+      'storageLocation': 'on-device only',
+    }));
+  }
+
+  /// Export all stored data for [name] (GDPR Art. 20 data portability).
+  /// Returns null when the speaker doesn't exist.
+  Future<Map<String, dynamic>?> exportSpeakerData(String name) async {
+    final dir = await _ensureDbDir();
+    final spkFile = await dir
+        .list()
+        .where((e) =>
+            e is File &&
+            p.basenameWithoutExtension(e.path).toLowerCase() ==
+                name.toLowerCase() &&
+            p.extension(e.path) == '.spk')
+        .cast<File>()
+        .firstOrNull;
+    if (spkFile == null) return null;
+
+    final data = <String, dynamic>{
+      'speaker': name,
+      'embeddingDimension': embeddingDim,
+      'embeddingFileBytes': (await spkFile.stat()).size,
+    };
+
+    final consentFile = File(p.join(dir.path, '$name.consent.json'));
+    if (await consentFile.exists()) {
+      try {
+        data['consent'] = jsonDecode(await consentFile.readAsString());
+      } catch (_) {}
+    }
+    return data;
   }
 
   /// Force the next call to re-resolve the GGUF path. Call after a

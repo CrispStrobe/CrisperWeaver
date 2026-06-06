@@ -1131,5 +1131,13 @@
   "synthDownloadFailedShort": "Download von {name} fehlgeschlagen",
   "@synthDownloadFailedShort": {"placeholders": {"name": {"type": "String"}}},
   "synthDownloadFailedNamed": "Download von {name} fehlgeschlagen: {error}",
-  "@synthDownloadFailedNamed": {"placeholders": {"name": {"type": "String"}, "error": {"type": "String"}}}
+  "@synthDownloadFailedNamed": {"placeholders": {"name": {"type": "String"}, "error": {"type": "String"}}},
+
+  "aiGeneratedAudio": "KI-generiertes Audio",
+  "speakerConsentTitle": "Einwilligung biometrische Daten",
+  "speakerConsentBody": "Die Sprecherregistrierung erstellt einen Stimmabdruck (biometrische Daten gemäß DSGVO Art. 9). Diese Daten werden ausschließlich auf Ihrem Gerät gespeichert und niemals übertragen. Sie können Ihr Sprecherprofil jederzeit in der Sprecherverwaltung löschen.\n\nMit dem Fortfahren erteilen Sie Ihre ausdrückliche Einwilligung zur Verarbeitung dieser biometrischen Daten zur Sprecheridentifikation.",
+  "speakerConsentAgree": "Ich stimme zu",
+  "aboutSyntheticCompliance": "Synthetische Inhalte",
+  "aboutSyntheticComplianceText": "Synthetische Sprachausgaben werden mit Wasserzeichen versehen und enthalten maschinenlesbare Herkunftsmetadaten. Die Sprecherregistrierung erfordert eine ausdrückliche biometrische Einwilligung (DSGVO Art. 9). Alle Daten verbleiben auf dem Gerät; Sie können Ihre Daten jederzeit löschen.",
+  "syntheticDisclosureNote": "Dieser Inhalt enthält KI-generierte synthetische Sprache."
 }

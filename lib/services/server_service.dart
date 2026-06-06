@@ -322,8 +322,10 @@ class ServerService {
     }
     final wav = await tts.writeWav(audio);
     final bytes = await wav.readAsBytes();
-    return Response.ok(bytes,
-        headers: const {'content-type': 'audio/wav'});
+    return Response.ok(bytes, headers: const {
+      'content-type': 'audio/wav',
+      'x-content-ai-generated': 'true',
+    });
   }
 
   /// Text-to-text translation. JSON `{model, text, src, tgt, max_tokens}`.

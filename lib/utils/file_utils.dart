@@ -391,8 +391,16 @@ class FileUtils {
     }
   }
 
-  static String generateSrtContent(List<TranscriptionSegment> segments) {
+  static String generateSrtContent(
+    List<TranscriptionSegment> segments, {
+    bool syntheticDisclosure = false,
+  }) {
     final buffer = StringBuffer();
+    if (syntheticDisclosure) {
+      buffer.writeln(
+          'NOTE: This content contains AI-generated synthetic speech.');
+      buffer.writeln();
+    }
     for (int i = 0; i < segments.length; i++) {
       final segment = segments[i];
       buffer.writeln('${i + 1}');
@@ -404,9 +412,17 @@ class FileUtils {
     return buffer.toString();
   }
 
-  static String generateVttContent(List<TranscriptionSegment> segments) {
+  static String generateVttContent(
+    List<TranscriptionSegment> segments, {
+    bool syntheticDisclosure = false,
+  }) {
     final buffer = StringBuffer();
     buffer.writeln('WEBVTT');
+    if (syntheticDisclosure) {
+      buffer.writeln();
+      buffer.writeln(
+          'NOTE AI-generated synthetic speech');
+    }
     buffer.writeln();
 
     for (int i = 0; i < segments.length; i++) {
@@ -420,8 +436,11 @@ class FileUtils {
     return buffer.toString();
   }
 
-  static String generateJsonContent(List<TranscriptionSegment> segments) {
-    final data = segments
+  static String generateJsonContent(
+    List<TranscriptionSegment> segments, {
+    bool syntheticDisclosure = false,
+  }) {
+    final segList = segments
         .map((segment) => {
               'text': segment.text,
               'startTime': segment.startTime,
@@ -431,7 +450,14 @@ class FileUtils {
             })
         .toList();
 
-    return const JsonEncoder.withIndent('  ').convert(data);
+    if (!syntheticDisclosure) {
+      return const JsonEncoder.withIndent('  ').convert(segList);
+    }
+    return const JsonEncoder.withIndent('  ').convert({
+      '_disclosure':
+          'AI-generated synthetic speech',
+      'segments': segList,
+    });
   }
 
   static String formatSrtTime(double seconds) {
@@ -525,10 +551,17 @@ class FileUtils {
   static String generateMarkdownContent(
     List<TranscriptionSegment> segments, {
     String plainText = '',
+    bool syntheticDisclosure = false,
   }) {
     final buffer = StringBuffer();
     buffer.writeln('# Transcript');
     buffer.writeln();
+    if (syntheticDisclosure) {
+      buffer.writeln(
+          '> **Notice:** This content contains AI-generated synthetic speech '
+          '(synthetic content).');
+      buffer.writeln();
+    }
     if (segments.isEmpty) {
       if (plainText.isNotEmpty) buffer.writeln(plainText);
       return buffer.toString();

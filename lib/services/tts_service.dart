@@ -6,7 +6,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../constants/app_constants.dart';
 import '../main.dart' show modelServiceProvider;
+import 'audio_watermark_service.dart';
 import 'log_service.dart';
 import 'model_service.dart';
 
@@ -467,10 +469,22 @@ class TtsService {
     if (!await dir.exists()) {
       await dir.create(recursive: true);
     }
-    final stamp = DateTime.now().millisecondsSinceEpoch;
+    final now = DateTime.now();
+    final stamp = now.millisecondsSinceEpoch;
     final name = basename ?? 'crisperweaver-synth-$stamp.wav';
     final out = File(p.join(dir.path, name));
-    final bytes = _floatPcmToWavBytes(audio.samples, audio.sampleRate);
+    var bytes = _floatPcmToWavBytes(
+      audio.samples,
+      audio.sampleRate,
+      modelName: _backend,
+    );
+    if (AppConstants.enableAudioWatermark) {
+      bytes = AudioWatermarkService.embedWatermark(
+        bytes,
+        timestamp: now,
+        synthetic: true,
+      );
+    }
     await out.writeAsBytes(bytes, flush: true);
     return out;
   }
@@ -508,16 +522,50 @@ class TtsService {
     }
   }
 
-  // 16-bit PCM WAV header + body. Mono. Float input is clamped to
-  // [-1, 1] then scaled to int16. Cheap enough that we don't need a
-  // dedicated audio-encoding dep.
-  Uint8List _floatPcmToWavBytes(Float32List samples, int sampleRate) {
+  // 16-bit PCM WAV header + body + LIST INFO provenance metadata.
+  // Mono. Float input is clamped to [-1, 1] then scaled to int16.
+  // The LIST INFO chunk (synthetic-content provenance) is appended after
+  // the data chunk so legacy parsers that stop at `data` still work.
+  Uint8List _floatPcmToWavBytes(
+    Float32List samples,
+    int sampleRate, {
+    String? modelName,
+  }) {
     final dataBytes = samples.length * 2; // int16 mono
-    final fileBytes = 44 + dataBytes;
+
+    // --- Build LIST INFO chunk payload --------------------------------
+    final infoFields = <String, String>{
+      'ISFT': 'CrisperWeaver ${AppConstants.appVersion}',
+      'ICMT': 'AI-generated synthetic speech',
+      'IART': '${modelName ?? "unknown"} TTS',
+      'ICRD': DateTime.now().toUtc().toIso8601String(),
+    };
+    // Each INFO sub-chunk: 4-byte ID + 4-byte size + null-terminated
+    // string (padded to even length).
+    final infoChunks = <int>[];
+    for (final entry in infoFields.entries) {
+      final id = entry.key.codeUnits; // always 4 ASCII chars
+      final strBytes = [...entry.value.codeUnits, 0]; // null-terminated
+      if (strBytes.length.isOdd) strBytes.add(0); // pad to even
+      final size = strBytes.length;
+      infoChunks.addAll(id);
+      infoChunks.addAll([
+        size & 0xFF,
+        (size >> 8) & 0xFF,
+        (size >> 16) & 0xFF,
+        (size >> 24) & 0xFF,
+      ]);
+      infoChunks.addAll(strBytes);
+    }
+    // LIST chunk: 'LIST' + uint32 size + 'INFO' + sub-chunks
+    final listPayloadSize = 4 + infoChunks.length; // 'INFO' + sub-chunks
+    final listChunkSize = 8 + listPayloadSize; // 'LIST' + size field + payload
+
+    final fileBytes = 44 + dataBytes + listChunkSize;
     final out = Uint8List(fileBytes);
     final bd = ByteData.view(out.buffer);
 
-    // RIFF
+    // RIFF header — total file size includes everything after 'RIFF'+size.
     out.setRange(0, 4, 'RIFF'.codeUnits);
     bd.setUint32(4, fileBytes - 8, Endian.little);
     out.setRange(8, 12, 'WAVE'.codeUnits);
@@ -537,18 +585,19 @@ class TtsService {
     var off = 44;
     for (var i = 0; i < samples.length; i++) {
       var s = samples[i];
-      // NaN / Infinity slip past the clamp below (NaN compares
-      // false to every threshold), and `.round()` then throws
-      // "Unsupported operation: Infinity or NaN toInt". Some
-      // backends (kokoro observed) emit a handful of non-finite
-      // samples on the trailing edge of synthesis; treat those as
-      // silent rather than failing the whole WAV write.
       if (!s.isFinite) s = 0.0;
       if (s > 1.0) s = 1.0;
       if (s < -1.0) s = -1.0;
       bd.setInt16(off, (s * 32767).round(), Endian.little);
       off += 2;
     }
+
+    // LIST INFO chunk — appended after PCM data.
+    out.setRange(off, off + 4, 'LIST'.codeUnits);
+    bd.setUint32(off + 4, listPayloadSize, Endian.little);
+    out.setRange(off + 8, off + 12, 'INFO'.codeUnits);
+    out.setRange(off + 12, off + 12 + infoChunks.length, infoChunks);
+
     return out;
   }
 }

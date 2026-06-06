@@ -3,6 +3,23 @@
 Notable user-facing changes per release. Full diff per version on
 the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases).
 
+## 0.7.4 — 2026-06-06
+
+- **Synthetic content compliance** — TTS audio is now watermarked (spread-
+  spectrum LSB) and carries LIST INFO provenance metadata (ISFT, ICMT, IART,
+  ICRD) in every WAV file. The `/v1/audio/speech` endpoint returns an
+  `X-Content-AI-Generated: true` header.
+- **Biometric consent for speaker enrollment** — enrolling a speaker profile
+  now shows an explicit consent dialog (GDPR Art. 9). Consent is persisted
+  as a companion `.consent.json` alongside the `.spk` embedding file and
+  is deleted together on erasure.
+- **AI-Generated Audio chip** on the Synthesize screen after playback.
+- **Export disclosure** — SRT, VTT, JSON, and Markdown export formats accept
+  an optional `syntheticDisclosure` flag to prepend a machine-readable notice.
+- **About screen** — new "Synthetic Content Compliance" section.
+- **Speaker data export** — `SpeakerIdService.exportSpeakerData()` for GDPR
+  Art. 20 data portability.
+
 ## 0.7.3 — 2026-06-05
 
 - **PCS post-processor** — all-in-one punctuation + capitalization + sentence

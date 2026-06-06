@@ -1007,7 +1007,7 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  if (_lastWav != null)
+                  if (_lastWav != null) ...[
                     Card(
                       child: ListTile(
                         leading: const Icon(Icons.audiotrack),
@@ -1038,6 +1038,19 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
                         ),
                       ),
                     ),
+                    const SizedBox(height: 6),
+                    Chip(
+                      avatar: Icon(Icons.smart_toy,
+                          size: 16,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onTertiaryContainer),
+                      label: Text(l.aiGeneratedAudio),
+                      backgroundColor:
+                          Theme.of(context).colorScheme.tertiaryContainer,
+                      side: BorderSide.none,
+                    ),
+                  ],
                 ],
               ),
             ),

@@ -60,6 +60,11 @@ class AboutScreen extends ConsumerWidget {
             child: Text(l.aboutPrivacyText),
           ),
           _SectionCard(
+            icon: Icons.verified_user,
+            label: l.aboutSyntheticCompliance,
+            child: Text(l.aboutSyntheticComplianceText),
+          ),
+          _SectionCard(
             icon: Icons.gavel,
             label: l.aboutDisclaimer,
             child: Text(l.aboutDisclaimerText),

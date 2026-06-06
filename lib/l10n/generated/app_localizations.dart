@@ -4717,6 +4717,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Download of {name} failed: {error}'**
   String synthDownloadFailedNamed(String name, String error);
+
+  /// No description provided for @aiGeneratedAudio.
+  ///
+  /// In en, this message translates to:
+  /// **'AI-Generated Audio'**
+  String get aiGeneratedAudio;
+
+  /// No description provided for @speakerConsentTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Biometric Data Consent'**
+  String get speakerConsentTitle;
+
+  /// No description provided for @speakerConsentBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Speaker enrollment creates a voice embedding...'**
+  String get speakerConsentBody;
+
+  /// No description provided for @speakerConsentAgree.
+  ///
+  /// In en, this message translates to:
+  /// **'I Consent'**
+  String get speakerConsentAgree;
+
+  /// No description provided for @aboutSyntheticCompliance.
+  ///
+  /// In en, this message translates to:
+  /// **'Synthetic Content Compliance'**
+  String get aboutSyntheticCompliance;
+
+  /// No description provided for @aboutSyntheticComplianceText.
+  ///
+  /// In en, this message translates to:
+  /// **'Synthetic speech outputs are watermarked...'**
+  String get aboutSyntheticComplianceText;
+
+  /// No description provided for @syntheticDisclosureNote.
+  ///
+  /// In en, this message translates to:
+  /// **'This content contains AI-generated synthetic speech.'**
+  String get syntheticDisclosureNote;
 }
 
 class _AppLocalizationsDelegate

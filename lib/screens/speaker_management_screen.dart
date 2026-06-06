@@ -301,6 +301,28 @@ class _EnrolSpeakerScreenState extends ConsumerState<_EnrolSpeakerScreen> {
       setState(() => _error = l.speakersNoSample);
       return;
     }
+
+    // GDPR Art. 9(2)(a) — explicit consent before biometric processing.
+    final consented = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: Text(l.speakerConsentTitle),
+        content: Text(l.speakerConsentBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(l.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(l.speakerConsentAgree),
+          ),
+        ],
+      ),
+    );
+    if (consented != true || !mounted) return;
+
     setState(() {
       _busy = true;
       _error = null;
@@ -317,6 +339,8 @@ class _EnrolSpeakerScreenState extends ConsumerState<_EnrolSpeakerScreen> {
         });
         return;
       }
+      // Persist the consent record alongside the speaker profile.
+      await svc.saveConsent(_nameCtrl.text.trim());
       Navigator.of(context).pop(true);
     } catch (e, st) {
       Log.instance.e('speakers', 'enrol failed', error: e, stack: st);

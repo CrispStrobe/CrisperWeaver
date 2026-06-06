@@ -179,6 +179,11 @@ class AppConstants {
   static const bool sendCrashReports = false;
   static const bool enableCloudSync = false;
 
+  // Synthetic content compliance
+  static const bool enableAudioWatermark = true;
+  static const bool enableSyntheticDisclosure = true;
+  static const int watermarkMagic = 0x43573031; // ASCII 'CW01'
+
   // Default Settings Keys
   static const String keyPreferredBackend = 'preferred_backend';
   static const String keyDefaultModel = 'default_model';

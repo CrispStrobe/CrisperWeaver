@@ -2803,4 +2803,25 @@ class AppLocalizationsEn extends AppLocalizations {
   String synthDownloadFailedNamed(String name, String error) {
     return 'Download of $name failed: $error';
   }
+
+  @override
+  String get aiGeneratedAudio => 'AI-Generated Audio';
+
+  @override
+  String get speakerConsentTitle => 'Biometric Data Consent';
+
+  @override
+  String get speakerConsentBody => 'Speaker enrollment creates a voice embedding (biometric data under GDPR Art. 9). This data is stored only on your device and is never transmitted. You can delete your speaker profile at any time from the speaker management screen.\n\nBy proceeding, you give your explicit consent to the processing of this biometric data for speaker identification.';
+
+  @override
+  String get speakerConsentAgree => 'I Consent';
+
+  @override
+  String get aboutSyntheticCompliance => 'Synthetic Content Compliance';
+
+  @override
+  String get aboutSyntheticComplianceText => 'Synthetic speech outputs are watermarked and carry machine-readable provenance metadata. Speaker enrollment requires explicit biometric consent (GDPR Art. 9). All data stays on-device; you can delete your data at any time.';
+
+  @override
+  String get syntheticDisclosureNote => 'This content contains AI-generated synthetic speech.';
 }

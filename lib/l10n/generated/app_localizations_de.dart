@@ -2818,4 +2818,25 @@ class AppLocalizationsDe extends AppLocalizations {
   String synthDownloadFailedNamed(String name, String error) {
     return 'Download von $name fehlgeschlagen: $error';
   }
+
+  @override
+  String get aiGeneratedAudio => 'KI-generiertes Audio';
+
+  @override
+  String get speakerConsentTitle => 'Einwilligung biometrische Daten';
+
+  @override
+  String get speakerConsentBody => 'Die Sprecherregistrierung erstellt einen Stimmabdruck (biometrische Daten gemäß DSGVO Art. 9). Diese Daten werden ausschließlich auf Ihrem Gerät gespeichert und niemals übertragen. Sie können Ihr Sprecherprofil jederzeit in der Sprecherverwaltung löschen.\n\nMit dem Fortfahren erteilen Sie Ihre ausdrückliche Einwilligung zur Verarbeitung dieser biometrischen Daten zur Sprecheridentifikation.';
+
+  @override
+  String get speakerConsentAgree => 'Ich stimme zu';
+
+  @override
+  String get aboutSyntheticCompliance => 'Synthetische Inhalte';
+
+  @override
+  String get aboutSyntheticComplianceText => 'Synthetische Sprachausgaben werden mit Wasserzeichen versehen und enthalten maschinenlesbare Herkunftsmetadaten. Die Sprecherregistrierung erfordert eine ausdrückliche biometrische Einwilligung (DSGVO Art. 9). Alle Daten verbleiben auf dem Gerät; Sie können Ihre Daten jederzeit löschen.';
+
+  @override
+  String get syntheticDisclosureNote => 'Dieser Inhalt enthält KI-generierte synthetische Sprache.';
 }
