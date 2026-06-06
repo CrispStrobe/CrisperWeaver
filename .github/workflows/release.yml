@@ -74,7 +74,7 @@ jobs:
         run: |
           cmake -B build -DCMAKE_BUILD_TYPE=Release \
             -DBUILD_SHARED_LIBS=ON -DWHISPER_METAL=ON
-          cmake --build build --config Release --parallel --target crispasr
+          cmake --build build --config Release --parallel --target crispasr-lib
           ls -lh build/src/libwhisper*.dylib
 
       - name: Pub get
@@ -165,7 +165,7 @@ jobs:
             -DBUILD_SHARED_LIBS=OFF \
             -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
             -DCRISPASR_BUILD_EXAMPLES=OFF -DCRISPASR_BUILD_TESTS=OFF
-          cmake --build build --config Release --parallel --target crispasr
+          cmake --build build --config Release --parallel --target crispasr-lib
           cd build
           # -Wl,-rpath,$ORIGIN so libcrispasr.so finds its sibling
           # libespeak-ng.so.1 in <bundle>/lib/ at dlopen time. Without
@@ -824,7 +824,7 @@ jobs:
             -DWHISPER_BUILD_TESTS=OFF `
             -DESPEAK_NG_INCLUDE_DIR="$espeakInc" `
             -DESPEAK_NG_LIBRARY="$espeakLib"
-          cmake --build build --config Release --parallel --target crispasr
+          cmake --build build --config Release --parallel --target crispasr-lib
           Get-ChildItem build -Recurse -Filter *.dll | Select-Object FullName, Length
 
       - name: Enable Windows desktop + pub get

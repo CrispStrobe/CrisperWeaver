@@ -165,7 +165,7 @@ class SpeakerIdService {
   /// Returns null when the speaker doesn't exist.
   Future<Map<String, dynamic>?> exportSpeakerData(String name) async {
     final dir = await _ensureDbDir();
-    final spkFile = await dir
+    final spkFiles = await dir
         .list()
         .where((e) =>
             e is File &&
@@ -173,8 +173,9 @@ class SpeakerIdService {
                 name.toLowerCase() &&
             p.extension(e.path) == '.spk')
         .cast<File>()
-        .firstOrNull;
-    if (spkFile == null) return null;
+        .toList();
+    if (spkFiles.isEmpty) return null;
+    final spkFile = spkFiles.first;
 
     final data = <String, dynamic>{
       'speaker': name,
