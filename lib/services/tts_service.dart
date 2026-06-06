@@ -473,17 +473,34 @@ class TtsService {
     final stamp = now.millisecondsSinceEpoch;
     final name = basename ?? 'crisperweaver-synth-$stamp.wav';
     final out = File(p.join(dir.path, name));
+    // Watermark the float32 PCM before WAV encoding. Prefer the native
+    // CrispASR watermark (spread-spectrum / AudioSeal) when the dylib
+    // exports the symbols; fall back to the pure-Dart LSB watermark.
+    var samples = audio.samples;
+    bool nativeWatermarked = false;
+    if (AppConstants.enableAudioWatermark) {
+      try {
+        if (crispasr.CrispasrWatermark.isAvailable()) {
+          samples = crispasr.CrispasrWatermark.embed(samples);
+          nativeWatermarked = true;
+          Log.instance.d('tts', 'native watermark applied');
+        }
+      } catch (e) {
+        Log.instance.w('tts', 'native watermark unavailable', error: e);
+      }
+    }
     var bytes = _floatPcmToWavBytes(
-      audio.samples,
+      samples,
       audio.sampleRate,
       modelName: _backend,
     );
-    if (AppConstants.enableAudioWatermark) {
+    if (AppConstants.enableAudioWatermark && !nativeWatermarked) {
       bytes = AudioWatermarkService.embedWatermark(
         bytes,
         timestamp: now,
         synthetic: true,
       );
+      Log.instance.d('tts', 'dart LSB watermark applied (fallback)');
     }
     await out.writeAsBytes(bytes, flush: true);
     return out;
