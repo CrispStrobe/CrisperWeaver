@@ -2,22 +2,16 @@ import 'dart:typed_data';
 
 /// Spread-spectrum LSB audio watermarking for synthetic speech provenance.
 ///
-/// Embeds a deterministic pseudo-random pattern into the least-significant bits
-/// of 16-bit PCM samples inside a standard WAV file. The watermark payload
-/// encodes a magic identifier (`CW01`), a Unix-epoch timestamp, and a
-/// synthetic-content flag — enough to prove machine origin while staying
-/// well below the audible threshold (only ~25 % of samples are touched,
-/// and only the LSB flips).
+/// Embeds a fixed payload into the least-significant bits of 16-bit PCM
+/// samples inside a standard WAV file. The watermark payload encodes a
+/// magic identifier (`CW01`), a Unix-epoch timestamp, and a synthetic-
+/// content flag — enough to prove machine origin while staying well below
+/// the audible threshold (only the LSB of each sample is touched).
 class AudioWatermarkService {
   AudioWatermarkService._();
 
   /// Magic bytes identifying a CrisperWeaver watermark: ASCII `CW01`.
   static const int magic = 0x43573031;
-
-  /// Fixed app-wide PRNG key — combined with per-file timestamp to seed
-  /// the spread-spectrum sequence. Not secret (the goal is detectability,
-  /// not secrecy).
-  static const int _appKey = 0x43725765; // 'CrWe'
 
   /// Number of PCM samples used to encode one payload bit (chip length).
   /// Higher = more robust against noise, lower = shorter minimum audio.
@@ -58,10 +52,7 @@ class AudioWatermarkService {
     final out = Uint8List.fromList(wavBytes);
     final bd = ByteData.view(out.buffer);
 
-    // Seed PRNG with app key XOR epoch seconds — deterministic per file.
-    final rng = _Lcg((_appKey ^ epochSec) & 0xFFFFFFFF);
-
-    // Walk through payload bits and spread each across _chipsPerBit samples.
+    // Walk through payload bits and stamp each across _chipsPerBit samples.
     for (var bit = 0; bit < _payloadBits; bit++) {
       final byteIdx = bit ~/ 8;
       final bitIdx = 7 - (bit % 8); // MSB first
@@ -71,11 +62,6 @@ class AudioWatermarkService {
         final sampleIdx = bit * _chipsPerBit + chip;
         final offset = 44 + sampleIdx * 2;
         if (offset + 1 >= out.length) return out;
-
-        // Pseudo-random chip: determines whether this sample carries
-        // the bit as-is or inverted. ~50 % of chips are active.
-        final chipSign = rng.nextBit();
-        if (chipSign == 0) continue; // skip this chip (sparse embedding)
 
         var sample = bd.getInt16(offset, Endian.little);
         // Set LSB to the payload bit value.
@@ -93,19 +79,10 @@ class AudioWatermarkService {
 
     final bd = ByteData.view(wavBytes.buffer);
 
-    // We don't know the timestamp that was used to seed the PRNG, so we
-    // try a brute-force-free approach: extract the payload assuming we
-    // can recover the PRNG state from the magic bytes.
-    //
-    // Strategy: try every plausible epoch-second seed within a generous
-    // window. That's impractical for a general case, so instead we use a
-    // two-pass approach:
-    //   Pass 1 — extract raw LSBs without PRNG gating (majority vote
-    //            across all chips per bit).
-    //   Pass 2 — if magic matches, we have the timestamp and can verify
-    //            with the full PRNG correlation.
-
-    // Pass 1: majority-vote LSB extraction (ignores chip masking).
+    // Majority-vote LSB extraction: for each payload bit, count how many
+    // of the _chipsPerBit samples have LSB=1 vs LSB=0. Since embedding
+    // sets ALL chips to the same bit value, the majority (ideally 100%)
+    // will agree.
     final extracted = Uint8List(9);
     for (var bit = 0; bit < _payloadBits; bit++) {
       var ones = 0;
@@ -151,18 +128,4 @@ class WatermarkInfo {
   @override
   String toString() =>
       'WatermarkInfo(timestamp: $timestamp, synthetic: $synthetic)';
-}
-
-/// Simple linear congruential generator for deterministic chip sequences.
-/// Not cryptographic — intentionally reproducible given the same seed.
-class _Lcg {
-  int _state;
-  _Lcg(this._state);
-
-  /// Returns 0 or 1.
-  int nextBit() {
-    // Numerical Recipes LCG parameters.
-    _state = (1664525 * _state + 1013904223) & 0xFFFFFFFF;
-    return (_state >> 16) & 1;
-  }
 }
