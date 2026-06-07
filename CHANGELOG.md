@@ -3,6 +3,15 @@
 Notable user-facing changes per release. Full diff per version on
 the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases).
 
+## [Unreleased]
+
+### Added
+- MP3 ID3v2 AI-provenance tags (`AI_GENERATED`, `GENERATOR`, `AI_CONTENT_NOTICE`) via `AudioWatermarkService.injectMp3Metadata()`
+- Beep-based AI disclaimer prepended to voice-cloned TTS output (3× 880 Hz, EU AI Act Art. 50(4)) via `AudioWatermarkService.generateBeepDisclaimer()`
+- Post-embed watermark verification — `detectWatermark()` called after embedding, warns if null
+- Consent attestation audit logging (`[CONSENT] ts=ISO8601 model=X voice=Y attestation="user consent"`) matching CrispASR/CrispTTS format, via `_logConsentAttestation()`
+- 14 new synthetic compliance tests in `test/synthetic_compliance_test.dart`
+
 ## 0.7.4 — 2026-06-06
 
 - **Synthetic content compliance** — TTS audio is now watermarked and carries
