@@ -1,7 +1,8 @@
 // Synthetic content compliance — pure-Dart unit tests for the watermark
-// service, WAV metadata embedding, export-format disclosure, and speaker
-// consent file management. No FFI, no dylib, no model files — runs on
-// every CI host.
+// service, WAV metadata embedding, export-format disclosure, speaker
+// consent file management, MP3 ID3v2 provenance tags, beep disclaimer,
+// and post-embed watermark verification. No FFI, no dylib, no model
+// files — runs on every CI host.
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -356,6 +357,194 @@ void main() {
         await consent.delete();
       }
       // No exception — success.
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // 6. MP3 ID3v2 AI-provenance tags
+  // -----------------------------------------------------------------------
+  group('MP3 ID3v2 metadata injection', () {
+    test('injectMp3Metadata prepends ID3v2.3 header to raw MP3 bytes', () {
+      // Fake MP3 data (starts with sync word, not "ID3").
+      final fakeMp3 = Uint8List.fromList([0xFF, 0xFB, 0x90, 0x00, ...List.filled(64, 0)]);
+      final tagged = AudioWatermarkService.injectMp3Metadata(fakeMp3);
+
+      // Must be longer than input (ID3 header + frames prepended).
+      expect(tagged.length, greaterThan(fakeMp3.length));
+
+      // Must start with "ID3" magic.
+      expect(String.fromCharCodes(tagged.sublist(0, 3)), 'ID3');
+
+      // Version 2.3, revision 0.
+      expect(tagged[3], 0x03);
+      expect(tagged[4], 0x00);
+
+      // Flags byte must be 0x00.
+      expect(tagged[5], 0x00);
+
+      // Synchsafe size in bytes 6-9 — decode and verify it covers the
+      // TXXX frames between byte 10 and the start of the original MP3.
+      final synchsafeSize = (tagged[6] << 21) |
+          (tagged[7] << 14) |
+          (tagged[8] << 7) |
+          tagged[9];
+      expect(synchsafeSize, greaterThan(0));
+      // The original MP3 bytes must follow immediately after the tag.
+      expect(tagged.length, 10 + synchsafeSize + fakeMp3.length);
+
+      // Verify the original MP3 bytes are intact at the tail.
+      final tail = tagged.sublist(tagged.length - fakeMp3.length);
+      expect(tail, fakeMp3);
+    });
+
+    test('injectMp3Metadata contains TXXX frames with expected descriptions', () {
+      final fakeMp3 = Uint8List.fromList([0xFF, 0xFB, 0x90, 0x00]);
+      final tagged = AudioWatermarkService.injectMp3Metadata(fakeMp3);
+
+      // Convert tag region to string and look for the TXXX descriptions.
+      final tagStr = String.fromCharCodes(tagged.sublist(10, tagged.length - fakeMp3.length));
+      expect(tagStr, contains('AI_GENERATED'));
+      expect(tagStr, contains('GENERATOR'));
+      expect(tagStr, contains('CrisperWeaver'));
+      expect(tagStr, contains('AI_CONTENT_NOTICE'));
+    });
+
+    test('injectMp3Metadata does not double-tag bytes with existing ID3 header', () {
+      // Build bytes that already start with "ID3".
+      final alreadyTagged = Uint8List.fromList([
+        0x49, 0x44, 0x33, // "ID3"
+        0x03, 0x00, 0x00, // v2.3, flags
+        0x00, 0x00, 0x00, 0x00, // size = 0
+        0xFF, 0xFB, // fake MP3 sync
+      ]);
+      final result = AudioWatermarkService.injectMp3Metadata(alreadyTagged);
+      // Must return identical bytes — no modification.
+      expect(result, alreadyTagged);
+    });
+
+    test('TXXX frame structure has correct layout', () {
+      final fakeMp3 = Uint8List.fromList([0xFF, 0xFB]);
+      final tagged = AudioWatermarkService.injectMp3Metadata(fakeMp3);
+
+      // Find first TXXX frame after the 10-byte header.
+      final frameId = String.fromCharCodes(tagged.sublist(10, 14));
+      expect(frameId, 'TXXX');
+
+      // Next 4 bytes: big-endian frame size.
+      final frameSize = ByteData.view(tagged.buffer).getUint32(14, Endian.big);
+      expect(frameSize, greaterThan(0));
+
+      // 2-byte flags should be 0x0000.
+      expect(tagged[18], 0x00);
+      expect(tagged[19], 0x00);
+
+      // Encoding byte should be 0x00 (ISO-8859-1).
+      expect(tagged[20], 0x00);
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // 7. Beep-based AI disclaimer marker
+  // -----------------------------------------------------------------------
+  group('Beep disclaimer generation', () {
+    test('generateBeepDisclaimer returns non-empty float32 PCM', () {
+      final beeps = AudioWatermarkService.generateBeepDisclaimer();
+      expect(beeps.length, greaterThan(0));
+    });
+
+    test('disclaimer duration matches expected layout', () {
+      const sr = 24000;
+      final beeps = AudioWatermarkService.generateBeepDisclaimer(sampleRate: sr);
+      // 3 beeps * 150ms + 2 gaps * 80ms + 300ms trailing silence
+      // = 450 + 160 + 300 = 910ms = 0.91 * 24000 = 21840 samples
+      final expectedSamples =
+          (3 * 0.150 * sr + 2 * 0.080 * sr + 0.300 * sr).round();
+      expect(beeps.length, expectedSamples);
+    });
+
+    test('prepending disclaimer makes audio longer', () {
+      const sr = 24000;
+      final original = _sineWave(8000);
+      final beeps = AudioWatermarkService.generateBeepDisclaimer(sampleRate: sr);
+
+      final combined = Float32List(beeps.length + original.length);
+      combined.setRange(0, beeps.length, beeps);
+      combined.setRange(beeps.length, combined.length, original);
+
+      expect(combined.length, beeps.length + original.length);
+      expect(combined.length, greaterThan(original.length));
+    });
+
+    test('beep samples contain 880 Hz tone (non-silent)', () {
+      final beeps = AudioWatermarkService.generateBeepDisclaimer();
+      // The first beep starts at sample 0. After the fade-in (a few ms),
+      // samples should have non-trivial amplitude.
+      double maxAbs = 0;
+      for (var i = 0; i < beeps.length; i++) {
+        final a = beeps[i].abs();
+        if (a > maxAbs) maxAbs = a;
+      }
+      // 880 Hz sine at full amplitude should reach close to 1.0.
+      expect(maxAbs, greaterThan(0.9));
+    });
+
+    test('trailing silence region is near-zero', () {
+      const sr = 24000;
+      final beeps = AudioWatermarkService.generateBeepDisclaimer(sampleRate: sr);
+      // Last 300ms should be silence.
+      final silenceStart = beeps.length - (0.300 * sr).round();
+      double maxInSilence = 0;
+      for (var i = silenceStart; i < beeps.length; i++) {
+        final a = beeps[i].abs();
+        if (a > maxInSilence) maxInSilence = a;
+      }
+      expect(maxInSilence, lessThan(0.001));
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // 8. Post-embed watermark verification
+  // -----------------------------------------------------------------------
+  group('Post-embed watermark verification', () {
+    test('embed then detect returns non-null on valid WAV', () {
+      final samples = _sineWave(8000);
+      final wav = _buildRawWav(samples);
+      final watermarked = AudioWatermarkService.embedWatermark(
+        wav,
+        timestamp: DateTime.utc(2026, 6, 7),
+        synthetic: true,
+      );
+      final info = AudioWatermarkService.detectWatermark(watermarked);
+      expect(info, isNotNull,
+          reason: 'post-embed verification must succeed on freshly '
+              'watermarked audio');
+      expect(info!.synthetic, isTrue);
+    });
+
+    test('embed on short audio returns unchanged bytes, detect returns null', () {
+      // Audio too short for watermark — embedWatermark returns input
+      // unchanged, detectWatermark returns null. This is the edge case
+      // the post-embed check in TtsService must handle gracefully.
+      final wav = _buildRawWav(Float32List(100));
+      final result = AudioWatermarkService.embedWatermark(wav);
+      expect(identical(result, wav), isTrue);
+      final info = AudioWatermarkService.detectWatermark(result);
+      expect(info, isNull);
+    });
+
+    test('multiple sequential embeds produce verifiable watermarks', () {
+      for (var i = 0; i < 5; i++) {
+        final samples = _sineWave(8000 + i * 1000, freq: 300.0 + i * 50);
+        final wav = _buildRawWav(samples);
+        final ts = DateTime.utc(2026, 1, 1 + i);
+        final wm = AudioWatermarkService.embedWatermark(
+            wav, timestamp: ts, synthetic: true);
+        final info = AudioWatermarkService.detectWatermark(wm);
+        expect(info, isNotNull, reason: 'iteration $i');
+        expect(info!.timestamp.millisecondsSinceEpoch ~/ 1000,
+            ts.millisecondsSinceEpoch ~/ 1000,
+            reason: 'timestamp mismatch at iteration $i');
+      }
     });
   });
 }

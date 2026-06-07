@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 /// Spread-spectrum LSB audio watermarking for synthetic speech provenance.
@@ -115,6 +116,155 @@ class AudioWatermarkService {
       timestamp: DateTime.fromMillisecondsSinceEpoch(epochSec * 1000),
       synthetic: (flags & 0x01) != 0,
     );
+  }
+
+  // ---------------------------------------------------------------
+  // MP3 ID3v2 AI-provenance tags (EU AI Act Art. 50)
+  // ---------------------------------------------------------------
+
+  /// Prepend an ID3v2.3 tag with AI-provenance TXXX frames to [mp3Bytes].
+  /// If the bytes already start with an ID3 header, they are returned
+  /// unchanged to avoid double-tagging.
+  ///
+  /// Injected TXXX frames:
+  /// - AI_GENERATED = "true"
+  /// - GENERATOR = "CrisperWeaver"
+  /// - AI_CONTENT_NOTICE = "This audio was synthesized by an AI
+  ///   text-to-speech model. It is not a recording of a human speaker."
+  static Uint8List injectMp3Metadata(Uint8List mp3Bytes) {
+    // Don't double-tag if ID3 header is already present.
+    if (mp3Bytes.length >= 3 &&
+        mp3Bytes[0] == 0x49 && // 'I'
+        mp3Bytes[1] == 0x44 && // 'D'
+        mp3Bytes[2] == 0x33) { // '3'
+      return mp3Bytes;
+    }
+
+    final frames = BytesBuilder(copy: false);
+    frames.add(_makeTxxx('AI_GENERATED', 'true'));
+    frames.add(_makeTxxx('GENERATOR', 'CrisperWeaver'));
+    frames.add(_makeTxxx(
+      'AI_CONTENT_NOTICE',
+      'This audio was synthesized by an AI text-to-speech model. '
+          'It is not a recording of a human speaker.',
+    ));
+
+    final framesBytes = frames.toBytes();
+    final sz = framesBytes.length;
+
+    // ID3v2.3 header: "ID3" + version(03 00) + flags(00) + synchsafe size.
+    final header = Uint8List(10);
+    header[0] = 0x49; // 'I'
+    header[1] = 0x44; // 'D'
+    header[2] = 0x33; // '3'
+    header[3] = 0x03; // version 2.3
+    header[4] = 0x00; // revision 0
+    header[5] = 0x00; // flags
+    // Synchsafe integer: 4 bytes, 7 bits each.
+    header[6] = (sz >> 21) & 0x7F;
+    header[7] = (sz >> 14) & 0x7F;
+    header[8] = (sz >> 7) & 0x7F;
+    header[9] = sz & 0x7F;
+
+    final out = BytesBuilder(copy: false);
+    out.add(header);
+    out.add(framesBytes);
+    out.add(mp3Bytes);
+    return out.toBytes();
+  }
+
+  /// Build a single TXXX frame: "TXXX" + 4-byte BE size + 2-byte flags +
+  /// encoding(0x00) + description + NUL + value.
+  static Uint8List _makeTxxx(String description, String value) {
+    final descBytes = description.codeUnits;
+    final valBytes = value.codeUnits;
+    // payload = encoding(1) + desc + NUL(1) + value
+    final payloadLen = 1 + descBytes.length + 1 + valBytes.length;
+
+    final frame = Uint8List(10 + payloadLen);
+    // Frame ID
+    frame[0] = 0x54; // 'T'
+    frame[1] = 0x58; // 'X'
+    frame[2] = 0x58; // 'X'
+    frame[3] = 0x58; // 'X'
+    // Size (4-byte big-endian)
+    frame[4] = (payloadLen >> 24) & 0xFF;
+    frame[5] = (payloadLen >> 16) & 0xFF;
+    frame[6] = (payloadLen >> 8) & 0xFF;
+    frame[7] = payloadLen & 0xFF;
+    // Flags
+    frame[8] = 0x00;
+    frame[9] = 0x00;
+    // Encoding: ISO-8859-1
+    frame[10] = 0x00;
+    // Description + NUL
+    frame.setRange(11, 11 + descBytes.length, descBytes);
+    frame[11 + descBytes.length] = 0x00;
+    // Value
+    frame.setRange(12 + descBytes.length, 12 + descBytes.length + valBytes.length, valBytes);
+
+    return frame;
+  }
+
+  // ---------------------------------------------------------------
+  // Beep-based AI disclaimer marker (EU AI Act Art. 50(4))
+  // ---------------------------------------------------------------
+
+  /// Generate a beep-based disclaimer marker for voice-cloned TTS output.
+  ///
+  /// Produces 3 short 880 Hz beeps (150 ms each) with 80 ms gaps, followed
+  /// by 300 ms of silence. The returned float32 PCM is meant to be prepended
+  /// to synthesised audio before WAV encoding.
+  static Float32List generateBeepDisclaimer({int sampleRate = 24000}) {
+    const int beepCount = 3;
+    const double beepDurationSec = 0.150;
+    const double gapDurationSec = 0.080;
+    const double trailingSilenceSec = 0.300;
+    const double freq = 880.0;
+    const double fadeSec = 0.005; // 5 ms fade in/out
+
+    final int beepSamples = (beepDurationSec * sampleRate).round();
+    final int gapSamples = (gapDurationSec * sampleRate).round();
+    final int silenceSamples = (trailingSilenceSec * sampleRate).round();
+    final int fadeSamples = (fadeSec * sampleRate).round();
+
+    final totalSamples =
+        beepCount * beepSamples +
+        (beepCount - 1) * gapSamples +
+        silenceSamples;
+
+    final out = Float32List(totalSamples);
+    var pos = 0;
+
+    for (var b = 0; b < beepCount; b++) {
+      // Beep tone.
+      for (var i = 0; i < beepSamples; i++) {
+        final t = i / sampleRate;
+        var sample = math.sin(2.0 * math.pi * freq * t);
+        // Fade in.
+        if (i < fadeSamples) {
+          sample *= i / fadeSamples;
+        }
+        // Fade out.
+        final fromEnd = beepSamples - 1 - i;
+        if (fromEnd < fadeSamples) {
+          sample *= fromEnd / fadeSamples;
+        }
+        out[pos++] = sample;
+      }
+      // Gap (silence) between beeps — not after the last one.
+      if (b < beepCount - 1) {
+        for (var i = 0; i < gapSamples; i++) {
+          out[pos++] = 0.0;
+        }
+      }
+    }
+
+    // Trailing silence after beeps.
+    // pos already past last beep; remaining samples are zero-initialised.
+    // (Float32List default is 0.0.)
+
+    return out;
   }
 }
 

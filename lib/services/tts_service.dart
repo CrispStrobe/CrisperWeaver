@@ -458,7 +458,15 @@ class TtsService {
   /// Write the synthesised PCM as a 16-bit WAV to a temp file. Returns
   /// the file path so the caller can hand it to the share sheet / save
   /// dialog.
-  Future<File> writeWav(SynthesizedAudio audio, {String? basename}) async {
+  ///
+  /// When [voiceRefPath] is non-null, the output uses a cloned voice and
+  /// a beep-based AI disclaimer marker is prepended to the PCM (EU AI Act
+  /// Art. 50(4)). A consent attestation is also logged for audit purposes.
+  Future<File> writeWav(
+    SynthesizedAudio audio, {
+    String? basename,
+    String? voiceRefPath,
+  }) async {
     final dir = await getTemporaryDirectory();
     // macOS with sandbox-app disabled returns
     // ~/Library/Caches/<bundle-id>/ from getTemporaryDirectory(),
@@ -473,10 +481,31 @@ class TtsService {
     final stamp = now.millisecondsSinceEpoch;
     final name = basename ?? 'crisperweaver-synth-$stamp.wav';
     final out = File(p.join(dir.path, name));
+    // Voice-clone disclaimer + consent audit logging (EU AI Act Art. 50(4)).
+    var samples = audio.samples;
+    final bool isVoiceClone = voiceRefPath != null && voiceRefPath.isNotEmpty;
+    if (isVoiceClone) {
+      // Prepend beep-based AI disclaimer marker to the PCM.
+      final beeps = AudioWatermarkService.generateBeepDisclaimer(
+        sampleRate: audio.sampleRate,
+      );
+      final combined = Float32List(beeps.length + samples.length);
+      combined.setRange(0, beeps.length, beeps);
+      combined.setRange(beeps.length, combined.length, samples);
+      samples = combined;
+      Log.instance.d('tts', 'beep disclaimer prepended',
+          fields: {'beep_samples': beeps.length});
+
+      // Log consent attestation for audit trail.
+      _logConsentAttestation(
+        modelId: _backend ?? 'unknown',
+        voiceId: voiceRefPath,
+      );
+    }
+
     // Watermark the float32 PCM before WAV encoding. Prefer the native
     // CrispASR watermark (spread-spectrum / AudioSeal) when the dylib
     // exports the symbols; fall back to the pure-Dart LSB watermark.
-    var samples = audio.samples;
     bool nativeWatermarked = false;
     if (AppConstants.enableAudioWatermark) {
       try {
@@ -502,8 +531,36 @@ class TtsService {
       );
       Log.instance.d('tts', 'dart LSB watermark applied (fallback)');
     }
+    // Post-embed watermark verification: detect immediately after
+    // embedding to catch silent failures (corrupted WAV, truncation).
+    if (AppConstants.enableAudioWatermark) {
+      final verified = AudioWatermarkService.detectWatermark(bytes);
+      if (verified == null) {
+        Log.instance.w('tts',
+            'post-embed watermark verification failed: '
+            'detectWatermark returned null on freshly watermarked WAV');
+      } else {
+        Log.instance.d('tts', 'post-embed watermark verified',
+            fields: {'synthetic': verified.synthetic});
+      }
+    }
     await out.writeAsBytes(bytes, flush: true);
     return out;
+  }
+
+  /// Log a consent attestation for voice-cloned TTS synthesis.
+  ///
+  /// Format matches CrispASR / CrispTTS audit trail:
+  /// `[CONSENT] ts=ISO8601 model=X voice=Y attestation="user consent"`
+  void _logConsentAttestation({
+    required String modelId,
+    required String voiceId,
+  }) {
+    final ts = DateTime.now().toUtc().toIso8601String().replaceAll('-', '-');
+    final voiceStr = p.basename(voiceId);
+    Log.instance.i('consent',
+        '[CONSENT] ts=$ts model=$modelId voice=$voiceStr '
+        'attestation="user consent"');
   }
 
   void dispose() {
