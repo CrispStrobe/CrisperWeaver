@@ -105,18 +105,29 @@ class _TranslateScreenState extends ConsumerState<TranslateScreen> {
   }
 
   /// Auto-detect the source language of the typed text via CrispASR's
-  /// text-LID (CLD3) and set the source-language dropdown. Niche path →
-  /// inline English copy (no ARB). Needs the cld3 model downloaded.
+  /// text-LID. Tries GlotLID (2102 langs) and FastText LID-176 first
+  /// for wider coverage; falls back to CLD3.
   Future<void> _detectSourceLanguage() async {
     final input = _inputController.text.trim();
     if (input.isEmpty) return;
     final modelService = ref.read(modelServiceProvider);
-    final cld3Path = await modelService.getWhisperCppModelPath('cld3-f16');
+
+    // Try text-LID models in coverage order: GlotLID > FastText > CLD3.
+    String? modelPath;
+    for (final id in ['glotlid-f16', 'fasttext-lid176-f16', 'cld3-f16']) {
+      final p = await modelService.getWhisperCppModelPath(id);
+      if (p != null) {
+        modelPath = p;
+        break;
+      }
+    }
+
     if (!mounted) return;
-    if (cld3Path == null) {
+    if (modelPath == null) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: const Text(
-            'Download the CLD3 text language-ID model to auto-detect.'),
+            'Download a text language-ID model (CLD3, GlotLID, or '
+            'FastText LID-176) to auto-detect.'),
         action: SnackBarAction(
           label: 'Models',
           onPressed: () {
@@ -128,7 +139,7 @@ class _TranslateScreenState extends ConsumerState<TranslateScreen> {
     }
     crispasr.TextLanguage? result;
     try {
-      result = crispasr.detectTextLanguage(input, cld3Path);
+      result = crispasr.detectTextLanguage(input, modelPath);
     } catch (e, st) {
       Log.instance.w('translate', 'text-LID failed', error: e, stack: st);
     }

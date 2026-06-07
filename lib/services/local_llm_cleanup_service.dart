@@ -74,6 +74,7 @@ class LocalLlmConfig {
     this.topP = 0.95,
     this.minP = 0.05,
     this.repeatPenalty = 1.1,
+    this.stop = const [],
   });
 
   final String modelPath;
@@ -95,6 +96,10 @@ class LocalLlmConfig {
   final double topP;
   final double minP;
   final double repeatPenalty;
+  /// Stop substrings — generation halts when any of these appear
+  /// in the output. Useful for preventing LLM runaway past the
+  /// expected response boundary.
+  final List<String> stop;
 
   bool get enabled => modelPath.isNotEmpty;
 
@@ -133,6 +138,7 @@ class LocalLlmConfig {
         'topP': topP,
         'minP': minP,
         'repeatPenalty': repeatPenalty,
+        if (stop.isNotEmpty) 'stop': stop,
       };
 }
 
@@ -178,10 +184,16 @@ class LocalLlmCleanupService {
   /// Clean one segment. Throws LocalLlmDisabledException if the
   /// config is empty (modelPath unset), LocalLlmException on
   /// any session / generation error.
+  ///
+  /// When [onToken] is non-null, token deltas are streamed as
+  /// they arrive from the worker so the UI can show incremental
+  /// output. The full cleaned text is still returned as the
+  /// future's value.
   Future<String> cleanupSegment({
     required String text,
     required LocalLlmConfig config,
     String? contextHint,
+    void Function(String delta)? onToken,
   }) async {
     if (!config.enabled) {
       throw const LocalLlmDisabledException('modelPath is empty');
@@ -200,6 +212,19 @@ class LocalLlmCleanupService {
         {'role': 'system', 'content': 'Context: $contextHint'},
       {'role': 'user', 'content': text},
     ];
+
+    if (onToken != null) {
+      final buf = StringBuffer();
+      await for (final delta in _backend.generateStream(
+        messages: messages,
+        generateParams: config.toGenerateParamsMap(),
+      )) {
+        buf.write(delta);
+        onToken(delta);
+      }
+      return buf.toString().trim();
+    }
+
     final out = await _backend.generate(
       messages: messages,
       generateParams: config.toGenerateParamsMap(),

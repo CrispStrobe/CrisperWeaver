@@ -4537,6 +4537,30 @@ class ModelService {
       // Move temp file to final location
       await File(tempPath).rename(localPath);
 
+      // Auto-detect backend from GGUF metadata when the catalogue
+      // entry came from a user-added HF repo (backend may be wrong
+      // or the user picked "auto"). If detection succeeds and differs
+      // from the current entry, patch it in place so subsequent
+      // transcription / synthesis calls dispatch to the right engine.
+      if (localPath.endsWith('.gguf')) {
+        try {
+          final detected = crispasr.detectBackendFromGguf(localPath);
+          if (detected != null &&
+              detected.isNotEmpty &&
+              detected != modelDef.backend) {
+            Log.instance.i('model',
+                'auto-detected backend "$detected" for $modelName '
+                '(was "${modelDef.backend}")');
+            final patched = modelDef.copyWith(backend: detected);
+            _discoveredModels[modelName] = patched;
+          }
+        } catch (e, st) {
+          // Non-fatal — keep the user-supplied backend.
+          Log.instance.d('model', 'detectBackendFromGguf skipped',
+              error: e, stack: st);
+        }
+      }
+
       // CoreML companion fetch: Whisper backends auto-load a sibling
       // ggml-MODEL-encoder.mlmodelc directory when CrispASR was built
       // with -DCRISPASR_COREML=ON. The companion lives on HF as a zip
@@ -5181,6 +5205,36 @@ class ModelDefinition {
     if (languages.contains('*')) return true;
     return languages.contains(code.toLowerCase());
   }
+
+  /// Shallow copy with selective field overrides.
+  ModelDefinition copyWith({
+    String? name,
+    String? displayName,
+    String? fileName,
+    String? url,
+    int? sizeBytes,
+    String? checksum,
+    String? description,
+    String? quantization,
+    String? backend,
+    ModelKind? kind,
+    List<String>? companions,
+    List<String>? languages,
+  }) =>
+      ModelDefinition(
+        name: name ?? this.name,
+        displayName: displayName ?? this.displayName,
+        fileName: fileName ?? this.fileName,
+        url: url ?? this.url,
+        sizeBytes: sizeBytes ?? this.sizeBytes,
+        checksum: checksum ?? this.checksum,
+        description: description ?? this.description,
+        quantization: quantization ?? this.quantization,
+        backend: backend ?? this.backend,
+        kind: kind ?? this.kind,
+        companions: companions ?? this.companions,
+        languages: languages ?? this.languages,
+      );
 }
 
 /// Points at a HuggingFace repo that the model service can enumerate to

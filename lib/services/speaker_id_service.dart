@@ -15,11 +15,11 @@ import 'model_service.dart';
 
 /// Persistent on-device speaker identification.
 ///
-/// Wraps the CrispASR `CrispasrTitaNet` (192-d L2-normalised speaker
-/// embedding extractor) + `CrispasrSpeakerDB` (file-per-speaker on-disk
-/// profile DB) bindings to resolve diarisation cluster labels to
-/// enrolled names. The DB lives under
-/// `<app-docs>/speakers/`; no embeddings ever leave the device.
+/// Uses CrispASR's pluggable `CrispasrSpeakerEmbedder` (auto-selects
+/// the best available embedder: TitaNet 192-d > ECAPA-TDNN > IndexTTS)
+/// + `CrispasrSpeakerDB` (file-per-speaker on-disk profile DB) to
+/// resolve diarisation cluster labels to enrolled names. The DB lives
+/// under `<app-docs>/speakers/`; no embeddings ever leave the device.
 class SpeakerIdService {
   final ModelService modelService;
 
@@ -29,9 +29,10 @@ class SpeakerIdService {
   /// after a fresh download.
   String? _cachedModelPath;
 
-  /// Lazy-opened TitaNet handle. Loading the GGUF takes ~1 s, so we
-  /// hold it for the process lifetime.
-  crispasr.CrispasrTitaNet? _titanet;
+  /// Lazy-opened pluggable embedder handle. Selects the best available
+  /// model on the system (TitaNet > ECAPA > IndexTTS). Loading takes
+  /// ~1 s so we hold it for the process lifetime.
+  crispasr.CrispasrSpeakerEmbedder? _embedder;
 
   /// Lazy-opened DB handle. The DB also owns the in-memory profile
   /// cache, so reusing one handle keeps `match` fast.
@@ -41,23 +42,24 @@ class SpeakerIdService {
   /// double-init the C side.
   Completer<void>? _openInFlight;
 
-  /// 192-d embedding length asserted by upstream — we surface it so
-  /// callers can size buffers without hitting the binding.
-  static const int embeddingDim = 192;
+  /// Embedding dimension from the active embedder. Populated after
+  /// [_ensureOpen]; defaults to 192 (TitaNet) before open.
+  int get embeddingDim => _embedder?.dim ?? 192;
 
   /// Cosine-similarity threshold below which a match is treated as
   /// "no enrolled speaker". 0.7 matches upstream's default and the
   /// SpeechBrain-style speaker-verification literature.
   static const double defaultThreshold = 0.7;
 
-  /// True when the TitaNet GGUF is on disk AND the loaded CrispASR
-  /// dylib exports the TitaNet C symbols. Quick check — does NOT open
-  /// the model. Use this to gate the diarisation post-process.
+  /// True when at least one speaker-embedder GGUF is on disk AND
+  /// the loaded CrispASR dylib exports the embedder C symbols.
+  /// Quick check — does NOT open the model. Use this to gate the
+  /// diarisation post-process.
   Future<bool> get isAvailable async {
-    final path = await _findTitanetModel();
+    final path = await _findEmbedderModel();
     if (path == null) return false;
     final lib = DynamicLibrary.open(crispasr.CrispASR.defaultLibName());
-    return lib.providesSymbol('crispasr_titanet_init') &&
+    return lib.providesSymbol('crispasr_speaker_embedder_make_abi') &&
         lib.providesSymbol('crispasr_speaker_db_load');
   }
 
@@ -71,7 +73,8 @@ class SpeakerIdService {
     double threshold = defaultThreshold,
   }) async {
     await _ensureOpen();
-    final embedding = _titanet!.embed(pcm16k);
+    final embedding = _embedder!.embed(pcm16k);
+    if (embedding == null) return (null, 0.0);
     return _db!.match(embedding, threshold: threshold);
   }
 
@@ -82,7 +85,12 @@ class SpeakerIdService {
   Future<bool> enroll(String name, Float32List pcm16k) async {
     if (name.trim().isEmpty) return false;
     await _ensureOpen();
-    final embedding = _titanet!.embed(pcm16k);
+    final embedding = _embedder!.embed(pcm16k);
+    if (embedding == null) {
+      Log.instance.w('speakers', 'embed returned null',
+          fields: {'name': name});
+      return false;
+    }
     final ok = _db!.enroll(name.trim(), embedding);
     if (!ok) {
       Log.instance.w('speakers', 'enroll failed', fields: {'name': name});
@@ -192,6 +200,15 @@ class SpeakerIdService {
     return data;
   }
 
+  /// Expose the underlying embedder handle for callers that need
+  /// raw embeddings (e.g. agglomerative re-clustering in
+  /// DiarizationService). Returns null before [_ensureOpen].
+  crispasr.CrispasrSpeakerEmbedder? get embedder => _embedder;
+
+  /// Open the embedder without matching — for callers that need
+  /// the handle for embedding only (no DB match).
+  Future<void> ensureOpenForEmbedding() => _ensureOpen();
+
   /// Force the next call to re-resolve the GGUF path. Call after a
   /// fresh download or when the user removes the TitaNet model.
   void invalidate() {
@@ -207,19 +224,23 @@ class SpeakerIdService {
 
   void _closeHandles() {
     try {
-      _titanet?.close();
+      _embedder?.close();
     } catch (_) {}
     try {
       _db?.close();
     } catch (_) {}
-    _titanet = null;
+    _embedder = null;
     _db = null;
   }
 
-  /// Open the TitaNet model + DB handles. Idempotent + serialised so
-  /// two concurrent matchers don't race on first open.
+  /// Open the speaker embedder + DB handles. Idempotent + serialised
+  /// so two concurrent matchers don't race on first open.
+  ///
+  /// Uses `CrispasrSpeakerEmbedder` with `"auto"` model spec, which
+  /// auto-selects the best available embedder from the models on disk
+  /// (TitaNet > ECAPA-TDNN > IndexTTS).
   Future<void> _ensureOpen() async {
-    if (_titanet != null && _db != null) return;
+    if (_embedder != null && _db != null) return;
     if (_openInFlight != null) {
       await _openInFlight!.future;
       return;
@@ -227,26 +248,31 @@ class SpeakerIdService {
     final completer = Completer<void>();
     _openInFlight = completer;
     try {
-      final modelPath = await _findTitanetModel();
+      final modelPath = await _findEmbedderModel();
       if (modelPath == null) {
         throw StateError(
-            'TitaNet GGUF not downloaded — install titanet-large-f16 '
+            'No speaker-embedder GGUF downloaded — install titanet-large-f16 '
+            '(or ecapa-tdnn / indextts embedder) '
             'from Model Management before enrolling speakers');
       }
       final lib = DynamicLibrary.open(crispasr.CrispASR.defaultLibName());
-      if (!lib.providesSymbol('crispasr_titanet_init')) {
+      if (!lib.providesSymbol('crispasr_speaker_embedder_make_abi')) {
         throw StateError(
-            'Loaded CrispASR dylib lacks TitaNet support — rebuild against '
-            'the upstream CrispASR pulled in by this project.');
+            'Loaded CrispASR dylib lacks speaker-embedder support — rebuild '
+            'against the upstream CrispASR pulled in by this project.');
       }
-      _titanet = crispasr.CrispasrTitaNet(lib, modelPath);
+      final cacheDir = (await _ensureDbDir()).path;
+      _embedder =
+          crispasr.CrispasrSpeakerEmbedder(lib, 'auto', cacheDir: cacheDir);
       final dir = await _ensureDbDir();
       _db = crispasr.CrispasrSpeakerDB(lib, dir.path);
-      Log.instance.i('speakers', 'opened TitaNet + SpeakerDB', fields: {
-        'model': p.basename(modelPath),
-        'dbDir': dir.path,
-        'enrolled': _db!.count,
-      });
+      Log.instance.i('speakers', 'opened SpeakerEmbedder + SpeakerDB',
+          fields: {
+            'embedder': _embedder!.name,
+            'dim': _embedder!.dim,
+            'dbDir': dir.path,
+            'enrolled': _db!.count,
+          });
       completer.complete();
     } catch (e, st) {
       completer.completeError(e, st);
@@ -256,26 +282,30 @@ class SpeakerIdService {
     }
   }
 
-  /// Find the TitaNet GGUF the user downloaded. Matches both the
-  /// canonical `titanet-large*` filename (what the registry entry
-  /// uses) and any TitaNet-shaped GGUF a power user dropped into
-  /// the models dir manually.
-  Future<String?> _findTitanetModel() async {
+  /// Find a speaker-embedder GGUF on disk. Checks for TitaNet,
+  /// ECAPA-TDNN, and IndexTTS embedder models in priority order.
+  /// Returns the first match or null.
+  Future<String?> _findEmbedderModel() async {
     final cached = _cachedModelPath;
     if (cached != null && await File(cached).exists()) return cached;
     try {
       final models = await modelService.getWhisperCppModels();
-      for (final m in models) {
-        if (!m.isDownloaded || m.localPath == null) continue;
-        final base = p.basename(m.localPath!).toLowerCase();
-        if (base.startsWith('titanet')) {
-          _cachedModelPath = m.localPath;
-          return _cachedModelPath;
+      // Priority order: titanet > ecapa > indextts
+      const prefixes = ['titanet', 'ecapa-tdnn-spk', 'indextts-spk'];
+      for (final prefix in prefixes) {
+        for (final m in models) {
+          if (!m.isDownloaded || m.localPath == null) continue;
+          final base = p.basename(m.localPath!).toLowerCase();
+          if (base.startsWith(prefix)) {
+            _cachedModelPath = m.localPath;
+            return _cachedModelPath;
+          }
         }
       }
       return null;
     } catch (e, st) {
-      Log.instance.w('speakers', 'failed to enumerate models for TitaNet',
+      Log.instance.w('speakers',
+          'failed to enumerate models for speaker embedder',
           error: e, stack: st);
       return null;
     }

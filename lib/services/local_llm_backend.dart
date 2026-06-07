@@ -40,6 +40,15 @@ abstract class LocalLlmBackend {
     required Map<String, Object?> generateParams,
   });
 
+  /// Streaming generate — yields token deltas as they arrive from
+  /// the worker. Throws [LocalLlmException] if the final message
+  /// from the worker reports an error. Callers can show
+  /// incremental output while the LLM is still generating.
+  Stream<String> generateStream({
+    required List<Map<String, String>> messages,
+    required Map<String, Object?> generateParams,
+  });
+
   /// Clear the KV cache so the next generate re-prefills from
   /// scratch. Idempotent on a closed session (returns success).
   Future<void> reset();
@@ -175,6 +184,47 @@ class IsolateLocalLlmBackend implements LocalLlmBackend {
     final kind = (res['kind'] as String?) ?? 'generate_failed';
     final msg = (res['error'] as String?) ?? 'generate failed';
     throw LocalLlmException(kind, msg);
+  }
+
+  @override
+  Stream<String> generateStream({
+    required List<Map<String, String>> messages,
+    required Map<String, Object?> generateParams,
+  }) async* {
+    if (!isOpen) {
+      throw const LocalLlmException(
+          'closed', 'session is not open — call open() first');
+    }
+    final port = _cmdPort!;
+    final reply = ReceivePort();
+    port.send(<String, Object?>{
+      'type': 'generate_stream',
+      'replyPort': reply.sendPort,
+      'messages': messages,
+      'generateParams': generateParams,
+    });
+    // The worker sends {type:'token', value:'...'} for each delta,
+    // then {type:'done', ok:true/false, ...} as the final message.
+    await for (final res in reply) {
+      if (res is! Map) continue;
+      final msgType = res['type'];
+      if (msgType == 'token') {
+        final value = res['value'];
+        if (value is String) yield value;
+      } else if (msgType == 'done') {
+        reply.close();
+        if (res['ok'] != true) {
+          final kind = (res['kind'] as String?) ?? 'generate_failed';
+          final msg = (res['error'] as String?) ?? 'generate failed';
+          throw LocalLlmException(kind, msg);
+        }
+        return;
+      }
+    }
+    // If we get here, the port was closed without a 'done' —
+    // treat as an error.
+    throw const LocalLlmException(
+        'closed', 'worker stream ended without a done message');
   }
 
   @override

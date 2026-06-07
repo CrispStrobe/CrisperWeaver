@@ -1,3 +1,4 @@
+import 'dart:ffi';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -38,6 +39,23 @@ class DiarizationService {
 
   DiarizationService({this.modelService, this.speakerIdService});
 
+  /// Cached pyannote posteriors — computing these is the expensive step
+  /// (full encoder pass over the audio). Once computed, re-diarization
+  /// (e.g. after the user edits segment boundaries) uses the cache and
+  /// skips the encoder. Keyed by audio identity hash (sample count) so
+  /// a new audio file invalidates the stale cache.
+  crispasr.CrispasrPyannoteCache? _pyannoteCache;
+  int? _pyannoteCacheAudioKey;
+
+  /// Dispose cached pyannote posteriors. Call when the audio changes.
+  void invalidatePyannoteCache() {
+    try {
+      _pyannoteCache?.close();
+    } catch (_) {}
+    _pyannoteCache = null;
+    _pyannoteCacheAudioKey = null;
+  }
+
   /// Locate the pyannote-v3-seg GGUF on disk so the caller doesn't have
   /// to know its exact name. Returns null if no matching file is found.
   Future<String?> _findPyannoteModel() async {
@@ -62,10 +80,10 @@ class DiarizationService {
 
   /// Fill `seg.speaker` for every segment using the shared-lib diarizer.
   ///
-  /// `audioData.samples` is treated as mono 16 kHz float PCM. We don't
-  /// have per-channel access in CrisperWeaver today, so the stereo-only
-  /// methods (energy / xcorr) aren't selectable here; passing them
-  /// would produce no-op labels.
+  /// When [audioData] has stereo channel data (non-null `rightChannel`),
+  /// the stereo-only diarization methods (energy / xcorr) become
+  /// available and the right channel is passed to the C layer.
+  /// Otherwise falls back to mono-only methods (vad-turns / pyannote).
   ///
   /// `minSpeakers` / `maxSpeakers` are accepted for API compatibility
   /// with older callers but currently ignored — the lib methods pick
@@ -108,21 +126,120 @@ class DiarizationService {
     }
 
     try {
-      final ok = crispasr.diarizeSegments(
-        segs: libSegs,
-        left: audioData.samples,
-        isStereo: false,
-        method: method,
-        pyannoteModelPath: resolvedPyannotePath,
-      );
-      if (!ok) {
-        Log.instance.w('diarize',
-            'crispasr.diarizeSegments returned false — leaving speakers unassigned');
-        return segments;
+      // When using pyannote, try the pre-computed cache path first.
+      // The cache avoids re-running the expensive encoder on the same
+      // audio when the user re-diarizes (e.g. after editing segments).
+      bool usedCache = false;
+      if (method == crispasr.DiarizeMethod.pyannote &&
+          resolvedPyannotePath != null) {
+        final audioKey = audioData.samples.length;
+        final lib = DynamicLibrary.open(crispasr.CrispASR.defaultLibName());
+        if (lib.providesSymbol('crispasr_pyannote_cache_compute_abi')) {
+          if (_pyannoteCache == null || _pyannoteCacheAudioKey != audioKey) {
+            // Compute fresh cache — this is the expensive step.
+            invalidatePyannoteCache();
+            try {
+              _pyannoteCache = crispasr.CrispasrPyannoteCache(
+                lib,
+                audioData.samples,
+                resolvedPyannotePath,
+              );
+              _pyannoteCacheAudioKey = audioKey;
+              Log.instance.i('diarize', 'computed pyannote cache',
+                  fields: {'samples': audioKey});
+            } catch (e, st) {
+              Log.instance.w('diarize', 'pyannote cache compute failed — '
+                  'falling back to direct diarize', error: e, stack: st);
+            }
+          }
+          if (_pyannoteCache != null) {
+            try {
+              _pyannoteCache!.apply(libSegs);
+              usedCache = true;
+            } catch (e, st) {
+              Log.instance.w('diarize', 'pyannote cache apply failed',
+                  error: e, stack: st);
+            }
+          }
+        }
+      }
+
+      if (!usedCache) {
+        final ok = crispasr.diarizeSegments(
+          segs: libSegs,
+          left: audioData.samples,
+          right: audioData.rightChannel,
+          isStereo: audioData.isStereo,
+          method: method,
+          pyannoteModelPath: resolvedPyannotePath,
+        );
+        if (!ok) {
+          Log.instance.w('diarize',
+              'crispasr.diarizeSegments returned false — leaving speakers unassigned');
+          return segments;
+        }
       }
     } catch (e, st) {
       Log.instance.e('diarize', 'diarizeSegments threw', error: e, stack: st);
       return segments;
+    }
+
+    onProgress?.call(0.75);
+
+    // Optional re-clustering: when the caller specifies maxSpeakers,
+    // extract per-segment embeddings and re-cluster with agglomerative
+    // cosine clustering to merge over-segmented speakers down to the
+    // requested count. Requires a speaker embedder on disk.
+    if (maxSpeakers != null && maxSpeakers > 0 && speakerIdService != null) {
+      try {
+        final lib = DynamicLibrary.open(crispasr.CrispASR.defaultLibName());
+        if (lib.providesSymbol('crispasr_speaker_cluster_abi') &&
+            await speakerIdService!.isAvailable) {
+          await speakerIdService!.ensureOpenForEmbedding();
+          final embedder = speakerIdService!.embedder;
+          if (embedder != null) {
+            final dim = embedder.dim;
+            final allEmbs = Float32List(libSegs.length * dim);
+            for (var i = 0; i < libSegs.length; i++) {
+              final t0 = libSegs[i].t0;
+              final t1 = libSegs[i].t1;
+              final s0 = (t0 * 16000).round().clamp(0, audioData.samples.length);
+              final s1 = (t1 * 16000).round().clamp(s0, audioData.samples.length);
+              if (s1 - s0 < 1600) {
+                // <100 ms — too short for a meaningful embedding; fill zeros
+                allEmbs.fillRange(i * dim, (i + 1) * dim, 0.0);
+                continue;
+              }
+              final slice = audioData.samples.sublist(s0, s1);
+              final emb = embedder.embed(slice);
+              if (emb != null && emb.length == dim) {
+                allEmbs.setAll(i * dim, emb);
+              }
+            }
+            final labels = crispasr.crispasrAgglomerativeCluster(
+              lib,
+              allEmbs,
+              libSegs.length,
+              dim,
+              maxSpeakers: maxSpeakers,
+            );
+            // Re-assign speaker labels from clustering output.
+            for (var i = 0; i < libSegs.length; i++) {
+              libSegs[i] = crispasr.DiarizeSegment(
+                t0: libSegs[i].t0,
+                t1: libSegs[i].t1,
+                speaker: labels[i],
+              );
+            }
+            Log.instance.i('diarize', 're-clustered to $maxSpeakers speakers',
+                fields: {'segments': libSegs.length});
+          }
+        }
+      } catch (e, st) {
+        Log.instance.w('diarize',
+            'agglomerative re-clustering failed — keeping original labels',
+            error: e, stack: st);
+      }
     }
 
     onProgress?.call(0.85);

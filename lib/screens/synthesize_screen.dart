@@ -116,6 +116,10 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
   double _minP = 0.0;
   double _repetitionPenalty = 1.0;
   int _maxSpeechTokens = 1000;
+  /// TTS random seed — 0 = non-deterministic.
+  int _ttsSeed = 0;
+  /// Frequency penalty for AR token repetition.
+  double _frequencyPenalty = 0.0;
 
   @override
   void initState() {
@@ -440,6 +444,9 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
         repetitionPenalty:
             (_repetitionPenalty - 1.0).abs() < 1e-3 ? null : _repetitionPenalty,
         maxSpeechTokens: _maxSpeechTokens != 1000 ? _maxSpeechTokens : null,
+        seed: _ttsSeed != 0 ? _ttsSeed : null,
+        frequencyPenalty:
+            _frequencyPenalty.abs() < 1e-3 ? null : _frequencyPenalty,
       );
       if (audio == null) return;
       final wav = await tts.writeWav(audio);
@@ -962,6 +969,27 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
                         divisions: 39,
                         onChanged: (v) =>
                             setState(() => _maxSpeechTokens = v.round()),
+                      ),
+                      _buildSampleSlider(
+                        label: l.synthSeed(_ttsSeed),
+                        helper: l.synthSeedHelper,
+                        value: _ttsSeed.toDouble(),
+                        min: 0,
+                        max: 9999,
+                        divisions: 9999,
+                        onChanged: (v) =>
+                            setState(() => _ttsSeed = v.round()),
+                      ),
+                      _buildSampleSlider(
+                        label: l.synthFrequencyPenalty(
+                            _frequencyPenalty.toStringAsFixed(2)),
+                        helper: l.synthFrequencyPenaltyHelper,
+                        value: _frequencyPenalty,
+                        min: 0.0,
+                        max: 2.0,
+                        divisions: 40,
+                        onChanged: (v) =>
+                            setState(() => _frequencyPenalty = v),
                       ),
                       const SizedBox(height: 8),
                       // Kokoro phoneme cache — purely a runtime

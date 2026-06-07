@@ -1,5 +1,7 @@
 import 'dart:io';
+import 'dart:typed_data';
 
+import 'package:crispasr/crispasr.dart' as crispasr;
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
@@ -128,6 +130,39 @@ class VadService {
   /// resolves to silero.
   Future<String?> ensureSileroModel() =>
       ensureModel(backend: VadBackend.silero);
+
+  /// Run VAD over [pcm] (mono 16 kHz float32) and return the detected
+  /// speech spans. Each span is a `(start, end)` pair in seconds.
+  /// Returns an empty list when the VAD model isn't available or the
+  /// call fails. Useful for waveform UI overlays showing speech vs
+  /// silence regions.
+  Future<List<crispasr.VadSpan>> detectSpeechSpans(
+    Float32List pcm, {
+    VadBackend backend = VadBackend.silero,
+    double threshold = 0.5,
+    int minSpeechMs = 250,
+    int minSilenceMs = 100,
+  }) async {
+    final modelPath = await ensureModel(backend: backend);
+    if (modelPath == null) return const [];
+    try {
+      final model = crispasr.CrispASR(modelPath);
+      try {
+        return model.vad(
+          pcm,
+          modelPath: modelPath,
+          threshold: threshold,
+          minSpeechMs: minSpeechMs,
+          minSilenceMs: minSilenceMs,
+        );
+      } finally {
+        model.close();
+      }
+    } catch (e, st) {
+      Log.instance.w('vad', 'detectSpeechSpans failed', error: e, stack: st);
+      return const [];
+    }
+  }
 }
 
 final vadServiceProvider = Provider<VadService>(

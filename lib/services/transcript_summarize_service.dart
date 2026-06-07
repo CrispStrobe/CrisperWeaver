@@ -229,10 +229,15 @@ class TranscriptSummarizeService {
   /// pass typically takes seconds to minutes against a 3B+
   /// GGUF, but every subsequent summary in the same session
   /// skips the model-load cost.
+  ///
+  /// When [onToken] is non-null, token deltas are streamed as
+  /// they arrive so the UI can render the summary incrementally
+  /// while generation continues.
   Future<SummaryResult> summarizeLocal({
     required String transcript,
     required Set<SummaryKind> kinds,
     required LocalLlmConfig config,
+    void Function(String delta)? onToken,
   }) async {
     if (!config.enabled) {
       throw const LocalLlmDisabledException('modelPath is empty');
@@ -259,13 +264,28 @@ class TranscriptSummarizeService {
       ...config.toGenerateParamsMap(),
       'maxTokens': config.maxTokens < 1024 ? 1024 : config.maxTokens,
     };
-    final out = await backend.generate(
-      messages: <Map<String, String>>[
-        {'role': 'system', 'content': _buildPrompt(kinds)},
-        {'role': 'user', 'content': transcript},
-      ],
-      generateParams: genParams,
-    );
+    final messages = <Map<String, String>>[
+      {'role': 'system', 'content': _buildPrompt(kinds)},
+      {'role': 'user', 'content': transcript},
+    ];
+
+    final String out;
+    if (onToken != null) {
+      final buf = StringBuffer();
+      await for (final delta in backend.generateStream(
+        messages: messages,
+        generateParams: genParams,
+      )) {
+        buf.write(delta);
+        onToken(delta);
+      }
+      out = buf.toString();
+    } else {
+      out = await backend.generate(
+        messages: messages,
+        generateParams: genParams,
+      );
+    }
     return parseMarkdown(out);
   }
 

@@ -134,9 +134,8 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
   Future<void> _showAddHfRepoDialog() async {
     final l10n = AppLocalizations.of(context);
     final repoController = TextEditingController();
-    final allBackends = _safeAvailableBackends();
-    final initialBackend =
-        allBackends.contains('whisper') ? 'whisper' : allBackends.first;
+    final allBackends = ['auto', ..._safeAvailableBackends()];
+    const initialBackend = 'auto';
     final result = await showDialog<_AddHfRepoForm?>(
       context: context,
       builder: (ctx) {
@@ -201,10 +200,16 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
     if (result == null) return;
     setState(() => _probing = true);
     try {
+      // When the user picks "auto", fall back to 'whisper' for the
+      // probe pass — the post-download auto-detect in ModelService
+      // will correct the backend from GGUF metadata once the file
+      // lands on disk.
+      final probeBackend =
+          result.backend == 'auto' ? 'whisper' : result.backend;
       final added =
           await ref.read(modelServiceProvider).probeHfRepoForBackend(
                 repoId: result.repoId,
-                backend: result.backend,
+                backend: probeBackend,
               );
       if (!mounted) return;
       final msg = added.isEmpty

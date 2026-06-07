@@ -916,6 +916,20 @@ class CrispASREngine implements TranscriptionEngine {
               advanced.maxLen > 0 ||
               advanced.splitOnWord;
           if (_sessionPool != null && !whisperOnlyOpts) {
+            // C1 — poll CrispASR's atomic progress while the worker
+            // isolate runs the FFI call. Timer fires on the main
+            // isolate because the pool dispatches work off-thread.
+            crispasr.resetTranscriptionProgress();
+            Timer? progressTimer;
+            if (onProgress != null) {
+              progressTimer = Timer.periodic(
+                const Duration(milliseconds: 250),
+                (_) {
+                  final p = crispasr.getTranscriptionProgress();
+                  if (p >= 0) onProgress(p / 100.0);
+                },
+              );
+            }
             final mapped = await _runSessionTranscriptionViaPool(
               trimmed,
               language: language,
@@ -926,6 +940,8 @@ class CrispASREngine implements TranscriptionEngine {
               vadModelPath: vadModelPath,
               advanced: advanced,
             );
+            progressTimer?.cancel();
+            crispasr.resetTranscriptionProgress();
             segments = startOffsetSec <= 0
                 ? mapped
                 : mapped
@@ -1662,6 +1678,11 @@ class CrispASREngine implements TranscriptionEngine {
     Stream<Float32List> audioStream, {
     String? language,
     bool enableWordTimestamps = false,
+    /// When false, the streaming session defers decoding until the
+    /// window is full — saves battery on mobile at the cost of
+    /// higher latency on partial results. Default true (immediate
+    /// decode on every chunk).
+    bool liveDecode = true,
   }) {
     // Two routes: (a) Whisper class with its native streaming API,
     // or (b) the unified `CrispasrSession.openStream()` added in
@@ -1708,8 +1729,16 @@ class CrispASREngine implements TranscriptionEngine {
     } else {
       return null;
     }
+    // Apply live-decode toggle before the first feed(). When disabled,
+    // the session accumulates audio silently and only decodes when the
+    // window is full — lower CPU/battery usage on mobile.
+    if (!liveDecode) {
+      try {
+        session.setLiveDecode(false);
+      } catch (_) {/* pre-0.6 dylib or unsupported backend */}
+    }
     Log.instance.i('crispasr', 'Streaming session opened',
-        fields: {'route': streamRouteLabel});
+        fields: {'route': streamRouteLabel, 'liveDecode': liveDecode});
 
     final controller = StreamController<TranscriptionSegment>(
       onCancel: () {

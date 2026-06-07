@@ -270,6 +270,12 @@ class TtsService {
     double? repetitionPenalty,
     /// Upper bound on AR speech tokens (chatterbox). Null = default.
     int? maxSpeechTokens,
+    /// TTS random seed for reproducible output (chatterbox, vibevoice,
+    /// qwen3-tts, orpheus). Null = non-deterministic.
+    int? seed,
+    /// Frequency penalty for AR token repetition (autoregressive
+    /// backends). Null = backend default.
+    double? frequencyPenalty,
   }) async {
     final session = _session;
     if (session == null || text.trim().isEmpty) return null;
@@ -330,6 +336,16 @@ class TtsService {
         if (maxSpeechTokens != null) {
           try {
             session.setMaxSpeechTokens(maxSpeechTokens);
+          } catch (_) {}
+        }
+        if (seed != null) {
+          try {
+            session.setTtsSeed(seed);
+          } catch (_) {}
+        }
+        if (frequencyPenalty != null) {
+          try {
+            session.setFrequencyPenalty(frequencyPenalty);
           } catch (_) {}
         }
       }

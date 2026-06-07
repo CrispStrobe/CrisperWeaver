@@ -257,6 +257,7 @@ class MockEngine implements TranscriptionEngine {
     Stream<Float32List> audioStream, {
     String? language,
     bool enableWordTimestamps = false,
+    bool liveDecode = true,
   }) {
     if (!supportsStreaming) return null;
 

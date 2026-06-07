@@ -221,6 +221,28 @@ class AudioService {
     }
   }
 
+  /// Re-decode the audio file preserving stereo channels. Returns an
+  /// [AudioData] with [rightChannel] populated when the source is
+  /// stereo. Falls back to a mono-only [AudioData] when the stereo
+  /// C-ABI symbol isn't available.
+  Future<AudioData> loadAudioFileStereo(String filePath) async {
+    try {
+      final stereo = crispasr.decodeAudioFileStereo(filePath);
+      final duration = stereo.left.length / stereo.sampleRate;
+      return AudioData(
+        samples: stereo.left,
+        sampleRate: stereo.sampleRate,
+        duration: Duration(milliseconds: (duration * 1000).round()),
+        channels: stereo.sourceChannels,
+        rightChannel: stereo.isStereo ? stereo.right : null,
+      );
+    } catch (e) {
+      Log.instance.d('audio', 'stereo decode not available, falling back',
+          error: e);
+      return loadAudioFile(filePath);
+    }
+  }
+
   /// Download audio from URL
   Future<File> downloadAudioFromUrl(
     String url, {
@@ -437,17 +459,28 @@ class AudioService {
 }
 
 class AudioData {
+  /// Mono PCM (or left channel for stereo sources).
   final Float32List samples;
   final int sampleRate;
   final Duration duration;
   final int channels;
+
+  /// Right channel PCM — non-null when the source was stereo and
+  /// decoded via [decodeAudioFileStereo]. Null for mono sources or
+  /// when the stereo C-ABI wasn't available. When non-null, its
+  /// length equals [samples.length].
+  final Float32List? rightChannel;
 
   const AudioData({
     required this.samples,
     required this.sampleRate,
     required this.duration,
     required this.channels,
+    this.rightChannel,
   });
+
+  /// True when stereo channel data is available.
+  bool get isStereo => rightChannel != null && channels >= 2;
 
   double get durationInSeconds => duration.inMilliseconds / 1000.0;
   int get totalSamples => samples.length;

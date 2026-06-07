@@ -771,24 +771,39 @@ class _TranscriptionOutputWidgetState
     }
   }
 
-  /// §5.24-F — run CLD3 text-LID over the current transcript and report
-  /// the detected language. A niche, on-demand path (mirrors the Translate
-  /// screen's auto-detect), so the transient result messages stay inline
-  /// English rather than going through the ARB tables; only the menu label
-  /// is localized. Needs the cld3-f16 model downloaded.
+  /// §5.24-F — run text-LID over the current transcript and report
+  /// the detected language. Tries GlotLID (2102 langs) and FastText
+  /// LID-176 first for wider coverage; falls back to CLD3.
   Future<void> _detectTranscriptLanguage() async {
     final text = (widget.currentTranscription ??
             widget.segments.map((s) => s.text).join(' '))
         .trim();
     if (text.isEmpty) return;
     final modelService = ref.read(modelServiceProvider);
-    final cld3Path = await modelService.getWhisperCppModelPath('cld3-f16');
+
+    // Try text-LID models in coverage order: GlotLID > FastText > CLD3.
+    String? modelPath;
+    String modelName = 'cld3';
+    for (final candidate in [
+      ('glotlid-f16', 'GlotLID'),
+      ('fasttext-lid176-f16', 'FastText'),
+      ('cld3-f16', 'CLD3'),
+    ]) {
+      final p = await modelService.getWhisperCppModelPath(candidate.$1);
+      if (p != null) {
+        modelPath = p;
+        modelName = candidate.$2;
+        break;
+      }
+    }
+
     if (!mounted) return;
     final messenger = ScaffoldMessenger.of(context);
-    if (cld3Path == null) {
+    if (modelPath == null) {
       messenger.showSnackBar(SnackBar(
         content: const Text(
-            'Download the CLD3 text language-ID model to detect the language.'),
+            'Download a text language-ID model (CLD3, GlotLID, or '
+            'FastText LID-176) to detect the language.'),
         action: SnackBarAction(
           label: 'Models',
           onPressed: () {
@@ -800,7 +815,7 @@ class _TranscriptionOutputWidgetState
     }
     crispasr.TextLanguage? result;
     try {
-      result = crispasr.detectTextLanguage(text, cld3Path);
+      result = crispasr.detectTextLanguage(text, modelPath);
     } catch (e, st) {
       Log.instance.w('output', 'text-LID failed', error: e, stack: st);
     }
@@ -812,7 +827,7 @@ class _TranscriptionOutputWidgetState
     }
     final pct = (result.confidence * 100).round();
     messenger.showSnackBar(SnackBar(
-      content: Text('Detected language: ${result.code} ($pct%)'),
+      content: Text('Detected language: ${result.code} ($pct%) [$modelName]'),
       duration: const Duration(seconds: 3),
     ));
   }

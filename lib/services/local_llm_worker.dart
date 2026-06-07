@@ -134,6 +134,7 @@ Future<void> localLlmWorkerEntry(LocalLlmWorkerArgs args) async {
         break;
 
       case 'generate':
+      case 'generate_stream':
         final s = session;
         if (s == null) {
           replyPort.send(<String, Object?>{
@@ -163,32 +164,78 @@ Future<void> localLlmWorkerEntry(LocalLlmWorkerArgs args) async {
         final genParamsMap =
             (raw['generateParams'] as Map?)?.cast<String, Object?>() ??
                 const {};
-        try {
-          final out = await s.generate(
-            messages,
-            params: _generateParamsFromMap(genParamsMap),
-          );
-          replyPort.send(<String, Object?>{'ok': true, 'value': out});
-        } on crispasr.ChatException catch (e) {
-          replyPort.send(<String, Object?>{
-            'ok': false,
-            'kind': 'generate_failed',
-            'error': e.message,
-            'code': e.code,
-          });
-        } on StateError catch (e) {
-          // Session was closed (race against shutdown).
-          replyPort.send(<String, Object?>{
-            'ok': false,
-            'kind': 'closed',
-            'error': e.message,
-          });
-        } catch (e) {
-          replyPort.send(<String, Object?>{
-            'ok': false,
-            'kind': 'generate_failed',
-            'error': e.toString(),
-          });
+        final params = _generateParamsFromMap(genParamsMap);
+        if (type == 'generate_stream') {
+          // Streaming path — send each token delta as it arrives,
+          // then a final 'done' message with the full text.
+          try {
+            final buf = StringBuffer();
+            await for (final delta in s.generateStream(
+              messages,
+              params: params,
+            )) {
+              buf.write(delta);
+              replyPort.send(<String, Object?>{
+                'type': 'token',
+                'value': delta,
+              });
+            }
+            replyPort.send(<String, Object?>{
+              'type': 'done',
+              'ok': true,
+              'value': buf.toString(),
+            });
+          } on crispasr.ChatException catch (e) {
+            replyPort.send(<String, Object?>{
+              'type': 'done',
+              'ok': false,
+              'kind': 'generate_failed',
+              'error': e.message,
+              'code': e.code,
+            });
+          } on StateError catch (e) {
+            replyPort.send(<String, Object?>{
+              'type': 'done',
+              'ok': false,
+              'kind': 'closed',
+              'error': e.message,
+            });
+          } catch (e) {
+            replyPort.send(<String, Object?>{
+              'type': 'done',
+              'ok': false,
+              'kind': 'generate_failed',
+              'error': e.toString(),
+            });
+          }
+        } else {
+          // Blocking path — single reply with the full text.
+          try {
+            final out = await s.generate(
+              messages,
+              params: params,
+            );
+            replyPort.send(<String, Object?>{'ok': true, 'value': out});
+          } on crispasr.ChatException catch (e) {
+            replyPort.send(<String, Object?>{
+              'ok': false,
+              'kind': 'generate_failed',
+              'error': e.message,
+              'code': e.code,
+            });
+          } on StateError catch (e) {
+            replyPort.send(<String, Object?>{
+              'ok': false,
+              'kind': 'closed',
+              'error': e.message,
+            });
+          } catch (e) {
+            replyPort.send(<String, Object?>{
+              'ok': false,
+              'kind': 'generate_failed',
+              'error': e.toString(),
+            });
+          }
         }
         break;
 

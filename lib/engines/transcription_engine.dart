@@ -91,6 +91,7 @@ abstract class TranscriptionEngine {
     Stream<Float32List> audioStream, {
     String? language,
     bool enableWordTimestamps = false,
+    bool liveDecode = true,
   });
 
   /// Cancel ongoing operations
