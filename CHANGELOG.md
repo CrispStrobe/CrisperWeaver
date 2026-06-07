@@ -5,10 +5,13 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 
 ## 0.7.4 — 2026-06-06
 
-- **Synthetic content compliance** — TTS audio is now watermarked (spread-
-  spectrum LSB) and carries LIST INFO provenance metadata (ISFT, ICMT, IART,
-  ICRD) in every WAV file. The `/v1/audio/speech` endpoint returns an
-  `X-Content-AI-Generated: true` header.
+- **Synthetic content compliance** — TTS audio is now watermarked and carries
+  LIST INFO provenance metadata (ISFT, ICMT, IART, ICRD) in every WAV file.
+  Two-tier watermarking: native CrispASR spread-spectrum (frequency-domain,
+  survives re-encoding + compression; upgradeable to AudioSeal neural
+  watermark via GGUF) when the dylib exports `crispasr_watermark_*`, with a
+  pure-Dart LSB fallback on older builds. The `/v1/audio/speech` endpoint
+  returns an `X-Content-AI-Generated: true` header.
 - **Biometric consent for speaker enrollment** — enrolling a speaker profile
   now shows an explicit consent dialog (GDPR Art. 9). Consent is persisted
   as a companion `.consent.json` alongside the `.spk` embedding file and
@@ -19,6 +22,10 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 - **About screen** — new "Synthetic Content Compliance" section.
 - **Speaker data export** — `SpeakerIdService.exportSpeakerData()` for GDPR
   Art. 20 data portability.
+- **MeloTTS v3 static catalogue** — v3 model now appears on fresh launch
+  without a deep refresh; companion reference fixed (`bert-base-uncased-q4k`).
+- **CI fixes** — smart-quote JSON delimiters in `app_de.arb`, deprecated
+  `DropdownButtonFormField.value`, cmake target rename `crispasr-lib`.
 
 ## 0.7.3 — 2026-06-05
 

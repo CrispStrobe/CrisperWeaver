@@ -60,6 +60,7 @@ CrisperWeaver is a cross-platform Flutter app for fully-offline audio transcript
 - **Push-to-transcribe from anywhere** — desktop-only system hotkey (macOS / Linux / Windows). Push-to-talk OR toggle behaviour; combo parser handles modifier aliases (cmd / command / win / super → meta, ctrl → control, option → alt).
 - **Clone a voice in three steps** — guided wizard launched from the *Synthesize* screen: record 10 s OR pick a WAV → type the reference transcript → hand off to *Synthesize* with everything pre-populated. Runs on top of the existing chatterbox / indextts / qwen3-tts-base / vibevoice runtime-cloning surface.
 - **Whisper subtitle formatting** — tokens-per-segment cap + split-on-word toggle in Advanced Options. Produces SRT-friendly short subtitle lines instead of long-paragraph segments.
+- **Synthetic content compliance** — every TTS-generated WAV is watermarked (native CrispASR spread-spectrum, upgradeable to AudioSeal neural watermark via GGUF; pure-Dart LSB fallback on older dylibs) and carries LIST INFO provenance metadata identifying it as AI-generated. Speaker enrollment requires explicit biometric consent (GDPR Art. 9); consent records are persisted and deleted alongside speaker profiles. Exports support an optional machine-readable disclosure notice. See *About → Synthetic Content Compliance* in the app.
 
 ## Supported models
 
