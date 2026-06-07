@@ -311,8 +311,7 @@ void main() {
         final hasStaticEntry = allStatic.values.any((def) =>
             def.fileName.startsWith(repo.baseName) &&
             (def.backend == repo.backend ||
-             def.backend == null ||
-             def.backend!.isEmpty));
+             def.backend.isEmpty));
         if (!hasStaticEntry) {
           orphaned.add(
               'BackendRepo[${repoEntry.key}] '

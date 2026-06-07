@@ -286,6 +286,14 @@ class _StubBackend implements LocalLlmBackend {
   }
 
   @override
+  Stream<String> generateStream({
+    required List<Map<String, String>> messages,
+    required Map<String, Object?> generateParams,
+  }) async* {
+    yield await generate(messages: messages, generateParams: generateParams);
+  }
+
+  @override
   Future<void> reset() async {
     resetCount++;
   }

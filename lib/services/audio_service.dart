@@ -239,7 +239,7 @@ class AudioService {
     } catch (e) {
       Log.instance.d('audio', 'stereo decode not available, falling back',
           error: e);
-      return loadAudioFile(filePath);
+      return loadAudioFile(File(filePath));
     }
   }
 

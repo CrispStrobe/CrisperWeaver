@@ -219,8 +219,8 @@ class DiarizationService {
             final labels = crispasr.crispasrAgglomerativeCluster(
               lib,
               allEmbs,
-              libSegs.length,
-              dim,
+              n: libSegs.length,
+              dim: dim,
               maxSpeakers: maxSpeakers,
             );
             // Re-assign speaker labels from clustering output.

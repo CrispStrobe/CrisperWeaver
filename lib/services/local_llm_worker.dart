@@ -166,24 +166,23 @@ Future<void> localLlmWorkerEntry(LocalLlmWorkerArgs args) async {
                 const {};
         final params = _generateParamsFromMap(genParamsMap);
         if (type == 'generate_stream') {
-          // Streaming path — send each token delta as it arrives,
-          // then a final 'done' message with the full text.
+          // Streaming path — CrispasrChatSession doesn't expose
+          // generateStream (FFI pointer lifetimes prevent async
+          // delivery), so we call the synchronous generate and emit
+          // the full reply as a single token delta.
           try {
-            final buf = StringBuffer();
-            await for (final delta in s.generateStream(
+            final out = await s.generate(
               messages,
               params: params,
-            )) {
-              buf.write(delta);
-              replyPort.send(<String, Object?>{
-                'type': 'token',
-                'value': delta,
-              });
-            }
+            );
+            replyPort.send(<String, Object?>{
+              'type': 'token',
+              'value': out,
+            });
             replyPort.send(<String, Object?>{
               'type': 'done',
               'ok': true,
-              'value': buf.toString(),
+              'value': out,
             });
           } on crispasr.ChatException catch (e) {
             replyPort.send(<String, Object?>{

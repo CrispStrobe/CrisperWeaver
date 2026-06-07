@@ -156,7 +156,7 @@ class VadService {
           minSilenceMs: minSilenceMs,
         );
       } finally {
-        model.close();
+        model.dispose();
       }
     } catch (e, st) {
       Log.instance.w('vad', 'detectSpeechSpans failed', error: e, stack: st);
