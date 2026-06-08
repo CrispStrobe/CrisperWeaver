@@ -2579,6 +2579,23 @@ class ModelService {
       backend: 'chat',
       kind: ModelKind.chatLlm,
     ),
+
+    // §5.25.2 — Embedding models for semantic transcript search
+    'all-minilm-l6-v2-q8_0': ModelDefinition(
+      name: 'all-minilm-l6-v2-q8_0',
+      displayName: 'all-MiniLM-L6-v2 (Q8_0)',
+      fileName: 'all-MiniLM-L6-v2-Q8_0.gguf',
+      url:
+          'https://huggingface.co/cstr/all-MiniLM-L6-v2-GGUF/resolve/main/all-MiniLM-L6-v2-Q8_0.gguf',
+      sizeBytes: 23 * 1024 * 1024,
+      checksum: '',
+      description:
+          'Compact 384-dim text embedding model (~23 MB Q8_0). Fast semantic search over transcript history. Apache 2.0 license.',
+      quantization: 'q8_0',
+      backend: 'embed',
+      kind: ModelKind.embed,
+      languages: ['*'],
+    ),
   };
 
   /// PLAN §5.4 — the "smallest functional default" model per backend
@@ -3695,6 +3712,16 @@ class ModelService {
       description: 'Punctuation + Capitalization + Segmentation (47 languages)',
       kind: ModelKind.punc,
       defaultLanguages: langsAll,
+    ),
+    // §5.25.2 — Embedding model repo for semantic transcript search.
+    'embed': BackendRepo(
+      backend: 'embed',
+      repoId: 'cstr/all-MiniLM-L6-v2-GGUF',
+      baseName: 'all-MiniLM-L6-v2',
+      displayPrefix: 'all-MiniLM-L6-v2',
+      description: 'Compact text embedding model for semantic search (384 dim)',
+      kind: ModelKind.embed,
+      defaultLanguages: ['*'],
     ),
   };
 
@@ -5139,6 +5166,11 @@ enum ModelKind {
   /// Summarize Local-LLM-cleanup path. Distinct from `asr` —
   /// these are text-only models, not speech models.
   chatLlm,
+
+  /// §5.25.2 — Text embedding GGUF for semantic transcript search.
+  /// Loaded via CrispEmbed. Distinct from `asr` — these are
+  /// encoder-only text models, not speech models.
+  embed,
 }
 
 class ModelDefinition {

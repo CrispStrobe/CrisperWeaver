@@ -21,7 +21,7 @@ dependencies:
   cupertino_icons: ^1.0.6
   # Pinned by flutter SDK; use a loose range so other transitive deps don't
   # force us onto an older version.
-  material_color_utilities: ">=0.8.0 <0.12.0"
+  material_color_utilities: ">=0.8.0 <0.14.0"
   flutter_riverpod: ^2.4.9
   go_router: ^17.2.1
 
@@ -63,6 +63,10 @@ dependencies:
   # On-device speech recognition via ggml (Whisper, Qwen3-ASR, FastConformer, ...)
   crispasr:
     path: ../CrispASR/flutter/crispasr
+
+  # On-device text embeddings via ggml (§5.25.2 semantic search)
+  crispembed:
+    path: ../CrispEmbed/flutter/crispembed
 
   # Utility
   uuid: ^4.3.3

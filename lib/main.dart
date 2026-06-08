@@ -48,6 +48,7 @@ import 'services/hotkey_service.dart';
 import 'services/preset_service.dart';
 import 'services/settings_service.dart';
 import 'theme/app_theme.dart';
+import 'package:crispembed/crispembed.dart' show CrispEmbed;
 import 'engines/transcription_engine.dart'; // Use engine TranscriptionSegment
 
 /// Desktop-side argv intake — populated in [main] from the args
@@ -520,6 +521,33 @@ final modelServiceProvider = Provider<ModelService>((ref) {
   final settingsService = ref.watch(settingsServiceProvider);
   return ModelService(settingsService);
 });
+
+/// §5.25.2 — Optional CrispEmbed instance for semantic transcript search.
+/// Lazy-loads when a native library + embedding GGUF are available on disk.
+/// Returns null otherwise — callers fall back to TF-IDF.
+final crispEmbedProvider = Provider<CrispEmbed?>((ref) {
+  final modelService = ref.watch(modelServiceProvider);
+  return _tryLoadCrispEmbed(modelService);
+});
+
+/// Attempt to find a downloaded embedding GGUF and load it via CrispEmbed.
+/// Returns null on any failure (missing native lib, no model on disk, …).
+CrispEmbed? _tryLoadCrispEmbed(ModelService modelService) {
+  try {
+    final modelsDir = modelService.whisperCppDir();
+    for (final def in ModelService.whisperCppModels.values) {
+      if (def.kind != ModelKind.embed) continue;
+      final modelPath = '$modelsDir/${def.fileName}';
+      if (File(modelPath).existsSync()) {
+        return CrispEmbed(modelPath);
+      }
+    }
+    return null;
+  } catch (_) {
+    // Native library not bundled or model load failed — degrade silently.
+    return null;
+  }
+}
 
 final transcriptionServiceProvider = Provider<TranscriptionService>((ref) {
   final audioService = ref.watch(audioServiceProvider);
