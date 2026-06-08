@@ -1,32 +1,103 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:crispembed/crispembed.dart' show CrispEmbed;
+
 import '../engines/transcription_engine.dart';
 
 /// §5.25.2 — Semantic transcript search via embeddings.
 ///
-/// Scaffold for meaning-based search over transcript history. When a
-/// CrispEmbed binding becomes available, this service will:
-///   1. Embed each segment's text as a 2048-d vector
-///   2. Embed the user's search query
-///   3. Rank segments by cosine similarity
-///
-/// Until then, this provides a fallback TF-IDF-style keyword relevance
-/// scorer that's still better than substring matching for natural
-/// language queries.
+/// When a [CrispEmbed] instance is available, this service encodes
+/// each segment's text as a dense vector and ranks by cosine similarity.
+/// Otherwise it falls back to TF-IDF-style keyword relevance scoring.
 class SemanticSearchService {
   SemanticSearchService._();
 
-  /// Score each segment against a query using simple TF-IDF-style
-  /// word overlap with IDF weighting. Returns (index, score) pairs
+  /// Cache of segment-text → embedding vector so we don't re-encode
+  /// the same text on every search. Keyed by the raw segment text.
+  static final Map<String, Float32List> _embeddingCache = {};
+
+  /// Clear the embedding cache (e.g. when the model changes or memory
+  /// needs reclaiming).
+  static void clearEmbeddingCache() => _embeddingCache.clear();
+
+  /// Score each segment against a query. When [embedder] is provided,
+  /// uses real vector embeddings + cosine similarity. Otherwise falls
+  /// back to TF-IDF word-overlap scoring. Returns (index, score) pairs
   /// sorted by descending score. Score 0 = no match.
   static List<SearchResult> search({
     required String query,
     required List<TranscriptionSegment> segments,
     int maxResults = 20,
+    CrispEmbed? embedder,
   }) {
     if (query.trim().isEmpty || segments.isEmpty) return [];
 
+    // Use real embeddings when available.
+    if (embedder != null) {
+      return _embeddingSearch(
+        query: query,
+        segments: segments,
+        embedder: embedder,
+        maxResults: maxResults,
+      );
+    }
+
+    return _tfidfSearch(
+      query: query,
+      segments: segments,
+      maxResults: maxResults,
+    );
+  }
+
+  /// Embedding-based search: encode query + segments, rank by cosine.
+  static List<SearchResult> _embeddingSearch({
+    required String query,
+    required List<TranscriptionSegment> segments,
+    required CrispEmbed embedder,
+    required int maxResults,
+  }) {
+    final queryVec = embedder.encode(query);
+    if (queryVec.isEmpty) {
+      // Encoding failed — fall back to TF-IDF.
+      return _tfidfSearch(
+        query: query,
+        segments: segments,
+        maxResults: maxResults,
+      );
+    }
+
+    final results = <SearchResult>[];
+    for (var i = 0; i < segments.length; i++) {
+      final text = segments[i].text;
+      if (text.trim().isEmpty) continue;
+
+      // Look up or compute the segment embedding.
+      final segVec = _embeddingCache.putIfAbsent(text, () {
+        return embedder.encode(text);
+      });
+      if (segVec.isEmpty) continue;
+
+      final score = cosineSimilarity(queryVec, segVec);
+      if (score > 0) {
+        results.add(SearchResult(
+          segmentIndex: i,
+          score: score,
+          segment: segments[i],
+        ));
+      }
+    }
+
+    results.sort((a, b) => b.score.compareTo(a.score));
+    return results.take(maxResults).toList();
+  }
+
+  /// TF-IDF fallback search (original implementation).
+  static List<SearchResult> _tfidfSearch({
+    required String query,
+    required List<TranscriptionSegment> segments,
+    required int maxResults,
+  }) {
     final queryTerms = _tokenize(query);
     if (queryTerms.isEmpty) return [];
 

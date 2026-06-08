@@ -81,12 +81,16 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     }
     // §5.25.2 — Semantic search: score each entry's segments against
     // the query, keep entries with at least one matching segment.
+    // When a CrispEmbed model is available, use real vector embeddings;
+    // otherwise fall back to TF-IDF.
+    final embedder = ref.read(crispEmbedProvider);
     final scored = <(HistoryEntry, double)>[];
     for (final entry in result) {
       final results = SemanticSearchService.search(
         query: _searchQuery,
         segments: entry.segments,
         maxResults: 1,
+        embedder: embedder,
       );
       if (results.isNotEmpty) {
         scored.add((entry, results.first.score));

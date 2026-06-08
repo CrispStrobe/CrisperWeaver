@@ -64,6 +64,10 @@ dependencies:
   crispasr:
     path: ../CrispASR/flutter/crispasr
 
+  # On-device text embeddings via ggml (§5.25.2 semantic search)
+  crispembed:
+    path: ../CrispEmbed/flutter/crispembed
+
   # Utility
   uuid: ^4.3.3
   shared_preferences: ^2.2.2
