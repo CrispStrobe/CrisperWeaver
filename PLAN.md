@@ -584,8 +584,8 @@ is at its ceiling.
 coupled "tier 2" change, gated on a Flutter SDK upgrade.** Verified
 empirically by widening the constraints and resolving:
 
-- Current toolchain here is **Flutter 3.38.5 / Dart 3.10.4**. Latest
-  stable is 3.44.0.
+- Current toolchain here is **Flutter 3.35.1 / Dart 3.9.0** (at
+  `/mnt/volume1/toolchain/flutter`). Latest stable is 3.44.0.
 - The plus-family majors — `device_info_plus` 13, `package_info_plus`
   10, `share_plus` 13 — and `record` 7, `riverpod` 3, `win32` 6, `xml`
   7 all bumped (directly or transitively) to `win32 6.0.0`, which raises
@@ -603,19 +603,17 @@ empirically by widening the constraints and resolving:
   (`DeviceInfoPlugin`, `PackageInfo.fromPlatform`).
 
 So this is an **SDK-upgrade project, not a constraint bump**: `flutter
-upgrade` 3.38.5 → ≥3.41.6, then `win32` 5→6 + `file_picker` + the three
+upgrade` 3.35.1 → ≥3.41.6, then `win32` 5→6 + `file_picker` + the three
 plus-majors + `record` 7 (and assess `riverpod` 2→3 separately — large
 migration) as one coordinated change, fix breakage, full
 analyze/test + a per-platform rebuild pass.
 
-**Also blocked right now on disk.** `flutter upgrade` is global
-(Homebrew install at `/opt/homebrew/share/flutter`, shared by every
-repo + parallel worker), and the data volume is at **100% capacity
-(3.1 GiB free, 2026-05-30)** — a half-written SDK download would break
-all shared clones at once. Free ≥~5 GiB first: the orphaned
-`/opt/homebrew/Caskroom/flutter/3.35.2` (4.0 GiB, *not* the active git
-checkout) + `dart pub cache clean` (~11 GiB cache). Rollback point for
-the active SDK if an upgrade goes wrong: revision `f6ff1529fd` (3.38.5).
+**Not blocked on disk.** The Flutter SDK lives at
+`/mnt/volume1/toolchain/flutter` (46 GiB free as of 2026-06-08).
+Current version is **Flutter 3.35.1 / Dart 3.9.0** — needs upgrading
+to ≥3.41.6 for the tier-2 deps. The upgrade should be done on a
+**feature branch + worktree** so `main` stays stable. The earlier
+"blocked on Homebrew / 100% capacity" note was from a different machine.
 
 ### 5.10 Release polish
 
@@ -843,13 +841,12 @@ automation. Grouped by projected impact; priority picks marked with ⚡.
 
   **Files:** `lib/services/semantic_search_service.dart`.
 
-  **Remaining:** (a) CrispEmbed C-ABI binding for real 2048-d
-  embeddings, (b) vector persistence alongside history JSON,
-  (c) "Semantic search" mode toggle in the History screen.
+  **Remaining:** (a) add an embedding C-ABI to `../CrispEmbed`
+  (our repo — text/audio → float vector), (b) Dart FFI binding,
+  (c) vector persistence alongside history JSON. The semantic
+  search toggle already exists on the History screen.
 
-  **Dependencies:** CrispEmbed shared library (~250 MB model GGUF).
-
-  **Effort:** ~3–5 days (binding + indexing + UI). **Risk:** medium.
+  **Effort:** ~3–5 days (C-ABI + binding + indexing). **Risk:** medium.
 
 * **5.25.3 ⚡ Real-time subtitle overlay / teleprompter mode** — ✅
   **Shipped June 2026.** A dedicated fullscreen dark-transparent
