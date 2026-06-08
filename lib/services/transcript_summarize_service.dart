@@ -90,7 +90,7 @@ class TranscriptSummarizeService {
   /// calls so the model only loads once per app session;
   /// dispose() shuts it down on app teardown.
   LocalLlmBackend _localBackend() {
-    if (_injectedLocalBackend != null) return _injectedLocalBackend!;
+    if (_injectedLocalBackend != null) return _injectedLocalBackend;
     return _ownedLocalBackend ??= IsolateLocalLlmBackend();
   }
 

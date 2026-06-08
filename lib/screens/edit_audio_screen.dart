@@ -17,6 +17,7 @@
 // ships on.
 
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -322,12 +323,15 @@ class _EditAudioScreenState extends ConsumerState<EditAudioScreen> {
     final dir = p.dirname(widget.sourcePath);
     final stem = p.basenameWithoutExtension(widget.sourcePath);
     final defaultName = '$stem-$suffix.wav';
+    // file_picker 12 requires bytes; we pass an empty placeholder since the
+    // audio-edit operation overwrites the file immediately after the dialog.
     final path = await FilePicker.saveFile(
       dialogTitle: AppLocalizations.of(context).editAudioSaveAs,
       initialDirectory: dir,
       fileName: defaultName,
       type: FileType.custom,
       allowedExtensions: const ['wav'],
+      bytes: Uint8List(0),
     );
     return path;
   }

@@ -1,17 +1,15 @@
 // Wrapper around `file_picker` that survives Android `Unknown_path`.
 //
-// file_picker 11.0.2 throws PlatformException(Unknown_path) when the
-// user picks a content:// URI it can't resolve to a real file path —
-// typically a cloud-backed Drive / OneDrive / Files entry that hasn't
-// been materialized locally. The fix is to retry the pick with
-// `withReadStream: true`, then stage the byte stream to a temp file
-// under getTemporaryDirectory() that we own and can hand to FFI
-// decoders as a normal filesystem path.
+// file_picker can throw PlatformException(Unknown_path) when the user picks
+// a content:// URI it can't resolve to a real file path — typically a
+// cloud-backed Drive / OneDrive / Files entry that hasn't been materialized
+// locally. The fix is to use PlatformFile.readAsByteStream(), then stage the
+// byte stream to a temp file under getTemporaryDirectory() that we own and
+// can hand to FFI decoders as a normal filesystem path.
 //
-// Every screen that called `FilePicker.pickFiles` was vulnerable to
-// the same failure; the wrapper lives here so they all share one
-// fallback strategy + one source of truth for the user-facing error
-// message.
+// Every screen that called `FilePicker.pickFiles` was vulnerable to the same
+// failure; the wrapper lives here so they all share one fallback strategy +
+// one source of truth for the user-facing error message.
 
 import 'dart:async';
 import 'dart:io';
@@ -26,11 +24,11 @@ import '../services/log_service.dart';
 /// Result of [pickFilesRobust]. `localPaths` are guaranteed to be
 /// filesystem paths the caller can hand to a regular `File` open —
 /// either the picker returned them directly, or they were staged to a
-/// temp file via the readStream fallback.
+/// temp file via the readAsByteStream fallback.
 class RobustFilePick {
   final List<String> localPaths;
 
-  /// True iff at least one file went through the readStream + temp-
+  /// True iff at least one file went through the readAsByteStream + temp-
   /// staging fallback (caller can use this to log / show the user a
   /// "copied from cloud" note if relevant).
   final bool usedCloudFallback;
@@ -47,7 +45,7 @@ class RobustFilePick {
   bool get isNotEmpty => localPaths.isNotEmpty;
 }
 
-/// Thrown when the picker raised `Unknown_path` and the readStream
+/// Thrown when the picker raised `Unknown_path` and the readAsByteStream
 /// fallback also failed. Callers should show a user-facing message
 /// asking them to copy the file to local storage first.
 class FilePickerCloudUriUnsupported implements Exception {
@@ -65,7 +63,7 @@ class FilePickerCloudUriUnsupported implements Exception {
 /// empty to mean "any" (and the underlying call uses [FileType.any]).
 ///
 /// Throws [FilePickerCloudUriUnsupported] if both the normal and
-/// the readStream-fallback picks fail. Returns
+/// the readAsByteStream-fallback picks fail. Returns
 /// [RobustFilePick.empty] if the user cancelled.
 Future<RobustFilePick> pickFilesRobust({
   List<String>? allowedExtensions,
@@ -75,31 +73,54 @@ Future<RobustFilePick> pickFilesRobust({
   final useCustomType =
       allowedExtensions != null && allowedExtensions.isNotEmpty;
 
-  Future<FilePickerResult?> doPick({required bool withReadStream}) {
-    return FilePicker.pickFiles(
-      type: useCustomType ? FileType.custom : FileType.any,
-      allowedExtensions: useCustomType ? allowedExtensions : null,
-      allowMultiple: allowMultiple,
-      withReadStream: withReadStream,
-      dialogTitle: dialogTitle,
-    );
-  }
+  final FileType type = useCustomType ? FileType.custom : FileType.any;
 
   FilePickerResult? result;
   var usedCloudFallback = false;
   try {
-    result = await doPick(withReadStream: false);
+    if (allowMultiple) {
+      result = await FilePicker.pickFiles(
+        type: type,
+        allowedExtensions: useCustomType ? allowedExtensions : null,
+        dialogTitle: dialogTitle,
+      );
+    } else {
+      final file = await FilePicker.pickFile(
+        type: type,
+        allowedExtensions: useCustomType ? allowedExtensions : null,
+        dialogTitle: dialogTitle,
+      );
+      if (file != null) {
+        result = FilePickerResult([file]);
+      }
+    }
   } on PlatformException catch (e) {
     final isUnknownPath = (e.code.toLowerCase() == 'unknown_path') ||
         (e.message?.toLowerCase().contains('failed to retrieve path') ?? false);
     if (!isUnknownPath) rethrow;
     Log.instance.i('file-picker',
-        'pick threw Unknown_path — retrying with readStream fallback');
+        'pick threw Unknown_path — retrying with stream fallback');
     try {
-      result = await doPick(withReadStream: true);
+      // Re-pick; we'll read via readAsByteStream below when path is null.
+      if (allowMultiple) {
+        result = await FilePicker.pickFiles(
+          type: type,
+          allowedExtensions: useCustomType ? allowedExtensions : null,
+          dialogTitle: dialogTitle,
+        );
+      } else {
+        final file = await FilePicker.pickFile(
+          type: type,
+          allowedExtensions: useCustomType ? allowedExtensions : null,
+          dialogTitle: dialogTitle,
+        );
+        if (file != null) {
+          result = FilePickerResult([file]);
+        }
+      }
       usedCloudFallback = true;
     } catch (e2, st2) {
-      Log.instance.e('file-picker', 'readStream fallback pick also failed',
+      Log.instance.e('file-picker', 'stream fallback pick also failed',
           error: e2, stack: st2);
       throw FilePickerCloudUriUnsupported(e2);
     }
@@ -116,12 +137,13 @@ Future<RobustFilePick> pickFilesRobust({
       localPaths.add(f.path!);
       continue;
     }
-    if (f.readStream == null) continue;
+    // Path is null (cloud URI); stage via readAsByteStream.
     try {
+      final stream = f.readAsByteStream();
       final safe = f.name.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
       final dest = File(p.join(tmpDir.path, 'picker_$safe'));
       final sink = dest.openWrite();
-      await f.readStream!.forEach(sink.add);
+      await stream.forEach(sink.add);
       await sink.flush();
       await sink.close();
       localPaths.add(dest.path);
