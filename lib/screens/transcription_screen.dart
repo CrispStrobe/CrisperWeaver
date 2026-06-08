@@ -2111,6 +2111,11 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
         }
       }
 
+      // Free retained PCM buffer — multilingual tagging (the only
+      // consumer) is done, no need to hold ~230 MB until the next
+      // transcription starts.
+      transcriptionService.clearAudioBuffer();
+
       // §5.25.4 — Speaker-adaptive vocabulary injection.
       // After diarisation resolves speaker names, load their vocab
       // profiles and merge the terms into the global vocabulary for

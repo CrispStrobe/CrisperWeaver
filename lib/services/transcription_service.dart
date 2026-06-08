@@ -219,9 +219,16 @@ class TranscriptionService {
 
   /// §5.25.5 — Retained audio data from the most recent transcription
   /// so the multilingual tagging service can run LID post-transcription.
-  /// Cleared on next transcription start to avoid holding large buffers.
+  /// Call [clearAudioBuffer] after tagging to free memory early.
   Float32List? lastAudioData;
   int lastSampleRate = 16000;
+
+  /// Release the retained PCM buffer. Call after multilingual tagging
+  /// (or any other post-transcription consumer) is done to avoid holding
+  /// ~230 MB per hour of 16 kHz audio until the next transcription starts.
+  void clearAudioBuffer() {
+    lastAudioData = null;
+  }
 
   TranscriptionService(
     this._audioService,

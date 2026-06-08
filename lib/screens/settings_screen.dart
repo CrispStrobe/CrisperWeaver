@@ -449,6 +449,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             setState(() => settings.enableDiarizationByDefault = value);
           },
         ),
+        // §5.8.1 — On-device speaker DB (TitaNet enrolment).
+        ListTile(
+          title: Text(AppLocalizations.of(context).settingsSpeakers),
+          subtitle:
+              Text(AppLocalizations.of(context).settingsSpeakersSubtitle),
+          trailing: const Icon(Icons.people_outline),
+          onTap: () => context.push('/settings/speakers'),
+        ),
+        // §5.25.4 — Per-speaker vocabulary editor.
+        ListTile(
+          title: Text(AppLocalizations.of(context).settingsSpeakerVocab),
+          subtitle: Text(AppLocalizations.of(context).settingsSpeakerVocabSubtitle),
+          trailing: const Icon(Icons.spellcheck),
+          onTap: () => _showSpeakerVocabEditor(),
+        ),
       ],
     );
   }
@@ -791,21 +806,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               _showLocalLlmDialog(settings);
             }
           },
-        ),
-        // §5.8.1 — On-device speaker DB (TitaNet enrolment).
-        ListTile(
-          title: Text(AppLocalizations.of(context).settingsSpeakers),
-          subtitle:
-              Text(AppLocalizations.of(context).settingsSpeakersSubtitle),
-          trailing: const Icon(Icons.people_outline),
-          onTap: () => context.push('/settings/speakers'),
-        ),
-        // §5.25.4 — Per-speaker vocabulary editor.
-        ListTile(
-          title: Text(AppLocalizations.of(context).settingsSpeakerVocab),
-          subtitle: Text(AppLocalizations.of(context).settingsSpeakerVocabSubtitle),
-          trailing: const Icon(Icons.spellcheck),
-          onTap: () => _showSpeakerVocabEditor(),
         ),
         ListTile(
           title: Text(AppLocalizations.of(context).settingsOpenLogViewer),
