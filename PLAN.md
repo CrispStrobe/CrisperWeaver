@@ -383,8 +383,8 @@ completeness — May 2026"](HISTORY.md). What's still pending:
     map cleanly to a whisper_full_params field. `--no-fallback`
     is `temperature_inc = 0` (whisper.cpp's actual semantics).
   - ✅ Subtitle line formatting `--max-len` / `--split-on-word`
-    (May 2026) — see HISTORY. `--split-on-punct` still pending;
-    needs upstream Dart-binding work first.
+    (May 2026) — see HISTORY. ✅ `--split-on-punct` **shipped
+    June 2026** — Dart-side post-processing, works with any backend.
   - ✅ Token suppression (`--suppress-nst`, `--suppress-regex`)
     and `--carry-initial-prompt` — **shipped May 2026 (CrispASR
     0.5.11 + CrisperWeaver)**. CrispASR's earlier claim that
@@ -585,8 +585,10 @@ sensevoice) don't take a token-AR beam either.
 527 tests pass.
 
 **Riverpod 2→3: shipped June 2026.** `flutter_riverpod` 3.3.1.
-Legacy `StateNotifier`/`StateProvider` moved to `legacy.dart` import
-in 4 files. Full `Notifier`/`NotifierProvider` migration deferred.
+3 of 4 `StateNotifier` subclasses migrated to modern `Notifier`:
+`AppStateNotifier`, `LocaleNotifier`, `EngineManagerNotifier`.
+`BatchQueueNotifier` kept on legacy (tests construct directly).
+2 `StateProvider` kept on legacy (50+ external `.state=` sites).
 `file_picker` 12 is in beta — once stable, the constraint will
 naturally pick it up.
 
@@ -824,10 +826,10 @@ automation. Grouped by projected impact; priority picks marked with ⚡.
   `all-MiniLM-L6-v2` (384-dim, ~23 MB Q8_0) catalogued.
 
   **Follow-ups:** (a) ~~vector persistence~~ — **shipped June 2026**.
-  Embeddings pre-computed at history save time, persisted in JSON,
-  loaded on search. "Reindex embeddings" button backfills old entries.
-  (b) audio embedding via `crispembed_encode_audio` for cross-modal
-  search, (c) more model choices in the catalogue.
+  (b) ~~audio embedding~~ — **shipped June 2026**. Cross-modal search
+  via `crispembed_encode_audio`; `audioEmbedding` persisted per entry;
+  `bidirlm-omni-2.5b-q4_k` (2048-d, ~1.7 GB) catalogued.
+  (c) more model choices in the catalogue.
 
   **Effort:** done. **Risk:** n/a.
 

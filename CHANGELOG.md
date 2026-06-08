@@ -5,6 +5,18 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 
 ## [Unreleased]
 
+### Added — Split-on-punct, audio embeddings, Notifier migration (2026-06-08)
+- **Split-on-punct subtitle formatting** (§5.8) — Dart-side post-processing
+  that splits segments at sentence-ending punctuation (. ! ?). Works with any
+  backend. Toggle in Advanced Options. i18n (EN/DE).
+- **Cross-modal audio embedding** (§5.25.2) — `audioEmbedding` persisted per
+  history entry via `crispembed_encode_audio`. Search ranks entries by
+  `max(text_score, audio_score)`. `bidirlm-omni-2.5b` (2048-d) catalogued.
+  6 new tests.
+- **Riverpod Notifier migration** — 3 of 4 `StateNotifier` subclasses
+  migrated to modern `Notifier` pattern. `legacy.dart` imports reduced
+  from 4 files to 2.
+
 ### Added — Riverpod 3, embedding persistence, SDK upgrade (2026-06-08)
 - **Riverpod 2→3** — bumped `flutter_riverpod` to 3.3.1. Legacy
   `StateNotifier`/`StateProvider` classes moved to `legacy.dart` import
