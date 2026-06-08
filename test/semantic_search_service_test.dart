@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:crisper_weaver/engines/transcription_engine.dart';
+import 'package:crisper_weaver/services/history_service.dart';
 import 'package:crisper_weaver/services/semantic_search_service.dart';
 
 List<TranscriptionSegment> _segs(List<String> texts) => [
@@ -124,6 +125,64 @@ void main() {
       final a = Float32List.fromList([1.0, 2.0]);
       final b = Float32List.fromList([1.0, 2.0, 3.0]);
       expect(SemanticSearchService.cosineSimilarity(a, b), 0.0);
+    });
+  });
+
+  group('§5.25.2 cross-modal audio embedding in search', () {
+    test('audioEmbedding dimension mismatch is ignored gracefully', () {
+      // Simulate text embedder producing 384-d vectors but audio
+      // embedding stored as 2048-d — dimensionality mismatch should
+      // cause the audio score to be ignored (0), and text TF-IDF
+      // fallback still works.
+      final entry = HistoryEntry(
+        id: 'test-audio-dim-mismatch',
+        createdAt: DateTime.now(),
+        engineId: 'crispasr',
+        segments: _segs(['machine learning is powerful']),
+        // 2048-d audio embedding (omni model) vs text-only search
+        audioEmbedding: List.filled(2048, 0.5),
+      );
+      // Without an embedder, falls back to TF-IDF — audioEmbedding
+      // is simply not used.
+      final results = SemanticSearchService.search(
+        query: 'machine learning',
+        segments: entry.segments,
+        historyEntry: entry,
+      );
+      expect(results, isNotEmpty);
+      expect(results.first.score, greaterThan(0));
+    });
+
+    test('audioEmbedding null does not break search', () {
+      final entry = HistoryEntry(
+        id: 'test-audio-null',
+        createdAt: DateTime.now(),
+        engineId: 'crispasr',
+        segments: _segs(['flutter dart widgets']),
+        audioEmbedding: null,
+      );
+      final results = SemanticSearchService.search(
+        query: 'flutter',
+        segments: entry.segments,
+        historyEntry: entry,
+      );
+      expect(results, isNotEmpty);
+    });
+
+    test('audioEmbedding empty list does not break search', () {
+      final entry = HistoryEntry(
+        id: 'test-audio-empty',
+        createdAt: DateTime.now(),
+        engineId: 'crispasr',
+        segments: _segs(['hello world']),
+        audioEmbedding: const [],
+      );
+      final results = SemanticSearchService.search(
+        query: 'hello',
+        segments: entry.segments,
+        historyEntry: entry,
+      );
+      expect(results, isNotEmpty);
     });
   });
 }

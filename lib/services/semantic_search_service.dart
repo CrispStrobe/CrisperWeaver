@@ -30,6 +30,10 @@ class SemanticSearchService {
   /// When [historyEntry] is provided, pre-computed embeddings from the
   /// persisted entry are used first, avoiding on-the-fly encoding for
   /// entries saved after §5.25.2 embedding persistence was added.
+  ///
+  /// §5.25.2 cross-modal: if [historyEntry] has a persisted
+  /// [audioEmbedding], the query is also compared against it. The
+  /// entry-level score is max(best segment text score, audio score).
   static List<SearchResult> search({
     required String query,
     required List<TranscriptionSegment> segments,
@@ -61,6 +65,11 @@ class SemanticSearchService {
   /// If [historyEntry] has pre-computed embeddings for a segment, those
   /// are used directly; otherwise falls back to the in-memory cache and
   /// finally to on-the-fly encoding via [embedder].
+  ///
+  /// §5.25.2 cross-modal: when [historyEntry] has a persisted audio
+  /// embedding, the query vector is also compared against it. Each
+  /// segment's final score is max(text_score, audio_score) so that a
+  /// strong cross-modal match lifts all segments of that entry.
   static List<SearchResult> _embeddingSearch({
     required String query,
     required List<TranscriptionSegment> segments,
@@ -76,6 +85,18 @@ class SemanticSearchService {
         segments: segments,
         maxResults: maxResults,
       );
+    }
+
+    // §5.25.2 — Cross-modal audio score. Compared in the same vector
+    // space when the audio embedding dimensionality matches the query.
+    double audioScore = 0;
+    final audioEmb = historyEntry?.audioEmbedding;
+    if (audioEmb != null && audioEmb.isNotEmpty) {
+      final audioVec = Float32List.fromList(audioEmb);
+      if (audioVec.length == queryVec.length) {
+        final s = cosineSimilarity(queryVec, audioVec);
+        if (s > 0) audioScore = s;
+      }
     }
 
     final results = <SearchResult>[];
@@ -99,7 +120,10 @@ class SemanticSearchService {
 
       if (segVec.isEmpty) continue;
 
-      final score = cosineSimilarity(queryVec, segVec);
+      final textScore = cosineSimilarity(queryVec, segVec);
+      // Take the max of text similarity and audio similarity —
+      // a strong cross-modal match lifts all segments of the entry.
+      final score = math.max(textScore, audioScore);
       if (score > 0) {
         results.add(SearchResult(
           segmentIndex: i,

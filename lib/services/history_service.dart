@@ -40,6 +40,14 @@ class HistoryEntry {
   /// to on-the-fly encoding in that case.
   final Map<int, List<double>>? segmentEmbeddings;
 
+  /// §5.25.2 — Cross-modal audio embedding: a single dense vector
+  /// representing the entire audio clip in the same vector space as
+  /// text embeddings (e.g. BidirLM-Omni 2048-d shared space). Null
+  /// when the embedder model doesn't support audio encoding, when
+  /// the audio PCM wasn't available at save time, or for entries
+  /// saved before this feature was added.
+  final List<double>? audioEmbedding;
+
   const HistoryEntry({
     required this.id,
     required this.createdAt,
@@ -54,6 +62,7 @@ class HistoryEntry {
     this.speakerNames = const {},
     this.audioFingerprint,
     this.segmentEmbeddings,
+    this.audioEmbedding,
   });
 
   String get title {
@@ -82,6 +91,8 @@ class HistoryEntry {
           'segmentEmbeddings': segmentEmbeddings!.map(
             (k, v) => MapEntry(k.toString(), v),
           ),
+        if (audioEmbedding != null && audioEmbedding!.isNotEmpty)
+          'audioEmbedding': audioEmbedding,
         'segments': segments
             .map((s) => {
                   'text': s.text,
@@ -110,6 +121,7 @@ class HistoryEntry {
             .map((k, v) => MapEntry(k.toString(), v.toString())),
         audioFingerprint: j['audioFingerprint'] as String?,
         segmentEmbeddings: _parseSegmentEmbeddings(j['segmentEmbeddings']),
+        audioEmbedding: _parseAudioEmbedding(j['audioEmbedding']),
         segments: ((j['segments'] as List?) ?? const [])
             .cast<Map<String, dynamic>>()
             .map((m) => TranscriptionSegment(
@@ -141,6 +153,15 @@ class HistoryEntry {
     return result.isEmpty ? null : result;
   }
 
+  /// Parse the persisted audio embedding vector. Returns null if absent
+  /// or not a list.
+  static List<double>? _parseAudioEmbedding(dynamic raw) {
+    if (raw == null) return null;
+    if (raw is! List) return null;
+    final vec = raw.map((e) => (e as num).toDouble()).toList();
+    return vec.isEmpty ? null : vec;
+  }
+
   /// Return a Float32List for segment [index] from persisted embeddings,
   /// or null if not available. Converts the stored `List<double>` to a
   /// `Float32List` for efficient cosine-similarity computation.
@@ -166,6 +187,27 @@ class HistoryEntry {
       speakerNames: speakerNames,
       audioFingerprint: audioFingerprint,
       segmentEmbeddings: embeddings,
+      audioEmbedding: audioEmbedding,
+    );
+  }
+
+  /// Return a copy of this entry with the given [audioEmb] attached.
+  HistoryEntry withAudioEmbedding(List<double> audioEmb) {
+    return HistoryEntry(
+      id: id,
+      createdAt: createdAt,
+      engineId: engineId,
+      segments: segments,
+      sourcePath: sourcePath,
+      sourceUrl: sourceUrl,
+      modelId: modelId,
+      language: language,
+      diarizationEnabled: diarizationEnabled,
+      processingTime: processingTime,
+      speakerNames: speakerNames,
+      audioFingerprint: audioFingerprint,
+      segmentEmbeddings: segmentEmbeddings,
+      audioEmbedding: audioEmb,
     );
   }
 
@@ -245,6 +287,7 @@ class HistoryService {
     Map<String, String> speakerNames = const {},
     String? audioFingerprint,
     CrispEmbed? embedder,
+    Float32List? audioData,
   }) async {
     final dir = await _ensureDir();
     // §5.25.11 — Compute file fingerprint if a source path is provided
@@ -260,6 +303,10 @@ class HistoryService {
     // §5.25.2 — Pre-compute embeddings at save time so search doesn't
     // have to re-encode on every app launch.
     final embeddings = _computeEmbeddings(segments, embedder);
+    // §5.25.2 — Cross-modal audio embedding. Only computed when the
+    // embedder model supports audio encoding (e.g. BidirLM-Omni).
+    // Text-only models (MiniLM) silently skip this.
+    final audioEmb = _computeAudioEmbedding(audioData, embedder);
     final entry = HistoryEntry(
       id: _uuid.v4(),
       createdAt: DateTime.now(),
@@ -274,6 +321,7 @@ class HistoryService {
       speakerNames: speakerNames,
       audioFingerprint: fp,
       segmentEmbeddings: embeddings,
+      audioEmbedding: audioEmb,
     );
     final file = File(p.join(dir.path, '${entry.id}.json'));
     await file.writeAsString(
@@ -330,6 +378,26 @@ class HistoryService {
       count++;
     }
     return count;
+  }
+
+  /// §5.25.2 — Encode the full audio clip into a single dense vector
+  /// using the embedder's audio tower (BidirLM-Omni etc.). Returns
+  /// null if the embedder is null, audio data is unavailable, or the
+  /// model doesn't support audio encoding (e.g. text-only MiniLM).
+  static List<double>? _computeAudioEmbedding(
+    Float32List? audioData,
+    CrispEmbed? embedder,
+  ) {
+    if (embedder == null || audioData == null || audioData.isEmpty) return null;
+    try {
+      if (!embedder.hasAudio) return null;
+      final vec = embedder.encodeAudio(audioData);
+      if (vec.isEmpty) return null;
+      return vec.toList();
+    } catch (_) {
+      // Non-critical — text-only search still works.
+      return null;
+    }
   }
 
   /// Encode each non-empty segment's text using the given embedder.

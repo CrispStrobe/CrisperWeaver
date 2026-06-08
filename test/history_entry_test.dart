@@ -122,6 +122,53 @@ void main() {
       expect(neither.title, contains('2026-01-01'));
     });
 
+    test('round-trips audioEmbedding field', () {
+      final original = HistoryEntry(
+        id: 'audio-emb-test',
+        createdAt: DateTime.utc(2026, 6, 8),
+        engineId: 'crispasr',
+        segments: const [
+          TranscriptionSegment(
+              text: 'Hello.', startTime: 0, endTime: 1, confidence: 1),
+        ],
+        audioEmbedding: [0.1, 0.2, 0.3, -0.5, 1.0],
+      );
+
+      final json = original.toJson();
+      expect(json.containsKey('audioEmbedding'), isTrue);
+
+      final restored = HistoryEntry.fromJson(json);
+      expect(restored.audioEmbedding, isNotNull);
+      expect(restored.audioEmbedding!.length, 5);
+      expect(restored.audioEmbedding![0], closeTo(0.1, 1e-9));
+      expect(restored.audioEmbedding![3], closeTo(-0.5, 1e-9));
+    });
+
+    test('back-compat: loads JSON without audioEmbedding as null', () {
+      final json = {
+        'id': 'no-audio-emb',
+        'createdAt': '2026-06-01T10:00:00.000Z',
+        'engineId': 'mock',
+        'segments': <Map<String, dynamic>>[],
+      };
+      final entry = HistoryEntry.fromJson(json);
+      expect(entry.audioEmbedding, isNull);
+    });
+
+    test('withAudioEmbedding returns copy with audioEmbedding set', () {
+      final original = HistoryEntry(
+        id: 'copy-test',
+        createdAt: DateTime.utc(2026, 6, 8),
+        engineId: 'crispasr',
+        segments: const [],
+        segmentEmbeddings: const {0: [1.0, 2.0]},
+      );
+      final copy = original.withAudioEmbedding([0.5, 0.6, 0.7]);
+      expect(copy.audioEmbedding, [0.5, 0.6, 0.7]);
+      expect(copy.segmentEmbeddings, original.segmentEmbeddings);
+      expect(copy.id, original.id);
+    });
+
     test('fullText joins segment text with single spaces', () {
       final e = HistoryEntry(
         id: 'x',

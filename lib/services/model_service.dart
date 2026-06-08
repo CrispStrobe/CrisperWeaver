@@ -2596,6 +2596,25 @@ class ModelService {
       kind: ModelKind.embed,
       languages: ['*'],
     ),
+    // §5.25.2 — Omnimodal embedding model: text + audio + vision → shared
+    // 2048-d vector space. Enables cross-modal search (type text query,
+    // match against audio embeddings). Requires CrispEmbed build with
+    // crisp_audio support compiled in.
+    'bidirlm-omni-2.5b-q4_k': ModelDefinition(
+      name: 'bidirlm-omni-2.5b-q4_k',
+      displayName: 'BidirLM-Omni 2.5B (Q4_K)',
+      fileName: 'bidirlm-omni-2.5b-Q4_K.gguf',
+      url:
+          'https://huggingface.co/cstr/bidirlm-omni-2.5b-GGUF/resolve/main/bidirlm-omni-2.5b-Q4_K.gguf',
+      sizeBytes: 1700 * 1024 * 1024,
+      checksum: '',
+      description:
+          'Omnimodal 2048-dim embedding model (~1.7 GB Q4_K). Text + audio + vision in a shared vector space — enables cross-modal transcript search. Apache 2.0 license.',
+      quantization: 'q4_k',
+      backend: 'embed',
+      kind: ModelKind.embed,
+      languages: ['*'],
+    ),
   };
 
   /// PLAN §5.4 — the "smallest functional default" model per backend
@@ -3713,13 +3732,23 @@ class ModelService {
       kind: ModelKind.punc,
       defaultLanguages: langsAll,
     ),
-    // §5.25.2 — Embedding model repo for semantic transcript search.
+    // §5.25.2 — Embedding model repos for semantic transcript search.
     'embed': BackendRepo(
       backend: 'embed',
       repoId: 'cstr/all-MiniLM-L6-v2-GGUF',
       baseName: 'all-MiniLM-L6-v2',
       displayPrefix: 'all-MiniLM-L6-v2',
       description: 'Compact text embedding model for semantic search (384 dim)',
+      kind: ModelKind.embed,
+      defaultLanguages: ['*'],
+    ),
+    // §5.25.2 — Omnimodal embedding model: text + audio + vision.
+    'embed-omni': BackendRepo(
+      backend: 'embed',
+      repoId: 'cstr/bidirlm-omni-2.5b-GGUF',
+      baseName: 'bidirlm-omni-2.5b',
+      displayPrefix: 'BidirLM-Omni 2.5B',
+      description: 'Omnimodal embedding model — text + audio + vision (2048 dim)',
       kind: ModelKind.embed,
       defaultLanguages: ['*'],
     ),
