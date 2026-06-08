@@ -2172,6 +2172,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
               processingTime: DateTime.now().difference(started),
               speakerNames: ref.read(appStateProvider).speakerNames,
               embedder: ref.read(crispEmbedProvider),
+              audioData: transcriptionService.lastAudioData,
             );
         appStateNotifier.setHistoryEntryId(saved.id);
       } catch (e, st) {
@@ -2533,6 +2534,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
                 processingTime: DateTime.now().difference(started),
                 speakerNames: ref.read(appStateProvider).speakerNames,
                 embedder: ref.read(crispEmbedProvider),
+                audioData: transcriptionService.lastAudioData,
               );
           historyId = saved.id;
         } catch (e, st) {
@@ -2855,6 +2857,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
               processingTime: DateTime.now().difference(started),
               speakerNames: const {},
               embedder: ref.read(crispEmbedProvider),
+              audioData: transcriptionService.lastAudioData,
             );
         historyId = saved.id;
       } catch (e, st) {
@@ -3245,6 +3248,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
 
       // Save both results to history.
       final embedder = ref.read(crispEmbedProvider);
+      final abAudioData = ref.read(transcriptionServiceProvider).lastAudioData;
       final saves = await Future.wait([
         historyService.save(
           engineId: 'crispasr',
@@ -3253,6 +3257,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
           modelId: _modelName,
           language: _language,
           embedder: embedder,
+          audioData: abAudioData,
         ),
         historyService.save(
           engineId: 'crispasr',
@@ -3261,6 +3266,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
           modelId: secondModel.name,
           language: _language,
           embedder: embedder,
+          audioData: abAudioData,
         ),
       ]);
 
