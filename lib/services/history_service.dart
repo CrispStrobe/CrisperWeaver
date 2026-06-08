@@ -25,6 +25,10 @@ class HistoryEntry {
   /// stay portable. Empty when no renames were made.
   final Map<String, String> speakerNames;
 
+  /// §5.25.11 — Audio file fingerprint for deduplication. Computed once
+  /// on save; checked by the batch queue to detect re-imports.
+  final String? audioFingerprint;
+
   const HistoryEntry({
     required this.id,
     required this.createdAt,
@@ -37,6 +41,7 @@ class HistoryEntry {
     this.diarizationEnabled = false,
     this.processingTime = Duration.zero,
     this.speakerNames = const {},
+    this.audioFingerprint,
   });
 
   String get title {
@@ -60,6 +65,7 @@ class HistoryEntry {
         // Field added 2026-05; older history files omit it and the
         // loader treats absent as empty so back-compat is automatic.
         'speakerNames': speakerNames,
+        if (audioFingerprint != null) 'audioFingerprint': audioFingerprint,
         'segments': segments
             .map((s) => {
                   'text': s.text,
@@ -67,6 +73,7 @@ class HistoryEntry {
                   'endTime': s.endTime,
                   'speaker': s.speaker,
                   'confidence': s.confidence,
+                  if (s.tags.isNotEmpty) 'tags': s.tags,
                 })
             .toList(),
       };
@@ -85,6 +92,7 @@ class HistoryEntry {
         ),
         speakerNames: ((j['speakerNames'] as Map?) ?? const {})
             .map((k, v) => MapEntry(k.toString(), v.toString())),
+        audioFingerprint: j['audioFingerprint'] as String?,
         segments: ((j['segments'] as List?) ?? const [])
             .cast<Map<String, dynamic>>()
             .map((m) => TranscriptionSegment(
@@ -93,6 +101,7 @@ class HistoryEntry {
                   endTime: (m['endTime'] as num?)?.toDouble() ?? 0.0,
                   speaker: m['speaker'] as String?,
                   confidence: (m['confidence'] as num?)?.toDouble() ?? 1.0,
+                  tags: ((m['tags'] as List?) ?? const []).cast<String>(),
                 ))
             .toList(),
       );

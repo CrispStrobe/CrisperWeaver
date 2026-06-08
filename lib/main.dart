@@ -31,6 +31,7 @@ import 'screens/voice_bake_screen.dart';
 import 'screens/edit_audio_screen.dart';
 import 'screens/subtitle_overlay_screen.dart';
 import 'screens/transcript_compare_screen.dart';
+import 'services/watch_folder_service.dart';
 import 'services/audio_service.dart';
 import 'services/batch_queue_service.dart';
 import 'services/desktop_open_with_bridge.dart';
@@ -210,6 +211,7 @@ class CrisperWeaverApp extends ConsumerStatefulWidget {
 
 class _CrisperWeaverAppState extends ConsumerState<CrisperWeaverApp> {
   late final AppLifecycleListener _lifecycle;
+  WatchFolderService? _watchFolderService;
 
   @override
   void initState() {
@@ -243,6 +245,19 @@ class _CrisperWeaverAppState extends ConsumerState<CrisperWeaverApp> {
       // resumeOffsetSec onto each before dispatch (commit 2 of the
       // batch slice).
       unawaited(ref.read(batchQueueProvider.notifier).load());
+
+      // §5.25.8 — Start watch-folder service if enabled.
+      if (Platform.isMacOS || Platform.isLinux || Platform.isWindows) {
+        final settings = ref.read(settingsServiceProvider);
+        if (settings.watchFolderEnabled && settings.watchFolderPath != null) {
+          _watchFolderService = WatchFolderService(
+            onNewFile: (path) {
+              ref.read(batchQueueProvider.notifier).enqueue(path);
+            },
+          );
+          _watchFolderService!.start(settings.watchFolderPath!);
+        }
+      }
     });
 
     // On desktop, the user clicking the red close button fires
@@ -274,6 +289,7 @@ class _CrisperWeaverAppState extends ConsumerState<CrisperWeaverApp> {
 
   @override
   void dispose() {
+    _watchFolderService?.dispose();
     _lifecycle.dispose();
     super.dispose();
   }
@@ -703,6 +719,16 @@ class AppStateNotifier extends StateNotifier<AppState> {
     );
     final segments = [...state.segments];
     segments[index] = updated;
+    state = state.copyWith(
+      segments: segments,
+      currentTranscription: segments.map((s) => s.text).join(' ').trim(),
+    );
+  }
+
+  /// §5.25.10 — Replace the full segment list (e.g. after tagging).
+  /// Updates currentTranscription from the new segments and persists
+  /// tags to the history entry if one exists.
+  void replaceSegments(List<TranscriptionSegment> segments) {
     state = state.copyWith(
       segments: segments,
       currentTranscription: segments.map((s) => s.text).join(' ').trim(),

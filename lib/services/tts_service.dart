@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../constants/app_constants.dart';
 import '../main.dart' show modelServiceProvider;
+import '../models/pronunciation_lexicon.dart';
 import 'audio_watermark_service.dart';
 import 'log_service.dart';
 import 'model_service.dart';
@@ -35,6 +36,10 @@ class SynthesizedAudio {
 class TtsService {
   final ModelService modelService;
   TtsService(this.modelService);
+
+  /// §5.25.9 — Pronunciation lexicon applied to text before synthesis.
+  PronunciationLexicon? _lexicon;
+  set lexicon(PronunciationLexicon? v) => _lexicon = v;
 
   // Cached session keyed by `<modelPath>|<voicePath>|<codecPath>` so
   // changing voice mid-session reopens.
@@ -351,7 +356,10 @@ class TtsService {
       }
 
       applyTtsKnobs();
-      Float32List pcm = session.synthesize(text);
+
+      // §5.25.9 — Apply pronunciation lexicon substitutions.
+      final synthText = _lexicon?.apply(text) ?? text;
+      Float32List pcm = session.synthesize(synthText);
       // CrispASR's TTS backends all output 24 kHz mono float32.
       final int beforeSamples = pcm.length;
       // Diagnostic: capture min/max/mean + finite-count so a silent

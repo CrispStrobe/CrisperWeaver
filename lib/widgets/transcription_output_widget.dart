@@ -11,6 +11,7 @@ import 'package:go_router/go_router.dart';
 import 'package:just_audio/just_audio.dart';
 
 import '../engines/transcription_engine.dart'; // Use engine TranscriptionSegment
+import '../models/segment_tag.dart';
 import '../services/log_service.dart';
 import '../services/speaker_id_service.dart';
 import '../l10n/generated/app_localizations.dart';
@@ -87,6 +88,12 @@ class _TranscriptionOutputWidgetState
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _searchController = TextEditingController();
 
+  // §5.25.12 — keyboard navigation state
+  int _focusedSegmentIndex = -1;
+  final FocusNode _transcriptFocusNode = FocusNode(
+    debugLabel: 'TranscriptKeyboardNav',
+  );
+
   // Karaoke playback state. The player is created lazily on the first
   // _playSegment call so unused transcripts don't allocate one. Active
   // position drives the highlighted-word render via positionStream;
@@ -107,6 +114,7 @@ class _TranscriptionOutputWidgetState
     _tabController.dispose();
     _scrollController.dispose();
     _searchController.dispose();
+    _transcriptFocusNode.dispose();
     _posSub?.cancel();
     _player?.dispose();
     super.dispose();
@@ -265,7 +273,11 @@ class _TranscriptionOutputWidgetState
       return _buildNoSearchResults();
     }
 
-    return ListView.builder(
+    // §5.25.12 — wrap with keyboard listener for J/K/Space/Enter/Tab nav
+    return KeyboardListener(
+      focusNode: _transcriptFocusNode,
+      onKeyEvent: (event) => _handleTranscriptKeyEvent(event, filteredSegments),
+      child: ListView.builder(
       controller: _scrollController,
       padding: const EdgeInsets.all(8),
       itemCount: filteredSegments.length,
@@ -273,14 +285,24 @@ class _TranscriptionOutputWidgetState
         final segment = filteredSegments[index];
         return _buildSegmentCard(segment, index);
       },
-    );
+    ));
   }
 
   Widget _buildSegmentCard(TranscriptionSegment segment, int index) {
     final hasSearch = _searchQuery.isNotEmpty;
+    final isFocused = index == _focusedSegmentIndex;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
+      shape: isFocused
+          ? RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+              side: BorderSide(
+                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.6),
+                width: 2,
+              ),
+            )
+          : null,
       child: InkWell(
         onTap: () => _playSegment(segment),
         onLongPress: () => _showSegmentOptions(segment),
@@ -319,6 +341,21 @@ class _TranscriptionOutputWidgetState
                   ],
 
                   const Spacer(),
+
+                  // §5.25.10 — tag emoji badges
+                  if (segment.tags.isNotEmpty) ...[
+                    for (final tagName in segment.tags)
+                      if (SegmentTag.fromJson(tagName) case final tag?)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 2),
+                          child: Tooltip(
+                            message: tag.label,
+                            child: Text(tag.emoji,
+                                style: const TextStyle(fontSize: 12)),
+                          ),
+                        ),
+                    const SizedBox(width: 4),
+                  ],
 
                   // Tiny pencil icon to flag manually-edited segments.
                   // Set in metadata by AppStateNotifier.editSegment.
@@ -1144,8 +1181,160 @@ class _TranscriptionOutputWidgetState
               },
             ),
           ],
+          // §5.25.10 — Segment annotation tags.
+          const Divider(height: 1),
+          ListTile(
+            leading: const Icon(Icons.label_outline),
+            title: const Text('Tag segment'),
+            onTap: () {
+              Navigator.of(sheetCtx).pop();
+              _showTagPicker(segment);
+            },
+          ),
         ],
       ),
+    );
+  }
+
+  /// §5.25.10 — Show a dialog to add/remove tags on a segment.
+  void _showTagPicker(TranscriptionSegment segment) {
+    final segIdx = widget.segments.indexOf(segment);
+    if (segIdx < 0) return;
+    final currentTags = Set<String>.from(segment.tags);
+
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('Tag segment'),
+          content: Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children: SegmentTag.values.map((tag) {
+              final active = currentTags.contains(tag.name);
+              return FilterChip(
+                label: Text('${tag.emoji} ${tag.label}'),
+                selected: active,
+                onSelected: (v) {
+                  setDialogState(() {
+                    if (v) {
+                      currentTags.add(tag.name);
+                    } else {
+                      currentTags.remove(tag.name);
+                    }
+                  });
+                },
+              );
+            }).toList(),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.of(ctx).pop();
+                _applyTags(segIdx, currentTags.toList());
+              },
+              child: const Text('Apply'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Apply tags to a segment and persist via AppState.
+  void _applyTags(int segIdx, List<String> tags) {
+    final notifier = ref.read(appStateProvider.notifier);
+    final segments = List<TranscriptionSegment>.from(
+        ref.read(appStateProvider).segments);
+    if (segIdx >= segments.length) return;
+    final old = segments[segIdx];
+    segments[segIdx] = TranscriptionSegment(
+      text: old.text,
+      startTime: old.startTime,
+      endTime: old.endTime,
+      speaker: old.speaker,
+      confidence: old.confidence,
+      words: old.words,
+      metadata: old.metadata,
+      tags: tags,
+    );
+    notifier.replaceSegments(segments);
+  }
+
+  /// §5.25.12 — handle keyboard events for transcript navigation.
+  void _handleTranscriptKeyEvent(
+      KeyEvent event, List<TranscriptionSegment> segments) {
+    if (event is! KeyDownEvent) return;
+    if (segments.isEmpty) return;
+
+    switch (event.logicalKey) {
+      case LogicalKeyboardKey.keyJ:
+      case LogicalKeyboardKey.arrowDown:
+        setState(() {
+          _focusedSegmentIndex =
+              (_focusedSegmentIndex + 1).clamp(0, segments.length - 1);
+        });
+        _scrollToFocused();
+      case LogicalKeyboardKey.keyK:
+      case LogicalKeyboardKey.arrowUp:
+        setState(() {
+          _focusedSegmentIndex =
+              (_focusedSegmentIndex - 1).clamp(0, segments.length - 1);
+        });
+        _scrollToFocused();
+      case LogicalKeyboardKey.space:
+        if (_focusedSegmentIndex >= 0 &&
+            _focusedSegmentIndex < segments.length) {
+          _playSegment(segments[_focusedSegmentIndex]);
+        }
+      case LogicalKeyboardKey.enter:
+        if (_focusedSegmentIndex >= 0 &&
+            _focusedSegmentIndex < segments.length) {
+          _editSegment(segments[_focusedSegmentIndex]);
+        }
+      case LogicalKeyboardKey.tab:
+        // Jump to next low-confidence segment
+        _jumpToNextLowConfidence(segments);
+      case LogicalKeyboardKey.escape:
+        setState(() => _focusedSegmentIndex = -1);
+      default:
+        break;
+    }
+  }
+
+  void _jumpToNextLowConfidence(List<TranscriptionSegment> segments) {
+    final start = _focusedSegmentIndex + 1;
+    for (var i = start; i < segments.length; i++) {
+      if (segments[i].confidence < 0.7 ||
+          (segments[i].words?.any((w) => w.confidence < 0.7) ?? false)) {
+        setState(() => _focusedSegmentIndex = i);
+        _scrollToFocused();
+        return;
+      }
+    }
+    // Wrap around
+    for (var i = 0; i < start && i < segments.length; i++) {
+      if (segments[i].confidence < 0.7 ||
+          (segments[i].words?.any((w) => w.confidence < 0.7) ?? false)) {
+        setState(() => _focusedSegmentIndex = i);
+        _scrollToFocused();
+        return;
+      }
+    }
+  }
+
+  void _scrollToFocused() {
+    if (_focusedSegmentIndex < 0) return;
+    // Approximate: each card ~80px tall, 8px margin
+    final offset = _focusedSegmentIndex * 88.0;
+    _scrollController.animateTo(
+      offset.clamp(0.0, _scrollController.position.maxScrollExtent),
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeOut,
     );
   }
 

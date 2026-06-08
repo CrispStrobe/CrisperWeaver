@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
@@ -69,5 +70,29 @@ class AudioFingerprintService {
   /// fingerprint indicates very likely the same audio).
   static bool isLikelyDuplicate(String fp1, String fp2) {
     return fp1 == fp2;
+  }
+
+  /// Lightweight file-based fingerprint: SHA-256 of (file size + first
+  /// 64 KB of file content). Catches exact file duplicates and most
+  /// re-downloads without loading the full file or decoding audio.
+  /// Fast enough to run synchronously at batch-enqueue time.
+  static Future<String> computeFileFingerprint(String filePath) async {
+    final file = File(filePath);
+    if (!await file.exists()) return '';
+    final stat = await file.stat();
+    final size = stat.size;
+    final handle = await file.open();
+    try {
+      final head = await handle.read(65536); // 64 KB
+      final sizeBytes = Uint8List(8);
+      final bd = ByteData.sublistView(sizeBytes);
+      bd.setInt64(0, size);
+      final combined = Uint8List(sizeBytes.length + head.length);
+      combined.setAll(0, sizeBytes);
+      combined.setAll(sizeBytes.length, head);
+      return sha256.convert(combined).toString();
+    } finally {
+      await handle.close();
+    }
   }
 }

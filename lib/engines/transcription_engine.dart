@@ -154,6 +154,10 @@ class TranscriptionSegment {
   final List<TranscriptionWord>? words;
   final Map<String, dynamic> metadata;
 
+  /// §5.25.10 — user-applied annotation tags (bookmark, action-item, …).
+  /// Persisted in history JSON; empty by default.
+  final List<String> tags;
+
   const TranscriptionSegment({
     required this.text,
     required this.startTime,
@@ -162,6 +166,7 @@ class TranscriptionSegment {
     this.confidence = 1.0,
     this.words,
     this.metadata = const {},
+    this.tags = const [],
   });
 
   String get formattedTime {
