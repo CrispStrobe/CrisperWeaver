@@ -743,6 +743,8 @@
   "advancedMaxLenSubtitle": "Whisper-only soft cap. 0 = no cap (default). Pair with \"Split on word\" for SRT-friendly short subtitle lines.",
   "advancedSplitOnWord": "Split on word boundaries",
   "advancedSplitOnWordSubtitle": "When the segment cap is hit, break on the next word boundary instead of mid-word. Yields more readable subtitle output.",
+  "advancedSplitOnPunct": "Split on punctuation",
+  "advancedSplitOnPunctSubtitle": "Split segments at sentence-ending punctuation (. ! ?) for natural subtitle lines. Works with any backend.",
   "advancedVocabulary": "Custom vocabulary",
   "advancedVocabularyHint": "Type a term and press Enter (e.g. API, kubectl, Alice)",
   "advancedVocabularyAdd": "Add term",

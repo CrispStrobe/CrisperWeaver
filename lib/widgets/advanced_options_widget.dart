@@ -180,6 +180,11 @@ class AdvancedOptions {
   /// Whisper-only; no-op for CTC / LLM-session backends.
   final bool splitOnWord;
 
+  /// §5.8 — split at sentence-ending punctuation (. ! ?).
+  /// Dart-side post-processing applied to any backend's output.
+  /// Creates natural subtitle lines even for long segments.
+  final bool splitOnPunct;
+
   /// §5.8 — GBNF grammar source. Non-empty enables grammar-
   /// constrained sampling on whisper (forces beam search; auto-
   /// bumps beam_size to 5 when the user left it at default 1).
@@ -337,6 +342,7 @@ class AdvancedOptions {
     this.vocabulary = const [],
     this.maxLen = 0,
     this.splitOnWord = false,
+    this.splitOnPunct = false,
     this.grammarText = '',
     this.grammarRootRule = 'root',
     this.grammarPenalty = 100.0,
@@ -384,6 +390,7 @@ class AdvancedOptions {
     List<String>? vocabulary,
     int? maxLen,
     bool? splitOnWord,
+    bool? splitOnPunct,
     String? grammarText,
     String? grammarRootRule,
     double? grammarPenalty,
@@ -431,6 +438,7 @@ class AdvancedOptions {
         vocabulary: vocabulary ?? this.vocabulary,
         maxLen: maxLen ?? this.maxLen,
         splitOnWord: splitOnWord ?? this.splitOnWord,
+        splitOnPunct: splitOnPunct ?? this.splitOnPunct,
         grammarText: grammarText ?? this.grammarText,
         grammarRootRule: grammarRootRule ?? this.grammarRootRule,
         grammarPenalty: grammarPenalty ?? this.grammarPenalty,
@@ -805,6 +813,7 @@ class _AdvancedDecodingSectionState
         // hides itself when maxLen == 0 to avoid a no-op toggle.
         _buildMaxLenRow(context, opts),
         _buildSplitOnWordRow(context, opts),
+        _buildSplitOnPunctRow(context, opts),
         // §5.8 — GBNF grammar-constrained sampling (Whisper-only).
         // Multi-line TextField for the GBNF source plus a slider
         // for grammar_penalty. Empty text means "no constraint";
@@ -1238,6 +1247,23 @@ class _AdvancedDecodingSectionState
       value: opts.splitOnWord,
       onChanged: (v) => ref.read(advancedOptionsProvider.notifier).state =
           opts.copyWith(splitOnWord: v),
+    );
+  }
+
+  /// §5.8 — split at sentence-ending punctuation. Works on any
+  /// backend (Dart-side post-processing, not a whisper wparams field).
+  Widget _buildSplitOnPunctRow(
+      BuildContext context, AdvancedOptions opts) {
+    final l = AppLocalizations.of(context);
+    return SwitchListTile(
+      dense: true,
+      contentPadding: EdgeInsets.zero,
+      title: Text(l.advancedSplitOnPunct),
+      subtitle: Text(l.advancedSplitOnPunctSubtitle,
+          style: const TextStyle(fontSize: 11)),
+      value: opts.splitOnPunct,
+      onChanged: (v) => ref.read(advancedOptionsProvider.notifier).state =
+          opts.copyWith(splitOnPunct: v),
     );
   }
 

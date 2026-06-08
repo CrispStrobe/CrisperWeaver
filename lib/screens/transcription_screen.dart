@@ -2002,6 +2002,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
         asrNGpuLayers: adv.asrNGpuLayers,
         maxLen: adv.maxLen,
         splitOnWord: adv.splitOnWord,
+        splitOnPunct: adv.splitOnPunct,
         grammarText: adv.grammarText,
         grammarRootRule: adv.grammarRootRule,
         grammarPenalty: adv.grammarPenalty,

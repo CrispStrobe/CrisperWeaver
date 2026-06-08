@@ -738,6 +738,8 @@
   "advancedMaxLenSubtitle": "Nur Whisper. 0 = kein Limit (Standard). Kombiniere mit „An Wortgrenze trennen\" für SRT-taugliche kurze Untertitelzeilen.",
   "advancedSplitOnWord": "An Wortgrenze trennen",
   "advancedSplitOnWordSubtitle": "Wenn das Segmentlimit erreicht ist, an der nächsten Wortgrenze umbrechen statt mitten im Wort. Liefert lesbarere Untertitel.",
+  "advancedSplitOnPunct": "An Satzzeichen trennen",
+  "advancedSplitOnPunctSubtitle": "Segmente an satzbeendender Interpunktion (. ! ?) aufteilen für natürliche Untertitelzeilen. Funktioniert mit jedem Backend.",
   "advancedVocabulary": "Benutzerdefiniertes Vokabular",
   "advancedVocabularyHint": "Begriff eingeben und Enter drücken (z. B. API, kubectl, Alice)",
   "advancedVocabularyAdd": "Begriff hinzufügen",

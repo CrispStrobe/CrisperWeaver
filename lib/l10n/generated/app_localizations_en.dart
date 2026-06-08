@@ -1696,6 +1696,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'When the segment cap is hit, break on the next word boundary instead of mid-word. Yields more readable subtitle output.';
 
   @override
+  String get advancedSplitOnPunct => 'Split on punctuation';
+
+  @override
+  String get advancedSplitOnPunctSubtitle =>
+      'Split segments at sentence-ending punctuation (. ! ?) for natural subtitle lines. Works with any backend.';
+
+  @override
   String get advancedVocabulary => 'Custom vocabulary';
 
   @override

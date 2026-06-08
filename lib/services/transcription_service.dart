@@ -112,6 +112,10 @@ class AdvancedTranscribeOptions {
   /// Whisper-only; no-op when [maxLen] = 0.
   final bool splitOnWord;
 
+  /// §5.8 — split at sentence-ending punctuation (. ! ?).
+  /// Dart-side post-processing applied to any backend's output.
+  final bool splitOnPunct;
+
   /// §5.8 — GBNF grammar source. Non-empty enables grammar-
   /// constrained sampling on whisper (forces beam search; auto-
   /// bumps beam_size to 5 when the user left it at default 1).
@@ -181,6 +185,7 @@ class AdvancedTranscribeOptions {
     this.asrNGpuLayers = -1,
     this.maxLen = 0,
     this.splitOnWord = false,
+    this.splitOnPunct = false,
     this.grammarText = '',
     this.grammarRootRule = 'root',
     this.grammarPenalty = 100.0,
@@ -196,6 +201,75 @@ class AdvancedTranscribeOptions {
     this.transcribeWindowDurationSec = 0.0,
     this.altN = 0,
   });
+}
+
+/// §5.8 — Split segments at sentence-ending punctuation (. ! ?).
+///
+/// Mirrors CrispASR CLI's `--split-on-punct` but runs in Dart so it
+/// works on any backend's output, not just whisper. When a segment's
+/// text contains sentence-ending punctuation followed by a space and
+/// more text, the segment is split at that boundary. Timestamps are
+/// linearly interpolated based on character position.
+List<TranscriptionSegment> splitSegmentsOnPunct(
+    List<TranscriptionSegment> segments) {
+  final result = <TranscriptionSegment>[];
+  final re = RegExp(r'([.!?])\s+');
+
+  for (final seg in segments) {
+    final text = seg.text.trim();
+    if (text.isEmpty) {
+      result.add(seg);
+      continue;
+    }
+
+    final matches = re.allMatches(text).toList();
+    if (matches.isEmpty) {
+      result.add(seg);
+      continue;
+    }
+
+    final duration = seg.endTime - seg.startTime;
+    var lastEnd = 0;
+    var lastTime = seg.startTime;
+
+    for (final m in matches) {
+      final splitAt = m.end;
+      final chunk = text.substring(lastEnd, splitAt).trim();
+      if (chunk.isEmpty) continue;
+
+      // Linearly interpolate the timestamp based on character position.
+      final frac = splitAt / text.length;
+      final chunkEnd = seg.startTime + duration * frac;
+
+      result.add(TranscriptionSegment(
+        text: chunk,
+        startTime: lastTime,
+        endTime: chunkEnd,
+        speaker: seg.speaker,
+        confidence: seg.confidence,
+        metadata: Map<String, dynamic>.from(seg.metadata),
+        tags: List<String>.from(seg.tags),
+      ));
+      lastEnd = splitAt;
+      lastTime = chunkEnd;
+    }
+
+    // Trailing text after the last punctuation split.
+    final tail = text.substring(lastEnd).trim();
+    if (tail.isNotEmpty) {
+      result.add(TranscriptionSegment(
+        text: tail,
+        startTime: lastTime,
+        endTime: seg.endTime,
+        speaker: seg.speaker,
+        confidence: seg.confidence,
+        metadata: Map<String, dynamic>.from(seg.metadata),
+        tags: List<String>.from(seg.tags),
+      ));
+    }
+  }
+
+  return result;
 }
 
 /// Main transcription service that coordinates engines, audio processing, and diarization
@@ -462,6 +536,13 @@ class TranscriptionService {
           segments = await _puncService.restore(segments);
           segments = await _puncService.restoreTruecase(segments);
         }
+      }
+
+      // §5.8 — Dart-side split at sentence-ending punctuation.
+      // Applied after all other post-processing so it can split
+      // punctuation-restored text cleanly.
+      if (advanced.splitOnPunct && segments.isNotEmpty) {
+        segments = splitSegmentsOnPunct(segments);
       }
 
       onProgress?.call(1.0);

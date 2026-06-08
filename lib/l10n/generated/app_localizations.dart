@@ -2960,6 +2960,18 @@ abstract class AppLocalizations {
   /// **'When the segment cap is hit, break on the next word boundary instead of mid-word. Yields more readable subtitle output.'**
   String get advancedSplitOnWordSubtitle;
 
+  /// No description provided for @advancedSplitOnPunct.
+  ///
+  /// In en, this message translates to:
+  /// **'Split on punctuation'**
+  String get advancedSplitOnPunct;
+
+  /// No description provided for @advancedSplitOnPunctSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Split segments at sentence-ending punctuation (. ! ?) for natural subtitle lines. Works with any backend.'**
+  String get advancedSplitOnPunctSubtitle;
+
   /// No description provided for @advancedVocabulary.
   ///
   /// In en, this message translates to:

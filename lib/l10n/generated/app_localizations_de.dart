@@ -1711,6 +1711,13 @@ class AppLocalizationsDe extends AppLocalizations {
       'Wenn das Segmentlimit erreicht ist, an der nächsten Wortgrenze umbrechen statt mitten im Wort. Liefert lesbarere Untertitel.';
 
   @override
+  String get advancedSplitOnPunct => 'An Satzzeichen trennen';
+
+  @override
+  String get advancedSplitOnPunctSubtitle =>
+      'Segmente an satzbeendender Interpunktion (. ! ?) aufteilen für natürliche Untertitelzeilen. Funktioniert mit jedem Backend.';
+
+  @override
   String get advancedVocabulary => 'Benutzerdefiniertes Vokabular';
 
   @override
