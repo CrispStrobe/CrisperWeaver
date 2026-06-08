@@ -1828,10 +1828,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get synthTextHint => 'Type text to synthesise…';
 
   @override
-  String get synthDiaTextHint => '[S1] Hello, how are you? [S2] I\'m doing great, thanks!';
+  String get synthDiaTextHint =>
+      '[S1] Hello, how are you? [S2] I\'m doing great, thanks!';
 
   @override
-  String get synthDiaHelper => 'Dia uses [S1] and [S2] tags to mark different speakers in dialogue. Use 100+ character prompts for best results.';
+  String get synthDiaHelper =>
+      'Dia uses [S1] and [S2] tags to mark different speakers in dialogue. Use 100+ character prompts for best results.';
 
   @override
   String get synthRunButton => 'Synthesize';
@@ -2577,6 +2579,24 @@ class AppLocalizationsEn extends AppLocalizations {
       'Hard cap on AR speech tokens per call (chatterbox). 1000 ≈ 20 s; raise for long inputs, lower to bound runaway generation.';
 
   @override
+  String synthSeed(int n) {
+    return 'Seed: $n';
+  }
+
+  @override
+  String get synthSeedHelper =>
+      'Random seed for reproducible output (chatterbox, vibevoice, qwen3-tts, orpheus). 0 = non-deterministic.';
+
+  @override
+  String synthFrequencyPenalty(String value) {
+    return 'Frequency penalty: $value';
+  }
+
+  @override
+  String get synthFrequencyPenaltyHelper =>
+      'Penalises repeated tokens in autoregressive backends. 0 = off; raise to reduce loop-stuttering artefacts.';
+
+  @override
   String get synthClearPhonemeCache => 'Clear phoneme cache';
 
   @override
@@ -2811,7 +2831,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get speakerConsentTitle => 'Biometric Data Consent';
 
   @override
-  String get speakerConsentBody => 'Speaker enrollment creates a voice embedding (biometric data under GDPR Art. 9). This data is stored only on your device and is never transmitted. You can delete your speaker profile at any time from the speaker management screen.\n\nBy proceeding, you give your explicit consent to the processing of this biometric data for speaker identification.';
+  String get speakerConsentBody =>
+      'Speaker enrollment creates a voice embedding (biometric data under GDPR Art. 9). This data is stored only on your device and is never transmitted. You can delete your speaker profile at any time from the speaker management screen.\n\nBy proceeding, you give your explicit consent to the processing of this biometric data for speaker identification.';
 
   @override
   String get speakerConsentAgree => 'I Consent';
@@ -2820,8 +2841,289 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aboutSyntheticCompliance => 'Synthetic Content Compliance';
 
   @override
-  String get aboutSyntheticComplianceText => 'Synthetic speech outputs are watermarked and carry machine-readable provenance metadata. Speaker enrollment requires explicit biometric consent (GDPR Art. 9). All data stays on-device; you can delete your data at any time.';
+  String get aboutSyntheticComplianceText =>
+      'Synthetic speech outputs are watermarked and carry machine-readable provenance metadata. Speaker enrollment requires explicit biometric consent (GDPR Art. 9). All data stays on-device; you can delete your data at any time.';
 
   @override
-  String get syntheticDisclosureNote => 'This content contains AI-generated synthetic speech.';
+  String get syntheticDisclosureNote =>
+      'This content contains AI-generated synthetic speech.';
+
+  @override
+  String get historySearchSemanticTooltip => 'Semantic search (active)';
+
+  @override
+  String get historySearchSubstringTooltip =>
+      'Substring search (tap for semantic)';
+
+  @override
+  String get historyCompareButton => 'Compare…';
+
+  @override
+  String get historyCompareNoOtherEntries => 'No other entries to compare with';
+
+  @override
+  String get historyComparePickerTitle => 'Compare with…';
+
+  @override
+  String get menuCompareModels => 'Compare models';
+
+  @override
+  String get menuSubtitleOverlay => 'Subtitle overlay';
+
+  @override
+  String get advancedTagSegmentLanguages => 'Tag segment languages';
+
+  @override
+  String get advancedTagSegmentLanguagesSubtitle =>
+      'Detect language per segment (multilingual)';
+
+  @override
+  String get exportObsidian => 'Obsidian';
+
+  @override
+  String get exportNotion => 'Notion';
+
+  @override
+  String get exportLogseq => 'Logseq';
+
+  @override
+  String get exportYouTubeChapters => 'YouTube chapters';
+
+  @override
+  String get exportDetectChapters => 'Detect chapters';
+
+  @override
+  String get exportPodcastChapters => 'Podcast chapters (JSON)';
+
+  @override
+  String get compareModelsNeedSecond => 'Download a second model to compare';
+
+  @override
+  String get compareModelsPickerTitle => 'Compare with model…';
+
+  @override
+  String compareModelsRunning(String modelA, String modelB) {
+    return 'Running A/B: $modelA vs $modelB…';
+  }
+
+  @override
+  String compareModelsFailed(String error) {
+    return 'A/B test failed: $error';
+  }
+
+  @override
+  String get settingsWatchFolder => 'Watch folder';
+
+  @override
+  String get settingsWatchFolderAutoTranscribe => 'Auto-transcribe new files';
+
+  @override
+  String settingsWatchFolderWatching(String path) {
+    return 'Watching: $path';
+  }
+
+  @override
+  String get settingsWatchFolderMonitorHint =>
+      'Monitor a folder for new audio files';
+
+  @override
+  String get settingsWatchFolderPath => 'Watch folder path';
+
+  @override
+  String get settingsWatchFolderNotSet => 'Not set';
+
+  @override
+  String get settingsWatchFolderPickerTitle => 'Select folder to watch';
+
+  @override
+  String get settingsSpeakerVocab => 'Speaker vocabulary';
+
+  @override
+  String get settingsSpeakerVocabSubtitle => 'Per-speaker domain word lists';
+
+  @override
+  String get settingsSpeakerVocabDialogTitle => 'Speaker vocabulary';
+
+  @override
+  String settingsSpeakerVocabAddTermTitle(String name) {
+    return 'Add term for $name';
+  }
+
+  @override
+  String get settingsSpeakerVocabAddTermHint => 'Domain word or phrase';
+
+  @override
+  String get settingsSpeakerVocabNoSpeakers =>
+      'No enrolled speakers. Enrol speakers first in the Speaker Management screen.';
+
+  @override
+  String get add => 'Add';
+
+  @override
+  String get synthLexiconSectionTitle => 'Pronunciation lexicon';
+
+  @override
+  String get synthLexiconAddTitle => 'Add pronunciation';
+
+  @override
+  String get synthLexiconAddEntryTooltip => 'Add entry';
+
+  @override
+  String get synthLexiconWordLabel => 'Word';
+
+  @override
+  String get synthLexiconWordHint => 'e.g. CrispASR';
+
+  @override
+  String get synthLexiconPronunciationLabel => 'Pronunciation';
+
+  @override
+  String get synthLexiconPronunciationHint => 'e.g. Crisp A S R';
+
+  @override
+  String get synthLexiconIpaLabel => 'IPA notation';
+
+  @override
+  String get synthLexiconEmpty =>
+      'No entries. Add word → pronunciation mappings.';
+
+  @override
+  String get outputSegmentEditedTooltip => 'Edited';
+
+  @override
+  String get subtitleExitOverlayTooltip => 'Exit overlay';
+
+  @override
+  String get subtitleSmallerTextTooltip => 'Smaller text';
+
+  @override
+  String get subtitleLargerTextTooltip => 'Larger text';
+
+  @override
+  String get subtitleTogglePositionTooltip => 'Toggle position';
+
+  @override
+  String get subtitleToggleBackgroundTooltip => 'Toggle background';
+
+  @override
+  String get subtitleWaitingForTranscription => 'Waiting for transcription…';
+
+  @override
+  String get compareTranscriptsTitle => 'Compare Transcripts';
+
+  @override
+  String get compareLeftFallback => 'Left';
+
+  @override
+  String get compareRightFallback => 'Right';
+
+  @override
+  String get compareLeftWords => 'Left words';
+
+  @override
+  String get compareRightWords => 'Right words';
+
+  @override
+  String get compareSimilarity => 'Similarity';
+
+  @override
+  String get abTestNeedSecondModel => 'Download a second model to compare';
+
+  @override
+  String get abTestPickModel => 'Compare with model…';
+
+  @override
+  String abTestRunning(String modelA, String modelB) {
+    return 'Running A/B: $modelA vs $modelB…';
+  }
+
+  @override
+  String abTestFailed(String error) {
+    return 'A/B test failed: $error';
+  }
+
+  @override
+  String get subtitleOverlayExitTooltip => 'Exit overlay';
+
+  @override
+  String get subtitleOverlaySmallerText => 'Smaller text';
+
+  @override
+  String get subtitleOverlayLargerText => 'Larger text';
+
+  @override
+  String get subtitleOverlayTogglePosition => 'Toggle position';
+
+  @override
+  String get subtitleOverlayToggleBackground => 'Toggle background';
+
+  @override
+  String get subtitleOverlayWaiting => 'Waiting for transcription…';
+
+  @override
+  String get outputNoTranscriptionYet => 'No transcription yet';
+
+  @override
+  String get outputSelectAudioFile =>
+      'Select an audio file and start transcription';
+
+  @override
+  String get outputNoResultsFound => 'No results found';
+
+  @override
+  String get outputTryDifferentSearch => 'Try a different search term';
+
+  @override
+  String get outputEdited => 'Edited';
+
+  @override
+  String get outputLidModelNeeded =>
+      'Download a text language-ID model (CLD3, GlotLID, or FastText LID-176) to detect the language.';
+
+  @override
+  String get outputLidModelsButton => 'Models';
+
+  @override
+  String get outputLidFailed => 'Couldn\'t detect the language.';
+
+  @override
+  String outputLidDetected(String code, String pct, String model) {
+    return 'Detected language: $code ($pct%) [$model]';
+  }
+
+  @override
+  String get outputTagSegment => 'Tag segment';
+
+  @override
+  String get dialogCancel => 'Cancel';
+
+  @override
+  String get dialogAdd => 'Add';
+
+  @override
+  String get dialogApply => 'Apply';
+
+  @override
+  String get settingsAllFilesAccessNeeded => '\"All files access\" needed';
+
+  @override
+  String get settingsAllFilesAccessExplanation =>
+      'Picking a folder outside the app sandbox needs Android\'s \"All files access\" permission. Tap \"Open Settings\", enable \"All files access\" for CrisperWeaver, then come back. After uninstalling and reinstalling the app, the grant is reset by Android and must be re-enabled.';
+
+  @override
+  String get settingsOpenSettings => 'Open Settings';
+
+  @override
+  String get settingsAllFilesAccessDenied =>
+      '\"All files access\" denied — using sandbox dir instead.';
+
+  @override
+  String get fingerprintDedupTitle => 'Already transcribed';
+
+  @override
+  String get fingerprintDedupBody =>
+      'This file has already been transcribed. Transcribe again?';
+
+  @override
+  String get fingerprintDedupTranscribeAgain => 'Transcribe again';
 }

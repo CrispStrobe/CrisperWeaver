@@ -214,7 +214,7 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
       replacement: replacementCtrl.text,
       isIpa: isIpa,
     );
-    final updated = (_lexicon ?? PronunciationLexicon(entries: const [])).put(entry);
+    final updated = (_lexicon ?? const PronunciationLexicon()).put(entry);
     final docs = await getApplicationDocumentsDirectory();
     await updated.save(docs.path);
     if (!mounted) return;

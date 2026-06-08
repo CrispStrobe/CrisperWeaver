@@ -6,21 +6,21 @@ import 'package:crisper_weaver/models/segment_tag.dart';
 
 void main() {
   final segments = [
-    TranscriptionSegment(
+    const TranscriptionSegment(
       text: 'Hello world, this is a test.',
       startTime: 0.0,
       endTime: 5.0,
       speaker: 'Alice',
       confidence: 0.95,
     ),
-    TranscriptionSegment(
+    const TranscriptionSegment(
       text: 'The quick brown fox jumps over the lazy dog.',
       startTime: 5.5,
       endTime: 12.0,
       speaker: 'Bob',
       confidence: 0.82,
     ),
-    TranscriptionSegment(
+    const TranscriptionSegment(
       text: 'This should be reviewed carefully.',
       startTime: 12.5,
       endTime: 16.0,

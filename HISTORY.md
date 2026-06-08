@@ -117,6 +117,45 @@ lines). Grouped into three tiers by impact.
 
 ---
 
+## June 2026 — §5.25 post-wiring handover (2026-06-08, commit be6526f)
+
+Four partially-integrated §5.25 features wired end-to-end, plus an
+i18n migration pass.
+
+### Parallel A/B model comparison (§5.25.13)
+
+`_showModelComparison` now spawns two single-worker pools via
+`Future.wait` instead of running models sequentially. Both pools
+transcribe the same audio in parallel; results feed into
+`TranscriptCompareScreen` for side-by-side diff. `ModelRatings`
+persisted to `<app-docs>/model_ratings.json`.
+
+### Speaker-adaptive vocab auto-injection (§5.25.4)
+
+After diarisation resolves speaker names,
+`SpeakerVocab.mergeForSpeakers()` injects domain terms into
+`advancedOptionsProvider` vocabulary for subsequent transcriptions.
+Wired through both the single-file transcription path and the batch
+queue drain loop.
+
+### Fingerprint dedup before enqueue (§5.25.11)
+
+`AudioFingerprintService` now gates three intake paths:
+- **Watch folder** — auto-skips duplicates (no user interaction).
+- **Batch enqueue** — silently skips files whose fingerprint
+  already exists in history.
+- **Single-file drag-drop** — shows a confirmation dialog before
+  re-processing a duplicate.
+
+### i18n migration
+
+33 hardcoded strings migrated to ARB files, bringing the total to
+866 keys with full EN/DE parity. `flutter gen-l10n` succeeds with
+Flutter 3.35.1 (toolchain at `/mnt/volume1/toolchain/flutter`);
+generated classes at `lib/l10n/generated/` are up to date.
+
+---
+
 ## May 2026 parity sweep — six rounds, lands in v0.4.1
 
 Brought CrisperWeaver's catalog, advanced-options surface, and post-

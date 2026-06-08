@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../engines/transcription_engine.dart';
 import '../l10n/generated/app_localizations.dart';
-import '../services/history_service.dart';
 import '../main.dart' show historyServiceProvider;
 
 /// §5.25.7 — Transcript diff / comparison view.

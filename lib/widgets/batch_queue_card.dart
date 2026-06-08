@@ -224,7 +224,7 @@ class _BatchQueueCardState extends ConsumerState<BatchQueueCard> {
       'count': enqueued,
     });
 
-    if (enqueued > 0) {
+    if (enqueued > 0 && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(l.batchEnqueueAdded(enqueued)),

@@ -104,7 +104,7 @@ void main() {
       : null;
 
   // Prefer kokoro (fast, always works) — fall back to any available TTS model.
-  const _ttsModels = [
+  const ttsModels = [
     'kokoro-v1.0-q8_0',
     'kokoro-v0.19-q8_0',
     'orpheus-3b-0.1-ft-q4_k_m',
@@ -113,7 +113,7 @@ void main() {
   String? ttsModelPath;
   String? ttsModelName;
   String? ttsBackend;
-  for (final name in _ttsModels) {
+  for (final name in ttsModels) {
     final p = _resolveModel(name);
     if (p != null) {
       ttsModelPath = p;
@@ -233,7 +233,7 @@ void main() {
           await Directory.systemTemp.createTemp('crisper_consent_live_');
       try {
         // Simulate SpeakerIdService.saveConsent().
-        final name = 'LiveTestSpeaker';
+        const name = 'LiveTestSpeaker';
         final file = File('${tmp.path}/$name.consent.json');
         final now = DateTime.now().toUtc();
         await file.writeAsString(

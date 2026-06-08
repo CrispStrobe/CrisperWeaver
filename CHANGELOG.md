@@ -49,6 +49,21 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 - **Model A/B testing** (§5.25.13) — `AbTestResult` with per-segment winner
   picks. `ModelRatings` leaderboard aggregates results across tests.
 
+### Wired — §5.25 post-wiring handover (2026-06-08, commit be6526f)
+- **Parallel A/B model comparison** (§5.25.13) — `_showModelComparison` now
+  spawns two single-worker pools via `Future.wait` instead of running models
+  sequentially. `ModelRatings` persisted to `<app-docs>/model_ratings.json`.
+- **Speaker-adaptive vocab auto-injection** (§5.25.4) — after diarisation
+  resolves speaker names, `SpeakerVocab.mergeForSpeakers()` injects domain
+  terms into `advancedOptionsProvider` vocabulary for subsequent transcriptions
+  (both single-file and batch paths).
+- **Fingerprint dedup before enqueue** (§5.25.11) — watch folder auto-skips
+  duplicates; batch enqueue silently skips; single-file drag-drop shows a
+  confirmation dialog before re-processing.
+- **i18n migration** — 33 hardcoded strings migrated to ARB files (866 total
+  keys, full EN/DE parity). `flutter gen-l10n` succeeds with Flutter 3.35.1;
+  generated classes at `lib/l10n/generated/` are up to date.
+
 ### Added — previous unreleased
 - MP3 ID3v2 AI-provenance tags (`AI_GENERATED`, `GENERATOR`, `AI_CONTENT_NOTICE`) via `AudioWatermarkService.injectMp3Metadata()`
 - Beep-based AI disclaimer prepended to voice-cloned TTS output (3× 880 Hz, EU AI Act Art. 50(4)) via `AudioWatermarkService.generateBeepDisclaimer()`

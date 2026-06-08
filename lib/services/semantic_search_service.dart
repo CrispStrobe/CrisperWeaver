@@ -2,7 +2,6 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import '../engines/transcription_engine.dart';
-import 'log_service.dart';
 
 /// §5.25.2 — Semantic transcript search via embeddings.
 ///

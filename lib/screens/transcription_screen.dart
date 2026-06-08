@@ -523,7 +523,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
   /// Called when the OS hands us one or more files dropped on the window.
   /// Multi-drop: first file becomes the active selection; any additional
   /// supported files go into the batch queue.
-  void _onFilesDropped(DropDoneDetails details) {
+  Future<void> _onFilesDropped(DropDoneDetails details) async {
     setState(() => _dropHover = false);
     if (details.files.isEmpty) return;
     // desktop_drop delivers the same drop to every nested DropTarget.
@@ -573,6 +573,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
       Log.instance.i('batch', 'skipped $skippedDups duplicate(s) by fingerprint');
     }
 
+    if (!mounted) return;
     final l = AppLocalizations.of(context);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(

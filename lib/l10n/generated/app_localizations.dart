@@ -4382,6 +4382,30 @@ abstract class AppLocalizations {
   /// **'Hard cap on AR speech tokens per call (chatterbox). 1000 ≈ 20 s; raise for long inputs, lower to bound runaway generation.'**
   String get synthMaxSpeechTokensHelper;
 
+  /// No description provided for @synthSeed.
+  ///
+  /// In en, this message translates to:
+  /// **'Seed: {n}'**
+  String synthSeed(int n);
+
+  /// No description provided for @synthSeedHelper.
+  ///
+  /// In en, this message translates to:
+  /// **'Random seed for reproducible output (chatterbox, vibevoice, qwen3-tts, orpheus). 0 = non-deterministic.'**
+  String get synthSeedHelper;
+
+  /// No description provided for @synthFrequencyPenalty.
+  ///
+  /// In en, this message translates to:
+  /// **'Frequency penalty: {value}'**
+  String synthFrequencyPenalty(String value);
+
+  /// No description provided for @synthFrequencyPenaltyHelper.
+  ///
+  /// In en, this message translates to:
+  /// **'Penalises repeated tokens in autoregressive backends. 0 = off; raise to reduce loop-stuttering artefacts.'**
+  String get synthFrequencyPenaltyHelper;
+
   /// No description provided for @synthClearPhonemeCache.
   ///
   /// In en, this message translates to:
@@ -4733,7 +4757,7 @@ abstract class AppLocalizations {
   /// No description provided for @speakerConsentBody.
   ///
   /// In en, this message translates to:
-  /// **'Speaker enrollment creates a voice embedding...'**
+  /// **'Speaker enrollment creates a voice embedding (biometric data under GDPR Art. 9). This data is stored only on your device and is never transmitted. You can delete your speaker profile at any time from the speaker management screen.\n\nBy proceeding, you give your explicit consent to the processing of this biometric data for speaker identification.'**
   String get speakerConsentBody;
 
   /// No description provided for @speakerConsentAgree.
@@ -4751,7 +4775,7 @@ abstract class AppLocalizations {
   /// No description provided for @aboutSyntheticComplianceText.
   ///
   /// In en, this message translates to:
-  /// **'Synthetic speech outputs are watermarked...'**
+  /// **'Synthetic speech outputs are watermarked and carry machine-readable provenance metadata. Speaker enrollment requires explicit biometric consent (GDPR Art. 9). All data stays on-device; you can delete your data at any time.'**
   String get aboutSyntheticComplianceText;
 
   /// No description provided for @syntheticDisclosureNote.
@@ -4759,6 +4783,516 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This content contains AI-generated synthetic speech.'**
   String get syntheticDisclosureNote;
+
+  /// No description provided for @historySearchSemanticTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Semantic search (active)'**
+  String get historySearchSemanticTooltip;
+
+  /// No description provided for @historySearchSubstringTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Substring search (tap for semantic)'**
+  String get historySearchSubstringTooltip;
+
+  /// No description provided for @historyCompareButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Compare…'**
+  String get historyCompareButton;
+
+  /// No description provided for @historyCompareNoOtherEntries.
+  ///
+  /// In en, this message translates to:
+  /// **'No other entries to compare with'**
+  String get historyCompareNoOtherEntries;
+
+  /// No description provided for @historyComparePickerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Compare with…'**
+  String get historyComparePickerTitle;
+
+  /// No description provided for @menuCompareModels.
+  ///
+  /// In en, this message translates to:
+  /// **'Compare models'**
+  String get menuCompareModels;
+
+  /// No description provided for @menuSubtitleOverlay.
+  ///
+  /// In en, this message translates to:
+  /// **'Subtitle overlay'**
+  String get menuSubtitleOverlay;
+
+  /// No description provided for @advancedTagSegmentLanguages.
+  ///
+  /// In en, this message translates to:
+  /// **'Tag segment languages'**
+  String get advancedTagSegmentLanguages;
+
+  /// No description provided for @advancedTagSegmentLanguagesSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Detect language per segment (multilingual)'**
+  String get advancedTagSegmentLanguagesSubtitle;
+
+  /// No description provided for @exportObsidian.
+  ///
+  /// In en, this message translates to:
+  /// **'Obsidian'**
+  String get exportObsidian;
+
+  /// No description provided for @exportNotion.
+  ///
+  /// In en, this message translates to:
+  /// **'Notion'**
+  String get exportNotion;
+
+  /// No description provided for @exportLogseq.
+  ///
+  /// In en, this message translates to:
+  /// **'Logseq'**
+  String get exportLogseq;
+
+  /// No description provided for @exportYouTubeChapters.
+  ///
+  /// In en, this message translates to:
+  /// **'YouTube chapters'**
+  String get exportYouTubeChapters;
+
+  /// No description provided for @exportDetectChapters.
+  ///
+  /// In en, this message translates to:
+  /// **'Detect chapters'**
+  String get exportDetectChapters;
+
+  /// No description provided for @exportPodcastChapters.
+  ///
+  /// In en, this message translates to:
+  /// **'Podcast chapters (JSON)'**
+  String get exportPodcastChapters;
+
+  /// No description provided for @compareModelsNeedSecond.
+  ///
+  /// In en, this message translates to:
+  /// **'Download a second model to compare'**
+  String get compareModelsNeedSecond;
+
+  /// No description provided for @compareModelsPickerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Compare with model…'**
+  String get compareModelsPickerTitle;
+
+  /// No description provided for @compareModelsRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'Running A/B: {modelA} vs {modelB}…'**
+  String compareModelsRunning(String modelA, String modelB);
+
+  /// No description provided for @compareModelsFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'A/B test failed: {error}'**
+  String compareModelsFailed(String error);
+
+  /// No description provided for @settingsWatchFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Watch folder'**
+  String get settingsWatchFolder;
+
+  /// No description provided for @settingsWatchFolderAutoTranscribe.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-transcribe new files'**
+  String get settingsWatchFolderAutoTranscribe;
+
+  /// No description provided for @settingsWatchFolderWatching.
+  ///
+  /// In en, this message translates to:
+  /// **'Watching: {path}'**
+  String settingsWatchFolderWatching(String path);
+
+  /// No description provided for @settingsWatchFolderMonitorHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Monitor a folder for new audio files'**
+  String get settingsWatchFolderMonitorHint;
+
+  /// No description provided for @settingsWatchFolderPath.
+  ///
+  /// In en, this message translates to:
+  /// **'Watch folder path'**
+  String get settingsWatchFolderPath;
+
+  /// No description provided for @settingsWatchFolderNotSet.
+  ///
+  /// In en, this message translates to:
+  /// **'Not set'**
+  String get settingsWatchFolderNotSet;
+
+  /// No description provided for @settingsWatchFolderPickerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Select folder to watch'**
+  String get settingsWatchFolderPickerTitle;
+
+  /// No description provided for @settingsSpeakerVocab.
+  ///
+  /// In en, this message translates to:
+  /// **'Speaker vocabulary'**
+  String get settingsSpeakerVocab;
+
+  /// No description provided for @settingsSpeakerVocabSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Per-speaker domain word lists'**
+  String get settingsSpeakerVocabSubtitle;
+
+  /// No description provided for @settingsSpeakerVocabDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Speaker vocabulary'**
+  String get settingsSpeakerVocabDialogTitle;
+
+  /// No description provided for @settingsSpeakerVocabAddTermTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add term for {name}'**
+  String settingsSpeakerVocabAddTermTitle(String name);
+
+  /// No description provided for @settingsSpeakerVocabAddTermHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Domain word or phrase'**
+  String get settingsSpeakerVocabAddTermHint;
+
+  /// No description provided for @settingsSpeakerVocabNoSpeakers.
+  ///
+  /// In en, this message translates to:
+  /// **'No enrolled speakers. Enrol speakers first in the Speaker Management screen.'**
+  String get settingsSpeakerVocabNoSpeakers;
+
+  /// No description provided for @add.
+  ///
+  /// In en, this message translates to:
+  /// **'Add'**
+  String get add;
+
+  /// No description provided for @synthLexiconSectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Pronunciation lexicon'**
+  String get synthLexiconSectionTitle;
+
+  /// No description provided for @synthLexiconAddTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add pronunciation'**
+  String get synthLexiconAddTitle;
+
+  /// No description provided for @synthLexiconAddEntryTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Add entry'**
+  String get synthLexiconAddEntryTooltip;
+
+  /// No description provided for @synthLexiconWordLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Word'**
+  String get synthLexiconWordLabel;
+
+  /// No description provided for @synthLexiconWordHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. CrispASR'**
+  String get synthLexiconWordHint;
+
+  /// No description provided for @synthLexiconPronunciationLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Pronunciation'**
+  String get synthLexiconPronunciationLabel;
+
+  /// No description provided for @synthLexiconPronunciationHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. Crisp A S R'**
+  String get synthLexiconPronunciationHint;
+
+  /// No description provided for @synthLexiconIpaLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'IPA notation'**
+  String get synthLexiconIpaLabel;
+
+  /// No description provided for @synthLexiconEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No entries. Add word → pronunciation mappings.'**
+  String get synthLexiconEmpty;
+
+  /// No description provided for @outputSegmentEditedTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Edited'**
+  String get outputSegmentEditedTooltip;
+
+  /// No description provided for @subtitleExitOverlayTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Exit overlay'**
+  String get subtitleExitOverlayTooltip;
+
+  /// No description provided for @subtitleSmallerTextTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Smaller text'**
+  String get subtitleSmallerTextTooltip;
+
+  /// No description provided for @subtitleLargerTextTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Larger text'**
+  String get subtitleLargerTextTooltip;
+
+  /// No description provided for @subtitleTogglePositionTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Toggle position'**
+  String get subtitleTogglePositionTooltip;
+
+  /// No description provided for @subtitleToggleBackgroundTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Toggle background'**
+  String get subtitleToggleBackgroundTooltip;
+
+  /// No description provided for @subtitleWaitingForTranscription.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for transcription…'**
+  String get subtitleWaitingForTranscription;
+
+  /// No description provided for @compareTranscriptsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Compare Transcripts'**
+  String get compareTranscriptsTitle;
+
+  /// No description provided for @compareLeftFallback.
+  ///
+  /// In en, this message translates to:
+  /// **'Left'**
+  String get compareLeftFallback;
+
+  /// No description provided for @compareRightFallback.
+  ///
+  /// In en, this message translates to:
+  /// **'Right'**
+  String get compareRightFallback;
+
+  /// No description provided for @compareLeftWords.
+  ///
+  /// In en, this message translates to:
+  /// **'Left words'**
+  String get compareLeftWords;
+
+  /// No description provided for @compareRightWords.
+  ///
+  /// In en, this message translates to:
+  /// **'Right words'**
+  String get compareRightWords;
+
+  /// No description provided for @compareSimilarity.
+  ///
+  /// In en, this message translates to:
+  /// **'Similarity'**
+  String get compareSimilarity;
+
+  /// No description provided for @abTestNeedSecondModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Download a second model to compare'**
+  String get abTestNeedSecondModel;
+
+  /// No description provided for @abTestPickModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Compare with model…'**
+  String get abTestPickModel;
+
+  /// No description provided for @abTestRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'Running A/B: {modelA} vs {modelB}…'**
+  String abTestRunning(String modelA, String modelB);
+
+  /// No description provided for @abTestFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'A/B test failed: {error}'**
+  String abTestFailed(String error);
+
+  /// No description provided for @subtitleOverlayExitTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Exit overlay'**
+  String get subtitleOverlayExitTooltip;
+
+  /// No description provided for @subtitleOverlaySmallerText.
+  ///
+  /// In en, this message translates to:
+  /// **'Smaller text'**
+  String get subtitleOverlaySmallerText;
+
+  /// No description provided for @subtitleOverlayLargerText.
+  ///
+  /// In en, this message translates to:
+  /// **'Larger text'**
+  String get subtitleOverlayLargerText;
+
+  /// No description provided for @subtitleOverlayTogglePosition.
+  ///
+  /// In en, this message translates to:
+  /// **'Toggle position'**
+  String get subtitleOverlayTogglePosition;
+
+  /// No description provided for @subtitleOverlayToggleBackground.
+  ///
+  /// In en, this message translates to:
+  /// **'Toggle background'**
+  String get subtitleOverlayToggleBackground;
+
+  /// No description provided for @subtitleOverlayWaiting.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for transcription…'**
+  String get subtitleOverlayWaiting;
+
+  /// No description provided for @outputNoTranscriptionYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No transcription yet'**
+  String get outputNoTranscriptionYet;
+
+  /// No description provided for @outputSelectAudioFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Select an audio file and start transcription'**
+  String get outputSelectAudioFile;
+
+  /// No description provided for @outputNoResultsFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No results found'**
+  String get outputNoResultsFound;
+
+  /// No description provided for @outputTryDifferentSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Try a different search term'**
+  String get outputTryDifferentSearch;
+
+  /// No description provided for @outputEdited.
+  ///
+  /// In en, this message translates to:
+  /// **'Edited'**
+  String get outputEdited;
+
+  /// No description provided for @outputLidModelNeeded.
+  ///
+  /// In en, this message translates to:
+  /// **'Download a text language-ID model (CLD3, GlotLID, or FastText LID-176) to detect the language.'**
+  String get outputLidModelNeeded;
+
+  /// No description provided for @outputLidModelsButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Models'**
+  String get outputLidModelsButton;
+
+  /// No description provided for @outputLidFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t detect the language.'**
+  String get outputLidFailed;
+
+  /// No description provided for @outputLidDetected.
+  ///
+  /// In en, this message translates to:
+  /// **'Detected language: {code} ({pct}%) [{model}]'**
+  String outputLidDetected(String code, String pct, String model);
+
+  /// No description provided for @outputTagSegment.
+  ///
+  /// In en, this message translates to:
+  /// **'Tag segment'**
+  String get outputTagSegment;
+
+  /// No description provided for @dialogCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get dialogCancel;
+
+  /// No description provided for @dialogAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Add'**
+  String get dialogAdd;
+
+  /// No description provided for @dialogApply.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply'**
+  String get dialogApply;
+
+  /// No description provided for @settingsAllFilesAccessNeeded.
+  ///
+  /// In en, this message translates to:
+  /// **'\"All files access\" needed'**
+  String get settingsAllFilesAccessNeeded;
+
+  /// No description provided for @settingsAllFilesAccessExplanation.
+  ///
+  /// In en, this message translates to:
+  /// **'Picking a folder outside the app sandbox needs Android\'s \"All files access\" permission. Tap \"Open Settings\", enable \"All files access\" for CrisperWeaver, then come back. After uninstalling and reinstalling the app, the grant is reset by Android and must be re-enabled.'**
+  String get settingsAllFilesAccessExplanation;
+
+  /// No description provided for @settingsOpenSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Settings'**
+  String get settingsOpenSettings;
+
+  /// No description provided for @settingsAllFilesAccessDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'\"All files access\" denied — using sandbox dir instead.'**
+  String get settingsAllFilesAccessDenied;
+
+  /// No description provided for @fingerprintDedupTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Already transcribed'**
+  String get fingerprintDedupTitle;
+
+  /// No description provided for @fingerprintDedupBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This file has already been transcribed. Transcribe again?'**
+  String get fingerprintDedupBody;
+
+  /// No description provided for @fingerprintDedupTranscribeAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Transcribe again'**
+  String get fingerprintDedupTranscribeAgain;
 }
 
 class _AppLocalizationsDelegate

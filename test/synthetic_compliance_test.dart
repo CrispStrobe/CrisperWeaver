@@ -226,8 +226,8 @@ void main() {
     test('default returns a plain array (backward compatible)', () {
       final out = FileUtils.generateJsonContent(segs);
       final decoded = jsonDecode(out);
-      expect(decoded, isA<List>());
-      expect((decoded as List).length, 1);
+      expect(decoded, isA<List<dynamic>>());
+      expect((decoded as List<dynamic>).length, 1);
     });
 
     test('syntheticDisclosure wraps in object with _disclosure key', () {
@@ -236,8 +236,8 @@ void main() {
       final decoded = jsonDecode(out) as Map<String, dynamic>;
       expect(decoded.containsKey('_disclosure'), isTrue);
       expect(decoded['_disclosure'], contains('AI-generated'));
-      expect(decoded['segments'], isA<List>());
-      expect((decoded['segments'] as List).length, 1);
+      expect(decoded['segments'], isA<List<dynamic>>());
+      expect((decoded['segments'] as List<dynamic>).length, 1);
     });
 
     test('null speaker preserved in disclosure mode', () {

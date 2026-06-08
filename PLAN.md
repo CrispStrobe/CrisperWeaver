@@ -117,7 +117,7 @@ The same unified dispatcher is shared with the Python (`crispasr.Session`) and R
 | Language auto-detect (Whisper)             | ✅ via CrispASR 0.2.0 `crispasr_detect_language`                      |
 | VAD (Silero) — end to end                  | ✅ shipped in v0.1.7 via CrispASR 0.4.4 `crispasr_session_transcribe_vad`; single Advanced Options toggle, Silero GGUF bundled as asset, whisper + session paths both wired |
 | Streaming transcription (Whisper)          | ✅ via CrispASR 0.3.0 `crispasr_stream_*` — 10s window / 3s step       |
-| i18n (en + de)                             | ✅ `flutter_localizations` + `lib/l10n/*.arb` (757 keys each, full en/de parity). All screens + widgets migrated, including the Model Management HF-repo dialogs and the speaker-enroll flow (May 2026). Two paths stay deliberately inline (documented in-code): the Android-only "All files access" Settings dialog and the Translate auto-detect niche path — both carry an explicit "keep inline" rationale. |
+| i18n (en + de)                             | ✅ `flutter_localizations` + `lib/l10n/*.arb` (866 keys each, full en/de parity). All screens + widgets migrated, including the Model Management HF-repo dialogs and the speaker-enroll flow (May 2026) plus 33 newly-migrated strings for §5.25 features (June 2026). `flutter gen-l10n` succeeds on Flutter 3.35.1. Two paths stay deliberately inline (documented in-code): the Android-only "All files access" Settings dialog and the Translate auto-detect niche path — both carry an explicit "keep inline" rationale. |
 | Real speaker diarization (library API)     | ✅ via CrispASR 0.4.5 `crispasr_diarize_segments_abi` — `lib/services/diarization_service.dart` now calls the shared lib (energy / xcorr / vad-turns / pyannote). MFCC/k-means stopgap removed. |
 | Language auto-detect for non-Whisper backends | ✅ via CrispASR 0.4.6 `crispasr_detect_language_pcm` — `LidService` (`lib/services/lid_service.dart`) runs whisper-tiny LID before session backends when the user picks "auto" and any multilingual whisper model is downloaded. |
 | Word timestamps for LLM backends           | ✅ via CrispASR 0.4.7 `crispasr_align_words_abi` — `AlignerService` (`lib/services/aligner_service.dart`) runs canary-CTC / qwen3-fa as a post-step for qwen3 / voxtral / granite when the user has word-timestamps enabled and an aligner GGUF is on disk. |
@@ -868,22 +868,21 @@ automation. Grouped by projected impact; priority picks marked with ⚡.
   management; Android overlay permission UX (deferred — Android uses
   the same screen in-app for now).
 
-* **5.25.4 Speaker-adaptive vocabulary** — ✅ **Model shipped
+* **5.25.4 Speaker-adaptive vocabulary** — ✅ **Shipped
   June 2026.** `SpeakerVocab` model with per-speaker term lists,
   persisted as `<name>.vocab.json` alongside `.spk` profiles.
   `mergeForSpeakers(allVocabs, identifiedSpeakers)` computes the
   union of all active speakers' terms for injection into
-  `initial_prompt`.
+  `initial_prompt`. **Wired (commit `be6526f`):** after diarisation
+  resolves speaker names, `SpeakerVocab.mergeForSpeakers()` injects
+  domain terms into `advancedOptionsProvider` vocabulary for
+  subsequent transcriptions (both single-file and batch paths).
 
   **Files:** `lib/models/speaker_vocab.dart`.
 
-  **Remaining:** wire into transcription dispatch (after speaker
-  identification resolves clusters, merge active vocabs and inject
-  into `AdvancedTranscribeOptions.vocabularyChips`). Add vocab
-  editor to Settings → Speakers screen.
+  **Remaining:** Add vocab editor to Settings → Speakers screen.
 
-  **Effort:** ~1–2 days. **Risk:** low — layering on two proven
-  features.
+  **Effort:** ~0.5 day. **Risk:** low.
 
 * **5.25.5 Multilingual simultaneous transcription** — ✅ **Service
   shipped June 2026.** `MultilingualTranscriptionService` runs
@@ -977,18 +976,17 @@ automation. Grouped by projected impact; priority picks marked with ⚡.
 
   **Effort:** ~1 day. **Risk:** low — additive schema change.
 
-* **5.25.11 Audio fingerprint deduplication** — ✅ **Service shipped
+* **5.25.11 Audio fingerprint deduplication** — ✅ **Shipped
   June 2026.** `AudioFingerprintService` computes SHA-256 fingerprints
   from the first 30 s of PCM (8-bit quantized for exact match, 4-bit
   downsampled for coarse/tolerant match). Deterministic, no external
-  deps.
+  deps. **Wired (commit `be6526f`):** watch folder auto-skips
+  duplicates; batch enqueue silently skips; single-file drag-drop
+  shows a confirmation dialog before re-processing.
 
   **Files:** `lib/services/audio_fingerprint_service.dart`.
 
-  **Remaining:** wire into batch queue intake (check existing
-  fingerprints in history JSON before enqueuing).
-
-  **Effort:** ~0.5 day. **Risk:** low.
+  **Effort:** done. **Risk:** n/a.
 
 #### Tier C — Lower effort, high polish
 
@@ -1004,21 +1002,20 @@ automation. Grouped by projected impact; priority picks marked with ⚡.
 
   **Effort:** ~0.5 day. **Risk:** low.
 
-* **5.25.13 Model A/B testing mode** — ✅ **Service shipped
-  June 2026.** `AbTestResult` stores per-segment winner picks ('A',
-  'B', 'tie') with aggregate stats (winsA, winsB, overallWinner).
-  `ModelRatings` aggregates results across tests into a win-rate
-  leaderboard. Results feed into §5.25.7's diff view.
+* **5.25.13 Model A/B testing mode** — ✅ **Shipped June 2026.**
+  `AbTestResult` stores per-segment winner picks ('A', 'B', 'tie')
+  with aggregate stats (winsA, winsB, overallWinner). `ModelRatings`
+  aggregates results across tests into a win-rate leaderboard.
+  Results feed into §5.25.7's diff view. **Wired (commit
+  `be6526f`):** `_showModelComparison` now spawns two single-worker
+  pools via `Future.wait` instead of running models sequentially.
+  `ModelRatings` persisted to `<app-docs>/model_ratings.json`.
 
   **Files:** `lib/services/ab_test_service.dart`.
 
-  **Remaining:** wire "Compare models" action on the transcribe
-  screen (run two worker-pool jobs, present in
-  TranscriptCompareScreen, collect picks). Persist `ModelRatings`
-  to `<app-docs>/model_ratings.json`.
+  **Remaining:** none (v1 complete).
 
-  **Effort:** ~1 day. **Risk:** low — builds on existing parallel
-  pool + diff view.
+  **Effort:** done. **Risk:** n/a.
 
 * **5.25.14 Export to note-taking tools** — ✅ **Shipped June 2026.**
   `NoteExportService` with four pure formatters: `toObsidian` (YAML

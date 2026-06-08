@@ -1843,10 +1843,12 @@ class AppLocalizationsDe extends AppLocalizations {
   String get synthTextHint => 'Text zum Synthetisieren eingeben…';
 
   @override
-  String get synthDiaTextHint => '[S1] Hallo, wie geht es dir? [S2] Mir geht es gut, danke!';
+  String get synthDiaTextHint =>
+      '[S1] Hallo, wie geht es dir? [S2] Mir geht es gut, danke!';
 
   @override
-  String get synthDiaHelper => 'Dia verwendet [S1]- und [S2]-Tags für verschiedene Sprecher im Dialog. Verwende Texte mit 100+ Zeichen für beste Ergebnisse.';
+  String get synthDiaHelper =>
+      'Dia verwendet [S1]- und [S2]-Tags für verschiedene Sprecher im Dialog. Verwende Texte mit 100+ Zeichen für beste Ergebnisse.';
 
   @override
   String get synthRunButton => 'Synthetisieren';
@@ -2274,7 +2276,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get synthInstructHelper =>
-      'Natursprachliche Beschreibung der gewünschten Stimme („warmer weiblicher Erzähler, leichter britischer Akzent”). Verwendet von qwen3-tts VoiceDesign und Parler-TTS; bei anderen Backends ignoriert.';
+      'Natursprachliche Beschreibung der gewünschten Stimme („warmer weiblicher Erzähler, leichter britischer Akzent“). Verwendet von qwen3-tts VoiceDesign und Parler-TTS; bei anderen Backends ignoriert.';
 
   @override
   String get synthTrimSilence => 'Stille beschneiden';
@@ -2591,6 +2593,24 @@ class AppLocalizationsDe extends AppLocalizations {
       'Obergrenze für AR-Sprach-Tokens pro Aufruf (Chatterbox). 1000 ≈ 20 s; bei langen Eingaben erhöhen, bei Ausreißern senken.';
 
   @override
+  String synthSeed(int n) {
+    return 'Seed: $n';
+  }
+
+  @override
+  String get synthSeedHelper =>
+      'Zufalls-Seed für reproduzierbare Ausgabe (Chatterbox, VibeVoice, Qwen3-TTS, Orpheus). 0 = nicht-deterministisch.';
+
+  @override
+  String synthFrequencyPenalty(String value) {
+    return 'Frequenzstrafe: $value';
+  }
+
+  @override
+  String get synthFrequencyPenaltyHelper =>
+      'Bestraft wiederholte Tokens in autoregressiven Backends. 0 = aus; erhöhen, um Schleifen-Stotter-Artefakte zu reduzieren.';
+
+  @override
   String get synthClearPhonemeCache => 'Phonem-Cache leeren';
 
   @override
@@ -2826,7 +2846,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String get speakerConsentTitle => 'Einwilligung biometrische Daten';
 
   @override
-  String get speakerConsentBody => 'Die Sprecherregistrierung erstellt einen Stimmabdruck (biometrische Daten gemäß DSGVO Art. 9). Diese Daten werden ausschließlich auf Ihrem Gerät gespeichert und niemals übertragen. Sie können Ihr Sprecherprofil jederzeit in der Sprecherverwaltung löschen.\n\nMit dem Fortfahren erteilen Sie Ihre ausdrückliche Einwilligung zur Verarbeitung dieser biometrischen Daten zur Sprecheridentifikation.';
+  String get speakerConsentBody =>
+      'Die Sprecherregistrierung erstellt einen Stimmabdruck (biometrische Daten gemäß DSGVO Art. 9). Diese Daten werden ausschließlich auf Ihrem Gerät gespeichert und niemals übertragen. Sie können Ihr Sprecherprofil jederzeit in der Sprecherverwaltung löschen.\n\nMit dem Fortfahren erteilen Sie Ihre ausdrückliche Einwilligung zur Verarbeitung dieser biometrischen Daten zur Sprecheridentifikation.';
 
   @override
   String get speakerConsentAgree => 'Ich stimme zu';
@@ -2835,8 +2856,294 @@ class AppLocalizationsDe extends AppLocalizations {
   String get aboutSyntheticCompliance => 'Synthetische Inhalte';
 
   @override
-  String get aboutSyntheticComplianceText => 'Synthetische Sprachausgaben werden mit Wasserzeichen versehen und enthalten maschinenlesbare Herkunftsmetadaten. Die Sprecherregistrierung erfordert eine ausdrückliche biometrische Einwilligung (DSGVO Art. 9). Alle Daten verbleiben auf dem Gerät; Sie können Ihre Daten jederzeit löschen.';
+  String get aboutSyntheticComplianceText =>
+      'Synthetische Sprachausgaben werden mit Wasserzeichen versehen und enthalten maschinenlesbare Herkunftsmetadaten. Die Sprecherregistrierung erfordert eine ausdrückliche biometrische Einwilligung (DSGVO Art. 9). Alle Daten verbleiben auf dem Gerät; Sie können Ihre Daten jederzeit löschen.';
 
   @override
-  String get syntheticDisclosureNote => 'Dieser Inhalt enthält KI-generierte synthetische Sprache.';
+  String get syntheticDisclosureNote =>
+      'Dieser Inhalt enthält KI-generierte synthetische Sprache.';
+
+  @override
+  String get historySearchSemanticTooltip => 'Semantische Suche (aktiv)';
+
+  @override
+  String get historySearchSubstringTooltip =>
+      'Textsuche (tippen für semantisch)';
+
+  @override
+  String get historyCompareButton => 'Vergleichen…';
+
+  @override
+  String get historyCompareNoOtherEntries =>
+      'Keine anderen Einträge zum Vergleichen vorhanden';
+
+  @override
+  String get historyComparePickerTitle => 'Vergleichen mit…';
+
+  @override
+  String get menuCompareModels => 'Modelle vergleichen';
+
+  @override
+  String get menuSubtitleOverlay => 'Untertitel-Overlay';
+
+  @override
+  String get advancedTagSegmentLanguages => 'Segmentsprachen markieren';
+
+  @override
+  String get advancedTagSegmentLanguagesSubtitle =>
+      'Sprache pro Segment erkennen (mehrsprachig)';
+
+  @override
+  String get exportObsidian => 'Obsidian';
+
+  @override
+  String get exportNotion => 'Notion';
+
+  @override
+  String get exportLogseq => 'Logseq';
+
+  @override
+  String get exportYouTubeChapters => 'YouTube-Kapitel';
+
+  @override
+  String get exportDetectChapters => 'Kapitel erkennen';
+
+  @override
+  String get exportPodcastChapters => 'Podcast-Kapitel (JSON)';
+
+  @override
+  String get compareModelsNeedSecond =>
+      'Ein zweites Modell herunterladen zum Vergleichen';
+
+  @override
+  String get compareModelsPickerTitle => 'Vergleichen mit Modell…';
+
+  @override
+  String compareModelsRunning(String modelA, String modelB) {
+    return 'A/B-Test läuft: $modelA vs $modelB…';
+  }
+
+  @override
+  String compareModelsFailed(String error) {
+    return 'A/B-Test fehlgeschlagen: $error';
+  }
+
+  @override
+  String get settingsWatchFolder => 'Überwachungsordner';
+
+  @override
+  String get settingsWatchFolderAutoTranscribe =>
+      'Neue Dateien automatisch transkribieren';
+
+  @override
+  String settingsWatchFolderWatching(String path) {
+    return 'Überwacht: $path';
+  }
+
+  @override
+  String get settingsWatchFolderMonitorHint =>
+      'Ordner auf neue Audiodateien überwachen';
+
+  @override
+  String get settingsWatchFolderPath => 'Überwachungsordner-Pfad';
+
+  @override
+  String get settingsWatchFolderNotSet => 'Nicht festgelegt';
+
+  @override
+  String get settingsWatchFolderPickerTitle => 'Überwachungsordner auswählen';
+
+  @override
+  String get settingsSpeakerVocab => 'Sprecher-Vokabular';
+
+  @override
+  String get settingsSpeakerVocabSubtitle => 'Sprecherspezifische Fachbegriffe';
+
+  @override
+  String get settingsSpeakerVocabDialogTitle => 'Sprecher-Vokabular';
+
+  @override
+  String settingsSpeakerVocabAddTermTitle(String name) {
+    return 'Begriff für $name hinzufügen';
+  }
+
+  @override
+  String get settingsSpeakerVocabAddTermHint => 'Fachbegriff oder Phrase';
+
+  @override
+  String get settingsSpeakerVocabNoSpeakers =>
+      'Keine registrierten Sprecher. Zuerst Sprecher in der Sprecherverwaltung registrieren.';
+
+  @override
+  String get add => 'Hinzufügen';
+
+  @override
+  String get synthLexiconSectionTitle => 'Aussprachelexikon';
+
+  @override
+  String get synthLexiconAddTitle => 'Aussprache hinzufügen';
+
+  @override
+  String get synthLexiconAddEntryTooltip => 'Eintrag hinzufügen';
+
+  @override
+  String get synthLexiconWordLabel => 'Wort';
+
+  @override
+  String get synthLexiconWordHint => 'z.B. CrispASR';
+
+  @override
+  String get synthLexiconPronunciationLabel => 'Aussprache';
+
+  @override
+  String get synthLexiconPronunciationHint => 'z.B. Krisp A S R';
+
+  @override
+  String get synthLexiconIpaLabel => 'IPA-Notation';
+
+  @override
+  String get synthLexiconEmpty =>
+      'Keine Einträge. Wort → Aussprache-Zuordnungen hinzufügen.';
+
+  @override
+  String get outputSegmentEditedTooltip => 'Bearbeitet';
+
+  @override
+  String get subtitleExitOverlayTooltip => 'Overlay beenden';
+
+  @override
+  String get subtitleSmallerTextTooltip => 'Kleinerer Text';
+
+  @override
+  String get subtitleLargerTextTooltip => 'Größerer Text';
+
+  @override
+  String get subtitleTogglePositionTooltip => 'Position wechseln';
+
+  @override
+  String get subtitleToggleBackgroundTooltip => 'Hintergrund umschalten';
+
+  @override
+  String get subtitleWaitingForTranscription => 'Warte auf Transkription…';
+
+  @override
+  String get compareTranscriptsTitle => 'Transkripte vergleichen';
+
+  @override
+  String get compareLeftFallback => 'Links';
+
+  @override
+  String get compareRightFallback => 'Rechts';
+
+  @override
+  String get compareLeftWords => 'Wörter links';
+
+  @override
+  String get compareRightWords => 'Wörter rechts';
+
+  @override
+  String get compareSimilarity => 'Ähnlichkeit';
+
+  @override
+  String get abTestNeedSecondModel =>
+      'Zweites Modell herunterladen zum Vergleichen';
+
+  @override
+  String get abTestPickModel => 'Vergleichen mit Modell…';
+
+  @override
+  String abTestRunning(String modelA, String modelB) {
+    return 'A/B-Test: $modelA vs $modelB…';
+  }
+
+  @override
+  String abTestFailed(String error) {
+    return 'A/B-Test fehlgeschlagen: $error';
+  }
+
+  @override
+  String get subtitleOverlayExitTooltip => 'Overlay schließen';
+
+  @override
+  String get subtitleOverlaySmallerText => 'Text verkleinern';
+
+  @override
+  String get subtitleOverlayLargerText => 'Text vergrößern';
+
+  @override
+  String get subtitleOverlayTogglePosition => 'Position umschalten';
+
+  @override
+  String get subtitleOverlayToggleBackground => 'Hintergrund umschalten';
+
+  @override
+  String get subtitleOverlayWaiting => 'Warte auf Transkription…';
+
+  @override
+  String get outputNoTranscriptionYet => 'Noch keine Transkription';
+
+  @override
+  String get outputSelectAudioFile =>
+      'Audiodatei auswählen und Transkription starten';
+
+  @override
+  String get outputNoResultsFound => 'Keine Ergebnisse gefunden';
+
+  @override
+  String get outputTryDifferentSearch => 'Anderen Suchbegriff versuchen';
+
+  @override
+  String get outputEdited => 'Bearbeitet';
+
+  @override
+  String get outputLidModelNeeded =>
+      'Text-Spracherkennungsmodell herunterladen (CLD3, GlotLID oder FastText LID-176) um die Sprache zu erkennen.';
+
+  @override
+  String get outputLidModelsButton => 'Modelle';
+
+  @override
+  String get outputLidFailed => 'Sprache konnte nicht erkannt werden.';
+
+  @override
+  String outputLidDetected(String code, String pct, String model) {
+    return 'Erkannte Sprache: $code ($pct%) [$model]';
+  }
+
+  @override
+  String get outputTagSegment => 'Segment taggen';
+
+  @override
+  String get dialogCancel => 'Abbrechen';
+
+  @override
+  String get dialogAdd => 'Hinzufügen';
+
+  @override
+  String get dialogApply => 'Anwenden';
+
+  @override
+  String get settingsAllFilesAccessNeeded =>
+      '\"Zugriff auf alle Dateien\" benötigt';
+
+  @override
+  String get settingsAllFilesAccessExplanation =>
+      'Um einen Ordner außerhalb der App-Sandbox auszuwählen, wird die Android-Berechtigung \"Zugriff auf alle Dateien\" benötigt. Tippe auf \"Einstellungen öffnen\", aktiviere \"Zugriff auf alle Dateien\" für CrisperWeaver und komme dann zurück. Nach Deinstallation und Neuinstallation muss die Berechtigung erneut erteilt werden.';
+
+  @override
+  String get settingsOpenSettings => 'Einstellungen öffnen';
+
+  @override
+  String get settingsAllFilesAccessDenied =>
+      '\"Zugriff auf alle Dateien\" abgelehnt — Sandbox-Verzeichnis wird verwendet.';
+
+  @override
+  String get fingerprintDedupTitle => 'Bereits transkribiert';
+
+  @override
+  String get fingerprintDedupBody =>
+      'Diese Datei wurde bereits transkribiert. Erneut transkribieren?';
+
+  @override
+  String get fingerprintDedupTranscribeAgain => 'Erneut transkribieren';
 }

@@ -562,7 +562,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           subtitle: Text(watchPath ?? l.settingsWatchFolderNotSet),
           trailing: const Icon(Icons.folder_open),
           onTap: () async {
-            final result = await FilePicker.platform.getDirectoryPath(
+            final result = await FilePicker.getDirectoryPath(
               dialogTitle: l.settingsWatchFolderPickerTitle,
             );
             if (result != null) {

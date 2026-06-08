@@ -1,10 +1,9 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 
-import 'log_service.dart';
+import 'log_service.dart' show Log;
 
 /// §5.25.8 — Watch-folder / scheduled transcription.
 ///
@@ -40,12 +39,12 @@ class WatchFolderService {
     stop();
     final dir = Directory(dirPath);
     if (!dir.existsSync()) {
-      LogService.instance.log('WatchFolder: directory does not exist: $dirPath');
+      Log.instance.i('watch-folder','WatchFolder: directory does not exist: $dirPath');
       return;
     }
     _watchPath = dirPath;
     _watchSub = dir.watch(events: FileSystemEvent.create).listen(_onEvent);
-    LogService.instance.log('WatchFolder: watching $dirPath');
+    Log.instance.i('watch-folder','WatchFolder: watching $dirPath');
   }
 
   /// Stop watching.
@@ -73,7 +72,7 @@ class WatchFolderService {
       _pendingFiles.remove(path);
       final file = File(path);
       if (file.existsSync() && file.lengthSync() > 0) {
-        LogService.instance.log('WatchFolder: new audio file: $path');
+        Log.instance.i('watch-folder','WatchFolder: new audio file: $path');
         onNewFile(path);
       }
     });

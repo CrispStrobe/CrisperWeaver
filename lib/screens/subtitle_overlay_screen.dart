@@ -30,7 +30,7 @@ class _SubtitleOverlayScreenState
   static const _channel = MethodChannel('crisperweaver/window_overlay');
 
   double _fontSize = 28.0;
-  double _opacity = 0.85;
+  final double _opacity = 0.85;
   bool _showBackground = true;
   Alignment _textAlignment = Alignment.bottomCenter;
 

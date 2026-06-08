@@ -1,7 +1,5 @@
 import 'dart:typed_data';
 
-import 'package:crispasr/crispasr.dart' as crispasr;
-
 import '../engines/transcription_engine.dart';
 import 'lid_service.dart';
 import 'log_service.dart';
