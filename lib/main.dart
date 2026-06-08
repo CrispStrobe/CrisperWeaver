@@ -246,6 +246,16 @@ class _CrisperWeaverAppState extends ConsumerState<CrisperWeaverApp> {
       // batch slice).
       unawaited(ref.read(batchQueueProvider.notifier).load());
 
+      // §5.25.11 — Pre-load known audio fingerprints from history so
+      // the batch queue can detect already-transcribed files.
+      unawaited(ref.read(historyServiceProvider).list().then((entries) {
+        final fps = entries
+            .where((e) => e.audioFingerprint != null)
+            .map((e) => e.audioFingerprint!)
+            .toList();
+        ref.read(batchQueueProvider.notifier).loadKnownFingerprints(fps);
+      }));
+
       // §5.25.8 — Start watch-folder service if enabled.
       if (Platform.isMacOS || Platform.isLinux || Platform.isWindows) {
         final settings = ref.read(settingsServiceProvider);

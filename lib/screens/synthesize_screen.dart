@@ -5,8 +5,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../models/pronunciation_lexicon.dart';
 import '../services/voice_baking_service.dart';
 
 import '../l10n/generated/app_localizations.dart';
@@ -121,6 +123,9 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
   /// Frequency penalty for AR token repetition.
   double _frequencyPenalty = 0.0;
 
+  /// §5.25.9 — Pronunciation lexicon loaded from disk.
+  PronunciationLexicon? _lexicon;
+
   @override
   void initState() {
     super.initState();
@@ -136,6 +141,96 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
       _refTextController.text = rt;
     }
     _refresh();
+    _loadLexicon();
+  }
+
+  /// §5.25.9 — Load pronunciation lexicon from disk and inject into TTS.
+  Future<void> _loadLexicon() async {
+    try {
+      final docs = await getApplicationDocumentsDirectory();
+      final loaded = await PronunciationLexicon.load(docs.path);
+      if (!mounted) return;
+      setState(() => _lexicon = loaded);
+      ref.read(ttsServiceProvider).lexicon = loaded;
+    } catch (e) {
+      Log.instance.w('synth', 'Failed to load lexicon: $e');
+    }
+  }
+
+  /// §5.25.9 — Show dialog to add a new lexicon entry.
+  Future<void> _addLexiconEntry() async {
+    final wordCtrl = TextEditingController();
+    final replacementCtrl = TextEditingController();
+    bool isIpa = false;
+    final l = AppLocalizations.of(context);
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: Text(l.synthLexiconAddTitle),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: wordCtrl,
+                decoration: InputDecoration(
+                  labelText: l.synthLexiconWordLabel,
+                  hintText: l.synthLexiconWordHint,
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: replacementCtrl,
+                decoration: InputDecoration(
+                  labelText: l.synthLexiconPronunciationLabel,
+                  hintText: l.synthLexiconPronunciationHint,
+                ),
+              ),
+              SwitchListTile(
+                title: Text(l.synthLexiconIpaLabel),
+                value: isIpa,
+                onChanged: (v) => setDialogState(() => isIpa = v),
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: Text(l.cancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: Text(l.add),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (result != true || wordCtrl.text.isEmpty) return;
+    final entry = LexiconEntry(
+      word: wordCtrl.text,
+      replacement: replacementCtrl.text,
+      isIpa: isIpa,
+    );
+    final updated = (_lexicon ?? PronunciationLexicon(entries: const [])).put(entry);
+    final docs = await getApplicationDocumentsDirectory();
+    await updated.save(docs.path);
+    if (!mounted) return;
+    setState(() => _lexicon = updated);
+    ref.read(ttsServiceProvider).lexicon = updated;
+  }
+
+  /// §5.25.9 — Remove a lexicon entry by word.
+  Future<void> _removeLexiconEntry(String word) async {
+    if (_lexicon == null) return;
+    final updated = _lexicon!.remove(word);
+    final docs = await getApplicationDocumentsDirectory();
+    await updated.save(docs.path);
+    if (!mounted) return;
+    setState(() => _lexicon = updated);
+    ref.read(ttsServiceProvider).lexicon = updated;
   }
 
   @override
@@ -990,6 +1085,67 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
                         divisions: 40,
                         onChanged: (v) =>
                             setState(() => _frequencyPenalty = v),
+                      ),
+                      const SizedBox(height: 8),
+                      // §5.25.9 — Pronunciation lexicon editor.
+                      Card(
+                        elevation: 0,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .surfaceContainerHighest,
+                        child: Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(Icons.spellcheck, size: 18),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(l.synthLexiconSectionTitle,
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.w600)),
+                                  ),
+                                  IconButton(
+                                    tooltip: l.synthLexiconAddEntryTooltip,
+                                    icon:
+                                        const Icon(Icons.add_circle, size: 20),
+                                    onPressed: _addLexiconEntry,
+                                  ),
+                                ],
+                              ),
+                              if (_lexicon != null &&
+                                  _lexicon!.entries.isNotEmpty) ...[
+                                const SizedBox(height: 4),
+                                ...(_lexicon!.entries.values.map((e) => ListTile(
+                                      dense: true,
+                                      contentPadding: EdgeInsets.zero,
+                                      title: Text(
+                                          '${e.word} → ${e.replacement}'),
+                                      subtitle: e.isIpa
+                                          ? const Text('IPA',
+                                              style: TextStyle(fontSize: 10))
+                                          : null,
+                                      trailing: IconButton(
+                                        icon: const Icon(Icons.delete_outline,
+                                            size: 18),
+                                        onPressed: () => _removeLexiconEntry(
+                                            e.word),
+                                      ),
+                                    ))),
+                              ] else
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 4),
+                                  child: Text(
+                                    l.synthLexiconEmpty,
+                                    style: const TextStyle(
+                                        fontSize: 11, color: Colors.grey),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
                       ),
                       const SizedBox(height: 8),
                       // Kokoro phoneme cache — purely a runtime

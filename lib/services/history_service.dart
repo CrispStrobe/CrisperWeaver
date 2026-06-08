@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
 import '../engines/transcription_engine.dart';
+import 'audio_fingerprint_service.dart';
 
 /// A single saved transcription, shown in the history screen.
 class HistoryEntry {
@@ -175,8 +176,19 @@ class HistoryService {
     bool diarizationEnabled = false,
     Duration processingTime = Duration.zero,
     Map<String, String> speakerNames = const {},
+    String? audioFingerprint,
   }) async {
     final dir = await _ensureDir();
+    // §5.25.11 — Compute file fingerprint if a source path is provided
+    // and no explicit fingerprint was passed.
+    String? fp = audioFingerprint;
+    if (fp == null && sourcePath != null) {
+      try {
+        fp = await AudioFingerprintService.computeFileFingerprint(sourcePath);
+      } catch (_) {
+        // Non-critical — dedup just won't catch this file.
+      }
+    }
     final entry = HistoryEntry(
       id: _uuid.v4(),
       createdAt: DateTime.now(),
@@ -189,6 +201,7 @@ class HistoryService {
       diarizationEnabled: diarizationEnabled,
       processingTime: processingTime,
       speakerNames: speakerNames,
+      audioFingerprint: fp,
     );
     final file = File(p.join(dir.path, '${entry.id}.json'));
     await file.writeAsString(

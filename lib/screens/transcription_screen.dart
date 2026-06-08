@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
@@ -32,6 +33,10 @@ import '../services/settings_service.dart';
 import '../services/transcription_worker_pool.dart';
 import '../utils/file_utils.dart';
 import '../utils/responsive.dart';
+import '../services/ab_test_service.dart';
+import '../services/chapter_detection_service.dart';
+import '../services/lid_service.dart';
+import '../services/multilingual_transcription_service.dart';
 import '../services/note_export_service.dart';
 import '../widgets/advanced_options_widget.dart';
 import '../widgets/audio_recorder_widget.dart';
@@ -84,6 +89,9 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
   // Drop-target state — true while a compatible file is hovering over
   // the window so we can paint a tinted overlay.
   bool _dropHover = false;
+  /// §5.25.5 — Tag each segment with its detected language after
+  /// transcription completes. Only meaningful with multilingual models.
+  bool _tagSegmentLanguages = false;
 
   @override
   void initState() {
@@ -374,6 +382,9 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
                       case 'presets':
                         _openPresetsDialog();
                         break;
+                      case 'compare-models':
+                        _showModelComparison();
+                        break;
                       case 'subtitle-overlay':
                         context.push('/subtitle-overlay');
                         break;
@@ -425,11 +436,20 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
                         dense: true,
                       ),
                     ),
-                    const PopupMenuItem(
+                    PopupMenuItem(
+                      value: 'compare-models',
+                      child: ListTile(
+                        leading: const Icon(Icons.compare_arrows),
+                        title: Text(l.menuCompareModels),
+                        contentPadding: EdgeInsets.zero,
+                        dense: true,
+                      ),
+                    ),
+                    PopupMenuItem(
                       value: 'subtitle-overlay',
                       child: ListTile(
-                        leading: Icon(Icons.subtitles),
-                        title: Text('Subtitle overlay'),
+                        leading: const Icon(Icons.subtitles),
+                        title: Text(l.menuSubtitleOverlay),
                         contentPadding: EdgeInsets.zero,
                         dense: true,
                       ),
@@ -470,10 +490,16 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
                   tooltip: l.presetsTooltip,
                   onPressed: _openPresetsDialog,
                 ),
+                // §5.25.13 — Model A/B comparison.
+                IconButton(
+                  icon: const Icon(Icons.compare_arrows),
+                  tooltip: l.menuCompareModels,
+                  onPressed: _showModelComparison,
+                ),
                 // §5.25.3 — Subtitle overlay / teleprompter mode.
                 IconButton(
                   icon: const Icon(Icons.subtitles),
-                  tooltip: 'Subtitle overlay',
+                  tooltip: l.menuSubtitleOverlay,
                   onPressed: () => context.push('/subtitle-overlay'),
                 ),
               ],
@@ -937,6 +963,17 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
         _buildModelSection(),
 
         const SizedBox(height: 16),
+
+        // §5.25.5 — Tag segment languages after transcription.
+        SwitchListTile(
+          title: Text(AppLocalizations.of(context).advancedTagSegmentLanguages),
+          subtitle: Text(AppLocalizations.of(context).advancedTagSegmentLanguagesSubtitle),
+          value: _tagSegmentLanguages,
+          onChanged: (v) => setState(() => _tagSegmentLanguages = v),
+          dense: true,
+        ),
+
+        const SizedBox(height: 8),
 
         // Advanced decoding knobs (translate / beam / initial prompt).
         const AdvancedDecodingSection(),
@@ -1554,35 +1591,52 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
                       ),
                       const PopupMenuDivider(),
                       // §5.25.14 — Note-taking tool exports
-                      const PopupMenuItem(
+                      PopupMenuItem(
                         value: 'save_obsidian',
                         child: ListTile(
-                          leading: Icon(Icons.notes, size: 20),
-                          title: Text('Obsidian'),
+                          leading: const Icon(Icons.notes, size: 20),
+                          title: Text(l.exportObsidian),
                           dense: true,
                         ),
                       ),
-                      const PopupMenuItem(
+                      PopupMenuItem(
                         value: 'save_notion',
                         child: ListTile(
-                          leading: Icon(Icons.dashboard, size: 20),
-                          title: Text('Notion'),
+                          leading: const Icon(Icons.dashboard, size: 20),
+                          title: Text(l.exportNotion),
                           dense: true,
                         ),
                       ),
-                      const PopupMenuItem(
+                      PopupMenuItem(
                         value: 'save_logseq',
                         child: ListTile(
-                          leading: Icon(Icons.account_tree, size: 20),
-                          title: Text('Logseq'),
+                          leading: const Icon(Icons.account_tree, size: 20),
+                          title: Text(l.exportLogseq),
                           dense: true,
                         ),
                       ),
-                      const PopupMenuItem(
+                      PopupMenuItem(
                         value: 'save_chapters',
                         child: ListTile(
-                          leading: Icon(Icons.bookmark_outline, size: 20),
-                          title: Text('YouTube chapters'),
+                          leading: const Icon(Icons.bookmark_outline, size: 20),
+                          title: Text(l.exportYouTubeChapters),
+                          dense: true,
+                        ),
+                      ),
+                      // §5.25.6 — Auto-detected chapters via topic shifts.
+                      PopupMenuItem(
+                        value: 'save_chapters_detected',
+                        child: ListTile(
+                          leading: const Icon(Icons.auto_stories, size: 20),
+                          title: Text(l.exportDetectChapters),
+                          dense: true,
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: 'save_podcast_chapters',
+                        child: ListTile(
+                          leading: const Icon(Icons.podcasts, size: 20),
+                          title: Text(l.exportPodcastChapters),
                           dense: true,
                         ),
                       ),
@@ -2019,6 +2073,24 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
         modelId: engine?.currentModelId,
       );
       appStateNotifier.completeTranscription(segments, performance: perf);
+
+      // §5.25.5 — Post-transcription multilingual language tagging.
+      if (_tagSegmentLanguages && transcriptionService.lastAudioData != null) {
+        try {
+          final lidService = ref.read(lidServiceProvider);
+          final mlService =
+              MultilingualTranscriptionService(lidService: lidService);
+          final tagged = await mlService.tagSegmentLanguages(
+            audioData: transcriptionService.lastAudioData!,
+            segments: segments,
+            sampleRate: transcriptionService.lastSampleRate,
+          );
+          appStateNotifier.replaceSegments(tagged);
+          segments = tagged;
+        } catch (e) {
+          debugPrint('Multilingual tagging failed: $e');
+        }
+      }
 
       // Persist to history. Stash the new id on AppState so §5.1.3
       // inline edits can propagate back to the same JSON file via
@@ -2780,6 +2852,12 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
       case 'save_chapters':
         _saveAsNote(appState, 'chapters');
         break;
+      case 'save_chapters_detected':
+        _saveDetectedChapters(appState, podcast: false);
+        break;
+      case 'save_podcast_chapters':
+        _saveDetectedChapters(appState, podcast: true);
+        break;
     }
   }
 
@@ -2898,6 +2976,163 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
         SnackBar(
             content: Text(AppLocalizations.of(context)
                 .transcriptionSaveFailed(e.toString()))),
+      );
+    }
+  }
+
+  /// §5.25.6 — Detect chapters via topic-shift analysis and export
+  /// as YouTube timestamps or Podcasting 2.0 JSON.
+  Future<void> _saveDetectedChapters(AppState state,
+      {required bool podcast}) async {
+    try {
+      final segments = state.segments;
+      if (segments.isEmpty) return;
+      final chapters = ChapterDetectionService.detectChapters(
+        segments: segments,
+      );
+      String content;
+      String ext;
+      if (podcast) {
+        content = const JsonEncoder.withIndent('  ')
+            .convert(ChapterDetectionService.toPodcastChaptersJson(chapters));
+        ext = 'json';
+      } else {
+        content = ChapterDetectionService.toYouTubeFormat(chapters);
+        ext = 'txt';
+      }
+      final baseName =
+          'chapters-${podcast ? "podcast" : "youtube"}-${DateTime.now().millisecondsSinceEpoch}';
+      final dir = await FileUtils.getDocumentsSubdir('exports');
+      final file = File('${dir.path}/$baseName.$ext');
+      await file.writeAsString(content);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text(AppLocalizations.of(context)
+                .transcriptionSavedTo(file.path))),
+      );
+      await FileUtils.shareFile(file.path, subject: baseName);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text(AppLocalizations.of(context)
+                .transcriptionSaveFailed(e.toString()))),
+      );
+    }
+  }
+
+  /// §5.25.13 — Model A/B comparison. Shows a picker for a second model,
+  /// runs both models on the same audio, then navigates to the compare
+  /// screen with the two history entries.
+  Future<void> _showModelComparison() async {
+    final l = AppLocalizations.of(context);
+    final appState = ref.read(appStateProvider);
+    final filePath = _selectedFilePath ?? ref.read(selectedAudioPathProvider);
+    if (filePath == null || filePath.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l.transcriptionShareAudioMissing)),
+      );
+      return;
+    }
+
+    // Pick second model
+    final otherModels = _availableModels
+        .where((m) => m.name != _modelName && m.isDownloaded)
+        .toList();
+    if (otherModels.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Download a second model to compare')),
+      );
+      return;
+    }
+
+    final secondModel = await showDialog<ModelInfo>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: const Text('Compare with model…'),
+        children: [
+          for (final m in otherModels)
+            SimpleDialogOption(
+              onPressed: () => Navigator.of(ctx).pop(m),
+              child: Text('${m.name} (${m.backend})'),
+            ),
+        ],
+      ),
+    );
+    if (secondModel == null || !mounted) return;
+
+    // Run both models — use the batch queue for parallel execution.
+    // For simplicity, we enqueue both and let the user wait. The
+    // results will land in history, and we navigate to compare.
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Running A/B: $_modelName vs ${secondModel.name}…'),
+        duration: const Duration(seconds: 3),
+      ),
+    );
+
+    try {
+      final transcriptionService = ref.read(transcriptionServiceProvider);
+      final engine = transcriptionService.currentEngine;
+      final historyService = ref.read(historyServiceProvider);
+      final adv = ref.read(advancedOptionsProvider);
+
+      // Run model A (current)
+      final segmentsA = await transcriptionService.transcribeFile(
+        File(filePath),
+        language: _language,
+        translate: adv.translate,
+        beamSearch: adv.beamSearch,
+        vad: adv.vad,
+      );
+      final savedA = await historyService.save(
+        engineId: engine?.engineId ?? 'unknown',
+        segments: segmentsA,
+        sourcePath: filePath,
+        modelId: _modelName,
+        language: _language,
+      );
+
+      // Switch to model B and transcribe
+      await transcriptionService.loadModel(secondModel.name);
+      final segmentsB = await transcriptionService.transcribeFile(
+        File(filePath),
+        language: _language,
+        translate: adv.translate,
+        beamSearch: adv.beamSearch,
+        vad: adv.vad,
+      );
+      final savedB = await historyService.save(
+        engineId: engine?.engineId ?? 'unknown',
+        segments: segmentsB,
+        sourcePath: filePath,
+        modelId: secondModel.name,
+        language: _language,
+      );
+
+      // Reload original model
+      await transcriptionService.loadModel(_modelName);
+
+      // Record A/B result
+      final abResult = AbTestResult(
+        modelA: _modelName,
+        modelB: secondModel.name,
+        audioPath: filePath,
+        timestamp: DateTime.now(),
+        segmentsA: segmentsA,
+        segmentsB: segmentsB,
+      );
+      Log.instance.i('ab-test', 'completed: ${abResult.overallWinner}');
+
+      if (!mounted) return;
+      // Navigate to compare screen
+      context.push('/compare?left=${savedA.id}&right=${savedB.id}');
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('A/B test failed: $e')),
       );
     }
   }

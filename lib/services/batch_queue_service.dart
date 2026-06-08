@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'audio_fingerprint_service.dart';
 import 'audio_service.dart';
 import 'batch_persistence_service.dart';
 import 'log_service.dart';
@@ -155,6 +156,21 @@ class BatchQueueNotifier extends StateNotifier<List<BatchJob>> {
   bool _loaded = false;
   int _lastLoadResumedCount = 0;
 
+  /// §5.25.11 — Cached set of audio fingerprints from history for
+  /// fast synchronous dedup checks in [enqueue]. Populated by
+  /// [loadKnownFingerprints] at app startup.
+  final Set<String> _knownFingerprints = {};
+
+  /// Load all known audio fingerprints from history entries so that
+  /// [enqueue] can detect already-transcribed files synchronously.
+  void loadKnownFingerprints(List<String> fingerprints) {
+    _knownFingerprints.addAll(fingerprints);
+  }
+
+  /// Check if a fingerprint is already known (i.e. already transcribed).
+  bool isKnownFingerprint(String fingerprint) =>
+      _knownFingerprints.contains(fingerprint);
+
   // Persistence writes are fired unawaited so the UI never blocks on
   // disk. To let tests (and tearDown) know all writes have flushed
   // deterministically — instead of sleeping and hoping — track the
@@ -267,6 +283,17 @@ class BatchQueueNotifier extends StateNotifier<List<BatchJob>> {
       Log.instance.w('batch-queue', 'saveJob failed for ${job.id}',
           error: e, stack: st);
     }
+  }
+
+  /// §5.25.11 — Async dedup check: computes the file fingerprint and
+  /// returns the matching history entry title if already transcribed,
+  /// or null if novel. Call before [enqueue] to prompt the user.
+  Future<String?> checkFingerprintDedup(String filePath) async {
+    try {
+      final fp = await AudioFingerprintService.computeFileFingerprint(filePath);
+      if (_knownFingerprints.contains(fp)) return fp;
+    } catch (_) {}
+    return null;
   }
 
   String enqueue(String filePath,

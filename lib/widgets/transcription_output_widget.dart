@@ -342,6 +342,28 @@ class _TranscriptionOutputWidgetState
 
                   const Spacer(),
 
+                  // §5.25.5 — Language badge from multilingual tagging.
+                  if (segment.metadata['lang'] case final String lang
+                      when lang.isNotEmpty && lang != 'unknown') ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.purple.shade100,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        lang.toUpperCase(),
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Colors.purple.shade800,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                  ],
+
                   // §5.25.10 — tag emoji badges
                   if (segment.tags.isNotEmpty) ...[
                     for (final tagName in segment.tags)

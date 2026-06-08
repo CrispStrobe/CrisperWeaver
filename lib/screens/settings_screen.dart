@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -18,6 +19,8 @@ import '../services/memory_estimator.dart';
 import '../services/model_service.dart';
 import '../services/server_service.dart';
 import '../services/settings_service.dart';
+import '../services/speaker_id_service.dart';
+import '../models/speaker_vocab.dart';
 import '../utils/responsive.dart';
 import '../widgets/cloud_llm_settings_form.dart';
 import '../widgets/hotkey_settings_form.dart';
@@ -796,12 +799,136 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           trailing: const Icon(Icons.people_outline),
           onTap: () => context.push('/settings/speakers'),
         ),
+        // §5.25.4 — Per-speaker vocabulary editor.
+        ListTile(
+          title: Text(AppLocalizations.of(context).settingsSpeakerVocab),
+          subtitle: Text(AppLocalizations.of(context).settingsSpeakerVocabSubtitle),
+          trailing: const Icon(Icons.spellcheck),
+          onTap: () => _showSpeakerVocabEditor(),
+        ),
         ListTile(
           title: Text(AppLocalizations.of(context).settingsOpenLogViewer),
           trailing: const Icon(Icons.chevron_right),
           onTap: () => context.push('/logs'),
         ),
       ],
+    );
+  }
+
+  /// §5.25.4 — Speaker vocabulary editor dialog. Lists enrolled speakers
+  /// and their per-speaker vocab terms. Users can add/remove terms.
+  Future<void> _showSpeakerVocabEditor() async {
+    final speakerIdService = ref.read(speakerIdServiceProvider);
+    final docs = await getApplicationDocumentsDirectory();
+    final speakersDir = '${docs.path}/speakers';
+    // Ensure dir exists
+    final dir = Directory(speakersDir);
+    if (!await dir.exists()) await dir.create(recursive: true);
+
+    var vocabs = await SpeakerVocab.listAll(speakersDir);
+    final enrolled = await speakerIdService.listSpeakers();
+
+    if (!mounted) return;
+    final l = AppLocalizations.of(context);
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: Text(l.settingsSpeakerVocabDialogTitle),
+          content: SizedBox(
+            width: 400,
+            child: ListView(
+              shrinkWrap: true,
+              children: [
+                for (final name in enrolled) ...[
+                  Text(name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  Builder(builder: (_) {
+                    final vocab = vocabs
+                        .where((v) => v.speakerName == name)
+                        .cast<SpeakerVocab?>()
+                        .firstWhere((_) => true, orElse: () => null);
+                    return Wrap(
+                      spacing: 4,
+                      runSpacing: 2,
+                      children: [
+                        if (vocab != null)
+                          for (final term in vocab.terms)
+                            Chip(
+                              label: Text(term, style: const TextStyle(fontSize: 12)),
+                              onDeleted: () async {
+                                final updated = SpeakerVocab(
+                                  speakerName: name,
+                                  terms: vocab.terms.where((t) => t != term).toList(),
+                                );
+                                await updated.save(speakersDir);
+                                vocabs = await SpeakerVocab.listAll(speakersDir);
+                                setDialogState(() {});
+                              },
+                              deleteIconColor: Colors.red,
+                            ),
+                        ActionChip(
+                          label: const Text('+', style: TextStyle(fontSize: 12)),
+                          onPressed: () async {
+                            final ctrl = TextEditingController();
+                            final term = await showDialog<String>(
+                              context: ctx,
+                              builder: (innerCtx) => AlertDialog(
+                                title: Text(l.settingsSpeakerVocabAddTermTitle(name)),
+                                content: TextField(
+                                  controller: ctrl,
+                                  decoration: InputDecoration(
+                                    hintText: l.settingsSpeakerVocabAddTermHint,
+                                  ),
+                                  autofocus: true,
+                                  onSubmitted: (v) =>
+                                      Navigator.of(innerCtx).pop(v.trim()),
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () =>
+                                        Navigator.of(innerCtx).pop(null),
+                                    child: const Text('Cancel'),
+                                  ),
+                                  FilledButton(
+                                    onPressed: () => Navigator.of(innerCtx)
+                                        .pop(ctrl.text.trim()),
+                                    child: const Text('Add'),
+                                  ),
+                                ],
+                              ),
+                            );
+                            if (term == null || term.isEmpty) return;
+                            final existing = vocab?.terms ?? [];
+                            final updated = SpeakerVocab(
+                              speakerName: name,
+                              terms: [...existing, term],
+                            );
+                            await updated.save(speakersDir);
+                            vocabs = await SpeakerVocab.listAll(speakersDir);
+                            setDialogState(() {});
+                          },
+                        ),
+                      ],
+                    );
+                  }),
+                  const Divider(),
+                ],
+                if (enrolled.isEmpty)
+                  Text(
+                    l.settingsSpeakerVocabNoSpeakers,
+                    style: const TextStyle(color: Colors.grey),
+                  ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: Text(l.done),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

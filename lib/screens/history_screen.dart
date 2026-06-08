@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../main.dart';
 import '../l10n/generated/app_localizations.dart';
 import '../services/history_service.dart';
+import '../services/semantic_search_service.dart';
 import '../utils/file_utils.dart';
 import '../utils/responsive.dart';
 
@@ -25,6 +27,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   // AppBar bottom so the keyboard doesn't push the list around.
   String _searchQuery = '';
   late final TextEditingController _searchController;
+  /// §5.25.2 — When true, use TF-IDF semantic search instead of
+  /// substring matching. Toggle via the search bar suffix icon.
+  bool _semanticSearch = false;
 
   @override
   void initState() {
@@ -44,16 +49,34 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     _future = service.list();
   }
 
-  /// Return only the entries whose title or fullText contains the
-  /// current search query. Case-insensitive substring match.
+  /// Return only the entries whose title or fullText matches the
+  /// current search query. Uses either substring or TF-IDF semantic
+  /// search depending on the [_semanticSearch] toggle.
   List<HistoryEntry> _applyFilter(List<HistoryEntry> all) {
     if (_searchQuery.isEmpty) return all;
-    final q = _searchQuery.toLowerCase();
-    return all
-        .where((e) =>
-            e.title.toLowerCase().contains(q) ||
-            e.fullText.toLowerCase().contains(q))
-        .toList(growable: false);
+    if (!_semanticSearch) {
+      final q = _searchQuery.toLowerCase();
+      return all
+          .where((e) =>
+              e.title.toLowerCase().contains(q) ||
+              e.fullText.toLowerCase().contains(q))
+          .toList(growable: false);
+    }
+    // §5.25.2 — Semantic search: score each entry's segments against
+    // the query, keep entries with at least one matching segment.
+    final scored = <(HistoryEntry, double)>[];
+    for (final entry in all) {
+      final results = SemanticSearchService.search(
+        query: _searchQuery,
+        segments: entry.segments,
+        maxResults: 1,
+      );
+      if (results.isNotEmpty) {
+        scored.add((entry, results.first.score));
+      }
+    }
+    scored.sort((a, b) => b.$2.compareTo(a.$2));
+    return scored.map((e) => e.$1).toList();
   }
 
   Future<void> _deleteAll() async {
@@ -109,15 +132,34 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                 isDense: true,
                 hintText: l.historySearchHint,
                 prefixIcon: const Icon(Icons.search, size: 20),
-                suffixIcon: _searchQuery.isEmpty
-                    ? null
-                    : IconButton(
+                suffixIcon: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // §5.25.2 — Toggle semantic (TF-IDF) vs substring search.
+                    IconButton(
+                      icon: Icon(
+                        _semanticSearch ? Icons.psychology : Icons.abc,
+                        size: 18,
+                        color: _semanticSearch
+                            ? Theme.of(context).colorScheme.primary
+                            : null,
+                      ),
+                      tooltip: _semanticSearch
+                          ? l.historySearchSemanticTooltip
+                          : l.historySearchSubstringTooltip,
+                      onPressed: () =>
+                          setState(() => _semanticSearch = !_semanticSearch),
+                    ),
+                    if (_searchQuery.isNotEmpty)
+                      IconButton(
                         icon: const Icon(Icons.clear, size: 18),
                         onPressed: () {
                           _searchController.clear();
                           setState(() => _searchQuery = '');
                         },
                       ),
+                  ],
+                ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide.none,
@@ -185,6 +227,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                   itemBuilder: (context, i) => _HistoryTile(
                     entry: items[i],
                     searchQuery: _searchQuery,
+                    allEntries: all,
                     onDelete: () async {
                       await ref
                           .read(historyServiceProvider)
@@ -239,10 +282,13 @@ class _HistoryTile extends StatelessWidget {
     required this.entry,
     required this.onDelete,
     this.searchQuery = '',
+    this.allEntries = const [],
   });
 
   final HistoryEntry entry;
   final VoidCallback onDelete;
+  /// All history entries — needed for "Compare with..." picker (§5.25.7).
+  final List<HistoryEntry> allEntries;
   /// Active history search query. When non-empty, the expanded
   /// transcript shows a yellow highlight on matching substrings
   /// + auto-expands so the user can see the hit without an extra
@@ -308,6 +354,12 @@ class _HistoryTile extends StatelessWidget {
                       onPressed: () =>
                           _exportAs(context, TranscriptFormat.json),
                     ),
+                    // §5.25.7 — Compare with another history entry.
+                    OutlinedButton.icon(
+                      icon: const Icon(Icons.compare_arrows, size: 16),
+                      label: Text(AppLocalizations.of(context).historyCompareButton),
+                      onPressed: () => _showComparePicker(context),
+                    ),
                     OutlinedButton.icon(
                       icon: const Icon(Icons.delete_outline, size: 16),
                       style:
@@ -323,6 +375,40 @@ class _HistoryTile extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  /// §5.25.7 — Show a picker dialog listing all other history entries.
+  /// On selection, navigate to the transcript comparison screen.
+  void _showComparePicker(BuildContext context) {
+    final others = allEntries.where((e) => e.id != entry.id).toList();
+    if (others.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppLocalizations.of(context).historyCompareNoOtherEntries)),
+      );
+      return;
+    }
+    final fmt = DateFormat.yMMMd().add_Hm();
+    showDialog<String>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: Text(AppLocalizations.of(context).historyComparePickerTitle),
+        children: [
+          for (final other in others)
+            SimpleDialogOption(
+              onPressed: () => Navigator.of(ctx).pop(other.id),
+              child: Text(
+                '${other.title}\n${fmt.format(other.createdAt)}',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+        ],
+      ),
+    ).then((rightId) {
+      if (rightId != null && context.mounted) {
+        context.push('/compare?left=${entry.id}&right=$rightId');
+      }
+    });
   }
 
   /// §5.1.4 — render `text` with `query` highlighted in yellow.

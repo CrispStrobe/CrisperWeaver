@@ -217,6 +217,12 @@ class TranscriptionService {
   /// detection without plumbing a new return type through every layer.
   TranscriptionResult? lastResult;
 
+  /// §5.25.5 — Retained audio data from the most recent transcription
+  /// so the multilingual tagging service can run LID post-transcription.
+  /// Cleared on next transcription start to avoid holding large buffers.
+  Float32List? lastAudioData;
+  int lastSampleRate = 16000;
+
   TranscriptionService(
     this._audioService,
     this._modelService, {
@@ -336,7 +342,10 @@ class TranscriptionService {
     try {
       // Step 1: Load and process audio (10% of progress)
       onProgress?.call(0.05);
+      lastAudioData = null; // Clear previous
       final audioData = await _audioService.loadAudioFile(audioFile);
+      lastAudioData = audioData.samples;
+      lastSampleRate = audioData.sampleRate;
       onProgress?.call(0.1);
 
       // §5.1.10 — RNNoise enhancement runs on the full loaded PCM
