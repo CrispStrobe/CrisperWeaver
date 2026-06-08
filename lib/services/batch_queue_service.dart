@@ -2,7 +2,12 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart' show visibleForTesting;
-import 'package:flutter_riverpod/legacy.dart';
+import 'package:flutter_riverpod/legacy.dart'; // §legacy: BatchQueueNotifier
+// still extends StateNotifier because 18+ tests construct it directly
+// (BatchQueueNotifier(persistence: …)) without a ProviderContainer.
+// Notifier<T> requires ref (only available inside a container), so
+// migrating would break every test that does standalone construction.
+// Revisit when tests are refactored to use ProviderContainer overrides.
 
 import 'audio_fingerprint_service.dart';
 import 'audio_service.dart';
