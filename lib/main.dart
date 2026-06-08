@@ -261,8 +261,16 @@ class _CrisperWeaverAppState extends ConsumerState<CrisperWeaverApp> {
         final settings = ref.read(settingsServiceProvider);
         if (settings.watchFolderEnabled && settings.watchFolderPath != null) {
           _watchFolderService = WatchFolderService(
-            onNewFile: (path) {
-              ref.read(batchQueueProvider.notifier).enqueue(path);
+            onNewFile: (path) async {
+              final q = ref.read(batchQueueProvider.notifier);
+              // §5.25.11 — Auto-skip already-transcribed files in watch folder.
+              final dup = await q.checkFingerprintDedup(path);
+              if (dup != null) {
+                Log.instance.i('watch-folder',
+                    'skipping duplicate: $path (fingerprint: $dup)');
+                return;
+              }
+              q.enqueue(path);
             },
           );
           _watchFolderService!.start(settings.watchFolderPath!);

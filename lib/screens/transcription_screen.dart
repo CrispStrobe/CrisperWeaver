@@ -33,6 +33,9 @@ import '../services/settings_service.dart';
 import '../services/transcription_worker_pool.dart';
 import '../utils/file_utils.dart';
 import '../utils/responsive.dart';
+import 'package:path_provider/path_provider.dart';
+
+import '../models/speaker_vocab.dart';
 import '../services/ab_test_service.dart';
 import '../services/chapter_detection_service.dart';
 import '../services/lid_service.dart';
@@ -555,9 +558,19 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
         ModelService.whisperCppModels[_modelName]?.backend ??
         'whisper';
     final enqueueLang = _language == 'auto' ? null : _language;
+    int skippedDups = 0;
     for (final f in extras) {
+      // §5.25.11 — Skip already-transcribed files in batch enqueue.
+      final dup = await q.checkFingerprintDedup(f.path);
+      if (dup != null) {
+        skippedDups++;
+        continue;
+      }
       q.enqueue(f.path,
           backend: enqueueBackend, modelId: _modelName, language: enqueueLang);
+    }
+    if (skippedDups > 0) {
+      Log.instance.i('batch', 'skipped $skippedDups duplicate(s) by fingerprint');
     }
 
     final l = AppLocalizations.of(context);
@@ -1824,17 +1837,22 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
             ModelService.whisperCppModels[_modelName]?.backend ??
             'whisper';
         final enqueueLang = _language == 'auto' ? null : _language;
+        int enqueued = 0;
         for (final p in paths.skip(1)) {
+          // §5.25.11 — Skip already-transcribed files.
+          final dup = await q.checkFingerprintDedup(p);
+          if (dup != null) continue;
           q.enqueue(p,
               backend: enqueueBackend,
               modelId: _modelName,
               language: enqueueLang);
+          enqueued++;
         }
-        if (mounted) {
+        if (mounted && enqueued > 0) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
                 content: Text(AppLocalizations.of(context)
-                    .batchEnqueueAdded(paths.length - 1))),
+                    .batchEnqueueAdded(enqueued))),
           );
         }
       }
@@ -2089,6 +2107,46 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
           segments = tagged;
         } catch (e) {
           debugPrint('Multilingual tagging failed: $e');
+        }
+      }
+
+      // §5.25.4 — Speaker-adaptive vocabulary injection.
+      // After diarisation resolves speaker names, load their vocab
+      // profiles and merge the terms into the global vocabulary for
+      // subsequent transcriptions.
+      if (_enableDiarization && segments.isNotEmpty) {
+        try {
+          final speakerNames = segments
+              .map((s) => s.speaker)
+              .where((s) => s != null && !RegExp(r'^Speaker \d+$').hasMatch(s))
+              .cast<String>()
+              .toSet();
+          if (speakerNames.isNotEmpty) {
+            final docs = await getApplicationDocumentsDirectory();
+            final speakersDir = '${docs.path}/speakers';
+            final allVocabs = await SpeakerVocab.listAll(speakersDir);
+            final merged =
+                SpeakerVocab.mergeForSpeakers(allVocabs, speakerNames);
+            if (merged.isNotEmpty) {
+              final currentAdv = ref.read(advancedOptionsProvider);
+              final existingTerms = currentAdv.vocabulary.toSet();
+              final newTerms =
+                  merged.where((t) => !existingTerms.contains(t)).toList();
+              if (newTerms.isNotEmpty) {
+                ref.read(advancedOptionsProvider.notifier).state =
+                    currentAdv.copyWith(
+                  vocabulary: [...currentAdv.vocabulary, ...newTerms],
+                );
+                Log.instance.i('vocab', 'injected speaker-adaptive vocab',
+                    fields: {
+                      'speakers': speakerNames.toList(),
+                      'terms_added': newTerms.length,
+                    });
+              }
+            }
+          }
+        } catch (e) {
+          Log.instance.w('vocab', 'speaker vocab injection failed', error: e);
         }
       }
 
@@ -2737,6 +2795,45 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
               fields: {'id': job.id}, error: e, stack: st);
         }
       }
+      // §5.25.4 — Speaker-adaptive vocabulary injection (batch path).
+      if (enableDiarization && segments.isNotEmpty) {
+        try {
+          final speakerNames = segments
+              .map((s) => s.speaker)
+              .where(
+                  (s) => s != null && !RegExp(r'^Speaker \d+$').hasMatch(s))
+              .cast<String>()
+              .toSet();
+          if (speakerNames.isNotEmpty) {
+            final docs = await getApplicationDocumentsDirectory();
+            final speakersDir = '${docs.path}/speakers';
+            final allVocabs = await SpeakerVocab.listAll(speakersDir);
+            final merged =
+                SpeakerVocab.mergeForSpeakers(allVocabs, speakerNames);
+            if (merged.isNotEmpty) {
+              final currentAdv = ref.read(advancedOptionsProvider);
+              final existingTerms = currentAdv.vocabulary.toSet();
+              final newTerms =
+                  merged.where((t) => !existingTerms.contains(t)).toList();
+              if (newTerms.isNotEmpty) {
+                ref.read(advancedOptionsProvider.notifier).state =
+                    currentAdv.copyWith(
+                  vocabulary: [...currentAdv.vocabulary, ...newTerms],
+                );
+                Log.instance.i('vocab',
+                    'injected speaker-adaptive vocab (batch)', fields: {
+                  'speakers': speakerNames.toList(),
+                  'terms_added': newTerms.length,
+                });
+              }
+            }
+          }
+        } catch (e) {
+          Log.instance.w('vocab', 'speaker vocab injection failed (batch)',
+              error: e);
+        }
+      }
+
       String? historyId;
       try {
         final saved = await ref.read(historyServiceProvider).save(
@@ -3023,11 +3120,10 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
   }
 
   /// §5.25.13 — Model A/B comparison. Shows a picker for a second model,
-  /// runs both models on the same audio, then navigates to the compare
-  /// screen with the two history entries.
+  /// spawns two single-worker pools (one per model) so both transcriptions
+  /// run in parallel, then navigates to the compare screen.
   Future<void> _showModelComparison() async {
     final l = AppLocalizations.of(context);
-    final appState = ref.read(appStateProvider);
     final filePath = _selectedFilePath ?? ref.read(selectedAudioPathProvider);
     if (filePath == null || filePath.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -3042,8 +3138,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
         .toList();
     if (otherModels.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Download a second model to compare')),
+        SnackBar(content: Text(l.abTestNeedSecondModel)),
       );
       return;
     }
@@ -3051,7 +3146,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
     final secondModel = await showDialog<ModelInfo>(
       context: context,
       builder: (ctx) => SimpleDialog(
-        title: const Text('Compare with model…'),
+        title: Text(l.abTestPickModel),
         children: [
           for (final m in otherModels)
             SimpleDialogOption(
@@ -3063,59 +3158,100 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
     );
     if (secondModel == null || !mounted) return;
 
-    // Run both models — use the batch queue for parallel execution.
-    // For simplicity, we enqueue both and let the user wait. The
-    // results will land in history, and we navigate to compare.
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Running A/B: $_modelName vs ${secondModel.name}…'),
+        content: Text(l.abTestRunning(_modelName, secondModel.name)),
         duration: const Duration(seconds: 3),
       ),
     );
 
+    // Resolve model paths for both models.
+    final modelA = _availableModels.firstWhere((m) => m.name == _modelName);
+    final pathA = modelA.localPath;
+    final pathB = secondModel.localPath;
+    if (pathA == null || pathB == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l.abTestFailed(l.transcriptionShareAudioMissing))),
+        );
+      }
+      return;
+    }
+
+    TranscriptionWorkerPool? poolA;
+    TranscriptionWorkerPool? poolB;
     try {
-      final transcriptionService = ref.read(transcriptionServiceProvider);
-      final engine = transcriptionService.currentEngine;
-      final historyService = ref.read(historyServiceProvider);
       final adv = ref.read(advancedOptionsProvider);
+      final historyService = ref.read(historyServiceProvider);
+      final audioService = ref.read(audioServiceProvider);
 
-      // Run model A (current)
-      final segmentsA = await transcriptionService.transcribeFile(
-        File(filePath),
-        language: _language,
-        translate: adv.translate,
-        beamSearch: adv.beamSearch,
-        vad: adv.vad,
-      );
-      final savedA = await historyService.save(
-        engineId: engine?.engineId ?? 'unknown',
-        segments: segmentsA,
-        sourcePath: filePath,
-        modelId: _modelName,
-        language: _language,
-      );
+      // Load audio once.
+      final audioData = await audioService.loadAudioFile(File(filePath));
 
-      // Switch to model B and transcribe
-      await transcriptionService.loadModel(secondModel.name);
-      final segmentsB = await transcriptionService.transcribeFile(
-        File(filePath),
-        language: _language,
-        translate: adv.translate,
-        beamSearch: adv.beamSearch,
-        vad: adv.vad,
-      );
-      final savedB = await historyService.save(
-        engineId: engine?.engineId ?? 'unknown',
-        segments: segmentsB,
-        sourcePath: filePath,
-        modelId: secondModel.name,
-        language: _language,
-      );
+      // Spawn two single-worker pools in parallel — one per model.
+      final backendA = _resolveBackend(_modelName);
+      final backendB = _resolveBackend(secondModel.name);
+      final pools = await Future.wait([
+        TranscriptionWorkerPool.spawn(
+          count: 1,
+          modelPath: pathA,
+          backend: backendA,
+          useGpu: adv.asrUseGpu,
+          flashAttn: adv.asrFlashAttn,
+          nThreads: adv.nThreads,
+          nGpuLayers: adv.asrNGpuLayers,
+        ),
+        TranscriptionWorkerPool.spawn(
+          count: 1,
+          modelPath: pathB,
+          backend: backendB,
+          useGpu: adv.asrUseGpu,
+          flashAttn: adv.asrFlashAttn,
+          nThreads: adv.nThreads,
+          nGpuLayers: adv.asrNGpuLayers,
+        ),
+      ]);
+      poolA = pools[0];
+      poolB = pools[1];
 
-      // Reload original model
-      await transcriptionService.loadModel(_modelName);
+      // Dispatch both transcriptions in parallel.
+      final lang = _language == 'auto' ? null : _language;
+      final results = await Future.wait([
+        poolA.dispatch(
+          samples: audioData.samples,
+          language: lang,
+          translate: adv.translate,
+          beamSize: adv.beamSearch ? 5 : 1,
+        ),
+        poolB.dispatch(
+          samples: audioData.samples,
+          language: lang,
+          translate: adv.translate,
+          beamSize: adv.beamSearch ? 5 : 1,
+        ),
+      ]);
+      final segmentsA = results[0];
+      final segmentsB = results[1];
 
-      // Record A/B result
+      // Save both results to history.
+      final saves = await Future.wait([
+        historyService.save(
+          engineId: 'crispasr',
+          segments: segmentsA,
+          sourcePath: filePath,
+          modelId: _modelName,
+          language: _language,
+        ),
+        historyService.save(
+          engineId: 'crispasr',
+          segments: segmentsB,
+          sourcePath: filePath,
+          modelId: secondModel.name,
+          language: _language,
+        ),
+      ]);
+
+      // Record A/B result.
       final abResult = AbTestResult(
         modelA: _modelName,
         modelB: secondModel.name,
@@ -3127,13 +3263,18 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
       Log.instance.i('ab-test', 'completed: ${abResult.overallWinner}');
 
       if (!mounted) return;
-      // Navigate to compare screen
-      context.push('/compare?left=${savedA.id}&right=${savedB.id}');
+      context.push('/compare?left=${saves[0].id}&right=${saves[1].id}');
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('A/B test failed: $e')),
+        SnackBar(content: Text(l.abTestFailed(e.toString()))),
       );
+    } finally {
+      // Shut down both pools to free isolates + model memory.
+      await Future.wait([
+        if (poolA != null) poolA.shutdown(),
+        if (poolB != null) poolB.shutdown(),
+      ]);
     }
   }
 

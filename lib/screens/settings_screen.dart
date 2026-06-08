@@ -190,11 +190,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             try {
               final ok = await service.switchEngine(value);
               if (!context.mounted) return;
+              final sl = AppLocalizations.of(context);
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(ok
-                      ? 'Switched to ${value.displayName}'
-                      : 'Engine switch failed'),
+                      ? sl.settingsEngineSwitched(value.displayName)
+                      : sl.settingsEngineSwitchFailed),
                 ),
               );
             } catch (e) {
@@ -540,15 +541,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       return const SizedBox.shrink();
     }
     return _buildSettingsSection(
-      title: 'Watch folder',
+      title: l.settingsWatchFolder,
       icon: Icons.folder_special,
       children: [
         SwitchListTile(
-          title: const Text('Auto-transcribe new files'),
+          title: Text(l.settingsWatchFolderAutoTranscribe),
           subtitle: Text(
             enabled && watchPath != null
-                ? 'Watching: $watchPath'
-                : 'Monitor a folder for new audio files',
+                ? l.settingsWatchFolderWatching(watchPath)
+                : l.settingsWatchFolderMonitorHint,
           ),
           value: enabled,
           onChanged: (v) {
@@ -557,12 +558,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           },
         ),
         ListTile(
-          title: const Text('Watch folder path'),
-          subtitle: Text(watchPath ?? 'Not set'),
+          title: Text(l.settingsWatchFolderPath),
+          subtitle: Text(watchPath ?? l.settingsWatchFolderNotSet),
           trailing: const Icon(Icons.folder_open),
           onTap: () async {
             final result = await FilePicker.platform.getDirectoryPath(
-              dialogTitle: 'Select folder to watch',
+              dialogTitle: l.settingsWatchFolderPickerTitle,
             );
             if (result != null) {
               settings.watchFolderPath = result;
@@ -887,12 +888,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                                   TextButton(
                                     onPressed: () =>
                                         Navigator.of(innerCtx).pop(null),
-                                    child: const Text('Cancel'),
+                                    child: Text(l.dialogCancel),
                                   ),
                                   FilledButton(
                                     onPressed: () => Navigator.of(innerCtx)
                                         .pop(ctrl.text.trim()),
-                                    child: const Text('Add'),
+                                    child: Text(l.dialogAdd),
                                   ),
                                 ],
                               ),
@@ -1213,25 +1214,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         // the copy inline rather than threading 4 new ARB keys through
         // every locale just for this niche flow. The Settings page
         // permission_handler opens is OS-localized anyway.
+        final fl = AppLocalizations.of(context);
         final proceed = await showDialog<bool>(
           context: context,
           builder: (ctx) => AlertDialog(
-            title: const Text('"All files access" needed'),
-            content: const Text(
-              'Picking a folder outside the app sandbox needs Android\'s '
-              '"All files access" permission. Tap "Open Settings", enable '
-              '"All files access" for CrisperWeaver, then come back. '
-              'After uninstalling and reinstalling the app, the grant is '
-              'reset by Android and must be re-enabled.',
-            ),
+            title: Text(fl.settingsAllFilesAccessNeeded),
+            content: Text(fl.settingsAllFilesAccessExplanation),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(ctx).pop(false),
-                child: const Text('Cancel'),
+                child: Text(fl.dialogCancel),
               ),
               FilledButton(
                 onPressed: () => Navigator.of(ctx).pop(true),
-                child: const Text('Open Settings'),
+                child: Text(fl.settingsOpenSettings),
               ),
             ],
           ),
@@ -1242,9 +1238,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         if (!newStatus.isGranted) {
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
+            SnackBar(
               content: Text(
-                '"All files access" denied — using sandbox dir instead.',
+                AppLocalizations.of(context).settingsAllFilesAccessDenied,
               ),
             ),
           );

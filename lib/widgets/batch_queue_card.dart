@@ -170,7 +170,7 @@ class _BatchQueueCardState extends ConsumerState<BatchQueueCard> {
     );
   }
 
-  void _onDrop(DropDoneDetails details) {
+  Future<void> _onDrop(DropDoneDetails details) async {
     setState(() => _hover = false);
     if (details.files.isEmpty) return;
     final supported = details.files
@@ -186,22 +186,52 @@ class _BatchQueueCardState extends ConsumerState<BatchQueueCard> {
     }
 
     final q = ref.read(batchQueueProvider.notifier);
+    final l = AppLocalizations.of(context);
+    int enqueued = 0;
     for (final f in supported) {
+      // §5.25.11 — Fingerprint dedup: single file → prompt, batch → auto-skip.
+      final dup = await q.checkFingerprintDedup(f.path);
+      if (dup != null) {
+        if (supported.length == 1 && mounted) {
+          final again = await showDialog<bool>(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: Text(l.fingerprintDedupTitle),
+              content: Text(l.fingerprintDedupBody),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(false),
+                  child: Text(l.dialogCancel),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.of(ctx).pop(true),
+                  child: Text(l.fingerprintDedupTranscribeAgain),
+                ),
+              ],
+            ),
+          );
+          if (again != true) continue;
+        } else {
+          continue;
+        }
+      }
       q.enqueue(f.path);
+      enqueued++;
     }
     q.markDropReceived();
 
     Log.instance.i('batch', 'drop enqueued', fields: {
-      'count': supported.length,
+      'count': enqueued,
     });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-            AppLocalizations.of(context).batchEnqueueAdded(supported.length)),
-        duration: const Duration(seconds: 2),
-      ),
-    );
+    if (enqueued > 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l.batchEnqueueAdded(enqueued)),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
   }
 
   /// Render the §5.23 Q1 ETA badge. Returns empty string when the

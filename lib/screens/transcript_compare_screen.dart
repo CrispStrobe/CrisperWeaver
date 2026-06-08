@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../engines/transcription_engine.dart';
+import '../l10n/generated/app_localizations.dart';
 import '../services/history_service.dart';
 import '../main.dart' show historyServiceProvider;
 
@@ -48,8 +49,8 @@ class _TranscriptCompareScreenState
       setState(() {
         _leftSegments = left?.segments;
         _rightSegments = right?.segments;
-        _leftTitle = left?.title ?? 'Left';
-        _rightTitle = right?.title ?? 'Right';
+        _leftTitle = left?.title ?? AppLocalizations.of(context).compareLeftFallback;
+        _rightTitle = right?.title ?? AppLocalizations.of(context).compareRightFallback;
       });
     }
   }
@@ -58,7 +59,7 @@ class _TranscriptCompareScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Compare Transcripts'),
+        title: Text(AppLocalizations.of(context).compareTranscriptsTitle),
       ),
       body: _leftSegments == null || _rightSegments == null
           ? const Center(child: CircularProgressIndicator())
@@ -134,9 +135,9 @@ class _TranscriptCompareScreenState
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceAround,
       children: [
-        _statChip('Left words', leftWords.toString()),
-        _statChip('Right words', rightWords.toString()),
-        _statChip('Similarity', '${(similarity * 100).toStringAsFixed(1)}%'),
+        _statChip(AppLocalizations.of(context).compareLeftWords, leftWords.toString()),
+        _statChip(AppLocalizations.of(context).compareRightWords, rightWords.toString()),
+        _statChip(AppLocalizations.of(context).compareSimilarity, '${(similarity * 100).toStringAsFixed(1)}%'),
       ],
     );
   }

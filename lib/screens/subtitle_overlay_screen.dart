@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../l10n/generated/app_localizations.dart';
 import '../main.dart' show appStateProvider;
 
 /// §5.25.3 — Real-time subtitle overlay / teleprompter mode.
@@ -83,7 +84,7 @@ class _SubtitleOverlayScreenState
         leading: IconButton(
           icon: const Icon(Icons.close, color: Colors.white70),
           onPressed: () => Navigator.of(context).pop(),
-          tooltip: 'Exit overlay',
+          tooltip: AppLocalizations.of(context).subtitleOverlayExitTooltip,
         ),
         actions: [
           // Font size controls
@@ -92,14 +93,14 @@ class _SubtitleOverlayScreenState
             onPressed: () => setState(() {
               _fontSize = (_fontSize - 4).clamp(14.0, 72.0);
             }),
-            tooltip: 'Smaller text',
+            tooltip: AppLocalizations.of(context).subtitleOverlaySmallerText,
           ),
           IconButton(
             icon: const Icon(Icons.text_increase, color: Colors.white70),
             onPressed: () => setState(() {
               _fontSize = (_fontSize + 4).clamp(14.0, 72.0);
             }),
-            tooltip: 'Larger text',
+            tooltip: AppLocalizations.of(context).subtitleOverlayLargerText,
           ),
           // Position toggle
           IconButton(
@@ -114,7 +115,7 @@ class _SubtitleOverlayScreenState
                   ? Alignment.topCenter
                   : Alignment.bottomCenter;
             }),
-            tooltip: 'Toggle position',
+            tooltip: AppLocalizations.of(context).subtitleOverlayTogglePosition,
           ),
           // Background toggle
           IconButton(
@@ -123,7 +124,7 @@ class _SubtitleOverlayScreenState
               color: Colors.white70,
             ),
             onPressed: () => setState(() => _showBackground = !_showBackground),
-            tooltip: 'Toggle background',
+            tooltip: AppLocalizations.of(context).subtitleOverlayToggleBackground,
           ),
         ],
       ),
@@ -140,7 +141,7 @@ class _SubtitleOverlayScreenState
               duration: const Duration(milliseconds: 200),
               child: text.isEmpty
                   ? Text(
-                      'Waiting for transcription...',
+                      AppLocalizations.of(context).subtitleOverlayWaiting,
                       key: const ValueKey('empty'),
                       style: TextStyle(
                         fontSize: _fontSize * 0.7,

@@ -1215,5 +1215,46 @@
   "compareRightFallback": "Rechts",
   "compareLeftWords": "Wörter links",
   "compareRightWords": "Wörter rechts",
-  "compareSimilarity": "Ähnlichkeit"
+  "compareSimilarity": "Ähnlichkeit",
+
+  "abTestNeedSecondModel": "Zweites Modell herunterladen zum Vergleichen",
+  "abTestPickModel": "Vergleichen mit Modell…",
+  "abTestRunning": "A/B-Test: {modelA} vs {modelB}…",
+  "@abTestRunning": {"placeholders": {"modelA": {"type": "String"}, "modelB": {"type": "String"}}},
+  "abTestFailed": "A/B-Test fehlgeschlagen: {error}",
+  "@abTestFailed": {"placeholders": {"error": {"type": "String"}}},
+
+  "subtitleOverlayExitTooltip": "Overlay schließen",
+  "subtitleOverlaySmallerText": "Text verkleinern",
+  "subtitleOverlayLargerText": "Text vergrößern",
+  "subtitleOverlayTogglePosition": "Position umschalten",
+  "subtitleOverlayToggleBackground": "Hintergrund umschalten",
+  "subtitleOverlayWaiting": "Warte auf Transkription…",
+
+  "outputNoTranscriptionYet": "Noch keine Transkription",
+  "outputSelectAudioFile": "Audiodatei auswählen und Transkription starten",
+  "outputNoResultsFound": "Keine Ergebnisse gefunden",
+  "outputTryDifferentSearch": "Anderen Suchbegriff versuchen",
+  "outputEdited": "Bearbeitet",
+  "outputLidModelNeeded": "Text-Spracherkennungsmodell herunterladen (CLD3, GlotLID oder FastText LID-176) um die Sprache zu erkennen.",
+  "outputLidModelsButton": "Modelle",
+  "outputLidFailed": "Sprache konnte nicht erkannt werden.",
+  "outputLidDetected": "Erkannte Sprache: {code} ({pct}%) [{model}]",
+  "@outputLidDetected": {"placeholders": {"code": {"type": "String"}, "pct": {"type": "String"}, "model": {"type": "String"}}},
+  "outputTagSegment": "Segment taggen",
+  "dialogCancel": "Abbrechen",
+  "dialogAdd": "Hinzufügen",
+  "dialogApply": "Anwenden",
+
+  "settingsEngineSwitched": "Gewechselt zu {engine}",
+  "@settingsEngineSwitched": {"placeholders": {"engine": {"type": "String"}}},
+  "settingsEngineSwitchFailed": "Engine-Wechsel fehlgeschlagen",
+  "settingsAllFilesAccessNeeded": "\"Zugriff auf alle Dateien\" benötigt",
+  "settingsAllFilesAccessExplanation": "Um einen Ordner außerhalb der App-Sandbox auszuwählen, wird die Android-Berechtigung \"Zugriff auf alle Dateien\" benötigt. Tippe auf \"Einstellungen öffnen\", aktiviere \"Zugriff auf alle Dateien\" für CrisperWeaver und komme dann zurück. Nach Deinstallation und Neuinstallation muss die Berechtigung erneut erteilt werden.",
+  "settingsOpenSettings": "Einstellungen öffnen",
+  "settingsAllFilesAccessDenied": "\"Zugriff auf alle Dateien\" abgelehnt — Sandbox-Verzeichnis wird verwendet.",
+
+  "fingerprintDedupTitle": "Bereits transkribiert",
+  "fingerprintDedupBody": "Diese Datei wurde bereits transkribiert. Erneut transkribieren?",
+  "fingerprintDedupTranscribeAgain": "Erneut transkribieren"
 }

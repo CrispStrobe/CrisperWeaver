@@ -382,9 +382,9 @@ class _TranscriptionOutputWidgetState
                   // Tiny pencil icon to flag manually-edited segments.
                   // Set in metadata by AppStateNotifier.editSegment.
                   if (segment.metadata['edited'] == true) ...[
-                    const Tooltip(
-                      message: 'Edited',
-                      child: Icon(Icons.edit, size: 12, color: Colors.grey),
+                    Tooltip(
+                      message: AppLocalizations.of(context).outputEdited,
+                      child: const Icon(Icons.edit, size: 12, color: Colors.grey),
                     ),
                     const SizedBox(width: 6),
                   ],
@@ -668,14 +668,14 @@ class _TranscriptionOutputWidgetState
           ),
           const SizedBox(height: 16),
           Text(
-            'No transcription yet',
+            AppLocalizations.of(context).outputNoTranscriptionYet,
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   color: Colors.grey.shade600,
                 ),
           ),
           const SizedBox(height: 8),
           Text(
-            'Select an audio file and start transcription',
+            AppLocalizations.of(context).outputSelectAudioFile,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: Colors.grey.shade500,
                 ),
@@ -697,14 +697,14 @@ class _TranscriptionOutputWidgetState
           ),
           const SizedBox(height: 16),
           Text(
-            'No results found',
+            AppLocalizations.of(context).outputNoResultsFound,
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   color: Colors.grey.shade600,
                 ),
           ),
           const SizedBox(height: 8),
           Text(
-            'Try a different search term',
+            AppLocalizations.of(context).outputTryDifferentSearch,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: Colors.grey.shade500,
                 ),
@@ -879,12 +879,11 @@ class _TranscriptionOutputWidgetState
     if (!mounted) return;
     final messenger = ScaffoldMessenger.of(context);
     if (modelPath == null) {
+      final ll = AppLocalizations.of(context);
       messenger.showSnackBar(SnackBar(
-        content: const Text(
-            'Download a text language-ID model (CLD3, GlotLID, or '
-            'FastText LID-176) to detect the language.'),
+        content: Text(ll.outputLidModelNeeded),
         action: SnackBarAction(
-          label: 'Models',
+          label: ll.outputLidModelsButton,
           onPressed: () {
             if (mounted) context.push('/models');
           },
@@ -901,12 +900,13 @@ class _TranscriptionOutputWidgetState
     if (!mounted) return;
     if (result == null) {
       messenger.showSnackBar(
-          const SnackBar(content: Text("Couldn't detect the language.")));
+          SnackBar(content: Text(AppLocalizations.of(context).outputLidFailed)));
       return;
     }
     final pct = (result.confidence * 100).round();
     messenger.showSnackBar(SnackBar(
-      content: Text('Detected language: ${result.code} ($pct%) [$modelName]'),
+      content: Text(AppLocalizations.of(context).outputLidDetected(
+          result.code, pct.toString(), modelName)),
       duration: const Duration(seconds: 3),
     ));
   }
@@ -1207,7 +1207,7 @@ class _TranscriptionOutputWidgetState
           const Divider(height: 1),
           ListTile(
             leading: const Icon(Icons.label_outline),
-            title: const Text('Tag segment'),
+            title: Text(AppLocalizations.of(context).outputTagSegment),
             onTap: () {
               Navigator.of(sheetCtx).pop();
               _showTagPicker(segment);
@@ -1228,7 +1228,7 @@ class _TranscriptionOutputWidgetState
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
-          title: const Text('Tag segment'),
+          title: Text(AppLocalizations.of(context).outputTagSegment),
           content: Wrap(
             spacing: 8,
             runSpacing: 4,
@@ -1252,14 +1252,14 @@ class _TranscriptionOutputWidgetState
           actions: [
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('Cancel'),
+              child: Text(AppLocalizations.of(context).dialogCancel),
             ),
             FilledButton(
               onPressed: () {
                 Navigator.of(ctx).pop();
                 _applyTags(segIdx, currentTags.toList());
               },
-              child: const Text('Apply'),
+              child: Text(AppLocalizations.of(context).dialogApply),
             ),
           ],
         ),

@@ -1217,5 +1217,46 @@
   "compareRightFallback": "Right",
   "compareLeftWords": "Left words",
   "compareRightWords": "Right words",
-  "compareSimilarity": "Similarity"
+  "compareSimilarity": "Similarity",
+
+  "abTestNeedSecondModel": "Download a second model to compare",
+  "abTestPickModel": "Compare with model…",
+  "abTestRunning": "Running A/B: {modelA} vs {modelB}…",
+  "@abTestRunning": {"placeholders": {"modelA": {"type": "String"}, "modelB": {"type": "String"}}},
+  "abTestFailed": "A/B test failed: {error}",
+  "@abTestFailed": {"placeholders": {"error": {"type": "String"}}},
+
+  "subtitleOverlayExitTooltip": "Exit overlay",
+  "subtitleOverlaySmallerText": "Smaller text",
+  "subtitleOverlayLargerText": "Larger text",
+  "subtitleOverlayTogglePosition": "Toggle position",
+  "subtitleOverlayToggleBackground": "Toggle background",
+  "subtitleOverlayWaiting": "Waiting for transcription…",
+
+  "outputNoTranscriptionYet": "No transcription yet",
+  "outputSelectAudioFile": "Select an audio file and start transcription",
+  "outputNoResultsFound": "No results found",
+  "outputTryDifferentSearch": "Try a different search term",
+  "outputEdited": "Edited",
+  "outputLidModelNeeded": "Download a text language-ID model (CLD3, GlotLID, or FastText LID-176) to detect the language.",
+  "outputLidModelsButton": "Models",
+  "outputLidFailed": "Couldn't detect the language.",
+  "outputLidDetected": "Detected language: {code} ({pct}%) [{model}]",
+  "@outputLidDetected": {"placeholders": {"code": {"type": "String"}, "pct": {"type": "String"}, "model": {"type": "String"}}},
+  "outputTagSegment": "Tag segment",
+  "dialogCancel": "Cancel",
+  "dialogAdd": "Add",
+  "dialogApply": "Apply",
+
+  "settingsEngineSwitched": "Switched to {engine}",
+  "@settingsEngineSwitched": {"placeholders": {"engine": {"type": "String"}}},
+  "settingsEngineSwitchFailed": "Engine switch failed",
+  "settingsAllFilesAccessNeeded": "\"All files access\" needed",
+  "settingsAllFilesAccessExplanation": "Picking a folder outside the app sandbox needs Android's \"All files access\" permission. Tap \"Open Settings\", enable \"All files access\" for CrisperWeaver, then come back. After uninstalling and reinstalling the app, the grant is reset by Android and must be re-enabled.",
+  "settingsOpenSettings": "Open Settings",
+  "settingsAllFilesAccessDenied": "\"All files access\" denied — using sandbox dir instead.",
+
+  "fingerprintDedupTitle": "Already transcribed",
+  "fingerprintDedupBody": "This file has already been transcribed. Transcribe again?",
+  "fingerprintDedupTranscribeAgain": "Transcribe again"
 }
