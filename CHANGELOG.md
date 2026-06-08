@@ -5,6 +5,15 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 
 ## [Unreleased]
 
+### Added — Riverpod 3, embedding persistence, SDK upgrade (2026-06-08)
+- **Riverpod 2→3** — bumped `flutter_riverpod` to 3.3.1. Legacy
+  `StateNotifier`/`StateProvider` classes moved to `legacy.dart` import
+  in 4 files. No functional changes; full `Notifier` migration deferred.
+- **Embedding persistence** (§5.25.2) — segment embeddings pre-computed
+  at history save time and stored in JSON. Search loads persisted vectors
+  first, falls back to in-memory cache, then on-the-fly encoding.
+  "Reindex embeddings" button on History screen backfills old entries.
+
 ### Added — Flutter SDK upgrade + CrispEmbed integration (2026-06-08)
 - **Flutter SDK 3.35.1 → 3.44.1** (Dart 3.9.0 → 3.12.1). 36 tier-2
   packages bumped (§5.9): `device_info_plus` 13.1, `share_plus` 13.1,

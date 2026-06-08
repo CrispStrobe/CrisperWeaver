@@ -584,7 +584,9 @@ sensevoice) don't take a token-AR beam either.
 `transcript_summarize_service.dart`). `flutter analyze` 0 issues,
 527 tests pass.
 
-**Still pending:** `riverpod` 2→3 migration (large, separate effort).
+**Riverpod 2→3: shipped June 2026.** `flutter_riverpod` 3.3.1.
+Legacy `StateNotifier`/`StateProvider` moved to `legacy.dart` import
+in 4 files. Full `Notifier`/`NotifierProvider` migration deferred.
 `file_picker` 12 is in beta — once stable, the constraint will
 naturally pick it up.
 
@@ -821,10 +823,11 @@ automation. Grouped by projected impact; priority picks marked with ⚡.
   similarity ranking. Embedding cache avoids re-encoding.
   `all-MiniLM-L6-v2` (384-dim, ~23 MB Q8_0) catalogued.
 
-  **Follow-ups:** (a) vector persistence (pre-embed segments on
-  history save, avoid encoding on every search), (b) audio embedding
-  via `crispembed_encode_audio` for cross-modal search, (c) more
-  model choices in the catalogue.
+  **Follow-ups:** (a) ~~vector persistence~~ — **shipped June 2026**.
+  Embeddings pre-computed at history save time, persisted in JSON,
+  loaded on search. "Reindex embeddings" button backfills old entries.
+  (b) audio embedding via `crispembed_encode_audio` for cross-modal
+  search, (c) more model choices in the catalogue.
 
   **Effort:** done. **Risk:** n/a.
 

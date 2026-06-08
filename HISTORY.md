@@ -27,6 +27,38 @@ pending.
 
 ---
 
+## June 2026 — Riverpod 2→3 migration
+
+Bumped `flutter_riverpod` from 2.4.9 to 3.3.1 (riverpod 3.2.1).
+In riverpod 3, `StateNotifier`, `StateNotifierProvider`, and
+`StateProvider` moved to `package:flutter_riverpod/legacy.dart`.
+Added the legacy import to the 4 files that use them:
+`main.dart`, `engine_factory.dart`, `batch_queue_service.dart`,
+`advanced_options_widget.dart`.
+
+Future pass: migrate the 4 `StateNotifier` subclasses + 2
+`StateProvider` declarations to the modern `Notifier` / `NotifierProvider`
+API to eliminate the legacy imports entirely.
+
+---
+
+## June 2026 — Embedding persistence (§5.25.2 follow-up)
+
+Pre-compute and persist CrispEmbed vectors alongside history JSON:
+
+* `HistoryEntry.segmentEmbeddings` — optional `Map<int, List<double>>`
+  stored as JSON (keys as strings). Backwards-compatible (old entries
+  without embeddings load fine).
+* All 4 `historyService.save()` call sites now pass
+  `embedder: ref.read(crispEmbedProvider)`.
+* `SemanticSearchService._embeddingSearch()` lookup order:
+  (1) persisted embeddings from entry, (2) in-memory `_embeddingCache`,
+  (3) on-the-fly encoding via embedder.
+* "Reindex embeddings" button on History screen AppBar backfills
+  entries without embeddings.
+
+---
+
 ## June 2026 — CrispEmbed semantic search (§5.25.2)
 
 Wired the CrispEmbed Dart FFI package (`../CrispEmbed/flutter/crispembed`)
