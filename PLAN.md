@@ -573,47 +573,20 @@ sensevoice) don't take a token-AR beam either.
 
 ---
 
-### 5.9 Dependency refresh
+### 5.9 Dependency refresh — ✅ shipped (June 2026)
 
-The in-constraint tier is **done**: v0.6.46 bumped everything that
-resolves on the current toolchain, and `flutter pub upgrade --dry-run`
-now reports *"No dependencies would change"* — every resolvable package
-is at its ceiling.
+**Flutter SDK upgraded: 3.35.1 → 3.44.1** (Dart 3.9.0 → 3.12.1).
+36 tier-2 packages bumped, including `device_info_plus` 13.1,
+`share_plus` 13.1, `package_info_plus` 10.1, `win32` 6.3,
+`file_picker` 12.0.0-beta.5. The `<12.4.0` Xcode pin on
+`device_info_plus` was removed. Three files fixed for API changes
+(`edit_audio_screen.dart`, `file_picker_util.dart`,
+`transcript_summarize_service.dart`). `flutter analyze` 0 issues,
+527 tests pass.
 
-**Everything still outdated (32 packages as of 2026-05-30) is one
-coupled "tier 2" change, gated on a Flutter SDK upgrade.** Verified
-empirically by widening the constraints and resolving:
-
-- Current toolchain here is **Flutter 3.35.1 / Dart 3.9.0** (at
-  `/mnt/volume1/toolchain/flutter`). Latest stable is 3.44.0.
-- The plus-family majors — `device_info_plus` 13, `package_info_plus`
-  10, `share_plus` 13 — and `record` 7, `riverpod` 3, `win32` 6, `xml`
-  7 all bumped (directly or transitively) to `win32 6.0.0`, which raises
-  the floor to **Dart ≥3.11 / Flutter ≥3.41.6**. None resolve on Dart
-  3.10.4.
-- `device_info_plus` has two extra snags: 12.4+ reintroduces the
-  `NSProcessInfo.isiOSAppOnVision` selector that the `<12.4.0` pin
-  exists to dodge (CI Xcode-SDK compile break — see the pubspec
-  comment), and 13.1.0 needs `win32 ^6.0.1`, which **conflicts with
-  `file_picker 11.0.2`** (`win32 ^5.9.0`). So `file_picker` has to move
-  in the same change.
-- App code is mostly ready: `share_plus` call sites already use the
-  modern `SharePlus.instance.share(ShareParams(...))` API, and
-  `device_info_plus` / `package_info_plus` use stable surfaces
-  (`DeviceInfoPlugin`, `PackageInfo.fromPlatform`).
-
-So this is an **SDK-upgrade project, not a constraint bump**: `flutter
-upgrade` 3.35.1 → ≥3.41.6, then `win32` 5→6 + `file_picker` + the three
-plus-majors + `record` 7 (and assess `riverpod` 2→3 separately — large
-migration) as one coordinated change, fix breakage, full
-analyze/test + a per-platform rebuild pass.
-
-**Not blocked on disk.** The Flutter SDK lives at
-`/mnt/volume1/toolchain/flutter` (46 GiB free as of 2026-06-08).
-Current version is **Flutter 3.35.1 / Dart 3.9.0** — needs upgrading
-to ≥3.41.6 for the tier-2 deps. The upgrade should be done on a
-**feature branch + worktree** so `main` stays stable. The earlier
-"blocked on Homebrew / 100% capacity" note was from a different machine.
+**Still pending:** `riverpod` 2→3 migration (large, separate effort).
+`file_picker` 12 is in beta — once stable, the constraint will
+naturally pick it up.
 
 ### 5.10 Release polish
 
@@ -841,12 +814,19 @@ automation. Grouped by projected impact; priority picks marked with ⚡.
 
   **Files:** `lib/services/semantic_search_service.dart`.
 
-  **Remaining:** (a) add an embedding C-ABI to `../CrispEmbed`
-  (our repo — text/audio → float vector), (b) Dart FFI binding,
-  (c) vector persistence alongside history JSON. The semantic
-  search toggle already exists on the History screen.
+  **Remaining:** none (v1 complete). CrispEmbed Dart FFI binding
+  added as a path dependency. `crispEmbedProvider` lazy-loads the
+  first downloaded `ModelKind.embed` GGUF. History screen passes
+  the embedder to `SemanticSearchService.search()` for real cosine-
+  similarity ranking. Embedding cache avoids re-encoding.
+  `all-MiniLM-L6-v2` (384-dim, ~23 MB Q8_0) catalogued.
 
-  **Effort:** ~3–5 days (C-ABI + binding + indexing). **Risk:** medium.
+  **Follow-ups:** (a) vector persistence (pre-embed segments on
+  history save, avoid encoding on every search), (b) audio embedding
+  via `crispembed_encode_audio` for cross-modal search, (c) more
+  model choices in the catalogue.
+
+  **Effort:** done. **Risk:** n/a.
 
 * **5.25.3 ⚡ Real-time subtitle overlay / teleprompter mode** — ✅
   **Shipped June 2026.** A dedicated fullscreen dark-transparent

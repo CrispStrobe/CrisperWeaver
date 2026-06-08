@@ -5,6 +5,21 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 
 ## [Unreleased]
 
+## [Unreleased]
+
+### Added — Flutter SDK upgrade + CrispEmbed integration (2026-06-08)
+- **Flutter SDK 3.35.1 → 3.44.1** (Dart 3.9.0 → 3.12.1). 36 tier-2
+  packages bumped (§5.9): `device_info_plus` 13.1, `share_plus` 13.1,
+  `package_info_plus` 10.1, `win32` 6.3, `file_picker` 12.0.0-beta.5.
+  Three files fixed for API changes.
+- **Real semantic transcript search** (§5.25.2) — `crispembed` path
+  dependency wired via `crispEmbedProvider`. History screen semantic search
+  now uses real vector embeddings (cosine similarity) when `all-MiniLM-L6-v2`
+  GGUF is downloaded (~23 MB). TF-IDF fallback preserved when no model/lib
+  available. Embedding cache avoids re-encoding on repeated searches.
+- **`ModelKind.embed`** added to the model catalogue. `all-MiniLM-L6-v2-Q8_0`
+  catalogued as the first embedding model with `BackendRepo` entry.
+
 ## 0.7.5 — 2026-06-08
 
 ### Wired — §5.25 completion pass
