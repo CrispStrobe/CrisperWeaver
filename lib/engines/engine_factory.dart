@@ -1,4 +1,4 @@
-import 'package:flutter_riverpod/legacy.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../services/model_service.dart';
 import 'transcription_engine.dart';
@@ -142,9 +142,8 @@ class EngineInfo {
 
 /// Riverpod providers for engine management.
 final engineManagerProvider =
-    StateNotifierProvider<EngineManagerNotifier, EngineManagerState>((ref) {
-  return EngineManagerNotifier();
-});
+    NotifierProvider<EngineManagerNotifier, EngineManagerState>(
+        EngineManagerNotifier.new);
 
 /// Engine manager state.
 class EngineManagerState {
@@ -180,8 +179,13 @@ class EngineManagerState {
 }
 
 /// Engine manager state notifier.
-class EngineManagerNotifier extends StateNotifier<EngineManagerState> {
-  EngineManagerNotifier() : super(EngineManagerState(manager: EngineManager()));
+class EngineManagerNotifier extends Notifier<EngineManagerState> {
+  @override
+  EngineManagerState build() {
+    final mgr = EngineManager();
+    ref.onDispose(() => mgr.dispose());
+    return EngineManagerState(manager: mgr);
+  }
 
   Future<void> initializeWithMock() async {
     state = state.copyWith(isInitializing: true, error: null);
@@ -238,9 +242,4 @@ class EngineManagerNotifier extends StateNotifier<EngineManagerState> {
     }
   }
 
-  @override
-  void dispose() {
-    state.manager.dispose();
-    super.dispose();
-  }
 }

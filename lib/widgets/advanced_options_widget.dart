@@ -1,7 +1,11 @@
 import 'package:crispasr/crispasr.dart' as crispasr;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_riverpod/legacy.dart';
+import 'package:flutter_riverpod/legacy.dart'; // §legacy: advancedOptionsProvider
+// remains a StateProvider because it is a simple value holder mutated from 47+
+// call sites via `.notifier).state =`. Riverpod 3's Notifier marks `state`
+// @protected so external assignment would require an explicit setter method on
+// every field — impractical for a 40-field options class.
 
 import '../l10n/generated/app_localizations.dart';
 import '../main.dart' show transcriptionServiceProvider;

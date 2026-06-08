@@ -7,7 +7,11 @@ import 'package:audio_session/audio_session.dart';
 import 'package:flutter/material.dart';
 import 'l10n/generated/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_riverpod/legacy.dart';
+import 'package:flutter_riverpod/legacy.dart'; // §legacy: selectedAudioPathProvider
+// remains a StateProvider because it is a trivial value holder mutated from 5
+// call sites via `.notifier).state =`. Riverpod 3's Notifier marks `state`
+// @protected, so external assignment would require a wrapper method and
+// updating every consumer — not worth it for a single String? slot.
 import 'package:go_router/go_router.dart';
 import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 import 'package:path_provider/path_provider.dart';
@@ -667,12 +671,11 @@ class PerformanceStats {
 }
 
 final appStateProvider =
-    StateNotifierProvider<AppStateNotifier, AppState>((ref) {
-  return AppStateNotifier();
-});
+    NotifierProvider<AppStateNotifier, AppState>(AppStateNotifier.new);
 
-class AppStateNotifier extends StateNotifier<AppState> {
-  AppStateNotifier() : super(const AppState());
+class AppStateNotifier extends Notifier<AppState> {
+  @override
+  AppState build() => const AppState();
 
   void startTranscription() {
     // Direct AppState() construction (not copyWith) so a previous
@@ -801,24 +804,22 @@ class AppStateNotifier extends StateNotifier<AppState> {
 }
 
 /// Manages the app's locale based on user preference or system default.
-class LocaleNotifier extends StateNotifier<Locale?> {
-  final SettingsService _settingsService;
-
-  LocaleNotifier(this._settingsService) : super(null) {
-    _init();
-  }
-
-  void _init() {
-    final localeCode = _settingsService.appLocale;
+class LocaleNotifier extends Notifier<Locale?> {
+  @override
+  Locale? build() {
+    final settingsService = ref.watch(settingsServiceProvider);
+    final localeCode = settingsService.appLocale;
     Log.instance.d('locale', 'Initial app locale from settings: $localeCode');
     if (localeCode != null && localeCode.isNotEmpty) {
-      state = Locale(localeCode);
+      return Locale(localeCode);
     }
+    return null;
   }
 
   Future<void> setLocale(String? languageCode) async {
     Log.instance.i('locale', 'Changing app locale to: $languageCode');
-    _settingsService.appLocale = languageCode;
+    final settingsService = ref.read(settingsServiceProvider);
+    settingsService.appLocale = languageCode;
     if (languageCode == null || languageCode.isEmpty) {
       state = null;
     } else {
@@ -827,7 +828,5 @@ class LocaleNotifier extends StateNotifier<Locale?> {
   }
 }
 
-final localeProvider = StateNotifierProvider<LocaleNotifier, Locale?>((ref) {
-  final settingsService = ref.watch(settingsServiceProvider);
-  return LocaleNotifier(settingsService);
-});
+final localeProvider =
+    NotifierProvider<LocaleNotifier, Locale?>(LocaleNotifier.new);
