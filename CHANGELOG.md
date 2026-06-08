@@ -5,6 +5,24 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 
 ## [Unreleased]
 
+## 0.7.5 — 2026-06-08
+
+### Wired — §5.25 completion pass
+- **Segment tag filter chips on History screen** (§5.25.10) — horizontal
+  scrollable `FilterChip` row for all 7 tag types. Active tags narrow the
+  displayed entries to those containing at least one matching tagged segment.
+  Combines with text search (substring or semantic).
+- **Settings UX** — Speakers + Speaker Vocabulary tiles moved from the
+  Debugging section to the Diarization section where they logically belong.
+- **Memory fix** — retained PCM audio buffer (~230 MB/hr) is now freed
+  immediately after multilingual tagging instead of held until the next
+  transcription starts.
+- Verified §5.25.12 keyboard nav, §5.25.9 lexicon editor, §5.25.4 speaker
+  vocab editor, and §5.25.6 chapter export are all fully wired (previously
+  marked as "remaining" in PLAN.md but implementation was already in place).
+- Four new test files: chapter detection, history screen widget,
+  pronunciation lexicon, semantic search service.
+
 ### Added — §5.25 next-generation features (14 features)
 - **Subtitle overlay / teleprompter mode** (§5.25.3) — fullscreen dark-transparent
   screen (`/subtitle-overlay`) showing live streaming transcription as large

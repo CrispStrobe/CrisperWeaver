@@ -880,9 +880,11 @@ automation. Grouped by projected impact; priority picks marked with ⚡.
 
   **Files:** `lib/models/speaker_vocab.dart`.
 
-  **Remaining:** Add vocab editor to Settings → Speakers screen.
+  **Remaining:** none (v1 complete). Vocab editor dialog accessible
+  from Settings → Diarization → Speaker Vocabulary with per-speaker
+  term chips (add/delete).
 
-  **Effort:** ~0.5 day. **Risk:** low.
+  **Effort:** done. **Risk:** n/a.
 
 * **5.25.5 Multilingual simultaneous transcription** — ✅ **Service
   shipped June 2026.** `MultilingualTranscriptionService` runs
@@ -957,10 +959,10 @@ automation. Grouped by projected impact; priority picks marked with ⚡.
   **Files:** `lib/models/pronunciation_lexicon.dart`,
   `lib/services/tts_service.dart`.
 
-  **Remaining:** add lexicon editor UI on the Synthesize screen's
-  Advanced section (add/edit/delete entries).
+  **Remaining:** none (v1 complete). Lexicon editor card in the
+  Synthesize screen's Advanced section with add/delete entries.
 
-  **Effort:** ~1 day. **Risk:** low.
+  **Effort:** done. **Risk:** n/a.
 
 * **5.25.10 Transcript annotation / tagging system** — ✅ **Model
   shipped June 2026.** `SegmentTag` enum with 7 tag types (bookmark,
@@ -971,10 +973,11 @@ automation. Grouped by projected impact; priority picks marked with ⚡.
 
   **Files:** `lib/models/segment_tag.dart`.
 
-  **Remaining:** wire into segment long-press menu + history JSON
-  schema + history search filter chips.
+  **Remaining:** none (v1 complete). Tags are in the long-press menu,
+  persisted in history JSON, and filterable via tag chips on the
+  History screen.
 
-  **Effort:** ~1 day. **Risk:** low — additive schema change.
+  **Effort:** done. **Risk:** n/a.
 
 * **5.25.11 Audio fingerprint deduplication** — ✅ **Shipped
   June 2026.** `AudioFingerprintService` computes SHA-256 fingerprints
@@ -998,9 +1001,11 @@ automation. Grouped by projected impact; priority picks marked with ⚡.
 
   **Files:** `lib/widgets/transcript_keyboard_nav.dart`.
 
-  **Remaining:** apply mixin to `TranscriptionOutputWidget`.
+  **Remaining:** none (v1 complete). Keyboard nav is implemented
+  directly in `TranscriptionOutputWidget` (not via the mixin scaffold
+  which remains as an unused reference).
 
-  **Effort:** ~0.5 day. **Risk:** low.
+  **Effort:** done. **Risk:** n/a.
 
 * **5.25.13 Model A/B testing mode** — ✅ **Shipped June 2026.**
   `AbTestResult` stores per-segment winner picks ('A', 'B', 'tie')

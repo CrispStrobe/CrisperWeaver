@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 
 import '../main.dart';
 import '../l10n/generated/app_localizations.dart';
+import '../models/segment_tag.dart';
 import '../services/history_service.dart';
 import '../services/semantic_search_service.dart';
 import '../utils/file_utils.dart';
@@ -31,6 +32,10 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   /// substring matching. Toggle via the search bar suffix icon.
   bool _semanticSearch = false;
 
+  /// §5.25.10 — Active tag filter. Only entries whose segments carry
+  /// at least one of these tags are shown. Empty = no tag filter.
+  final Set<SegmentTag> _tagFilter = {};
+
   @override
   void initState() {
     super.initState();
@@ -53,10 +58,22 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   /// current search query. Uses either substring or TF-IDF semantic
   /// search depending on the [_semanticSearch] toggle.
   List<HistoryEntry> _applyFilter(List<HistoryEntry> all) {
-    if (_searchQuery.isEmpty) return all;
+    var result = all;
+
+    // §5.25.10 — Tag filter: keep only entries that have at least one
+    // segment carrying one of the selected tags.
+    if (_tagFilter.isNotEmpty) {
+      final tagNames = _tagFilter.map((t) => t.name).toSet();
+      result = result
+          .where((e) => e.segments
+              .any((s) => s.tags.any((t) => tagNames.contains(t))))
+          .toList(growable: false);
+    }
+
+    if (_searchQuery.isEmpty) return result;
     if (!_semanticSearch) {
       final q = _searchQuery.toLowerCase();
-      return all
+      return result
           .where((e) =>
               e.title.toLowerCase().contains(q) ||
               e.fullText.toLowerCase().contains(q))
@@ -65,7 +82,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     // §5.25.2 — Semantic search: score each entry's segments against
     // the query, keep entries with at least one matching segment.
     final scored = <(HistoryEntry, double)>[];
-    for (final entry in all) {
+    for (final entry in result) {
       final results = SemanticSearchService.search(
         query: _searchQuery,
         segments: entry.segments,
@@ -205,9 +222,37 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           }
           return Column(
             children: [
+              // §5.25.10 — Tag filter chips.
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: SegmentTag.values.map((tag) {
+                      final active = _tagFilter.contains(tag);
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: FilterChip(
+                          label: Text('${tag.emoji} ${tag.label}'),
+                          selected: active,
+                          onSelected: (selected) {
+                            setState(() {
+                              if (selected) {
+                                _tagFilter.add(tag);
+                              } else {
+                                _tagFilter.remove(tag);
+                              }
+                            });
+                          },
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ),
               // Per-search filter count strip. Hidden when not
               // filtering so the list stays clean for normal use.
-              if (_searchQuery.isNotEmpty)
+              if (_searchQuery.isNotEmpty || _tagFilter.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
                   child: Align(

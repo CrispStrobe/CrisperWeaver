@@ -15,6 +15,7 @@ pending.
 
 | Tag | Date | Highlights |
 |---|---|---|
+| [v0.7.5](https://github.com/CrispStrobe/CrisperWeaver/releases/tag/v0.7.5) | 2026-06-08 | §5.25 completion pass: tag filter chips on History, Settings UX fix, PCM memory leak fix, 4 new tests. All 14 §5.25 features fully wired. |
 | [v0.7.4](https://github.com/CrispStrobe/CrisperWeaver/releases/tag/v0.7.4) | 2026-06-06 | Synthetic content compliance: two-tier TTS watermarking (native CrispASR spread-spectrum / AudioSeal + Dart LSB fallback), WAV provenance metadata, biometric consent, disclosure labels + exports, speaker data export. MeloTTS v3 catalogue fix. CI green on all 5 platforms. |
 | [v0.7.2](https://github.com/CrispStrobe/CrisperWeaver/releases/tag/v0.7.2) | 2026-06-05 | Zonos v0.1 TTS (emotion/pitch/rate/voice-clone), MOSS-Audio 4B ASR, bake script sync. |
 | [v0.7.1](https://github.com/CrispStrobe/CrisperWeaver/releases/tag/v0.7.1) | 2026-06-05 | MOSS-Audio backend, backend capability set expansion. |
@@ -23,6 +24,27 @@ pending.
 | v0.4.0 | 2026-05-03 | First iOS IPA. Real ASR everywhere (macOS / Linux / Windows / Android / iOS). xcframework wiring shipped. |
 | v0.3.0 | 2026-05-02 | Windows release; mic-streaming live transcript; per-backend Storage tab. |
 | v0.2.x — v0.1.x | 2026-04 → 2026-05 | Initial macOS / Linux / Android releases; batch transcription; VAD; Advanced Options block. |
+
+---
+
+## June 2026 — §5.25 completion pass (v0.7.5)
+
+Audit + wiring pass confirming all 14 §5.25 features are fully integrated.
+Most features were already wired in prior sessions; this pass:
+
+* Added **segment tag filter chips** to the History screen — horizontal
+  scrollable `FilterChip` row (7 tag types), combinable with text search.
+* Moved Speakers / Speaker Vocab settings tiles to the Diarization section.
+* Fixed a **memory leak** — retained PCM buffer (~230 MB/hr) now freed
+  after multilingual tagging instead of held until the next transcription.
+* Verified and closed out the "Remaining" items for §5.25.4 (speaker vocab
+  editor), §5.25.6 (chapter export), §5.25.9 (lexicon editor), §5.25.10
+  (segment tags), and §5.25.12 (keyboard nav) — all already implemented.
+* Added 4 new test files (chapter detection, history screen widget,
+  pronunciation lexicon, semantic search).
+* Deleted stale `feat/next-gen-features` branch (local + remote).
+
+Updated PLAN.md: all §5.25 "Remaining" items now show "none (v1 complete)".
 
 ---
 
