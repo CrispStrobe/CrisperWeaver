@@ -5,8 +5,6 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 
 ## [Unreleased]
 
-## [Unreleased]
-
 ### Added — Flutter SDK upgrade + CrispEmbed integration (2026-06-08)
 - **Flutter SDK 3.35.1 → 3.44.1** (Dart 3.9.0 → 3.12.1). 36 tier-2
   packages bumped (§5.9): `device_info_plus` 13.1, `share_plus` 13.1,

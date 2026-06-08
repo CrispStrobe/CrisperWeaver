@@ -6,7 +6,7 @@ CrisperWeaver is a cross-platform Flutter app for fully-offline audio transcript
 
 [crispasr]: https://github.com/CrispStrobe/CrispASR
 
-![AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue) ![Flutter 3.38](https://img.shields.io/badge/flutter-3.38-blue) ![macOS · Linux · Windows · iOS · Android](https://img.shields.io/badge/platforms-macOS%20·%20Linux%20·%20Windows%20·%20iOS%20·%20Android-lightgrey)
+![AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue) ![Flutter 3.44](https://img.shields.io/badge/flutter-3.44-blue) ![macOS · Linux · Windows · iOS · Android](https://img.shields.io/badge/platforms-macOS%20·%20Linux%20·%20Windows%20·%20iOS%20·%20Android-lightgrey)
 
 ### Part of the Crisp ecosystem
 

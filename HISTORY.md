@@ -27,6 +27,50 @@ pending.
 
 ---
 
+## June 2026 — CrispEmbed semantic search (§5.25.2)
+
+Wired the CrispEmbed Dart FFI package (`../CrispEmbed/flutter/crispembed`)
+as a path dependency. The existing C-ABI (`crispembed_encode`) and Dart
+binding (`CrispEmbed.encode()` → `Float32List`) were ready to use —
+no changes to the CrispEmbed repo needed.
+
+* `crispEmbedProvider` (Riverpod, `lib/main.dart`) lazy-loads the first
+  `ModelKind.embed` GGUF on disk. Returns `null` when the native lib or
+  model is missing → callers degrade to TF-IDF silently.
+* `SemanticSearchService.search()` accepts an optional `CrispEmbed?
+  embedder`. When present: encode query + each segment's text, rank by
+  cosine similarity. Static `_embeddingCache` (keyed by segment text)
+  avoids re-encoding on every search.
+* History screen passes `ref.read(crispEmbedProvider)` to the search call.
+* `all-MiniLM-L6-v2-Q8_0` (384 dim, ~23 MB) catalogued as the first
+  `ModelKind.embed` entry with a `BackendRepo` pointing at
+  `cstr/all-MiniLM-L6-v2-GGUF`.
+
+Follow-ups: vector persistence on history save, audio embeddings via
+`crispembed_encode_audio`, more model choices.
+
+---
+
+## June 2026 — Flutter SDK upgrade + dependency refresh (§5.9)
+
+Upgraded `/mnt/volume1/toolchain/flutter` from **3.35.1 → 3.44.1**
+(Dart 3.9.0 → 3.12.1). 36 tier-2 packages bumped:
+
+* `device_info_plus` 12.3 → 13.1 (removed the stale `<12.4.0` Xcode pin)
+* `share_plus` 12 → 13.1, `package_info_plus` 9 → 10.1
+* `file_picker` 11 → 12.0.0-beta.5 (needed for `win32` 6.x compat)
+* `win32` 5 → 6.3, `material_color_utilities` → 0.13
+
+Three files fixed for API changes:
+* `edit_audio_screen.dart` — `FilePicker.saveFile` now requires `bytes:`
+* `file_picker_util.dart` — migrated deprecated `allowMultiple`/`readStream`
+* `transcript_summarize_service.dart` — removed unnecessary `!` (Dart 3.12
+  flow analysis promotes final nullable fields)
+
+Still pending: `riverpod` 2→3 migration (large, separate effort).
+
+---
+
 ## June 2026 — §5.25 completion pass (v0.7.5)
 
 Audit + wiring pass confirming all 14 §5.25 features are fully integrated.
