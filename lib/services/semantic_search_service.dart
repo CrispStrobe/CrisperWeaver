@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:crispembed/crispembed.dart' show CrispEmbed;
 
 import '../engines/transcription_engine.dart';
+import 'history_service.dart';
 
 /// §5.25.2 — Semantic transcript search via embeddings.
 ///
@@ -25,11 +26,16 @@ class SemanticSearchService {
   /// uses real vector embeddings + cosine similarity. Otherwise falls
   /// back to TF-IDF word-overlap scoring. Returns (index, score) pairs
   /// sorted by descending score. Score 0 = no match.
+  ///
+  /// When [historyEntry] is provided, pre-computed embeddings from the
+  /// persisted entry are used first, avoiding on-the-fly encoding for
+  /// entries saved after §5.25.2 embedding persistence was added.
   static List<SearchResult> search({
     required String query,
     required List<TranscriptionSegment> segments,
     int maxResults = 20,
     CrispEmbed? embedder,
+    HistoryEntry? historyEntry,
   }) {
     if (query.trim().isEmpty || segments.isEmpty) return [];
 
@@ -40,6 +46,7 @@ class SemanticSearchService {
         segments: segments,
         embedder: embedder,
         maxResults: maxResults,
+        historyEntry: historyEntry,
       );
     }
 
@@ -51,11 +58,15 @@ class SemanticSearchService {
   }
 
   /// Embedding-based search: encode query + segments, rank by cosine.
+  /// If [historyEntry] has pre-computed embeddings for a segment, those
+  /// are used directly; otherwise falls back to the in-memory cache and
+  /// finally to on-the-fly encoding via [embedder].
   static List<SearchResult> _embeddingSearch({
     required String query,
     required List<TranscriptionSegment> segments,
     required CrispEmbed embedder,
     required int maxResults,
+    HistoryEntry? historyEntry,
   }) {
     final queryVec = embedder.encode(query);
     if (queryVec.isEmpty) {
@@ -72,10 +83,20 @@ class SemanticSearchService {
       final text = segments[i].text;
       if (text.trim().isEmpty) continue;
 
-      // Look up or compute the segment embedding.
-      final segVec = _embeddingCache.putIfAbsent(text, () {
-        return embedder.encode(text);
-      });
+      // 1) Try pre-computed embeddings from persisted history entry.
+      Float32List? segVec = historyEntry?.embeddingForSegment(i);
+
+      // 2) Fall back to in-memory cache.
+      segVec ??= _embeddingCache[text];
+
+      // 3) Fall back to on-the-fly encoding + cache.
+      if (segVec == null) {
+        segVec = embedder.encode(text);
+        if (segVec.isNotEmpty) {
+          _embeddingCache[text] = segVec;
+        }
+      }
+
       if (segVec.isEmpty) continue;
 
       final score = cosineSimilarity(queryVec, segVec);

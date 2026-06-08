@@ -2170,6 +2170,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
               diarizationEnabled: _enableDiarization,
               processingTime: DateTime.now().difference(started),
               speakerNames: ref.read(appStateProvider).speakerNames,
+              embedder: ref.read(crispEmbedProvider),
             );
         appStateNotifier.setHistoryEntryId(saved.id);
       } catch (e, st) {
@@ -2530,6 +2531,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
                 diarizationEnabled: _enableDiarization,
                 processingTime: DateTime.now().difference(started),
                 speakerNames: ref.read(appStateProvider).speakerNames,
+                embedder: ref.read(crispEmbedProvider),
               );
           historyId = saved.id;
         } catch (e, st) {
@@ -2851,6 +2853,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
               diarizationEnabled: enableDiarization,
               processingTime: DateTime.now().difference(started),
               speakerNames: const {},
+              embedder: ref.read(crispEmbedProvider),
             );
         historyId = saved.id;
       } catch (e, st) {
@@ -3240,6 +3243,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
       final segmentsB = results[1];
 
       // Save both results to history.
+      final embedder = ref.read(crispEmbedProvider);
       final saves = await Future.wait([
         historyService.save(
           engineId: 'crispasr',
@@ -3247,6 +3251,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
           sourcePath: filePath,
           modelId: _modelName,
           language: _language,
+          embedder: embedder,
         ),
         historyService.save(
           engineId: 'crispasr',
@@ -3254,6 +3259,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
           sourcePath: filePath,
           modelId: secondModel.name,
           language: _language,
+          embedder: embedder,
         ),
       ]);
 

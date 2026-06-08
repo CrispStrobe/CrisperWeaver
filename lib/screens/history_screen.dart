@@ -91,6 +91,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         segments: entry.segments,
         maxResults: 1,
         embedder: embedder,
+        historyEntry: entry,
       );
       if (results.isNotEmpty) {
         scored.add((entry, results.first.score));
@@ -98,6 +99,31 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     }
     scored.sort((a, b) => b.$2.compareTo(a.$2));
     return scored.map((e) => e.$1).toList();
+  }
+
+  /// §5.25.2 — Backfill embeddings for all history entries that lack
+  /// them. Triggered by the user via the AppBar action.
+  Future<void> _reindexEmbeddings() async {
+    final embedder = ref.read(crispEmbedProvider);
+    if (embedder == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No embedding model available — '
+                'download one from the Models screen.'),
+          ),
+        );
+      }
+      return;
+    }
+    final service = ref.read(historyServiceProvider);
+    final count = await service.backfillEmbeddings(embedder);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Reindexed $count entries with embeddings.')),
+      );
+      setState(_reload);
+    }
   }
 
   Future<void> _deleteAll() async {
@@ -132,6 +158,13 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       appBar: AppBar(
         title: Text(l.historyTitle),
         actions: [
+          // §5.25.2 — Reindex: backfill embeddings for entries that
+          // were saved before embedding persistence was added.
+          IconButton(
+            tooltip: 'Reindex embeddings',
+            icon: const Icon(Icons.model_training),
+            onPressed: _reindexEmbeddings,
+          ),
           IconButton(
             tooltip: l.historyRefresh,
             icon: const Icon(Icons.refresh),

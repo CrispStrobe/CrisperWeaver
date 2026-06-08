@@ -1,10 +1,13 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
+
+import 'package:crispembed/crispembed.dart' show CrispEmbed;
 
 import '../engines/transcription_engine.dart';
 import 'audio_fingerprint_service.dart';
@@ -30,6 +33,13 @@ class HistoryEntry {
   /// on save; checked by the batch queue to detect re-imports.
   final String? audioFingerprint;
 
+  /// §5.25.2 — Pre-computed embedding vectors for each segment, keyed
+  /// by segment index. Persisted alongside the history JSON so search
+  /// doesn't have to re-encode on every app launch. Null for entries
+  /// saved before this feature was added — the search path falls back
+  /// to on-the-fly encoding in that case.
+  final Map<int, List<double>>? segmentEmbeddings;
+
   const HistoryEntry({
     required this.id,
     required this.createdAt,
@@ -43,6 +53,7 @@ class HistoryEntry {
     this.processingTime = Duration.zero,
     this.speakerNames = const {},
     this.audioFingerprint,
+    this.segmentEmbeddings,
   });
 
   String get title {
@@ -67,6 +78,10 @@ class HistoryEntry {
         // loader treats absent as empty so back-compat is automatic.
         'speakerNames': speakerNames,
         if (audioFingerprint != null) 'audioFingerprint': audioFingerprint,
+        if (segmentEmbeddings != null && segmentEmbeddings!.isNotEmpty)
+          'segmentEmbeddings': segmentEmbeddings!.map(
+            (k, v) => MapEntry(k.toString(), v),
+          ),
         'segments': segments
             .map((s) => {
                   'text': s.text,
@@ -94,6 +109,7 @@ class HistoryEntry {
         speakerNames: ((j['speakerNames'] as Map?) ?? const {})
             .map((k, v) => MapEntry(k.toString(), v.toString())),
         audioFingerprint: j['audioFingerprint'] as String?,
+        segmentEmbeddings: _parseSegmentEmbeddings(j['segmentEmbeddings']),
         segments: ((j['segments'] as List?) ?? const [])
             .cast<Map<String, dynamic>>()
             .map((m) => TranscriptionSegment(
@@ -106,6 +122,57 @@ class HistoryEntry {
                 ))
             .toList(),
       );
+
+  /// Parse the persisted segment embeddings map. Keys are stored as
+  /// strings in JSON (JSON object keys are always strings); values are
+  /// `List<double>`.
+  static Map<int, List<double>>? _parseSegmentEmbeddings(dynamic raw) {
+    if (raw == null) return null;
+    if (raw is! Map) return null;
+    final result = <int, List<double>>{};
+    for (final entry in raw.entries) {
+      final key = int.tryParse(entry.key.toString());
+      if (key == null) continue;
+      final vec = entry.value;
+      if (vec is List) {
+        result[key] = vec.map((e) => (e as num).toDouble()).toList();
+      }
+    }
+    return result.isEmpty ? null : result;
+  }
+
+  /// Return a Float32List for segment [index] from persisted embeddings,
+  /// or null if not available. Converts the stored `List<double>` to a
+  /// `Float32List` for efficient cosine-similarity computation.
+  Float32List? embeddingForSegment(int index) {
+    final vec = segmentEmbeddings?[index];
+    if (vec == null) return null;
+    return Float32List.fromList(vec);
+  }
+
+  /// Return a copy of this entry with the given [embeddings] attached.
+  HistoryEntry withEmbeddings(Map<int, List<double>> embeddings) {
+    return HistoryEntry(
+      id: id,
+      createdAt: createdAt,
+      engineId: engineId,
+      segments: segments,
+      sourcePath: sourcePath,
+      sourceUrl: sourceUrl,
+      modelId: modelId,
+      language: language,
+      diarizationEnabled: diarizationEnabled,
+      processingTime: processingTime,
+      speakerNames: speakerNames,
+      audioFingerprint: audioFingerprint,
+      segmentEmbeddings: embeddings,
+    );
+  }
+
+  /// Whether this entry has pre-computed embeddings for all non-empty
+  /// segments.
+  bool get hasEmbeddings =>
+      segmentEmbeddings != null && segmentEmbeddings!.isNotEmpty;
 }
 
 /// Persists [HistoryEntry] records as individual JSON files in the app's
@@ -177,6 +244,7 @@ class HistoryService {
     Duration processingTime = Duration.zero,
     Map<String, String> speakerNames = const {},
     String? audioFingerprint,
+    CrispEmbed? embedder,
   }) async {
     final dir = await _ensureDir();
     // §5.25.11 — Compute file fingerprint if a source path is provided
@@ -189,6 +257,9 @@ class HistoryService {
         // Non-critical — dedup just won't catch this file.
       }
     }
+    // §5.25.2 — Pre-compute embeddings at save time so search doesn't
+    // have to re-encode on every app launch.
+    final embeddings = _computeEmbeddings(segments, embedder);
     final entry = HistoryEntry(
       id: _uuid.v4(),
       createdAt: DateTime.now(),
@@ -202,6 +273,7 @@ class HistoryService {
       processingTime: processingTime,
       speakerNames: speakerNames,
       audioFingerprint: fp,
+      segmentEmbeddings: embeddings,
     );
     final file = File(p.join(dir.path, '${entry.id}.json'));
     await file.writeAsString(
@@ -240,5 +312,46 @@ class HistoryService {
         if (ent is File) await ent.delete();
       }
     }
+  }
+
+  /// §5.25.2 — Backfill embeddings for all history entries that don't
+  /// already have them. Returns the number of entries enriched.
+  /// Useful as a one-time reindex when the user first enables
+  /// embeddings, or after upgrading from a version without persistence.
+  Future<int> backfillEmbeddings(CrispEmbed embedder) async {
+    final entries = await list();
+    var count = 0;
+    for (final entry in entries) {
+      if (entry.hasEmbeddings) continue;
+      final embeddings = _computeEmbeddings(entry.segments, embedder);
+      if (embeddings == null) continue;
+      final enriched = entry.withEmbeddings(embeddings);
+      await update(enriched);
+      count++;
+    }
+    return count;
+  }
+
+  /// Encode each non-empty segment's text using the given embedder.
+  /// Returns null if the embedder is null or produces no vectors.
+  static Map<int, List<double>>? _computeEmbeddings(
+    List<TranscriptionSegment> segments,
+    CrispEmbed? embedder,
+  ) {
+    if (embedder == null) return null;
+    final result = <int, List<double>>{};
+    for (var i = 0; i < segments.length; i++) {
+      final text = segments[i].text;
+      if (text.trim().isEmpty) continue;
+      try {
+        final vec = embedder.encode(text);
+        if (vec.isNotEmpty) {
+          result[i] = vec.toList();
+        }
+      } catch (_) {
+        // Skip segments that fail to encode — non-critical.
+      }
+    }
+    return result.isEmpty ? null : result;
   }
 }
