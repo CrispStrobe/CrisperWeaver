@@ -32,6 +32,13 @@ class FileUtils {
     return directory;
   }
 
+  /// Get an arbitrary subdirectory under app documents.
+  static Future<Directory> getDocumentsSubdir(String name) async {
+    final appDir = await getAppDocumentsDirectory();
+    final sub = path.join(appDir.path, name);
+    return await ensureDirectoryExists(sub);
+  }
+
   /// Get transcriptions directory
   static Future<Directory> getTranscriptionsDirectory() async {
     final appDir = await getAppDocumentsDirectory();

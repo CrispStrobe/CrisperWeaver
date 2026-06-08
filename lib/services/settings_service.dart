@@ -469,6 +469,20 @@ class SettingsService {
   Future<void> clearAll() async {
     await _prefs.clear();
   }
+
+  // --- Watch Folder (§5.25.8) ---
+
+  bool get watchFolderEnabled => _prefs.getBool('watch_folder_enabled') ?? false;
+  set watchFolderEnabled(bool v) => _prefs.setBool('watch_folder_enabled', v);
+
+  String? get watchFolderPath => _prefs.getString('watch_folder_path');
+  set watchFolderPath(String? v) {
+    if (v == null) {
+      _prefs.remove('watch_folder_path');
+    } else {
+      _prefs.setString('watch_folder_path', v);
+    }
+  }
 }
 
 /// Provider for the SettingsService.

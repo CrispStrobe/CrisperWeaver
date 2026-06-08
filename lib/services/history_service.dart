@@ -125,6 +125,21 @@ class HistoryService {
     return dir;
   }
 
+  /// §5.25.7 — load a single entry by id for comparison/review.
+  /// Returns null if the file doesn't exist or is corrupt.
+  Future<HistoryEntry?> loadEntry(String id) async {
+    final dir = await _ensureDir();
+    final file = File(p.join(dir.path, '$id.json'));
+    if (!await file.exists()) return null;
+    try {
+      final raw = await file.readAsString();
+      final json = jsonDecode(raw) as Map<String, dynamic>;
+      return HistoryEntry.fromJson(json);
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// §5.1.3 — overwrite an existing entry by id. Used when the
   /// user inline-edits a segment text after the entry was first
   /// saved. The entry's `createdAt` / `engineId` / `modelId`

@@ -528,7 +528,7 @@ class _TranscriptionOutputWidgetState
   Widget _buildConfidenceTintedText(TranscriptionSegment segment) {
     final text = segment.text;
     final words = segment.words!;
-    final spans = <TextSpan>[];
+    final spans = <InlineSpan>[];
     var cursor = 0;
     for (final w in words) {
       // Find the next occurrence of this word's text starting at cursor.
@@ -543,16 +543,22 @@ class _TranscriptionOutputWidgetState
       if (hit > cursor) {
         spans.add(TextSpan(text: text.substring(cursor, hit)));
       }
+      final bg = _getConfidenceBackground(w.confidence);
       spans.add(TextSpan(
         text: w.word,
         style: TextStyle(
-          color: _getConfidenceColor(w.confidence),
+          backgroundColor: bg,
+          color: w.confidence < 0.5
+              ? _getConfidenceColor(w.confidence)
+              : null,
           // Underline very-low-confidence words on top of the colour
           // shift — colour alone is insufficient for users with red /
           // green deficiency.
           decoration: w.confidence < 0.5
               ? TextDecoration.underline
               : TextDecoration.none,
+          decorationColor:
+              w.confidence < 0.5 ? Colors.red.withValues(alpha: 0.6) : null,
         ),
       ));
       cursor = hit + w.word.length;
@@ -668,6 +674,20 @@ class _TranscriptionOutputWidgetState
     if (confidence >= 0.8) return Colors.green;
     if (confidence >= 0.6) return Colors.orange;
     return Colors.red;
+  }
+
+  /// Background tint for confidence heatmap — subtle highlight that
+  /// doesn't fight with text color. High confidence = transparent,
+  /// low confidence = progressively warmer.
+  Color _getConfidenceBackground(double confidence) {
+    if (confidence >= 0.9) return Colors.transparent;
+    if (confidence >= 0.7) {
+      return Colors.yellow.withValues(alpha: 0.1);
+    }
+    if (confidence >= 0.5) {
+      return Colors.orange.withValues(alpha: 0.15);
+    }
+    return Colors.red.withValues(alpha: 0.2);
   }
 
   /// Speaker chip with rename-on-tap. Display label looks up the user's

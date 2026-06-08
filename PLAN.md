@@ -815,6 +815,227 @@ Both now have tracked `hf_readmes/` cards (added this session).
 
 ---
 
+### 5.25 Next-generation features (June 2026)
+
+Fourteen feature proposals spanning UX, intelligence, and workflow
+automation. Grouped by projected impact; priority picks marked with ⚡.
+
+#### Tier A — High impact, aligned with existing architecture
+
+* **5.25.1 ⚡ Confidence heatmap on transcript** — ✅ **Enhanced
+  June 2026.** The existing text-color confidence tint (green/orange/
+  red) is upgraded to a proper background-color heatmap: transparent
+  at ≥0.9, subtle yellow tint at 0.7–0.9, orange at 0.5–0.7, red
+  at <0.5. Low-confidence words (<0.5) additionally get colored text
+  + underline for accessibility. Toggle unchanged (transcript ⋮ menu).
+
+  **Files:** `lib/widgets/transcription_output_widget.dart`
+  (`_getConfidenceBackground`, `_buildConfidenceTintedText`).
+
+  **Effort:** ~0.5 day. **Risk:** low — pure UI, no engine change.
+
+* **5.25.2 ⚡ Semantic transcript search via CrispEmbed** — Wire
+  CrispEmbed's omnimodal embedding model (`bidirlm-omni-2.5b`) to
+  enable meaning-based search over the history corpus. "Find the part
+  where they discussed budgets" returns ranked segments by cosine
+  similarity rather than substring match.
+
+  **Architecture:** (a) expose an embedding C-ABI from CrispEmbed (or
+  a thin shim in CrispASR that calls into `libcrispembed`), (b) Dart
+  FFI binding `embedText(text) → Float32List(2048)` +
+  `embedAudio(pcm) → Float32List(2048)`, (c) on transcription
+  completion, embed each segment and persist the vector alongside the
+  history JSON, (d) new "Semantic search" mode in the History screen
+  that embeds the query and ranks by cosine distance.
+
+  **Dependencies:** CrispEmbed shared library (~250 MB model GGUF).
+  Builds on §5.24F which already identifies this as the next
+  capability.
+
+  **Effort:** ~3–5 days (binding + indexing + UI). **Risk:** medium —
+  requires CrispEmbed linking, which is a new shared-lib dependency.
+
+* **5.25.3 ⚡ Real-time subtitle overlay / teleprompter mode** — ✅
+  **Shipped June 2026.** A dedicated fullscreen dark-transparent
+  screen (`/subtitle-overlay`) showing the latest streaming
+  transcription as large subtitle text. On macOS the window is set
+  to always-on-top + reduced opacity via a new platform channel
+  (`crisperweaver/window_overlay`). Controls: font size +/-, position
+  top/bottom, background toggle. Accessible from the AppBar (wide)
+  or overflow menu (phone).
+
+  **Files:** `lib/screens/subtitle_overlay_screen.dart`,
+  `macos/Runner/MainFlutterWindow.swift` (platform channel).
+  Route: `/subtitle-overlay`.
+
+  **Effort:** ~2–3 days. **Risk:** medium — platform-specific window
+  management; Android overlay permission UX (deferred — Android uses
+  the same screen in-app for now).
+
+* **5.25.4 Speaker-adaptive vocabulary** — ✅ **Model shipped
+  June 2026.** `SpeakerVocab` model with per-speaker term lists,
+  persisted as `<name>.vocab.json` alongside `.spk` profiles.
+  `mergeForSpeakers(allVocabs, identifiedSpeakers)` computes the
+  union of all active speakers' terms for injection into
+  `initial_prompt`.
+
+  **Files:** `lib/models/speaker_vocab.dart`.
+
+  **Remaining:** wire into transcription dispatch (after speaker
+  identification resolves clusters, merge active vocabs and inject
+  into `AdvancedTranscribeOptions.vocabularyChips`). Add vocab
+  editor to Settings → Speakers screen.
+
+  **Effort:** ~1–2 days. **Risk:** low — layering on two proven
+  features.
+
+* **5.25.5 Multilingual simultaneous transcription** — For meetings
+  with code-switching, run per-segment language detection (SenseVoice
+  built-in LID or the existing `LidService`) and route each segment
+  to the optimal backend for that language. Produce a single
+  transcript with per-segment `lang` tags.
+
+  **Architecture:** After VAD splits audio into segments, run LID on
+  each. Group consecutive same-language segments and dispatch to the
+  best-available backend for that language. Merge results with
+  `lang:` prefix per segment. Requires the parallel worker pool
+  (§5.23) to hold multiple sessions open.
+
+  **Effort:** ~2 days. **Risk:** medium — model switching latency;
+  need to keep multiple sessions warm or accept cold-start per switch.
+
+* **5.25.6 Audio chapter markers / podcast show notes** — Auto-detect
+  topic shifts via embedding distance between consecutive segments,
+  generate chapter titles (via the LLM summarisation pass), and
+  export as podcast-chapter metadata (MP3 CHAP frames, YouTube
+  chapter format `00:00 Title`, podcast:chapters RSS JSON).
+
+  **Architecture:** Reuse the CrispEmbed binding (§5.25.2) to compute
+  per-segment embeddings, then detect cosine-distance spikes as topic
+  boundaries. Feed boundary segments to the existing Summarise LLM
+  pass with a "generate a 3–5 word title" system prompt. Export
+  format: extend the existing export enum with `chapters_youtube` /
+  `chapters_podcastns`.
+
+  **Effort:** ~2 days (assumes §5.25.2 embedding is done).
+  **Risk:** low — pure post-processing.
+
+#### Tier B — Medium impact, fills real user gaps
+
+* **5.25.7 Transcript diff / comparison view** — ✅ **Shipped
+  June 2026.** `TranscriptCompareScreen` accepts two history entry
+  IDs, aligns segments by timestamp overlap, and renders a
+  side-by-side view with LCS-based word-level diff highlighting.
+  Stats row shows word counts + Jaccard similarity. Route:
+  `/compare?left=ID&right=ID`. `HistoryService.loadEntry(id)` added
+  to support loading by ID.
+
+  **Files:** `lib/screens/transcript_compare_screen.dart`,
+  `lib/services/history_service.dart` (`loadEntry`).
+
+  **Effort:** ~1.5 days. **Risk:** low — pure UI.
+
+* **5.25.8 Watch-folder / scheduled transcription** — ✅ **Shipped
+  June 2026.** `WatchFolderService` monitors a user-configured
+  directory via `FileSystemEntity.watch()`. New files with audio
+  extensions (.wav/.mp3/.flac/etc.) trigger a 2-second debounce,
+  then invoke the `onNewFile` callback. Settings → "Watch folder"
+  section (desktop-only) with enable toggle + folder picker.
+  `SettingsService` persists `watchFolderEnabled` + `watchFolderPath`.
+
+  **Files:** `lib/services/watch_folder_service.dart`,
+  `lib/screens/settings_screen.dart` (`_buildWatchFolderSettings`),
+  `lib/services/settings_service.dart`.
+
+  **Effort:** ~1 day. **Risk:** low — builds entirely on existing
+  batch infrastructure.
+
+* **5.25.9 TTS pronunciation lexicon** — User-editable phoneme
+  override table (word → IPA or respelling) that patches TTS output
+  for proper nouns, acronyms, and domain terms. Kokoro already uses
+  espeak-ng phonemisation; intercept at the phoneme layer.
+
+  **Architecture:** New `PronunciationLexicon` model (JSON-backed,
+  `<app-docs>/lexicon.json`). Before TTS synthesis, run a
+  find-and-replace on the input text converting lexicon entries to
+  their IPA/SSML form. For Kokoro: inject via espeak-ng's lexicon
+  mechanism. For other backends: text-level substitution
+  (respelling).
+
+  **Effort:** ~1 day. **Risk:** low — per-backend phonemiser
+  integration varies.
+
+* **5.25.10 Transcript annotation / tagging system** — ✅ **Model
+  shipped June 2026.** `SegmentTag` enum with 7 tag types (bookmark,
+  action-item, question, important, highlight, decision, follow-up),
+  each with label + emoji. JSON round-trip helpers (`toJson`,
+  `fromJson`, `listToJson`, `listFromJson`). Integration with note
+  exports (Obsidian/Notion/Logseq render tag emojis inline).
+
+  **Files:** `lib/models/segment_tag.dart`.
+
+  **Remaining:** wire into segment long-press menu + history JSON
+  schema + history search filter chips.
+
+  **Effort:** ~1 day. **Risk:** low — additive schema change.
+
+* **5.25.11 Audio fingerprint deduplication** — ✅ **Service shipped
+  June 2026.** `AudioFingerprintService` computes SHA-256 fingerprints
+  from the first 30 s of PCM (8-bit quantized for exact match, 4-bit
+  downsampled for coarse/tolerant match). Deterministic, no external
+  deps.
+
+  **Files:** `lib/services/audio_fingerprint_service.dart`.
+
+  **Remaining:** wire into batch queue intake (check existing
+  fingerprints in history JSON before enqueuing).
+
+  **Effort:** ~0.5 day. **Risk:** low.
+
+#### Tier C — Lower effort, high polish
+
+* **5.25.12 Keyboard-driven transcript navigation** — ✅ **Mixin
+  shipped June 2026.** `TranscriptKeyboardNav` mixin provides J/K/↑/↓
+  segment navigation, Space play/pause, Enter edit, Tab jump-to-next-
+  low-confidence, Escape deselect. Includes `segmentFocusDecoration`
+  for visual focus ring and `wrapWithKeyboardNav` widget wrapper.
+
+  **Files:** `lib/widgets/transcript_keyboard_nav.dart`.
+
+  **Remaining:** apply mixin to `TranscriptionOutputWidget`.
+
+  **Effort:** ~0.5 day. **Risk:** low.
+
+* **5.25.13 Model A/B testing mode** — Transcribe the same audio
+  with two models simultaneously, present results side-by-side, let
+  the user pick "winner" per segment. Aggregated picks inform the
+  recommended-default system over time.
+
+  **Architecture:** New "Compare models" action on the transcribe
+  screen. Runs two worker-pool jobs in parallel (§5.23 already
+  supports N-way parallelism). Results feed into §5.25.7's diff
+  view. Winner picks persist as a preference signal in a local
+  `model_ratings.json`.
+
+  **Effort:** ~1 day. **Risk:** low — builds on existing parallel
+  pool + diff view.
+
+* **5.25.14 Export to note-taking tools** — ✅ **Shipped June 2026.**
+  `NoteExportService` with four pure formatters: `toObsidian` (YAML
+  frontmatter + timestamped bullets), `toNotion` (speaker H2 headers),
+  `toLogseq` (indented bullet blocks with `type::` / `timestamp::`
+  properties), `toYouTubeChapters` (HH:MM:SS title lines). All
+  support segment tags. Wired into the transcript share menu
+  (Obsidian / Notion / Logseq / YouTube chapters after the divider).
+
+  **Files:** `lib/services/note_export_service.dart`,
+  `lib/screens/transcription_screen.dart` (`_saveAsNote` +
+  PopupMenuItems).
+
+  **Effort:** ~0.5 day. **Risk:** low.
+
+---
+
 ## 6. Adding a new backend
 
 Three-step recipe:

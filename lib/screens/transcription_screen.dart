@@ -32,6 +32,7 @@ import '../services/settings_service.dart';
 import '../services/transcription_worker_pool.dart';
 import '../utils/file_utils.dart';
 import '../utils/responsive.dart';
+import '../services/note_export_service.dart';
 import '../widgets/advanced_options_widget.dart';
 import '../widgets/audio_recorder_widget.dart';
 import '../widgets/batch_queue_card.dart';
@@ -373,6 +374,9 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
                       case 'presets':
                         _openPresetsDialog();
                         break;
+                      case 'subtitle-overlay':
+                        context.push('/subtitle-overlay');
+                        break;
                     }
                   },
                   itemBuilder: (_) => [
@@ -421,6 +425,15 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
                         dense: true,
                       ),
                     ),
+                    const PopupMenuItem(
+                      value: 'subtitle-overlay',
+                      child: ListTile(
+                        leading: Icon(Icons.subtitles),
+                        title: Text('Subtitle overlay'),
+                        contentPadding: EdgeInsets.zero,
+                        dense: true,
+                      ),
+                    ),
                   ],
                 ),
               ]
@@ -456,6 +469,12 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
                   icon: const Icon(Icons.bookmarks_outlined),
                   tooltip: l.presetsTooltip,
                   onPressed: _openPresetsDialog,
+                ),
+                // §5.25.3 — Subtitle overlay / teleprompter mode.
+                IconButton(
+                  icon: const Icon(Icons.subtitles),
+                  tooltip: 'Subtitle overlay',
+                  onPressed: () => context.push('/subtitle-overlay'),
                 ),
               ],
       ),
@@ -1530,6 +1549,40 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
                         child: ListTile(
                           leading: const Icon(Icons.timer_outlined),
                           title: Text(l.transcriptionSaveAsWts),
+                          dense: true,
+                        ),
+                      ),
+                      const PopupMenuDivider(),
+                      // §5.25.14 — Note-taking tool exports
+                      const PopupMenuItem(
+                        value: 'save_obsidian',
+                        child: ListTile(
+                          leading: Icon(Icons.notes, size: 20),
+                          title: Text('Obsidian'),
+                          dense: true,
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'save_notion',
+                        child: ListTile(
+                          leading: Icon(Icons.dashboard, size: 20),
+                          title: Text('Notion'),
+                          dense: true,
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'save_logseq',
+                        child: ListTile(
+                          leading: Icon(Icons.account_tree, size: 20),
+                          title: Text('Logseq'),
+                          dense: true,
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'save_chapters',
+                        child: ListTile(
+                          leading: Icon(Icons.bookmark_outline, size: 20),
+                          title: Text('YouTube chapters'),
                           dense: true,
                         ),
                       ),
@@ -2715,6 +2768,18 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
       case 'share_bundle':
         _shareAudioAndTranscript(appState);
         break;
+      case 'save_obsidian':
+        _saveAsNote(appState, 'obsidian');
+        break;
+      case 'save_notion':
+        _saveAsNote(appState, 'notion');
+        break;
+      case 'save_logseq':
+        _saveAsNote(appState, 'logseq');
+        break;
+      case 'save_chapters':
+        _saveAsNote(appState, 'chapters');
+        break;
     }
   }
 
@@ -2760,6 +2825,66 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
         format: format,
         segments: state.segments,
       );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text(AppLocalizations.of(context)
+                .transcriptionSavedTo(file.path))),
+      );
+      await FileUtils.shareFile(file.path, subject: baseName);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text(AppLocalizations.of(context)
+                .transcriptionSaveFailed(e.toString()))),
+      );
+    }
+  }
+
+  /// §5.25.14 — Export to note-taking tools.
+  Future<void> _saveAsNote(AppState state, String format) async {
+    try {
+      final segments = state.segments;
+      final title =
+          'Transcription ${DateTime.now().toIso8601String().substring(0, 10)}';
+      String content;
+      String ext;
+      switch (format) {
+        case 'obsidian':
+          content = NoteExportService.toObsidian(
+            segments: segments,
+            title: title,
+            date: DateTime.now(),
+            model: _modelName,
+            language: _language,
+          );
+          ext = 'md';
+        case 'notion':
+          content = NoteExportService.toNotion(
+            segments: segments,
+            title: title,
+            date: DateTime.now(),
+          );
+          ext = 'md';
+        case 'logseq':
+          content = NoteExportService.toLogseq(
+            segments: segments,
+            title: title,
+            date: DateTime.now(),
+            model: _modelName,
+          );
+          ext = 'md';
+        case 'chapters':
+          content = NoteExportService.toYouTubeChapters(segments: segments);
+          ext = 'txt';
+        default:
+          return;
+      }
+      final baseName = 'transcript-$format-${DateTime.now().millisecondsSinceEpoch}';
+      final dir = await FileUtils.getDocumentsSubdir('exports');
+      final file = File('${dir.path}/$baseName.$ext');
+      await file.writeAsString(content);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

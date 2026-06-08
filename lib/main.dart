@@ -29,6 +29,8 @@ import 'screens/voice_clone_wizard_screen.dart';
 import 'screens/translate_screen.dart';
 import 'screens/voice_bake_screen.dart';
 import 'screens/edit_audio_screen.dart';
+import 'screens/subtitle_overlay_screen.dart';
+import 'screens/transcript_compare_screen.dart';
 import 'services/audio_service.dart';
 import 'services/batch_queue_service.dart';
 import 'services/desktop_open_with_bridge.dart';
@@ -396,6 +398,22 @@ class _CrisperWeaverAppState extends ConsumerState<CrisperWeaverApp> {
         path: '/voice-bake',
         name: 'voice-bake',
         builder: (context, state) => const VoiceBakeScreen(),
+      ),
+      GoRoute(
+        path: '/subtitle-overlay',
+        name: 'subtitle-overlay',
+        builder: (context, state) => const SubtitleOverlayScreen(),
+      ),
+      GoRoute(
+        path: '/compare',
+        name: 'compare',
+        builder: (context, state) {
+          final q = state.uri.queryParameters;
+          return TranscriptCompareScreen(
+            leftEntryId: q['left'] ?? '',
+            rightEntryId: q['right'] ?? '',
+          );
+        },
       ),
       GoRoute(
         path: '/edit-audio',

@@ -34,6 +34,58 @@ class MainFlutterWindow: NSWindow {
     OpenWithReceiver.shared.attachChannel(
       messenger: flutterViewController.engine.binaryMessenger)
 
+    // §5.25.3 — Subtitle overlay window management channel.
+    // Allows Dart to toggle always-on-top and window opacity for
+    // the teleprompter / subtitle overlay mode.
+    registerWindowOverlayChannel(
+      window: self,
+      messenger: flutterViewController.engine.binaryMessenger)
+
     super.awakeFromNib()
+  }
+}
+
+/// §5.25.3 — Platform channel for subtitle overlay window control.
+private func registerWindowOverlayChannel(
+  window: NSWindow,
+  messenger: FlutterBinaryMessenger
+) {
+  let channel = FlutterMethodChannel(
+    name: "crisperweaver/window_overlay",
+    binaryMessenger: messenger)
+
+  channel.setMethodCallHandler { (call, result) in
+    switch call.method {
+    case "setAlwaysOnTop":
+      if let onTop = call.arguments as? Bool {
+        DispatchQueue.main.async {
+          window.level = onTop ? .floating : .normal
+        }
+        result(nil)
+      } else {
+        result(FlutterError(code: "INVALID_ARG",
+                           message: "Expected bool", details: nil))
+      }
+
+    case "setWindowOpacity":
+      if let opacity = call.arguments as? Double {
+        DispatchQueue.main.async {
+          window.alphaValue = CGFloat(opacity.clamped(to: 0.1...1.0))
+        }
+        result(nil)
+      } else {
+        result(FlutterError(code: "INVALID_ARG",
+                           message: "Expected double", details: nil))
+      }
+
+    default:
+      result(FlutterMethodNotImplemented)
+    }
+  }
+}
+
+private extension Comparable {
+  func clamped(to range: ClosedRange<Self>) -> Self {
+    return min(max(self, range.lowerBound), range.upperBound)
   }
 }

@@ -82,6 +82,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           _buildDiarizationSettings(settings),
           _buildStorageSettings(),
           _buildServerSettings(),
+          _buildWatchFolderSettings(settings),
           _buildDeveloperSettings(settings),
           _buildSystemInfo(),
           _buildAboutSection(),
@@ -521,6 +522,50 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           subtitle: Text(l.settingsServerEndpointsHelp,
               style: const TextStyle(fontSize: 11)),
           isThreeLine: true,
+        ),
+      ],
+    );
+  }
+
+  /// §5.25.8 — Watch-folder settings.
+  Widget _buildWatchFolderSettings(SettingsService settings) {
+    final l = AppLocalizations.of(context);
+    final watchPath = settings.watchFolderPath;
+    final enabled = settings.watchFolderEnabled;
+    // Watch folder is desktop-only.
+    if (!Platform.isMacOS && !Platform.isLinux && !Platform.isWindows) {
+      return const SizedBox.shrink();
+    }
+    return _buildSettingsSection(
+      title: 'Watch folder',
+      icon: Icons.folder_special,
+      children: [
+        SwitchListTile(
+          title: const Text('Auto-transcribe new files'),
+          subtitle: Text(
+            enabled && watchPath != null
+                ? 'Watching: $watchPath'
+                : 'Monitor a folder for new audio files',
+          ),
+          value: enabled,
+          onChanged: (v) {
+            settings.watchFolderEnabled = v;
+            setState(() {});
+          },
+        ),
+        ListTile(
+          title: const Text('Watch folder path'),
+          subtitle: Text(watchPath ?? 'Not set'),
+          trailing: const Icon(Icons.folder_open),
+          onTap: () async {
+            final result = await FilePicker.platform.getDirectoryPath(
+              dialogTitle: 'Select folder to watch',
+            );
+            if (result != null) {
+              settings.watchFolderPath = result;
+              setState(() {});
+            }
+          },
         ),
       ],
     );
