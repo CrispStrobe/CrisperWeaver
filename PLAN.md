@@ -834,26 +834,22 @@ automation. Grouped by projected impact; priority picks marked with ⚡.
 
   **Effort:** ~0.5 day. **Risk:** low — pure UI, no engine change.
 
-* **5.25.2 ⚡ Semantic transcript search via CrispEmbed** — Wire
-  CrispEmbed's omnimodal embedding model (`bidirlm-omni-2.5b`) to
-  enable meaning-based search over the history corpus. "Find the part
-  where they discussed budgets" returns ranked segments by cosine
-  similarity rather than substring match.
+* **5.25.2 ⚡ Semantic transcript search via CrispEmbed** — ✅
+  **Scaffold shipped June 2026.** `SemanticSearchService` provides
+  a TF-IDF fallback scorer that ranks segments by word-overlap
+  relevance (better than substring matching for natural language
+  queries). `cosineSimilarity()` helper ready for when real
+  CrispEmbed vectors are available.
 
-  **Architecture:** (a) expose an embedding C-ABI from CrispEmbed (or
-  a thin shim in CrispASR that calls into `libcrispembed`), (b) Dart
-  FFI binding `embedText(text) → Float32List(2048)` +
-  `embedAudio(pcm) → Float32List(2048)`, (c) on transcription
-  completion, embed each segment and persist the vector alongside the
-  history JSON, (d) new "Semantic search" mode in the History screen
-  that embeds the query and ranks by cosine distance.
+  **Files:** `lib/services/semantic_search_service.dart`.
+
+  **Remaining:** (a) CrispEmbed C-ABI binding for real 2048-d
+  embeddings, (b) vector persistence alongside history JSON,
+  (c) "Semantic search" mode toggle in the History screen.
 
   **Dependencies:** CrispEmbed shared library (~250 MB model GGUF).
-  Builds on §5.24F which already identifies this as the next
-  capability.
 
-  **Effort:** ~3–5 days (binding + indexing + UI). **Risk:** medium —
-  requires CrispEmbed linking, which is a new shared-lib dependency.
+  **Effort:** ~3–5 days (binding + indexing + UI). **Risk:** medium.
 
 * **5.25.3 ⚡ Real-time subtitle overlay / teleprompter mode** — ✅
   **Shipped June 2026.** A dedicated fullscreen dark-transparent
@@ -889,33 +885,35 @@ automation. Grouped by projected impact; priority picks marked with ⚡.
   **Effort:** ~1–2 days. **Risk:** low — layering on two proven
   features.
 
-* **5.25.5 Multilingual simultaneous transcription** — For meetings
-  with code-switching, run per-segment language detection (SenseVoice
-  built-in LID or the existing `LidService`) and route each segment
-  to the optimal backend for that language. Produce a single
-  transcript with per-segment `lang` tags.
+* **5.25.5 Multilingual simultaneous transcription** — ✅ **Service
+  shipped June 2026.** `MultilingualTranscriptionService` runs
+  per-segment LID (via `LidService.detectIfModelAvailable`) on each
+  segment's PCM slice and tags it with `metadata['lang']`. Static
+  `groupByLanguage()` groups consecutive same-language segments for
+  optional re-transcription with a language-specific model.
 
-  **Architecture:** After VAD splits audio into segments, run LID on
-  each. Group consecutive same-language segments and dispatch to the
-  best-available backend for that language. Merge results with
-  `lang:` prefix per segment. Requires the parallel worker pool
-  (§5.23) to hold multiple sessions open.
+  **Files:** `lib/services/multilingual_transcription_service.dart`.
+
+  **Remaining:** wire into the transcription screen as an optional
+  post-processing pass (toggle in Advanced Options). Re-transcribe
+  path (slow, per-language-group dispatch) deferred until demand.
 
   **Effort:** ~2 days. **Risk:** medium — model switching latency;
   need to keep multiple sessions warm or accept cold-start per switch.
 
-* **5.25.6 Audio chapter markers / podcast show notes** — Auto-detect
-  topic shifts via embedding distance between consecutive segments,
-  generate chapter titles (via the LLM summarisation pass), and
-  export as podcast-chapter metadata (MP3 CHAP frames, YouTube
-  chapter format `00:00 Title`, podcast:chapters RSS JSON).
+* **5.25.6 Audio chapter markers / podcast show notes** — ✅
+  **Service shipped June 2026.** `ChapterDetectionService` detects
+  topic shifts via sliding-window Jaccard distance between segment
+  vocabularies. Exports to YouTube chapter format (`HH:MM:SS Title`)
+  and Podcasting 2.0 `podcast:chapters` JSON. Title auto-generated
+  from first segment text. Upgradeable to cosine-distance when
+  CrispEmbed embeddings land.
 
-  **Architecture:** Reuse the CrispEmbed binding (§5.25.2) to compute
-  per-segment embeddings, then detect cosine-distance spikes as topic
-  boundaries. Feed boundary segments to the existing Summarise LLM
-  pass with a "generate a 3–5 word title" system prompt. Export
-  format: extend the existing export enum with `chapters_youtube` /
-  `chapters_podcastns`.
+  **Files:** `lib/services/chapter_detection_service.dart`.
+
+  **Remaining:** wire into the transcript output share menu as
+  "Export chapters" action. Optionally feed chapter boundaries to
+  the Summarise LLM for better titles.
 
   **Effort:** ~2 days (assumes §5.25.2 embedding is done).
   **Risk:** low — pure post-processing.
@@ -950,20 +948,20 @@ automation. Grouped by projected impact; priority picks marked with ⚡.
   **Effort:** ~1 day. **Risk:** low — builds entirely on existing
   batch infrastructure.
 
-* **5.25.9 TTS pronunciation lexicon** — User-editable phoneme
-  override table (word → IPA or respelling) that patches TTS output
-  for proper nouns, acronyms, and domain terms. Kokoro already uses
-  espeak-ng phonemisation; intercept at the phoneme layer.
+* **5.25.9 TTS pronunciation lexicon** — ✅ **Shipped June 2026.**
+  `PronunciationLexicon` model with word-boundary-aware text
+  substitution (respelling or IPA entries), JSON persistence at
+  `<app-docs>/lexicon.json`. Wired into `TtsService.synthesize()`
+  — lexicon is applied to input text before the engine call.
+  `LexiconEntry` supports both respelling and IPA modes.
 
-  **Architecture:** New `PronunciationLexicon` model (JSON-backed,
-  `<app-docs>/lexicon.json`). Before TTS synthesis, run a
-  find-and-replace on the input text converting lexicon entries to
-  their IPA/SSML form. For Kokoro: inject via espeak-ng's lexicon
-  mechanism. For other backends: text-level substitution
-  (respelling).
+  **Files:** `lib/models/pronunciation_lexicon.dart`,
+  `lib/services/tts_service.dart`.
 
-  **Effort:** ~1 day. **Risk:** low — per-backend phonemiser
-  integration varies.
+  **Remaining:** add lexicon editor UI on the Synthesize screen's
+  Advanced section (add/edit/delete entries).
+
+  **Effort:** ~1 day. **Risk:** low.
 
 * **5.25.10 Transcript annotation / tagging system** — ✅ **Model
   shipped June 2026.** `SegmentTag` enum with 7 tag types (bookmark,
@@ -1006,16 +1004,18 @@ automation. Grouped by projected impact; priority picks marked with ⚡.
 
   **Effort:** ~0.5 day. **Risk:** low.
 
-* **5.25.13 Model A/B testing mode** — Transcribe the same audio
-  with two models simultaneously, present results side-by-side, let
-  the user pick "winner" per segment. Aggregated picks inform the
-  recommended-default system over time.
+* **5.25.13 Model A/B testing mode** — ✅ **Service shipped
+  June 2026.** `AbTestResult` stores per-segment winner picks ('A',
+  'B', 'tie') with aggregate stats (winsA, winsB, overallWinner).
+  `ModelRatings` aggregates results across tests into a win-rate
+  leaderboard. Results feed into §5.25.7's diff view.
 
-  **Architecture:** New "Compare models" action on the transcribe
-  screen. Runs two worker-pool jobs in parallel (§5.23 already
-  supports N-way parallelism). Results feed into §5.25.7's diff
-  view. Winner picks persist as a preference signal in a local
-  `model_ratings.json`.
+  **Files:** `lib/services/ab_test_service.dart`.
+
+  **Remaining:** wire "Compare models" action on the transcribe
+  screen (run two worker-pool jobs, present in
+  TranscriptCompareScreen, collect picks). Persist `ModelRatings`
+  to `<app-docs>/model_ratings.json`.
 
   **Effort:** ~1 day. **Risk:** low — builds on existing parallel
   pool + diff view.
