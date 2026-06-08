@@ -5,7 +5,51 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 
 ## [Unreleased]
 
-### Added
+### Added — §5.25 next-generation features (14 features)
+- **Subtitle overlay / teleprompter mode** (§5.25.3) — fullscreen dark-transparent
+  screen (`/subtitle-overlay`) showing live streaming transcription as large
+  subtitle text. On macOS the window is set to always-on-top + reduced opacity
+  via a new platform channel. Controls for font size, position, and background.
+- **Transcript diff / comparison view** (§5.25.7) — side-by-side comparison of
+  two history entries with LCS-based word-level diff highlighting and Jaccard
+  similarity stats. Route: `/compare?left=ID&right=ID`.
+- **Note-taking tool exports** (§5.25.14) — Obsidian (YAML frontmatter +
+  timestamped bullets), Notion (speaker H2 headers), Logseq (indented bullet
+  blocks with properties), YouTube chapters (HH:MM:SS title lines). All four
+  wired into the transcript share menu.
+- **Watch-folder transcription** (§5.25.8) — `WatchFolderService` monitors a
+  user-configured directory for new audio files (2 s debounce) and auto-enqueues
+  them into the batch queue. Desktop-only. Settings → "Watch folder" section.
+- **Segment annotation tags** (§5.25.10) — 7 tag types (bookmark, action-item,
+  question, important, highlight, decision, follow-up) with emoji badges.
+  Tag picker in segment long-press menu. Tags persist in history JSON.
+- **Keyboard-driven transcript navigation** (§5.25.12) — J/K segment nav,
+  Space play/pause, Enter edit, Tab jump-to-low-confidence, Escape deselect.
+  Focus ring on active segment card. Desktop power-user feature.
+- **Confidence heatmap enhanced** (§5.25.1) — background-color gradient
+  (transparent → yellow → orange → red) instead of text-color-only. Low-
+  confidence words (<0.5) additionally get colored text + underline.
+- **TTS pronunciation lexicon** (§5.25.9) — user-editable word → pronunciation
+  override table (respelling or IPA) applied before TTS synthesis. JSON
+  persistence at `<app-docs>/lexicon.json`.
+- **Audio fingerprint deduplication** (§5.25.11) — SHA-256 fingerprinting (PCM-
+  based + lightweight file-based) for detecting duplicate audio in the batch
+  queue. `audioFingerprint` field on `HistoryEntry`.
+- **Speaker-adaptive vocabulary** (§5.25.4) — per-speaker vocab profiles
+  persisted alongside `.spk` enrollment files. `mergeForSpeakers()` computes
+  the union of active speakers' terms for injection into `initial_prompt`.
+- **Multilingual simultaneous transcription** (§5.25.5) — per-segment language
+  detection via LID, tagging each segment with `metadata['lang']`.
+  `groupByLanguage()` for optional per-language re-transcription.
+- **Semantic transcript search** (§5.25.2) — TF-IDF relevance scorer (word
+  overlap + IDF weighting) as a scaffold for CrispEmbed vector search.
+- **Chapter detection** (§5.25.6) — topic-shift detection via sliding-window
+  Jaccard vocabulary distance. Exports to YouTube chapters and Podcasting 2.0
+  JSON.
+- **Model A/B testing** (§5.25.13) — `AbTestResult` with per-segment winner
+  picks. `ModelRatings` leaderboard aggregates results across tests.
+
+### Added — previous unreleased
 - MP3 ID3v2 AI-provenance tags (`AI_GENERATED`, `GENERATOR`, `AI_CONTENT_NOTICE`) via `AudioWatermarkService.injectMp3Metadata()`
 - Beep-based AI disclaimer prepended to voice-cloned TTS output (3× 880 Hz, EU AI Act Art. 50(4)) via `AudioWatermarkService.generateBeepDisclaimer()`
 - Post-embed watermark verification — `detectWatermark()` called after embedding, warns if null

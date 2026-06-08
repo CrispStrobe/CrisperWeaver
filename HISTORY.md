@@ -26,6 +26,97 @@ pending.
 
 ---
 
+## June 2026 — §5.25 next-generation features (14 features)
+
+Fourteen new features spanning UX, intelligence, and workflow automation.
+Landed on `feat/next-gen-features` branch (3 commits, 27 files, ~2,800
+lines). Grouped into three tiers by impact.
+
+### Tier A — High impact
+
+* **§5.25.1 Confidence heatmap** — enhanced existing text-color-only
+  confidence tint to a proper background-color gradient (transparent at
+  ≥0.9, yellow tint 0.7–0.9, orange 0.5–0.7, red <0.5). Low-confidence
+  words additionally get colored text + underline for accessibility.
+  `_getConfidenceBackground()` + updated `_buildConfidenceTintedText()`
+  in `transcription_output_widget.dart`.
+
+* **§5.25.2 Semantic search scaffold** — `SemanticSearchService` with
+  TF-IDF fallback scorer (word overlap + IDF weighting) and
+  `cosineSimilarity()` ready for CrispEmbed vectors. Upgradeable once
+  CrispEmbed's Dart FFI binding lands.
+
+* **§5.25.3 Subtitle overlay** — `SubtitleOverlayScreen` at route
+  `/subtitle-overlay`. Fullscreen dark-transparent screen showing
+  latest streaming transcription. macOS platform channel
+  (`crisperweaver/window_overlay`) sets `NSWindow.level = .floating` +
+  `alphaValue`. Font size +/-, top/bottom toggle, background toggle.
+  Button in AppBar (wide) and overflow menu (phone).
+
+* **§5.25.4 Speaker-adaptive vocabulary** — `SpeakerVocab` model
+  persisted as `<name>.vocab.json` alongside `.spk` profiles.
+  `mergeForSpeakers()` computes the union of active speakers' terms.
+
+* **§5.25.5 Multilingual transcription** —
+  `MultilingualTranscriptionService` runs per-segment LID via
+  `LidService.detectIfModelAvailable`, tagging with
+  `metadata['lang']`. `groupByLanguage()` groups consecutive
+  same-language segments.
+
+* **§5.25.6 Chapter detection** — `ChapterDetectionService` with
+  sliding-window Jaccard vocabulary distance for topic-shift detection.
+  Exports to YouTube chapters and Podcasting 2.0 JSON.
+
+### Tier B — Medium impact
+
+* **§5.25.7 Transcript diff** — `TranscriptCompareScreen` with
+  LCS-based word-level diff, timestamp-aligned segment pairing, and
+  Jaccard similarity stats. `HistoryService.loadEntry(id)` added.
+
+* **§5.25.8 Watch folder** — `WatchFolderService` monitors a
+  configured directory via `FileSystemEntity.watch()`. 2 s debounce,
+  audio extension filtering. Settings UI + `SettingsService`
+  persistence. Started on app init when enabled.
+
+* **§5.25.9 Pronunciation lexicon** — `PronunciationLexicon` model
+  with word-boundary-aware text substitution. Wired into
+  `TtsService.synthesize()`.
+
+* **§5.25.10 Segment tags** — `SegmentTag` enum (7 types) with `tags`
+  field on `TranscriptionSegment`. Tag picker in segment long-press
+  menu (FilterChip grid). Emoji badges in segment header. Tags persist
+  in history JSON. `AppStateNotifier.replaceSegments()` added.
+
+* **§5.25.11 Audio fingerprint dedup** — `AudioFingerprintService`
+  with PCM-based (8-bit/4-bit quantized SHA-256) and file-based
+  (size + head) fingerprinting. `audioFingerprint` field on
+  `HistoryEntry`.
+
+### Tier C — Polish
+
+* **§5.25.12 Keyboard navigation** — integrated directly into
+  `TranscriptionOutputWidget`: J/K/↑/↓ segment nav, Space play/pause,
+  Enter edit, Tab jump-to-low-confidence, Escape deselect. Focus ring
+  on active card. `_scrollToFocused()` with animated scroll.
+
+* **§5.25.13 Model A/B testing** — `AbTestResult` with per-segment
+  winner picks ('A'/'B'/'tie'). `ModelRatings` leaderboard.
+
+* **§5.25.14 Note exports** — `NoteExportService` with four formatters
+  (Obsidian, Notion, Logseq, YouTube chapters). Wired into the
+  transcript share menu via `_saveAsNote()`.
+
+### Tests
+
+* `test/note_export_test.dart` — 10+ tests covering all 4 formats +
+  SegmentTag round-trip.
+* `test/audio_fingerprint_test.dart` — 6 tests (determinism,
+  differentiation, edge cases).
+* `test/watch_folder_test.dart` — 6 tests (lifecycle, file detection,
+  extension filtering).
+
+---
+
 ## May 2026 parity sweep — six rounds, lands in v0.4.1
 
 Brought CrisperWeaver's catalog, advanced-options surface, and post-
