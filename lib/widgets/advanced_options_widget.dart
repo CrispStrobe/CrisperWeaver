@@ -1,6 +1,7 @@
 import 'package:crispasr/crispasr.dart' as crispasr;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 
 import '../l10n/generated/app_localizations.dart';
 import '../main.dart' show transcriptionServiceProvider;

@@ -7,6 +7,7 @@ import 'package:audio_session/audio_session.dart';
 import 'package:flutter/material.dart';
 import 'l10n/generated/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 import 'package:go_router/go_router.dart';
 import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 import 'package:path_provider/path_provider.dart';
