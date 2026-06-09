@@ -11,6 +11,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path/path.dart' as p;
 
 import '../l10n/generated/app_localizations.dart';
 import '../services/audio_service.dart' show audioServiceProvider;
@@ -480,7 +481,7 @@ class _EnrolSpeakerScreenState extends ConsumerState<_EnrolSpeakerScreen> {
   }
 
   String _shortPath(String full) {
-    final sep = Platform.pathSeparator;
+    final sep = p.separator;
     final parts = full.split(sep);
     if (parts.length <= 2) return full;
     return '.../${parts[parts.length - 2]}$sep${parts.last}';

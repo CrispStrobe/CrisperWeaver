@@ -21,17 +21,18 @@ import 'dart:io';
 import 'package:ffi/ffi.dart';
 
 import 'log_service.dart';
+import '../utils/platform_utils.dart' as plat;
 
 /// Available filesystem space (in bytes) the user can write into at
 /// [path]. Returns -1 when probing isn't supported on this platform
 /// (the caller should treat that as "skip the precheck").
 int getAvailableDiskSpace(String path) {
   try {
-    if (Platform.isWindows) return _windowsFreeSpace(path);
-    if (Platform.isMacOS ||
-        Platform.isLinux ||
-        Platform.isAndroid ||
-        Platform.isIOS) {
+    if (plat.isWindows) return _windowsFreeSpace(path);
+    if (plat.isMacOS ||
+        plat.isLinux ||
+        plat.isAndroid ||
+        plat.isIOS) {
       return _posixStatvfs(path);
     }
   } catch (e, st) {

@@ -47,6 +47,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'log_service.dart';
+import '../utils/platform_utils.dart' as plat;
 
 const MethodChannel _control =
     MethodChannel('crisperweaver/system_audio_capture');
@@ -106,8 +107,8 @@ class SystemAudioCaptureService {
   ///   • Windows → true when `ffmpeg` is on PATH.
   ///   • iOS → always false (Apple sandbox restriction).
   Future<bool> isSupported() async {
-    if (Platform.isIOS) return false;
-    if (Platform.isMacOS || Platform.isAndroid) {
+    if (plat.isIOS) return false;
+    if (plat.isMacOS || plat.isAndroid) {
       try {
         final ok = await _control.invokeMethod<bool>('isSupported') ?? false;
         return ok;
@@ -116,11 +117,11 @@ class SystemAudioCaptureService {
         return false;
       }
     }
-    if (Platform.isLinux) {
+    if (plat.isLinux) {
       _linuxTool ??= await _whichOnPath('parec');
       return _linuxTool != null;
     }
-    if (Platform.isWindows) {
+    if (plat.isWindows) {
       _windowsTool ??= await _whichOnPath('ffmpeg');
       return _windowsTool != null;
     }
@@ -134,7 +135,7 @@ class SystemAudioCaptureService {
   /// before start() throws.
   Future<String?> _whichOnPath(String tool) async {
     try {
-      final cmd = Platform.isWindows ? 'where' : 'which';
+      final cmd = plat.isWindows ? 'where' : 'which';
       final r = await Process.run(cmd, [tool], runInShell: false);
       if (r.exitCode != 0) return null;
       final out = (r.stdout as String).trim();
@@ -159,7 +160,7 @@ class SystemAudioCaptureService {
   /// subprocess fail with whatever exit code their underlying
   /// stack produces).
   Future<Stream<Float32List>> start() async {
-    if (Platform.isIOS) {
+    if (plat.isIOS) {
       throw SystemAudioUnsupportedException(
           'System audio capture is not supported on iOS — Apple '
           'sandbox restriction.');
@@ -169,16 +170,16 @@ class SystemAudioCaptureService {
       return _activeController!.stream;
     }
 
-    if (Platform.isMacOS || Platform.isAndroid) {
+    if (plat.isMacOS || plat.isAndroid) {
       // Same MethodChannel + EventChannel protocol. macOS uses
       // ScreenCaptureKit, Android uses MediaProjection — both
       // deliver 16 kHz mono Float32 PCM through the same wire.
       return _startNativeChannel();
     }
-    if (Platform.isLinux) return _startLinuxParec();
-    if (Platform.isWindows) return _startWindowsFfmpeg();
+    if (plat.isLinux) return _startLinuxParec();
+    if (plat.isWindows) return _startWindowsFfmpeg();
     throw SystemAudioUnsupportedException(
-        'Unknown platform: ${Platform.operatingSystem}');
+        'Unknown platform: ${plat.operatingSystem}');
   }
 
   /// Native MethodChannel + EventChannel path. macOS:
@@ -232,7 +233,7 @@ class SystemAudioCaptureService {
     );
 
     Log.instance.i('sysaudio',
-        'capture started (${Platform.operatingSystem} native)');
+        'capture started (${plat.operatingSystem} native)');
     return controller.stream;
   }
 
@@ -393,7 +394,7 @@ class SystemAudioCaptureService {
     if (c != null && !c.isClosed) {
       await c.close();
     }
-    if (Platform.isMacOS || Platform.isAndroid) {
+    if (plat.isMacOS || plat.isAndroid) {
       try {
         await _control.invokeMethod<void>('stop');
       } catch (e) {

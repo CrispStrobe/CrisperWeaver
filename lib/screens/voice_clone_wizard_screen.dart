@@ -26,12 +26,12 @@
 // existing audio file".
 
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:path/path.dart' as p;
 
 import '../l10n/generated/app_localizations.dart';
 import '../services/audio_service.dart';
@@ -387,7 +387,7 @@ class _VoiceCloneWizardScreenState
                       const Icon(Icons.check_circle,
                           color: Colors.green, size: 48),
                       const SizedBox(height: 8),
-                      Text(_recordedPath!.split(Platform.pathSeparator).last,
+                      Text(_recordedPath!.split(p.separator).last,
                           style: const TextStyle(fontSize: 12),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis),
@@ -483,7 +483,7 @@ class _VoiceCloneWizardScreenState
                   fontSize: 12, color: Colors.grey.shade700)),
           const SizedBox(height: 16),
           _summaryRow(l.voiceCloneSummaryReference,
-              _recordedPath?.split(Platform.pathSeparator).last ?? '—'),
+              _recordedPath?.split(p.separator).last ?? '—'),
           _summaryRow(
             l.voiceCloneSummaryRefText,
             _refTextController.text.trim().isEmpty

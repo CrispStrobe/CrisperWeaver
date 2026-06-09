@@ -19,10 +19,10 @@
 // will land alongside an MSIX file-association story.
 
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/services.dart';
 
+import '../utils/platform_utils.dart' as plat;
 import 'log_service.dart';
 
 const String _kChannel = 'crisperweaver/open_with';
@@ -53,12 +53,12 @@ class DesktopOpenWithBridge {
     if (_started) return;
     _started = true;
 
-    if (!Platform.isMacOS) {
+    if (!plat.isMacOS) {
       // No-op on every other platform — the Swift handler only
       // exists in macos/Runner, so invokeMethod would throw
       // MissingPluginException everywhere else.
       Log.instance.d('open_with',
-          'DesktopOpenWithBridge skipped on ${Platform.operatingSystem}');
+          'DesktopOpenWithBridge skipped on ${plat.operatingSystem}');
       return;
     }
 

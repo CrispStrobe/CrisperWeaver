@@ -8,6 +8,7 @@ import 'package:path/path.dart' as p;
 import '../main.dart' show modelServiceProvider;
 import 'log_service.dart';
 import 'model_service.dart';
+import '../utils/platform_utils.dart' as plat;
 
 /// Wraps `models/bake-chatterbox-voice-from-wav.py` from the sibling
 /// CrispASR checkout. Spawns Python as a child process, streams stdout
@@ -30,7 +31,7 @@ class VoiceBakingService {
   /// Mobile sandboxes ship no `python3` interpreter, so the screen
   /// hides itself there.
   static bool get isSupported =>
-      Platform.isMacOS || Platform.isLinux || Platform.isWindows;
+      plat.isMacOS || plat.isLinux || plat.isWindows;
 
   /// Best-effort sibling-checkout default — matches the CrisperWeaver
   /// build-script convention documented in README.md (CrispASR + the

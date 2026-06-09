@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -7,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../l10n/generated/app_localizations.dart';
 import '../main.dart' show appStateProvider;
+import '../utils/platform_utils.dart' as plat;
 
 /// §5.25.3 — Real-time subtitle overlay / teleprompter mode.
 ///
@@ -67,7 +67,7 @@ class _SubtitleOverlayScreenState
   }
 
   bool get _isDesktop =>
-      Platform.isMacOS || Platform.isLinux || Platform.isWindows;
+      plat.isMacOS || plat.isLinux || plat.isWindows;
 
   @override
   Widget build(BuildContext context) {

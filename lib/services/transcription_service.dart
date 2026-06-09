@@ -7,6 +7,7 @@ import '../native/crispasr_import.dart' as crispasr;
 
 import '../engines/crispasr_engine.dart' show CrispASREngine;
 import '../engines/engine_factory.dart';
+import '../engines/hfspace_engine.dart' show HfSpaceEngine;
 import '../engines/transcription_engine.dart';
 import 'audio_service.dart';
 import 'log_service.dart';
@@ -549,6 +550,58 @@ class TranscriptionService {
       return segments;
     } catch (e) {
       throw TranscriptionServiceException('File transcription failed: $e');
+    } finally {
+      _isTranscribing = false;
+    }
+  }
+
+  /// Transcribe raw audio bytes — the web path where we don't have a
+  /// filesystem path. Delegates directly to the engine (HfSpaceEngine
+  /// POSTs the bytes to the remote server). Skips local audio decoding,
+  /// diarization, and punctuation restoration (those are server-side).
+  Future<List<TranscriptionSegment>> transcribeBytes(
+    Uint8List bytes,
+    String filename, {
+    String? language,
+    bool translate = false,
+    String? initialPrompt,
+    double temperature = 0.0,
+    void Function(double progress)? onProgress,
+    void Function(TranscriptionSegment segment)? onSegment,
+  }) async {
+    if (_isTranscribing) {
+      throw const TranscriptionServiceException(
+          'Already transcribing. Stop current transcription first.');
+    }
+    if (currentEngine == null) {
+      throw const TranscriptionServiceException(
+          'No transcription engine available. Please initialize first.');
+    }
+    _isTranscribing = true;
+    onProgress?.call(0.0);
+    try {
+      // For HfSpaceEngine, call transcribeBytes directly.
+      final engine = currentEngine!;
+      if (engine is HfSpaceEngine) {
+        final result = await (engine as HfSpaceEngine).transcribeBytes(
+          bytes,
+          filename,
+          language: language,
+          translate: translate,
+          initialPrompt: initialPrompt,
+          temperature: temperature,
+          onSegment: onSegment,
+          onProgress: onProgress,
+        );
+        lastResult = result;
+        return result.segments;
+      }
+      // Fallback: for non-HfSpace engines, we can't decode on web.
+      throw const TranscriptionServiceException(
+          'Byte-based transcription requires the CrispASR Cloud engine.');
+    } catch (e) {
+      if (e is TranscriptionServiceException) rethrow;
+      throw TranscriptionServiceException('Transcription failed: $e');
     } finally {
       _isTranscribing = false;
     }

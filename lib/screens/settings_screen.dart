@@ -21,6 +21,7 @@ import '../services/server_service.dart';
 import '../services/settings_service.dart';
 import '../services/speaker_id_service.dart';
 import '../models/speaker_vocab.dart';
+import '../utils/platform_utils.dart' as plat;
 import '../utils/responsive.dart';
 import '../widgets/cloud_llm_settings_form.dart';
 import '../widgets/hotkey_settings_form.dart';
@@ -552,7 +553,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final watchPath = settings.watchFolderPath;
     final enabled = settings.watchFolderEnabled;
     // Watch folder is desktop-only.
-    if (!Platform.isMacOS && !Platform.isLinux && !Platform.isWindows) {
+    if (!plat.isMacOS && !plat.isLinux && !plat.isWindows) {
       return const SizedBox.shrink();
     }
     return _buildSettingsSection(
@@ -738,7 +739,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         // and a different storage flow. Hide the picker on iOS until that
         // exists — the default path inside the app's documents directory
         // is the only sane location there.
-        if (!Platform.isIOS)
+        if (!plat.isIOS)
           ListTile(
             title: Text(AppLocalizations.of(context).settingsModelsDir),
             subtitle: Text(settings.customModelsDir.isEmpty
@@ -750,7 +751,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         // §5.1.11 — desktop global hotkey configuration.
         // Hidden on mobile where the OS doesn't expose a
         // system-level shortcut surface.
-        if (Platform.isMacOS || Platform.isWindows || Platform.isLinux)
+        if (plat.isMacOS || plat.isWindows || plat.isLinux)
           ListTile(
             title: Text(AppLocalizations.of(context).settingsHotkey),
             subtitle: Text(!settings.hotkeyEnabled ||
@@ -937,7 +938,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   /// Just the basename plus a parent-dir crumb; the full path
   /// is visible in the picker dialog itself.
   String _shortGgufLabel(String path) {
-    final sep = Platform.pathSeparator;
+    final sep = p.separator;
     final parts = path.split(sep).where((p) => p.isNotEmpty).toList();
     if (parts.length <= 1) return path;
     return '${parts[parts.length - 2]}$sep${parts.last}';
@@ -1206,7 +1207,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     // fails with "OS Error: Permission denied, errno = 13" — most
     // visibly after uninstall+reinstall, when Android resets the
     // grant but the saved customModelsDir path persists.
-    if (Platform.isAndroid && looksLikeAndroidSharedStoragePath(picked)) {
+    if (plat.isAndroid && looksLikeAndroidSharedStoragePath(picked)) {
       final status = await Permission.manageExternalStorage.status;
       if (!status.isGranted) {
         if (!mounted) return;
@@ -1387,24 +1388,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       info['App Version'] =
           '${packageInfo.version} (${packageInfo.buildNumber})';
       final deviceInfo = DeviceInfoPlugin();
-      if (Platform.isIOS) {
+      if (plat.isIOS) {
         final iosInfo = await deviceInfo.iosInfo;
         info['Device'] = '${iosInfo.name} (${iosInfo.model})';
         info['iOS Version'] = '${iosInfo.systemName} ${iosInfo.systemVersion}';
-      } else if (Platform.isAndroid) {
+      } else if (plat.isAndroid) {
         final androidInfo = await deviceInfo.androidInfo;
         info['Device'] = '${androidInfo.manufacturer} ${androidInfo.model}';
         info['Android Version'] = 'API ${androidInfo.version.sdkInt}';
-      } else if (Platform.isMacOS) {
+      } else if (plat.isMacOS) {
         final macInfo = await deviceInfo.macOsInfo;
         info['Device'] = '${macInfo.computerName} (${macInfo.model})';
         info['macOS Version'] = macInfo.osRelease;
-      } else if (Platform.isWindows) {
+      } else if (plat.isWindows) {
         final winInfo = await deviceInfo.windowsInfo;
         info['Device'] = winInfo.computerName;
         info['Windows Version'] =
             '${winInfo.productName} (build ${winInfo.buildNumber})';
-      } else if (Platform.isLinux) {
+      } else if (plat.isLinux) {
         final linuxInfo = await deviceInfo.linuxInfo;
         info['Device'] = linuxInfo.name;
         info['Linux Version'] = linuxInfo.prettyName;

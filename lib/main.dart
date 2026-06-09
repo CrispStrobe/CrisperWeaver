@@ -5,6 +5,8 @@ import 'dart:ui' show AppExitResponse;
 
 import 'package:audio_session/audio_session.dart';
 import 'package:flutter/material.dart';
+
+import 'utils/platform_utils.dart' as plat;
 import 'l10n/generated/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart'; // §legacy: selectedAudioPathProvider
@@ -101,7 +103,7 @@ void main(List<String> args) async {
   // Windows and Linux it has no platform implementation, which crashes
   // every player call with MissingPluginException(disposeAllPlayers).
   // Route those two platforms through libmpv via just_audio_media_kit.
-  if (Platform.isWindows || Platform.isLinux) {
+  if (plat.isWindows || plat.isLinux) {
     JustAudioMediaKit.ensureInitialized();
   }
 
@@ -164,12 +166,12 @@ Future<void> _requestPermissions() async {
   // Only request mobile-only permissions on mobile platforms. On desktop the
   // permission_handler plugin simply returns granted or unknown, so asking
   // is cheap but unnecessary.
-  if (!(Platform.isIOS || Platform.isAndroid)) return;
+  if (!(plat.isIOS || plat.isAndroid)) return;
 
   final permissions = <Permission>[
     Permission.microphone,
   ];
-  if (Platform.isAndroid) {
+  if (plat.isAndroid) {
     permissions.add(Permission.storage);
   }
 
@@ -198,7 +200,7 @@ Future<void> _initializeServices() async {
 /// `speakerOverride` so speaker output works when no headphones are
 /// connected. No-op on desktop.
 Future<void> _configureAudioSession() async {
-  if (!(Platform.isIOS || Platform.isAndroid)) return;
+  if (!(plat.isIOS || plat.isAndroid)) return;
   try {
     final session = await AudioSession.instance;
     await session.configure(const AudioSessionConfiguration.speech());
@@ -235,7 +237,7 @@ class _CrisperWeaverAppState extends ConsumerState<CrisperWeaverApp> {
       // silently. We only run this on desktop platforms — on
       // mobile the args list is always empty and forwarding
       // would be a no-op anyway.
-      if (Platform.isLinux || Platform.isMacOS || Platform.isWindows) {
+      if (plat.isDesktop) {
         intake.acceptPaths(_bootArgs);
       }
       // macOS Open-With / drag-on-dock bridge — drains the
@@ -263,7 +265,7 @@ class _CrisperWeaverAppState extends ConsumerState<CrisperWeaverApp> {
       }));
 
       // §5.25.8 — Start watch-folder service if enabled.
-      if (Platform.isMacOS || Platform.isLinux || Platform.isWindows) {
+      if (plat.isDesktop) {
         final settings = ref.read(settingsServiceProvider);
         if (settings.watchFolderEnabled && settings.watchFolderPath != null) {
           _watchFolderService = WatchFolderService(
@@ -538,6 +540,7 @@ final crispEmbedProvider = Provider<CrispEmbed?>((ref) {
 /// Attempt to find a downloaded embedding GGUF and load it via CrispEmbed.
 /// Returns null on any failure (missing native lib, no model on disk, …).
 CrispEmbed? _tryLoadCrispEmbed(ModelService modelService) {
+  if (plat.isWeb) return null;
   try {
     final modelsDir = modelService.whisperCppDir();
     for (final def in ModelService.whisperCppModels.values) {

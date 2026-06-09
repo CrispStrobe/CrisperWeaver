@@ -38,6 +38,8 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../utils/platform_utils.dart' as plat;
+
 class MemoryEstimate {
   const MemoryEstimate({
     required this.physicalMemoryBytes,
@@ -126,14 +128,14 @@ class MemoryEstimator {
 
   /// Platform-specific reader for total RAM.
   int? _readPhysicalMemory() {
-    if (Platform.isMacOS) {
+    if (plat.isMacOS) {
       // `sysctl -n hw.memsize` returns total bytes, no parsing
       // needed. Cheap, blocks <1 ms.
       final r = Process.runSync('sysctl', ['-n', 'hw.memsize']);
       if (r.exitCode != 0) return null;
       return int.tryParse(r.stdout.toString().trim());
     }
-    if (Platform.isLinux) {
+    if (plat.isLinux) {
       // /proc/meminfo's first line: `MemTotal:   16384444 kB`.
       final raw = File('/proc/meminfo').readAsStringSync();
       final line =
@@ -145,7 +147,7 @@ class MemoryEstimator {
       if (kb == null) return null;
       return kb * 1024;
     }
-    if (Platform.isWindows) {
+    if (plat.isWindows) {
       // wmic is slow (~500 ms) but ubiquitous. Result row:
       //   "TotalVisibleMemorySize="
       //   "16384444"
@@ -168,8 +170,8 @@ class MemoryEstimator {
     // ship with 6-8 GB; older with 3-4 GB; we pick a lower-middle
     // estimate so the pre-flight refuses too-aggressive slider
     // settings on the cheapest device the app might run on.
-    if (Platform.isIOS) return 3 * 1024 * 1024 * 1024; // 3 GB
-    if (Platform.isAndroid) return 4 * 1024 * 1024 * 1024; // 4 GB
+    if (plat.isIOS) return 3 * 1024 * 1024 * 1024; // 3 GB
+    if (plat.isAndroid) return 4 * 1024 * 1024 * 1024; // 4 GB
     return null;
   }
 

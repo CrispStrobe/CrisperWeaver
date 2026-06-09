@@ -1,6 +1,7 @@
 // lib/services/model_service.dart (COMPLETE IMPLEMENTATION)
 import 'dart:io';
 import 'dart:isolate';
+
 import 'package:archive/archive.dart' show ZipDecoder;
 import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
@@ -13,6 +14,7 @@ import 'ios_helpers.dart';
 import '../native/disk_space_import.dart';
 import 'log_service.dart';
 import 'settings_service.dart';
+import '../utils/platform_utils.dart' as plat;
 
 class ModelService {
   /// Upstream ggerganov repo — the canonical source for F16 GGML Whisper models.
@@ -3795,6 +3797,11 @@ class ModelService {
   }
 
   Future<void> initialize() async {
+    // On web there's no local filesystem — skip all directory setup.
+    if (plat.isWeb) {
+      _modelsDir = '/web-stub';
+      return;
+    }
     String baseDirPath;
     // On iOS, prefer the App Group container so model downloads survive
     // `flutter install` (which uninstalls the old build first, wiping
@@ -3807,7 +3814,7 @@ class ModelService {
     // Runner.entitlements + ShareExtension.entitlements, so the Share
     // Extension can also see the models directory if it ever needs to
     // hand audio off without an extra copy.
-    if (Platform.isIOS) {
+    if (plat.isIOS) {
       final groupPath =
           await appGroupContainerPath('group.com.crispstrobe.crisperweaver');
       if (groupPath != null && groupPath.isNotEmpty) {
@@ -4627,7 +4634,7 @@ class ModelService {
       // every modern iPhone is the entire point of the CoreML build.
       if (modelDef.backend == 'whisper' &&
           modelDef.fileName.endsWith('.bin') &&
-          (Platform.isMacOS || Platform.isIOS)) {
+          (plat.isMacOS || plat.isIOS)) {
         await _maybeFetchCoreMLCompanion(modelDef, modelDir);
       }
 

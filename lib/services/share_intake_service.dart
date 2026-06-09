@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:io';
 
+import '../utils/platform_utils.dart' as plat;
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 
@@ -45,9 +47,9 @@ class ShareIntakeService {
     // `receive_sharing_intent` only implements Android and iOS. Calling it
     // on desktop platforms just throws `MissingPluginException` — skip it
     // and rely on macOS/Linux/Windows document-type handoff instead.
-    if (!(Platform.isIOS || Platform.isAndroid)) {
+    if (!(plat.isIOS || plat.isAndroid)) {
       Log.instance.d('share',
-          'Share intake not supported on ${Platform.operatingSystem}; skipping');
+          'Share intake not supported on ${plat.operatingSystem}; skipping');
       return;
     }
 
