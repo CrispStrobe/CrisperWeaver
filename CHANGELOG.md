@@ -5,6 +5,24 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 
 ## [Unreleased]
 
+### Fixed — Mobile UX: file picker, adaptive icon, iOS alpha, PWA (2026-06-09)
+- **Android file picker greyed-out files** — `pickFilesRobust()` now accepts
+  an optional `FileType` parameter. All audio-picking call sites pass
+  `FileType.audio` so Android's native picker uses `audio/*` MIME (all audio
+  files selectable). Results are post-filtered by `allowedExtensions`.
+  `FileType` re-exported from `file_picker_util.dart` for caller convenience.
+- **Android adaptive icon** — added `adaptive_icon_foreground` /
+  `adaptive_icon_background` (#1d325f) to `flutter_launcher_icons` config.
+  Android 8+ (API 26) now applies its configured mask (rounded rect, circle,
+  squircle) instead of displaying a raw square PNG.
+- **iOS icon alpha channel** — added `remove_alpha_ios: true` and
+  regenerated all iOS icons as RGB (no alpha). Fixes App Store rejection for
+  icons with transparency.
+- **Web / PWA platform** — scaffolded Flutter web target. `manifest.json`
+  with branded 192 + 512 px icons (+ maskable), standalone display mode,
+  navy theme. Installable as PWA on mobile browsers. Feature set limited to
+  mock engine / remote server mode (no FFI on web).
+
 ### Added — Split-on-punct, audio embeddings, Notifier migration (2026-06-08)
 - **Split-on-punct subtitle formatting** (§5.8) — Dart-side post-processing
   that splits segments at sentence-ending punctuation (. ! ?). Works with any

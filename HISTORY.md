@@ -27,6 +27,52 @@ pending.
 
 ---
 
+## June 2026 — Mobile UX: file picker, adaptive icon, iOS alpha, PWA
+
+Three Android / iOS pain-points fixed plus web PWA scaffolding.
+
+### Android file picker — greyed-out audio files
+
+`pickFilesRobust()` used `FileType.custom` with extension lists, which
+relies on Android's `MimeTypeMap` to resolve each extension to a MIME
+type. Extensions like `.flac`, `.ogg`, `.m4a` frequently fail that
+lookup, so the native picker rendered them greyed-out / unselectable
+even though they're valid audio files.
+
+Fix: added an optional `FileType? type` parameter. When callers pass
+`FileType.audio`, the native picker receives `audio/*` (all audio
+files selectable). Results are post-filtered by `allowedExtensions`
+in Dart. `FileType` re-exported from `file_picker_util.dart` so
+callers don't need a separate `package:file_picker` import.
+
+Updated 5 screens: transcription, speaker management, voice bake,
+voice clone wizard, synthesize.
+
+### Android adaptive icon
+
+Added `adaptive_icon_foreground` / `adaptive_icon_background` (#1d325f)
+to `flutter_launcher_icons` in `pubspec.yaml`. Generated
+`mipmap-anydpi-v26/ic_launcher.xml`, per-density foreground drawables,
+and `values/colors.xml`. Android 8+ now applies its mask (rounded rect,
+circle, squircle) instead of showing the raw square PNG.
+
+### iOS icon alpha channel removal
+
+All generated iOS icons were RGBA (with alpha), which Apple rejects
+on App Store submission. Added `remove_alpha_ios: true` to
+`flutter_launcher_icons` config and regenerated — icons are now RGB.
+
+### Web / PWA platform
+
+Scaffolded Flutter web target via `flutter create --platforms=web`.
+Replaced default icons with `app_logo.png` at 192 px and 512 px
+(plus maskable variants). `manifest.json` configured with app name,
+navy theme (#1d325f), standalone display mode. Favicon regenerated
+from logo. Feature set limited to mock engine / remote server mode
+(no native FFI on web).
+
+---
+
 ## June 2026 — Split-on-punct subtitle formatting (§5.8)
 
 Dart-side post-processing that splits segments at sentence-ending

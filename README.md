@@ -6,7 +6,7 @@ CrisperWeaver is a cross-platform Flutter app for fully-offline audio transcript
 
 [crispasr]: https://github.com/CrispStrobe/CrispASR
 
-![AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue) ![Flutter 3.44](https://img.shields.io/badge/flutter-3.44-blue) ![macOS · Linux · Windows · iOS · Android](https://img.shields.io/badge/platforms-macOS%20·%20Linux%20·%20Windows%20·%20iOS%20·%20Android-lightgrey)
+![AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue) ![Flutter 3.44](https://img.shields.io/badge/flutter-3.44-blue) ![macOS · Linux · Windows · iOS · Android · Web](https://img.shields.io/badge/platforms-macOS%20·%20Linux%20·%20Windows%20·%20iOS%20·%20Android%20·%20Web-lightgrey)
 
 ### Part of the Crisp ecosystem
 
@@ -171,6 +171,7 @@ Downloads pull f16 from `ggerganov/whisper.cpp` and quantised variants from [`cs
 | Windows  | ✅ Released — portable `.zip` + installable `.msix` with Explorer "Open With" registration for audio + subtitle types |
 | Android  | ✅ Released — real-ASR APK (`arm64-v8a`) with `libwhisper.so` cross-built in CI. External models dir picker requests "All files access" runtime permission (Android 11+) so reinstalls don't lose access to `/storage/emulated/0/...` paths. |
 | iOS      | ⚠️ Unsigned IPA — sideload via [SideStore](https://sidestore.io/) / AltStore / Feather |
+| Web (PWA) | 🆕 Installable PWA — standalone display, branded icons. Feature set limited to mock engine / remote server mode (no FFI). |
 
 Roadmap and blockers: see [`PLAN.md`](PLAN.md).
 
