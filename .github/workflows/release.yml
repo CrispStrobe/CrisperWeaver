@@ -40,6 +40,10 @@ jobs:
   build-macos:
     name: macOS (.app.zip)
     runs-on: macos-latest
+    # CrispASR grew large enough (Zonos, TADA-TTS, …) that an unbounded
+    # `--parallel` build OOM-killed the 7 GB M1 runner mid-compile (exit 143
+    # in v0.7.6). Bound the build below + give the job explicit headroom.
+    timeout-minutes: 120
     permissions:
       contents: write
     steps:
@@ -84,7 +88,9 @@ jobs:
         run: |
           cmake -B build -DCMAKE_BUILD_TYPE=Release \
             -DBUILD_SHARED_LIBS=ON -DWHISPER_METAL=ON
-          cmake --build build --config Release --parallel --target crispasr-lib
+          # --parallel 2 (not unbounded): caps peak RAM so the heavier
+          # CrispASR build doesn't get OOM-killed on the 7 GB M1 runner.
+          cmake --build build --config Release --parallel 2 --target crispasr-lib
           ls -lh build/src/libwhisper*.dylib
 
       - name: Pub get

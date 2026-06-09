@@ -2,7 +2,7 @@
 # CrisperWeaver loads libcrispasr/libwhisper via Dart FFI, not CocoaPods,
 # so only Flutter plugin pods land here — no custom pod '...' lines.
 
-platform :ios, '13.0'
+platform :ios, '15.0'
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
 
 project 'Runner', {
@@ -57,7 +57,9 @@ post_install do |installer|
     flutter_additional_ios_build_settings(target)
 
     target.build_configurations.each do |config|
-      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
+      # CrispEmbed's iOS podspec requires a 15.0 minimum; keep the app and
+      # all plugin pods aligned so `pod install` resolves (fixes v0.7.6 iOS).
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
       # CrispASR's C++ code uses C++17.
       config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++17'
       config.build_settings['CLANG_CXX_LIBRARY'] = 'libc++'

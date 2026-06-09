@@ -5,6 +5,18 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 
 ## [Unreleased]
 
+## 0.7.7 — 2026-06-09
+
+### Fixed — iOS + macOS release builds (regressed in v0.7.6)
+- **iOS** — bump the app's iOS deployment target 13.0 → **15.0** (Podfile
+  `platform`/`post_install`, `AppframeworkInfo.plist`, Xcode project). The
+  `crispembed` plugin raised its podspec minimum to 15.0 on its `main`, so
+  `pod install` failed at release time; aligning the app fixes it.
+- **macOS** — the heavier CrispASR `main` (Zonos, TADA-TTS, …) OOM-killed the
+  7 GB M1 runner during an unbounded `cmake --build --parallel` (`exit 143`).
+  Bound the dylib build to `--parallel 2` and add a 120 min job timeout.
+- (Android / Linux / Windows were unaffected — v0.7.6 already shipped those.)
+
 ## 0.7.6 — 2026-06-09
 
 ### Fixed — TTS reliability on Android (#20–#23)
