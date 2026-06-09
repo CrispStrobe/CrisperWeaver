@@ -80,33 +80,23 @@ void main() {
       : null;
 
   group('#16 — piper backend gate (live)', () {
-    test('availableBackends() does NOT list piper on current dylib', () {
-      // This confirms the guard in TtsService.prepare() is actually
-      // necessary on the shipped dylib. When piper IS wired, this test
-      // should be updated to expect it present and the guard auto-passes.
-      final backends = crispasr.CrispasrSession.availableBackends();
-      // The list should be non-empty (kokoro, qwen3-tts, etc. are wired).
+    test('availableBackends() lists piper on current dylib', () {
+      // Piper is now wired in the unified session dispatch
+      // (CA_HAVE_PIPER). The TtsService guard auto-passes.
+      final backends =
+          crispasr.CrispasrSession.availableBackends(libPath: libPath);
       expect(backends, isNotEmpty,
           reason: 'dylib should report at least one TTS backend');
-      // Piper is NOT yet wired in the unified session dispatch.
-      expect(backends.contains('piper'), isFalse,
-          reason: 'piper should NOT be in availableBackends yet — '
-              'if this fails, the piper support landed and the guard '
-              'in TtsService is no longer blocking; update the test');
+      expect(backends.contains('piper'), isTrue,
+          reason: 'piper should be in availableBackends — '
+              'if this fails, the dylib was built without CA_HAVE_PIPER');
     }, skip: libSkip);
 
-    test('opening a piper model without the guard would crash', () {
-      // We can't actually test the crash (it's a segfault), but we
-      // verify the catalog entry exists and backend is 'piper', so the
-      // TtsService guard path is exercised.
+    test('piper catalog entry exists and backend matches', () {
       final def =
           ModelService.crispasrBackendModels['piper-en-libritts-r-medium'];
       expect(def, isNotNull);
       expect(def!.backend, 'piper');
-
-      final backends = crispasr.CrispasrSession.availableBackends();
-      expect(backends.contains('piper'), isFalse,
-          reason: 'confirms TtsService.prepare() would return unsupported');
     }, skip: libSkip);
   });
 

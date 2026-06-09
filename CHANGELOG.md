@@ -5,6 +5,17 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 
 ## [Unreleased]
 
+### Changed — TTS watermark & disclaimer (2026-06-09)
+- **Auto-watermark from C API** — `crispasr_session_synthesize()` now
+  auto-embeds the spread-spectrum / AudioSeal watermark. Removed the
+  explicit `CrispasrWatermark.embed()` call in `writeWav()` to avoid
+  double-watermarking. Falls back to Dart LSB watermark only when
+  native symbols are unavailable (web builds).
+- **Spoken disclaimer opt-out** — `writeWav()` accepts `spokenDisclaimer:
+  false` to skip the beep-based AI disclaimer on voice-cloned output.
+  Machine-readable provenance (watermark + WAV metadata) always applied.
+  Server endpoint `/v1/audio/speech` accepts `"spoken_disclaimer": false`.
+
 ### Fixed — CI, web compilation, Windows Zen3 crash (2026-06-09)
 - **CrispEmbed in CI/release workflows** — added `CRISPEMBED_REPO`/`REF`
   env vars and checkout steps in all 8 jobs (3 CI + 5 release). Fixes
