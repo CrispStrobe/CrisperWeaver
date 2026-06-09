@@ -22,6 +22,7 @@ import 'dart:io';
 
 import 'package:archive/archive.dart';
 import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -49,7 +50,7 @@ class EspeakDataService {
   /// (ESPEAK_NG=1). With the repo's placeholder asset this no-ops
   /// gracefully via the < 4 KB check below, exactly as on desktop.
   static Future<String?> ensureExtractedAndSetEnv() async {
-    if (!Platform.isAndroid && !Platform.isIOS) return null;
+    if (kIsWeb || (!Platform.isAndroid && !Platform.isIOS)) return null;
 
     try {
       final tarballBytes = await rootBundle.load(_assetKey);

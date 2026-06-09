@@ -13,6 +13,7 @@
 
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 export 'package:file_picker/file_picker.dart' show FileType;
@@ -21,6 +22,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../services/log_service.dart';
+import 'platform_utils.dart' as plat;
 
 /// Result of [pickFilesRobust]. `localPaths` are guaranteed to be
 /// filesystem paths the caller can hand to a regular `File` open —
@@ -28,6 +30,13 @@ import '../services/log_service.dart';
 /// temp file via the readAsByteStream fallback.
 class RobustFilePick {
   final List<String> localPaths;
+
+  /// Raw file bytes — populated on web where filesystem paths are
+  /// unavailable. On native platforms this is null; use [localPaths].
+  final List<Uint8List>? fileBytes;
+
+  /// Original file names — populated alongside [fileBytes] on web.
+  final List<String>? fileNames;
 
   /// True iff at least one file went through the readAsByteStream + temp-
   /// staging fallback (caller can use this to log / show the user a
@@ -37,13 +46,19 @@ class RobustFilePick {
   const RobustFilePick({
     required this.localPaths,
     required this.usedCloudFallback,
+    this.fileBytes,
+    this.fileNames,
   });
 
   static const RobustFilePick empty =
       RobustFilePick(localPaths: <String>[], usedCloudFallback: false);
 
-  bool get isEmpty => localPaths.isEmpty;
-  bool get isNotEmpty => localPaths.isNotEmpty;
+  bool get isEmpty => localPaths.isEmpty && (fileBytes?.isEmpty ?? true);
+  bool get isNotEmpty => !isEmpty;
+
+  /// True when the pick result contains raw bytes (web path).
+  bool get hasBytesOnly =>
+      localPaths.isEmpty && fileBytes != null && fileBytes!.isNotEmpty;
 }
 
 /// Thrown when the picker raised `Unknown_path` and the readAsByteStream
@@ -152,9 +167,32 @@ Future<RobustFilePick> pickFilesRobust({
   // the native picker accepted all files of that category.  Drop any files
   // that don't match the requested extensions.
   final extensionSet = postFilter
-      ? allowedExtensions!.map((e) => e.toLowerCase()).toSet()
+      ? allowedExtensions.map((e) => e.toLowerCase()).toSet()
       : null;
 
+  // -- Web path: file_picker returns bytes, not filesystem paths ----------
+  if (plat.isWeb) {
+    final bytes = <Uint8List>[];
+    final names = <String>[];
+    for (final f in result.files) {
+      if (extensionSet != null) {
+        final ext = p.extension(f.name).toLowerCase().replaceFirst('.', '');
+        if (!extensionSet.contains(ext)) continue;
+      }
+      if (f.bytes != null) {
+        bytes.add(f.bytes!);
+        names.add(f.name);
+      }
+    }
+    return RobustFilePick(
+      localPaths: const [],
+      usedCloudFallback: false,
+      fileBytes: bytes,
+      fileNames: names,
+    );
+  }
+
+  // -- Native path: resolve to filesystem paths ---------------------------
   final localPaths = <String>[];
   final tmpDir = await getTemporaryDirectory();
   for (final f in result.files) {

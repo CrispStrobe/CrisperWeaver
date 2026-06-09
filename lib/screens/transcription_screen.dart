@@ -1,7 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:desktop_drop/desktop_drop.dart';
+
+import '../utils/platform_utils.dart' as plat;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -58,6 +61,9 @@ class TranscriptionScreen extends ConsumerStatefulWidget {
 class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
   final TextEditingController _urlController = TextEditingController();
   String? _selectedFilePath;
+  // Web-only: raw file bytes + name from the picker (no filesystem path).
+  Uint8List? _selectedFileBytes;
+  String? _selectedFileName;
   bool _showAdvancedOptions = false;
   late bool _enableDiarization;
   late String _language;
@@ -157,14 +163,18 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
     final service = ref.read(transcriptionServiceProvider);
     final settings = ref.read(settingsServiceProvider);
 
-    // Load models list — await so the auto-switch logic below knows
-    // which models are actually downloaded.
-    await _loadModels();
+    // On native, load models first so auto-switch knows what's downloaded.
+    // On web, we need the engine initialized first (models come from the
+    // cloud engine, not the local filesystem).
+    if (!plat.isWeb) await _loadModels();
 
     final ok = await service.initialize(
       preferredEngine: settings.preferredEngine,
     );
     if (!ok) return ok;
+
+    // On web, load the cloud model list now that the engine is ready.
+    if (plat.isWeb) await _loadModels();
 
     // Auto-switch to a downloaded model if the persisted default isn't
     // downloaded yet. Covers the common first-launch flow: user gets
@@ -283,7 +293,31 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
     Log.instance.d('ui', 'Loading models for advanced options...');
     setState(() => _loadingModels = true);
     try {
-      final models = await ref.read(modelServiceProvider).getWhisperCppModels();
+      List<ModelInfo> models;
+      if (plat.isWeb) {
+        // On web, get the cloud model list from the HfSpace engine.
+        final engine = ref.read(transcriptionServiceProvider).currentEngine;
+        if (engine != null) {
+          final engineModels = await engine.getAvailableModels();
+          models = engineModels
+              .map((m) => ModelInfo(
+                    name: m.id,
+                    displayName: m.name,
+                    backend: m.metadata['backend'] as String? ?? m.id,
+                    isDownloaded: true, // always available server-side
+                    sizeBytes: m.sizeBytes,
+                    size: '${(m.sizeBytes / 1e6).round()} MB',
+                    description: m.description,
+                    modelType: ModelType.whisperCpp,
+                  ))
+              .toList();
+        } else {
+          models = [];
+        }
+      } else {
+        models =
+            await ref.read(modelServiceProvider).getWhisperCppModels();
+      }
       Log.instance.d('ui', 'Fetched ${models.length} models');
       if (mounted) {
         setState(() {
@@ -1824,9 +1858,21 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
     }
 
     if (pick.isNotEmpty) {
+      // Web: store bytes directly; native: store filesystem path.
+      if (pick.hasBytesOnly) {
+        setState(() {
+          _selectedFileBytes = pick.fileBytes!.first;
+          _selectedFileName = pick.fileNames!.first;
+          _selectedFilePath = pick.fileNames!.first; // display name
+        });
+        ref.read(selectedAudioPathProvider.notifier).state = null;
+        return;
+      }
       final paths = pick.localPaths;
       setState(() {
         _selectedFilePath = paths.first;
+        _selectedFileBytes = null;
+        _selectedFileName = null;
       });
       ref.read(selectedAudioPathProvider.notifier).state = null;
       if (paths.length > 1) {
@@ -1867,7 +1913,8 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
     final recordedPath = ref.read(selectedAudioPathProvider);
     final filePath = _selectedFilePath ?? recordedPath;
 
-    if (filePath == null && _urlController.text.isEmpty) {
+    final hasWebBytes = _selectedFileBytes != null && plat.isWeb;
+    if (filePath == null && !hasWebBytes && _urlController.text.isEmpty) {
       _showErrorDialog(AppLocalizations.of(context).transcribeNoSource);
       return;
     }
@@ -2045,7 +2092,20 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
                 )
               : adv.askPrompt;
 
-      if (filePath != null) {
+      if (_selectedFileBytes != null && plat.isWeb) {
+        // Web path: send raw bytes to the cloud engine.
+        segments = await transcriptionService.transcribeBytes(
+          _selectedFileBytes!,
+          _selectedFileName ?? 'audio.wav',
+          language: language,
+          translate: adv.translate,
+          initialPrompt:
+              mergedInitialPrompt.isEmpty ? null : mergedInitialPrompt,
+          temperature: adv.temperature,
+          onProgress: appStateNotifier.updateProgress,
+          onSegment: appStateNotifier.addSegment,
+        );
+      } else if (filePath != null) {
         segments = await transcriptionService.transcribeFile(
           File(filePath),
           language: language,

@@ -889,9 +889,47 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
     }
   }
 
+  /// Confirmation gate for non-commercial / research-only weights. Returns
+  /// true when the user accepts the licence terms. Surfaces the licence
+  /// string verbatim so the choice is informed (licence-compliance).
+  Future<bool> _confirmNonCommercialDownload(ModelDefinition def) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        icon: const Icon(Icons.gavel, color: Colors.orange),
+        title: const Text('Non-commercial licence'),
+        content: Text(
+          '${def.displayName} is licensed:\n\n'
+          '${def.license}\n\n'
+          'This permits non-commercial / research use only. By downloading '
+          'you confirm you will not use these weights commercially.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('I understand'),
+          ),
+        ],
+      ),
+    );
+    return ok ?? false;
+  }
+
   Future<void> _downloadModel(ModelInfo model) async {
     final l10n = AppLocalizations.of(context);
     final modelService = ref.read(modelServiceProvider);
+    // Licence-compliance gate: non-commercial (CC-BY-NC, research-only)
+    // weights require explicit confirmation before download so users do
+    // not unknowingly accept non-commercial terms.
+    final ncDef = modelService.lookupDefinition(model.name);
+    if (ncDef != null && ncDef.isNonCommercial) {
+      final accepted = await _confirmNonCommercialDownload(ncDef);
+      if (!accepted) return;
+    }
     // Build the download queue: the main model first, then any
     // companions it declares (TTS voicepacks, codec/tokenizer GGUFs,
     // etc.) that aren't already on disk. This makes Model Management

@@ -5,6 +5,35 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 
 ## [Unreleased]
 
+## 0.7.6 — 2026-06-09
+
+### Fixed — TTS reliability on Android (#20–#23)
+- **Synthesis runs in a background isolate (#23)** — `TtsService.synthesize()`
+  now runs the long native FFI call via `Isolate.run()`, so the UI thread
+  stays responsive during synthesis. Fixes the freeze / ANR on models that
+  take >10 s (Orpheus, Chatterbox, IndexTTS, CosyVoice3).
+- **No-output feedback (#22)** — the Synthesize screen now shows an error
+  with a backend-specific diagnostic when synthesis returns no audio
+  (qwen3-tts quantisation, kokoro phonemizer, pocket-tts Mimi decoder)
+  instead of silently doing nothing.
+- Unit + live test suite covering pocket-tts / piper / orpheus / qwen3-tts.
+- Native side (#20 pocket noise, #21 piper crash) is rebuilt fresh from
+  CrispASR v0.7.1 at release time — includes the pocket-tts ggml GPU/sched
+  migration and the conv_transpose_1d kernel fix.
+
+### Added — Licence surfacing + newer TTS voices
+- **Non-commercial licence warning** — `ModelDefinition` now carries an
+  upstream `license` string mirrored from the CrispASR registry. Models
+  under a non-commercial / research-only licence (CC-BY-NC; currently the
+  German `moonshine-de` / `moonshine-tiny-de`) require an explicit
+  confirmation before download.
+- **Newer TTS backends in the catalogue** — added CrispASR-registry
+  RepoSpecs for `tada`, `lex-au-orpheus-de`, the German
+  `kartoffel-orpheus-de-*` voices, `chatterbox-turbo` / `kartoffelbox-turbo`,
+  `vibevoice-1.5b`, and the `qwen3-tts` 1.7B / custom-voice variants
+  (fixing the previously-broken kartoffel-orpheus entries). Built against
+  CrispASR v0.7.1.
+
 ### Changed — TTS watermark & disclaimer (2026-06-09)
 - **Auto-watermark from C API** — `crispasr_session_synthesize()` now
   auto-embeds the spread-spectrum / AudioSeal watermark. Removed the

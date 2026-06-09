@@ -20,9 +20,10 @@
 // chose it.
 
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/services.dart';
+
+import '../utils/platform_utils.dart' as plat;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hotkey_manager/hotkey_manager.dart';
 
@@ -65,7 +66,7 @@ class HotkeyService {
   /// level hotkeys. macOS / Windows / Linux: yes; iOS / Android:
   /// no. Web is N/A (Flutter-for-web doesn't run this app).
   bool get isPlatformSupported =>
-      Platform.isMacOS || Platform.isWindows || Platform.isLinux;
+      plat.isMacOS || plat.isWindows || plat.isLinux;
 
   /// Register the currently-configured hotkey, if any. Safe to
   /// call repeatedly — unregisters the previous one first.

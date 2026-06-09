@@ -7,6 +7,8 @@ import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../utils/platform_utils.dart' as plat;
+
 // Windows GUI builds detach from the console, so stderr's underlying
 // handle is invalid (errno 6). `IOSink.writeln` enqueues the bytes
 // synchronously but the actual write happens later in the event loop,
@@ -14,7 +16,7 @@ import 'package:path_provider/path_provider.dart';
 // on platformDispatcher.onError as `[uncaught]` for every log line.
 // `stdioType` returns `other` precisely for those detached streams; we
 // skip stderr in that case (file sink still captures everything).
-final bool _stderrUsable = stdioType(stderr) != StdioType.other;
+final bool _stderrUsable = kIsWeb ? false : stdioType(stderr) != StdioType.other;
 
 enum LogLevel { trace, debug, info, warn, error }
 
@@ -330,14 +332,19 @@ class Log {
   /// Dump a rich multi-line boot banner capturing platform / paths /
   /// sizes. Called once from main.dart after file sink init.
   Future<void> logBootBanner() async {
-    final Map<String, String> info = {
-      'platform': Platform.operatingSystem,
-      'os_version': Platform.operatingSystemVersion,
-      'locale': Platform.localeName,
-      'cpu_cores': '${Platform.numberOfProcessors}',
-      'dart_version': Platform.version,
-      'cwd': Directory.current.path,
-    };
+    final Map<String, String> info;
+    if (kIsWeb) {
+      info = {'platform': 'web'};
+    } else {
+      info = {
+        'platform': plat.operatingSystem,
+        'os_version': plat.operatingSystemVersion,
+        'locale': plat.localeName,
+        'cpu_cores': '${plat.numberOfProcessors}',
+        'dart_version': plat.dartVersion,
+        'cwd': Directory.current.path,
+      };
+    }
     try {
       final docs = await getApplicationDocumentsDirectory();
       info['docs_dir'] = docs.path;

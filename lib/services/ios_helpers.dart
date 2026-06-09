@@ -11,14 +11,13 @@
 //
 // Every method is a no-op on non-iOS platforms — desktop and
 // Android don't have an iCloud equivalent that needs opting out of,
-// so callers can fire-and-forget without an `if (Platform.isIOS)`
+// so callers can fire-and-forget without an `if (plat.isIOS)`
 // gate.
-
-import 'dart:io';
 
 import 'package:flutter/services.dart';
 
 import 'log_service.dart';
+import '../utils/platform_utils.dart' as plat;
 
 const MethodChannel _channel = MethodChannel('crisperweaver/ios_helpers');
 
@@ -28,7 +27,7 @@ const MethodChannel _channel = MethodChannel('crisperweaver/ios_helpers');
 /// correctness issue, just a polish item, so we don't want to fail
 /// loud paths like batch persistence init on its absence.
 Future<void> excludeFromBackup(String dir) async {
-  if (!Platform.isIOS) return;
+  if (!plat.isIOS) return;
   try {
     await _channel.invokeMethod<bool>(
       'excludeFromBackup',
@@ -60,7 +59,7 @@ Future<void> excludeFromBackup(String dir) async {
 /// wiping the docs sandbox). Model downloads are the obvious
 /// example.
 Future<String?> appGroupContainerPath(String groupId) async {
-  if (!Platform.isIOS) return null;
+  if (!plat.isIOS) return null;
   try {
     final p = await _channel.invokeMethod<String?>(
       'appGroupContainerPath',

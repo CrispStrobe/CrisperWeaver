@@ -1,7 +1,8 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../utils/platform_utils.dart' as plat;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../engines/engine_factory.dart';
 import '../services/hotkey_service.dart' show HotkeyAction;
@@ -241,7 +242,7 @@ class SettingsService {
   /// even the largest iPhone (8 GB); desktop/Android caps at 4
   /// because beyond that Metal queue contention dominates and the
   /// marginal speedup tapers.
-  int get maxConcurrentTranscriptionsLimit => Platform.isIOS ? 2 : 4;
+  int get maxConcurrentTranscriptionsLimit => plat.isIOS ? 2 : 4;
 
   /// How many *true* parallel session workers the drain loop spawns
   /// (§5.23 Q2 v2). 1 = no pool (the v1 prefetch is what the other
@@ -273,7 +274,7 @@ class SettingsService {
   /// (very tight memory), everything else at 4 (beyond which Metal
   /// queue contention dominates). The pre-flight check may clamp
   /// lower at runtime when the chosen model is too big.
-  int get maxConcurrentSessionsLimit => Platform.isIOS ? 2 : 4;
+  int get maxConcurrentSessionsLimit => plat.isIOS ? 2 : 4;
 
   // --- §5.1.6 v2 Cloud-LLM cleanup (BYOK) ---
 
@@ -289,6 +290,14 @@ class SettingsService {
     Log.instance.d('settings',
         'Saving cloudLlmApiUrl: ${url.isEmpty ? "EMPTY" : url}');
     _prefs.setString('cloud_llm_api_url', url);
+  }
+
+  // --- HF Space / Cloud ASR ---
+  static const _defaultHfSpaceUrl = 'https://cstr-crispasr.hf.space';
+  String get hfSpaceUrl =>
+      _prefs.getString('hf_space_url') ?? _defaultHfSpaceUrl;
+  set hfSpaceUrl(String url) {
+    _prefs.setString('hf_space_url', url);
   }
 
   /// API key — pasted by the user. Logged only as SET/EMPTY

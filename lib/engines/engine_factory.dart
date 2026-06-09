@@ -1,22 +1,19 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../services/model_service.dart';
+import '../utils/platform_utils.dart' as plat;
 import 'transcription_engine.dart';
 import 'mock_engine.dart';
 import 'crispasr_engine.dart';
+import 'hfspace_engine.dart';
 
 /// Available transcription engine types.
-///
-/// Two engines ship today: `CrispASR` (the unified ggml FFI runtime — one
-/// Dart binding, ten ASR families) and `Mock` (deterministic responses for
-/// UI work and CI). Earlier prototypes had a separate method-channel
-/// `WhisperCpp` / `CoreML` pair, but whisper.cpp is CrispASR's own runtime
-/// now and CoreML acceleration ships as an opt-in inside libwhisper rather
-/// than as a separate engine.
 enum EngineType {
   mock('mock', 'Mock Engine', 'Testing engine with simulated responses'),
   crispasr('crispasr', 'CrispASR (ggml)',
-      'On-device ASR via the CrispASR FFI runtime');
+      'On-device ASR via the CrispASR FFI runtime'),
+  hfspace('hfspace', 'CrispASR Cloud',
+      'Cloud ASR + TTS via CrispASR HF Space');
 
   const EngineType(this.id, this.displayName, this.description);
 
@@ -30,6 +27,7 @@ class EngineFactory {
   static final Map<EngineType, TranscriptionEngine Function()> _creators = {
     EngineType.mock: () => MockEngine(),
     EngineType.crispasr: () => CrispASREngine(),
+    EngineType.hfspace: () => HfSpaceEngine(),
   };
 
   static TranscriptionEngine create(EngineType type) {
@@ -40,13 +38,15 @@ class EngineFactory {
     return creator();
   }
 
-  static List<EngineType> getAvailableEngines() =>
-      const [EngineType.crispasr, EngineType.mock];
+  static List<EngineType> getAvailableEngines() => plat.isWeb
+      ? const [EngineType.hfspace, EngineType.mock]
+      : const [EngineType.crispasr, EngineType.hfspace, EngineType.mock];
 
   static bool isSupported(EngineType type) =>
       getAvailableEngines().contains(type);
 
-  static EngineType getRecommendedEngine() => EngineType.crispasr;
+  static EngineType getRecommendedEngine() =>
+      plat.isWeb ? EngineType.hfspace : EngineType.crispasr;
 }
 
 /// Engine manager for handling engine lifecycle and selection.

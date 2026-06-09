@@ -18,6 +18,7 @@ import 'dart:io';
 import 'package:ffi/ffi.dart';
 
 import 'log_service.dart';
+import '../utils/platform_utils.dart' as plat;
 
 /// Set `name=value` in the current process's environment via libc
 /// `setenv(name, value, overwrite=1)`. Returns true on success.
@@ -27,7 +28,7 @@ import 'log_service.dart';
 /// (still read-only there, but the bug we're working around is
 /// Apple-only, so we don't need Windows).
 bool setEnv(String name, String value) {
-  if (!(Platform.isMacOS || Platform.isIOS || Platform.isLinux || Platform.isAndroid)) {
+  if (!(plat.isMacOS || plat.isIOS || plat.isLinux || plat.isAndroid)) {
     return false;
   }
   try {
@@ -67,7 +68,7 @@ bool setEnv(String name, String value) {
 void applyKokoroMetalWorkaround() {
   // Apple platforms only — the bug is in ggml-metal, not in the
   // CUDA / Vulkan / CPU paths.
-  if (!(Platform.isMacOS || Platform.isIOS)) return;
+  if (!(plat.isMacOS || plat.isIOS)) return;
   setEnv('KOKORO_F0N_FORCE_CPU', '1');
   setEnv('KOKORO_DEC_FORCE_CPU', '1');
 }
@@ -90,12 +91,12 @@ void applyKokoroEspeakDataPath({String? explicitOverride}) {
   if (candidate == null) {
     final exeDir = File(Platform.resolvedExecutable).parent.path;
     final List<String> candidates;
-    if (Platform.isMacOS) {
+    if (plat.isMacOS) {
       // exeDir = .../crisper_weaver.app/Contents/MacOS
       candidates = ['$exeDir/../Resources/espeak-ng-data'];
-    } else if (Platform.isLinux) {
+    } else if (plat.isLinux) {
       candidates = ['$exeDir/lib/espeak-ng-data', '$exeDir/espeak-ng-data'];
-    } else if (Platform.isWindows) {
+    } else if (plat.isWindows) {
       candidates = ['$exeDir/data/espeak-ng-data', '$exeDir/espeak-ng-data'];
     } else {
       // iOS / Android — caller must provide the extracted-asset path.

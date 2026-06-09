@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io' show Platform;
 import 'dart:isolate';
 import 'dart:typed_data';
 
@@ -9,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:path/path.dart' as p;
 
 import '../engines/transcription_engine.dart'; // Use engine TranscriptionSegment
 import '../models/segment_tag.dart';
@@ -1927,7 +1927,7 @@ class _CleanupDialogState extends ConsumerState<_CleanupDialog> {
   /// Settings; here we just want the user to recognise which
   /// model is going to be used.
   static String _shortModelPath(String path) {
-    final ix = path.lastIndexOf(Platform.pathSeparator);
+    final ix = path.lastIndexOf(p.separator);
     return ix == -1 ? path : path.substring(ix + 1);
   }
 }
@@ -2250,7 +2250,7 @@ class _SummarizeDialogState extends ConsumerState<_SummarizeDialog> {
   }
 
   static String _shortModelPath(String path) {
-    final ix = path.lastIndexOf(Platform.pathSeparator);
+    final ix = path.lastIndexOf(p.separator);
     return ix == -1 ? path : path.substring(ix + 1);
   }
 }
