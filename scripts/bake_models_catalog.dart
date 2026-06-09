@@ -31,6 +31,12 @@ class RepoSpec {
   final String? voicepackBaseName;
   final String extension;
 
+  /// Upstream weight licence string, mirrored from the CrispASR registry
+  /// (`crispasr_model_registry.cpp`, 6th field). `null` = permissive.
+  /// Emitted into the baked `ModelDefinition`'s `license:` when non-null;
+  /// non-commercial licences gate downloads in the Model Manager.
+  final String? license;
+
   const RepoSpec({
     required this.backend,
     required this.repoId,
@@ -40,6 +46,7 @@ class RepoSpec {
     this.kind = 'asr',
     this.voicepackBaseName,
     this.extension = '.gguf',
+    this.license,
   });
 }
 
@@ -569,9 +576,11 @@ const _repos = <RepoSpec>[
     displayPrefix: 'VibeVoice 1.5B', description: 'VibeVoice 1.5B TTS', kind: 'tts'),
   // ----- Phase 2 parity: new ASR models -----
   RepoSpec(backend: 'moonshine', repoId: 'cstr/moonshine-base-de-fidoriel-GGUF', baseName: 'moonshine-base-de-fidoriel',
-    displayPrefix: 'Moonshine DE', description: 'Moonshine base German (6.9% WER)'),
+    displayPrefix: 'Moonshine DE', description: 'Moonshine base German (6.9% WER)',
+    license: 'CC-BY-NC-SA-4.0'),
   RepoSpec(backend: 'moonshine', repoId: 'cstr/moonshine-tiny-de-fidoriel-GGUF', baseName: 'moonshine-tiny-de-fidoriel',
-    displayPrefix: 'Moonshine tiny DE', description: 'Moonshine tiny German (11.4% WER)'),
+    displayPrefix: 'Moonshine tiny DE', description: 'Moonshine tiny German (11.4% WER)',
+    license: 'CC-BY-NC-SA-4.0'),
   RepoSpec(backend: 'wav2vec2', repoId: 'cstr/hubert-large-ls960-ft-GGUF', baseName: 'hubert-large-ls960-ft',
     displayPrefix: 'HuBERT Large', description: 'HuBERT Large LS960 fine-tuned (EN CTC)'),
   RepoSpec(backend: 'wav2vec2', repoId: 'cstr/wav2vec2-large-xlsr-53-german-GGUF', baseName: 'wav2vec2-large-xlsr-53-german',
@@ -600,6 +609,31 @@ const _repos = <RepoSpec>[
   // ----- PCS (all-in-one punct + truecase + SBD) -----
   RepoSpec(backend: 'pcs', repoId: 'cstr/pcs-xlmr-base-GGUF', baseName: 'pcs-xlmr-base',
     displayPrefix: 'PCS', description: 'Punctuation + Capitalization + Segmentation (47 langs)', kind: 'punc'),
+  // ----- Registry-parity TTS backends (mirrored from crispasr_model_registry.cpp) -----
+  // Backend ids match the CrispASR registry's `backend` field; baseNames are
+  // the registry default-model stems (filename minus quant suffix + .gguf).
+  RepoSpec(backend: 'chatterbox-turbo', repoId: 'cstr/chatterbox-turbo-GGUF', baseName: 'chatterbox-turbo-t3',
+    displayPrefix: 'Chatterbox Turbo T3', description: 'Chatterbox-Turbo distilled GPT-2 T3 (EN) — pair with chatterbox-turbo S3Gen', kind: 'tts'),
+  RepoSpec(backend: 'kartoffelbox-turbo', repoId: 'cstr/kartoffelbox-turbo-GGUF', baseName: 'kartoffelbox-turbo-t3',
+    displayPrefix: 'Kartoffelbox Turbo T3 (DE)', description: 'German fine-tune of Chatterbox-Turbo — reuses chatterbox-turbo S3Gen', kind: 'tts'),
+  RepoSpec(backend: 'lahgtna-chatterbox', repoId: 'cstr/lahgtna-chatterbox-v1-GGUF', baseName: 'chatterbox-t3',
+    displayPrefix: 'Lahgtna Chatterbox (AR)', description: 'Arabic T3 fine-tune of base Chatterbox — reuses base S3Gen', kind: 'tts'),
+  RepoSpec(backend: 'lex-au-orpheus-de', repoId: 'lex-au/Orpheus-3b-German-FT-Q8_0.gguf', baseName: 'Orpheus-3b-German-FT-Q8_0',
+    displayPrefix: 'Orpheus DE (lex-au)', description: 'lex-au German Orpheus-3B fine-tune — SNAC codec companion', kind: 'tts'),
+  RepoSpec(backend: 'kartoffel-orpheus-de-natural', repoId: 'cstr/kartoffel-orpheus-3b-german-natural-GGUF', baseName: 'kartoffel-orpheus-de-natural',
+    displayPrefix: 'Kartoffel-Orpheus natural (DE)', description: 'German Orpheus-3B fine-tune (natural voices) — SNAC codec companion', kind: 'tts'),
+  RepoSpec(backend: 'kartoffel-orpheus-de-synthetic', repoId: 'cstr/kartoffel-orpheus-3b-german-synthetic-GGUF', baseName: 'kartoffel-orpheus-de-synthetic',
+    displayPrefix: 'Kartoffel-Orpheus synthetic (DE)', description: 'German Orpheus-3B fine-tune (synthetic voices, emotion control) — SNAC codec companion', kind: 'tts'),
+  RepoSpec(backend: 'qwen3-tts-customvoice', repoId: 'cstr/qwen3-tts-0.6b-customvoice-GGUF', baseName: 'qwen3-tts-12hz-0.6b-customvoice',
+    displayPrefix: 'Qwen3-TTS 0.6B custom-voice', description: 'Qwen3-TTS 0.6B fixed-speaker fine-tune (9 baked voices) — qwen3-tts-tokenizer-12hz codec', kind: 'tts'),
+  RepoSpec(backend: 'qwen3-tts-1.7b-base', repoId: 'cstr/qwen3-tts-1.7b-base-GGUF', baseName: 'qwen3-tts-12hz-1.7b-base',
+    displayPrefix: 'Qwen3-TTS 1.7B base', description: 'Qwen3-TTS 1.7B base talker (ICL voice clone) — qwen3-tts-tokenizer-12hz codec', kind: 'tts'),
+  RepoSpec(backend: 'qwen3-tts-1.7b-voicedesign', repoId: 'cstr/qwen3-tts-1.7b-voicedesign-GGUF', baseName: 'qwen3-tts-12hz-1.7b-voicedesign',
+    displayPrefix: 'Qwen3-TTS 1.7B voice-design', description: 'Qwen3-TTS 1.7B — natural-language voice description — qwen3-tts-tokenizer-12hz codec', kind: 'tts'),
+  RepoSpec(backend: 'vibevoice-1.5b', repoId: 'cstr/vibevoice-1.5b-GGUF', baseName: 'vibevoice-1.5b-tts',
+    displayPrefix: 'VibeVoice 1.5B', description: 'VibeVoice 1.5B TTS', kind: 'tts'),
+  RepoSpec(backend: 'tada', repoId: 'cstr/tada-tts-3b-ml-GGUF', baseName: 'tada-tts-3b-ml',
+    displayPrefix: 'TADA 3B-ML', description: 'HumeAI TADA-3B-ML — Llama-3.2-3B + flow matching + TADA codec companion', kind: 'tts'),
 ];
 
 String _formatSize(int bytes) {
@@ -701,6 +735,9 @@ Future<void> main() async {
           buf.writeln("    quantization: 'f16',");
           buf.writeln("    backend: '${repo.backend}',");
           buf.writeln('    kind: ModelKind.voice,');
+          if (repo.license != null) {
+            buf.writeln("    license: '${_escape(repo.license!)}',");
+          }
           buf.writeln('  ),');
           repoEntries++;
           totalEntries++;
@@ -736,6 +773,9 @@ Future<void> main() async {
       buf.writeln("    quantization: '$quant',");
       buf.writeln("    backend: '${repo.backend}',");
       buf.writeln('    kind: ModelKind.${repo.kind},');
+      if (repo.license != null) {
+        buf.writeln("    license: '${_escape(repo.license!)}',");
+      }
       buf.writeln('  ),');
       repoEntries++;
       totalEntries++;

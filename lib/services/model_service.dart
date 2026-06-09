@@ -5241,6 +5241,13 @@ class ModelDefinition {
   /// kind = asr / tts / translate.
   final List<String> languages;
 
+  /// Upstream weight license string, mirrored from the CrispASR registry
+  /// (`crispasr_model_registry.cpp`). `null` = permissive (MIT/Apache/etc.).
+  /// A non-null value is shown in the Model Manager; non-commercial licenses
+  /// additionally gate downloads behind a confirmation dialog — see
+  /// [isNonCommercial] (EU AI Act / licence-compliance surfacing).
+  final String? license;
+
   const ModelDefinition({
     required this.name,
     required this.displayName,
@@ -5254,7 +5261,22 @@ class ModelDefinition {
     this.kind = ModelKind.asr,
     this.companions = const [],
     this.languages = const [],
+    this.license,
   });
+
+  /// True when [license] denotes a non-commercial / research-only grant
+  /// (CC-BY-NC, "non-commercial", "research only"). Used to warn before
+  /// download/use so users don't unknowingly take on NC terms.
+  bool get isNonCommercial {
+    final l = license;
+    if (l == null) return false;
+    final s = l.toLowerCase();
+    return s.contains('-nc') ||
+        s.contains('non-commercial') ||
+        s.contains('noncommercial') ||
+        s.contains('research only') ||
+        s.contains('research-only');
+  }
 
   /// True when this row should appear under the given language
   /// filter. Untagged + multilingual rows pass for any picked code.
@@ -5281,6 +5303,7 @@ class ModelDefinition {
     ModelKind? kind,
     List<String>? companions,
     List<String>? languages,
+    String? license,
   }) =>
       ModelDefinition(
         name: name ?? this.name,
@@ -5295,6 +5318,7 @@ class ModelDefinition {
         kind: kind ?? this.kind,
         companions: companions ?? this.companions,
         languages: languages ?? this.languages,
+        license: license ?? this.license,
       );
 }
 

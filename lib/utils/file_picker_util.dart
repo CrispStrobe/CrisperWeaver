@@ -152,7 +152,7 @@ Future<RobustFilePick> pickFilesRobust({
   // the native picker accepted all files of that category.  Drop any files
   // that don't match the requested extensions.
   final extensionSet = postFilter
-      ? allowedExtensions!.map((e) => e.toLowerCase()).toSet()
+      ? allowedExtensions.map((e) => e.toLowerCase()).toSet()
       : null;
 
   final localPaths = <String>[];
