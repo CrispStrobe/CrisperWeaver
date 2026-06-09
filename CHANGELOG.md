@@ -5,6 +5,22 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 
 ## [Unreleased]
 
+### Fixed — CI, web compilation, Windows Zen3 crash (2026-06-09)
+- **CrispEmbed in CI/release workflows** — added `CRISPEMBED_REPO`/`REF`
+  env vars and checkout steps in all 8 jobs (3 CI + 5 release). Fixes
+  "could not find package crispembed" pub-get failure that broke CI since
+  the crispembed dependency was added.
+- **Web compilation via conditional imports** — `dart:ffi` is unavailable
+  on web; all `package:crispasr`, `package:crispembed`, and direct ffi
+  imports gated behind conditional barrel files in `lib/native/`. Stubs
+  provide the same type surface with `UnsupportedError` constructors.
+  `flutter build web --release` succeeds; deployed to Vercel.
+- **Windows AVX-512 crash on Zen3** (fixes #19) — release workflow's
+  Windows cmake used `GGML_NATIVE=ON` (default), baking AVX-512 from
+  GitHub Actions runners into `whisper.dll`. AMD Zen3 CPUs only support
+  AVX2, causing crash on model load. Fixed by setting `GGML_NATIVE=OFF`
+  and pinning to AVX2+FMA+F16C.
+
 ### Fixed — Mobile UX: file picker, adaptive icon, iOS alpha, PWA (2026-06-09)
 - **Android file picker greyed-out files** — `pickFilesRobust()` now accepts
   an optional `FileType` parameter. All audio-picking call sites pass

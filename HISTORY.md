@@ -27,6 +27,48 @@ pending.
 
 ---
 
+## June 2026 — CI fix, web conditional imports, Windows Zen3 crash (#19)
+
+### CrispEmbed checkout in CI/release workflows
+
+`crispembed` was added as a path dependency but never checked out in
+CI/release workflows (only CrispASR was). Added `CRISPEMBED_REPO` /
+`CRISPEMBED_REF` env vars and checkout steps (with `submodules: recursive`
+for the ggml submodule) in all 8 jobs across `ci.yml` and `release.yml`.
+
+### Web compilation — conditional imports + stubs
+
+`dart:ffi` is fundamentally unavailable on web. Created `lib/native/`
+with 12 files (6 barrel conditional-import files + 6 stub files) covering
+`package:crispasr`, `package:crispembed`, `dart:ffi`, `package:ffi`,
+and two service files (`disk_space.dart`, `env_helpers.dart`) that use
+FFI directly. All 29 source files updated to import through the barrels.
+
+On native platforms the real packages load unchanged. On web the stubs
+provide matching type surfaces (`UnsupportedError` for FFI-backed
+constructors, functional data classes). The app already degrades
+gracefully (MockEngine, null embedder → TF-IDF fallback), so the web
+build runs with full UI minus native transcription.
+
+`flutter build web --release` produces a 4.9 MB JS bundle. Deployed
+to Vercel at `https://web-nu-peach-46.vercel.app`.
+
+### Windows AVX-512 crash on Zen3 (fixes #19)
+
+GitHub Actions `windows-latest` runners have AVX-512. With
+`GGML_NATIVE=ON` (the default when not cross-compiling), ggml's
+`FindSIMD.cmake` detects AVX-512 on the build host and compiles
+`whisper.dll` with `/arch:AVX512`. At runtime on AMD Zen3 (AVX2-only),
+`ggml_backend_cpu_x86_score()` checks for AVX-512F/CD/VL/DQ/BW, all
+absent, and the backend fails to initialize → crash on model load.
+
+Fix: set `GGML_NATIVE=OFF` and explicitly enable `GGML_AVX2=ON`,
+`GGML_AVX=ON`, `GGML_FMA=ON`, `GGML_F16C=ON`, `GGML_AVX512=OFF`.
+This gives near-optimal performance on Haswell+ / Zen2+ without
+requiring AVX-512.
+
+---
+
 ## June 2026 — Mobile UX: file picker, adaptive icon, iOS alpha, PWA
 
 Three Android / iOS pain-points fixed plus web PWA scaffolding.
