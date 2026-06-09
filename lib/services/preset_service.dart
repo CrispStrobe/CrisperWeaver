@@ -22,7 +22,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:crispasr/crispasr.dart' as crispasr;
+import '../native/crispasr_import.dart' as crispasr;
 
 import '../services/log_service.dart';
 import '../services/vad_service.dart';

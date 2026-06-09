@@ -1,4 +1,4 @@
-import 'package:crispasr/crispasr.dart' as crispasr;
+import '../native/crispasr_import.dart' as crispasr;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 

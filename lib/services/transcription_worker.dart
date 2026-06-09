@@ -49,7 +49,7 @@ import 'dart:async';
 import 'dart:isolate';
 import 'dart:typed_data';
 
-import 'package:crispasr/crispasr.dart' as crispasr;
+import '../native/crispasr_import.dart' as crispasr;
 
 import '../engines/transcription_engine.dart';
 

@@ -18,7 +18,7 @@ import '../services/log_service.dart';
 import '../services/settings_service.dart' show settingsServiceProvider;
 import '../services/speaker_id_service.dart';
 import '../utils/file_picker_util.dart';
-import 'package:crispasr/crispasr.dart' as crispasr;
+import '../native/crispasr_import.dart' as crispasr;
 
 class SpeakerManagementScreen extends ConsumerStatefulWidget {
   const SpeakerManagementScreen({super.key});

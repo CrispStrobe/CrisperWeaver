@@ -44,7 +44,7 @@
 import 'dart:async';
 import 'dart:isolate';
 
-import 'package:crispasr/crispasr.dart' as crispasr;
+import '../native/crispasr_import.dart' as crispasr;
 
 /// Spawn-time args passed to [localLlmWorkerEntry]. Kept tiny —
 /// the worker resolves libcrispasr through the binding's own

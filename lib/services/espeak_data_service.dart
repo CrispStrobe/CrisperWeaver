@@ -26,7 +26,7 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
-import 'env_helpers.dart';
+import '../native/env_helpers_import.dart';
 import 'log_service.dart';
 
 class EspeakDataService {

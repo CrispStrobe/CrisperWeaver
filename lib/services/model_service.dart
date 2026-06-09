@@ -6,11 +6,11 @@ import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 import 'package:crypto/crypto.dart';
-import 'package:crispasr/crispasr.dart' as crispasr;
+import '../native/crispasr_import.dart' as crispasr;
 
 import 'baked_models_catalog.dart';
 import 'ios_helpers.dart';
-import 'disk_space.dart';
+import '../native/disk_space_import.dart';
 import 'log_service.dart';
 import 'settings_service.dart';
 

@@ -1,8 +1,8 @@
-import 'dart:ffi';
+import '../native/ffi_import.dart';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:crispasr/crispasr.dart' as crispasr;
+import '../native/crispasr_import.dart' as crispasr;
 import 'package:path/path.dart' as p;
 
 import '../engines/transcription_engine.dart';

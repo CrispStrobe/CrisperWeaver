@@ -36,7 +36,7 @@ import 'dart:io';
 import 'dart:isolate';
 import 'dart:typed_data';
 
-import 'package:crispasr/crispasr.dart' as crispasr;
+import '../native/crispasr_import.dart' as crispasr;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'log_service.dart';

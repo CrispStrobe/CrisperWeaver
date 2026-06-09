@@ -7,7 +7,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
-import 'package:crispembed/crispembed.dart' show CrispEmbed;
+import '../native/crispembed_import.dart' show CrispEmbed;
 
 import '../engines/transcription_engine.dart';
 import 'audio_fingerprint_service.dart';

@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 
-import 'package:crispembed/crispembed.dart' show CrispEmbed;
+import '../native/crispembed_import.dart' show CrispEmbed;
 
 import '../engines/transcription_engine.dart';
 import 'history_service.dart';

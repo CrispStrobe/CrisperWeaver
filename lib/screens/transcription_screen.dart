@@ -14,7 +14,7 @@ import '../utils/file_picker_util.dart';
 import '../utils/audio_utils.dart';
 
 import '../main.dart';
-import 'package:crispasr/crispasr.dart' as crispasr;
+import '../native/crispasr_import.dart' as crispasr;
 
 import '../engines/crispasr_engine.dart' show CrispASREngine;
 import '../engines/transcription_engine.dart';

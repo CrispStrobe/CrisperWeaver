@@ -17,6 +17,9 @@ env:
   # references the Flutter package inside it at `../CrispASR/flutter/crispasr`.
   CRISPASR_REPO: CrispStrobe/CrispASR
   CRISPASR_REF: main
+  # CrispEmbed — on-device embeddings. pubspec path: `../CrispEmbed/flutter/crispembed`.
+  CRISPEMBED_REPO: CrispStrobe/CrispEmbed
+  CRISPEMBED_REF: main
 
 jobs:
   analyze-and-test:
@@ -39,6 +42,13 @@ jobs:
           repository: ${{ env.CRISPASR_REPO }}
           ref: ${{ env.CRISPASR_REF }}
           path: repos/CrispASR
+
+      - name: Check out sibling CrispEmbed (Dart FFI package)
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ env.CRISPEMBED_REPO }}
+          ref: ${{ env.CRISPEMBED_REF }}
+          path: repos/CrispEmbed
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -84,6 +94,14 @@ jobs:
           repository: ${{ env.CRISPASR_REPO }}
           ref: ${{ env.CRISPASR_REF }}
           path: repos/CrispASR
+          submodules: recursive
+
+      - name: Check out sibling CrispEmbed
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ env.CRISPEMBED_REPO }}
+          ref: ${{ env.CRISPEMBED_REF }}
+          path: repos/CrispEmbed
           submodules: recursive
 
       - name: Set up Flutter
@@ -135,6 +153,14 @@ jobs:
           repository: ${{ env.CRISPASR_REPO }}
           ref: ${{ env.CRISPASR_REF }}
           path: repos/CrispASR
+          submodules: recursive
+
+      - name: Check out sibling CrispEmbed
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ env.CRISPEMBED_REPO }}
+          ref: ${{ env.CRISPEMBED_REF }}
+          path: repos/CrispEmbed
           submodules: recursive
 
       - name: Install Linux desktop toolchain

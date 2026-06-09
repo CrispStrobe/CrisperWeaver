@@ -40,7 +40,7 @@ import 'services/watch_folder_service.dart';
 import 'services/audio_service.dart';
 import 'services/batch_queue_service.dart';
 import 'services/desktop_open_with_bridge.dart';
-import 'services/env_helpers.dart';
+import 'native/env_helpers_import.dart';
 import 'services/espeak_data_service.dart';
 import 'services/history_service.dart';
 import 'services/log_service.dart';
@@ -53,7 +53,7 @@ import 'services/hotkey_service.dart';
 import 'services/preset_service.dart';
 import 'services/settings_service.dart';
 import 'theme/app_theme.dart';
-import 'package:crispembed/crispembed.dart' show CrispEmbed;
+import 'native/crispembed_import.dart' show CrispEmbed;
 import 'engines/transcription_engine.dart'; // Use engine TranscriptionSegment
 
 /// Desktop-side argv intake — populated in [main] from the args
