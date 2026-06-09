@@ -858,9 +858,19 @@ jobs:
                 Write-Host "  patched $($_.Name) with popen→_popen compat"
               }
             }
+          # GGML_NATIVE=OFF disables build-host CPU detection so the
+          # DLL doesn't bake in AVX-512 from the GitHub Actions runner.
+          # Explicit AVX2+FMA gives best perf on Zen2+ / Haswell+ while
+          # keeping Zen3 and older Intel safe. Fixes #19.
           cmake -B build `
             -DCMAKE_BUILD_TYPE=Release `
             -DBUILD_SHARED_LIBS=ON `
+            -DGGML_NATIVE=OFF `
+            -DGGML_AVX2=ON `
+            -DGGML_AVX=ON `
+            -DGGML_FMA=ON `
+            -DGGML_F16C=ON `
+            -DGGML_AVX512=OFF `
             -DWHISPER_BUILD_EXAMPLES=OFF `
             -DWHISPER_BUILD_TESTS=OFF `
             -DESPEAK_NG_INCLUDE_DIR="$espeakInc" `
