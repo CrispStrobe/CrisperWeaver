@@ -543,7 +543,20 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
         frequencyPenalty:
             _frequencyPenalty.abs() < 1e-3 ? null : _frequencyPenalty,
       );
-      if (audio == null) return;
+      // #22 — surface a visible error when synthesis produces no audio
+      // instead of silently returning. The previous `if (audio == null)
+      // return` left the user with "nothing happens".
+      if (audio == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content: Text(AppLocalizations.of(context).synthesizeFailed(
+                    'no audio produced — try a different model or '
+                    'quantisation (q8_0 recommended)'))),
+          );
+        }
+        return;
+      }
       final wav = await tts.writeWav(audio);
       _lastWav = wav;
 

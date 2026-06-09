@@ -22,6 +22,8 @@
 library;
 
 import 'dart:io';
+import 'dart:isolate';
+import 'dart:typed_data';
 
 import 'package:crispasr/crispasr.dart' as crispasr;
 import 'package:flutter_test/flutter_test.dart';
@@ -224,5 +226,135 @@ void main() {
                   : null),
           timeout: const Timeout(Duration(minutes: 3)));
     }
+  });
+
+  // ================================================================
+  // June 2026 batch — issues #20 / #21 / #22 / #23
+  // ================================================================
+
+  group('#20 — pocket-tts Mimi CPU scheduler (live)', () {
+    final pocketPath = _resolveModel('pocket-tts-english-f16');
+    final modelSkip = pocketPath == null
+        ? 'pocket-tts-english-f16 GGUF not found.'
+        : null;
+    final skip = libSkip ?? modelSkip;
+
+    test('pocket-tts synthesize produces valid PCM (not noise)', () {
+      final session = crispasr.CrispasrSession.open(
+        pocketPath!,
+        backend: 'pocket-tts',
+        libPath: libPath,
+      );
+      try {
+        final pcm = session.synthesize('Hello.');
+        expect(pcm.length, greaterThan(2400),
+            reason: 'should produce >0.1s at 24 kHz');
+        // All samples should be finite (no NaN from GPU corruption).
+        int finite = 0;
+        double maxAbs = 0;
+        for (final s in pcm) {
+          if (s.isFinite) {
+            finite++;
+            final a = s.abs();
+            if (a > maxAbs) maxAbs = a;
+          }
+        }
+        expect(finite, pcm.length,
+            reason: 'all samples must be finite — NaN means GPU corruption');
+        expect(maxAbs, greaterThan(0.001),
+            reason: 'output should contain audible signal');
+      } finally {
+        session.close();
+      }
+    }, skip: skip, timeout: const Timeout(Duration(minutes: 5)));
+  });
+
+  group('#21 — piper HiFi-GAN CPU scheduler (live)', () {
+    final piperPath = _resolveModel('piper-en-libritts-r-medium');
+    final modelSkip = piperPath == null
+        ? 'piper GGUF not found.'
+        : null;
+    final skip = libSkip ?? modelSkip;
+
+    test('piper synthesize produces valid PCM', () {
+      final session = crispasr.CrispasrSession.open(
+        piperPath!,
+        backend: 'piper',
+        libPath: libPath,
+      );
+      try {
+        final pcm = session.synthesize('Hello world.');
+        expect(pcm.length, greaterThan(2400),
+            reason: 'should produce audio');
+        int finite = 0;
+        for (final s in pcm) {
+          if (s.isFinite) finite++;
+        }
+        expect(finite, pcm.length,
+            reason: 'all samples must be finite');
+      } finally {
+        session.close();
+      }
+    }, skip: skip, timeout: const Timeout(Duration(minutes: 3)));
+  });
+
+  group('#22 — qwen3-tts q8_0 produces audio (live)', () {
+    final qwenPath = _resolveModel('qwen3-tts-12hz-0.6b-base-q8_0');
+    final codecPath = _resolveModel('qwen3-tts-tokenizer-12hz');
+    final modelSkip = qwenPath == null
+        ? 'qwen3-tts base GGUF not found.'
+        : codecPath == null
+            ? 'qwen3-tts tokenizer not found.'
+            : null;
+    final skip = libSkip ?? modelSkip;
+
+    test('qwen3-tts q8_0 synthesize produces non-empty audio', () {
+      final session = crispasr.CrispasrSession.open(
+        qwenPath!,
+        backend: 'qwen3-tts',
+        libPath: libPath,
+      );
+      try {
+        session.setCodecPath(codecPath!);
+        final pcm = session.synthesize('Hello.');
+        expect(pcm.length, greaterThan(2400),
+            reason: 'q8_0 should reliably produce audio');
+      } finally {
+        session.close();
+      }
+    }, skip: skip, timeout: const Timeout(Duration(minutes: 5)));
+  });
+
+  group('#23 — orpheus synthesis via Isolate.run (live)', () {
+    final orpheusPath = _resolveModel('orpheus-3b-base-q8_0');
+    final snacPath = _resolveModel('snac-24khz');
+    final modelSkip = orpheusPath == null
+        ? 'orpheus GGUF not found.'
+        : snacPath == null
+            ? 'snac-24khz codec not found.'
+            : null;
+    final skip = libSkip ?? modelSkip;
+
+    test('orpheus synthesis in background isolate returns valid PCM',
+        () async {
+      // Mirrors the production Isolate.run path in TtsService.
+      final oPath = orpheusPath!;
+      final sPath = snacPath!;
+      final pcm = await Isolate.run<Float32List>(() {
+        final s = crispasr.CrispasrSession.open(oPath, backend: 'orpheus');
+        try {
+          s.setCodecPath(sPath);
+          final speakers = s.speakers();
+          if (speakers.isNotEmpty) s.setSpeakerName(speakers.first);
+          return s.synthesize('Hello.');
+        } finally {
+          s.close();
+        }
+      });
+      expect(pcm.length, greaterThan(2400));
+      for (int i = 0; i < pcm.length && i < 1000; i++) {
+        expect(pcm[i].isFinite, isTrue);
+      }
+    }, skip: skip, timeout: const Timeout(Duration(minutes: 5)));
   });
 }

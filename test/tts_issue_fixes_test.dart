@@ -154,4 +154,84 @@ void main() {
       }
     });
   });
+
+  // ================================================================
+  // June 2026 batch — issues #20 / #21 / #22 / #23
+  // ================================================================
+
+  group('#20 — pocket-tts catalog + Mimi CPU scheduler', () {
+    test('pocket-tts f16 is catalogued with backend=pocket-tts', () {
+      final def =
+          ModelService.crispasrBackendModels['pocket-tts-english-f16'];
+      expect(def, isNotNull);
+      expect(def!.backend, 'pocket-tts');
+      expect(def.kind, ModelKind.tts);
+    });
+
+    test('pocket-tts is self-contained (Mimi codec built into GGUF)', () {
+      // The noise bug was caused by ggml_conv_transpose_1d on GPU, NOT
+      // a missing codec. Verify no external companion is required.
+      final def =
+          ModelService.crispasrBackendModels['pocket-tts-english-f16'];
+      expect(def, isNotNull);
+      expect(def!.companions, isEmpty);
+    });
+
+    test('pocket-tts BackendRepo exists for HF probe', () {
+      final repo = ModelService.backendRepos['pocket-tts'];
+      expect(repo, isNotNull);
+      expect(repo!.backend, 'pocket-tts');
+    });
+  });
+
+  group('#21 — piper crash: ggml_conv_transpose_1d GPU corruption', () {
+    test('TtsLoadStatus.unsupported carries piper backend', () {
+      // The Dart-side gate and C-side hifigan_sched both protect piper.
+      final s = TtsLoadStatus.unsupported('piper');
+      expect(s.ready, isFalse);
+      expect(s.unsupportedBackend, 'piper');
+      expect(s.missingModelName, isNull);
+    });
+
+    test('all piper entries have backend=piper', () {
+      final piperModels = ModelService.crispasrBackendModels.entries
+          .where((e) => e.value.backend == 'piper')
+          .toList();
+      expect(piperModels, isNotEmpty);
+      for (final e in piperModels) {
+        expect(e.value.kind, ModelKind.tts);
+      }
+    });
+  });
+
+  group('#22 — qwen3-tts diagnostic hint for empty audio', () {
+    test('qwen3-tts base has codec companion wired', () {
+      final def =
+          ModelService.crispasrBackendModels['qwen3-tts-12hz-0.6b-base-q8_0'];
+      expect(def, isNotNull);
+      expect(def!.backend, 'qwen3-tts');
+      expect(def.companions, isNotEmpty,
+          reason: 'codec companion needed for synthesis');
+      for (final c in def.companions) {
+        expect(ModelService.crispasrBackendModels.containsKey(c), isTrue);
+      }
+    });
+  });
+
+  group('#23 — orpheus ANR: background-isolate synthesis', () {
+    test('orpheus 3B has codec companion for isolate replay', () {
+      final def =
+          ModelService.crispasrBackendModels['orpheus-3b-base-q8_0'];
+      expect(def, isNotNull);
+      expect(def!.backend, 'orpheus');
+      expect(def.companions, contains('snac-24khz'));
+    });
+
+    test('SNAC codec catalogued', () {
+      final codec = ModelService.crispasrBackendModels['snac-24khz'];
+      expect(codec, isNotNull);
+      expect(codec!.kind, ModelKind.codec);
+      expect(codec.backend, 'orpheus');
+    });
+  });
 }

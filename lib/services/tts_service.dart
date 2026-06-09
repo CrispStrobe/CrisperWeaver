@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:isolate';
 import 'dart:typed_data';
 
 import '../native/crispasr_import.dart' as crispasr;
@@ -46,6 +47,16 @@ class TtsService {
   String? _key;
   crispasr.CrispasrSession? _session;
   String? _backend;
+
+  // Resolved config from last prepare(), replayed in the background
+  // isolate for synthesis (#23 — prevents ANR on large models).
+  String? _modelPath;
+  String? _voicePath;
+  String? _codecPath;
+  String? _prepSpeakerName;
+  int? _prepSpeakerId;
+  String? _prepInstructPrompt;
+  String? _prepRefText;
 
   String _makeKey(String? m, String? v, String? c) =>
       '${m ?? ""}|${v ?? ""}|${c ?? ""}';
@@ -209,6 +220,14 @@ class TtsService {
       _session = s;
       _key = key;
       _backend = s.backend;
+      // Store resolved config for background-isolate replay (#23).
+      _modelPath = modelPath;
+      _voicePath = voicePath;
+      _codecPath = codecPath;
+      _prepSpeakerName = speakerName;
+      _prepSpeakerId = speakerId;
+      _prepInstructPrompt = instructPrompt;
+      _prepRefText = refText;
       Log.instance.i('tts', 'session opened', fields: {
         'model': p.basename(modelPath),
         'voice': voicePath == null ? '' : p.basename(voicePath),
@@ -282,84 +301,84 @@ class TtsService {
     /// backends). Null = backend default.
     double? frequencyPenalty,
   }) async {
-    final session = _session;
-    if (session == null || text.trim().isEmpty) return null;
+    if (_session == null || text.trim().isEmpty) return null;
+    final modelPath = _modelPath;
+    if (modelPath == null) return null;
     try {
-      // Apply per-call sampling overrides before synthesise. The
-      // session-level setters silently no-op on backends that don't
-      // honour the field, so we don't gate by backend here. Each
-      // wrapper catches UnsupportedError on pre-0.6.1 dylibs.
-      void applyTtsKnobs() {
-        if (ttsSteps != null) {
-          try {
-            // Routes to chatterbox cfm_steps + vibevoice tts_steps.
-            session.setTtsSteps(ttsSteps);
-          } catch (_) {/* old dylib */}
-        }
-        // Per-phoneme length-scale for backends with a duration model
-        // (kokoro today). Drive it from the same `speed` slider the
-        // client-side resampler uses, but inverted: slider 2× = audio
-        // twice as fast = phoneme durations halved. Backends without a
-        // duration model (orpheus / chatterbox / etc.) silently no-op,
-        // and the client-side resample still applies on the output PCM
-        // for them.
-        if (speed != 1.0) {
-          try {
-            session.setLengthScale(1.0 / speed.clamp(0.25, 4.0));
-          } catch (_) {/* old dylib or unsupported */}
-        }
-        if (temperature != null) {
-          try {
-            session.setTemperature(temperature);
-          } catch (_) {/* old dylib or unsupported */}
-        }
-        if (topP != null) {
-          try {
-            session.setTopP(topP);
-          } catch (_) {}
-        }
-        if (minP != null) {
-          try {
-            session.setMinP(minP);
-          } catch (_) {}
-        }
-        if (cfgWeight != null) {
-          try {
-            session.setCfgWeight(cfgWeight);
-          } catch (_) {}
-        }
-        if (exaggeration != null) {
-          try {
-            session.setExaggeration(exaggeration);
-          } catch (_) {}
-        }
-        if (repetitionPenalty != null) {
-          try {
-            session.setRepetitionPenalty(repetitionPenalty);
-          } catch (_) {}
-        }
-        if (maxSpeechTokens != null) {
-          try {
-            session.setMaxSpeechTokens(maxSpeechTokens);
-          } catch (_) {}
-        }
-        if (seed != null) {
-          try {
-            session.setTtsSeed(seed);
-          } catch (_) {}
-        }
-        if (frequencyPenalty != null) {
-          try {
-            session.setFrequencyPenalty(frequencyPenalty);
-          } catch (_) {}
-        }
-      }
-
-      applyTtsKnobs();
-
-      // §5.25.9 — Apply pronunciation lexicon substitutions.
+      // §5.25.9 — Apply pronunciation lexicon substitutions (Dart-side).
       final synthText = _lexicon?.apply(text) ?? text;
-      Float32List pcm = session.synthesize(synthText);
+      final clampedSpeed = speed.clamp(0.25, 4.0).toDouble();
+
+      // Capture config for the background isolate closure.
+      final backend = _backend;
+      final codecPath = _codecPath;
+      final voicePath = _voicePath;
+      final speakerName = _prepSpeakerName;
+      final speakerId = _prepSpeakerId;
+      final instructPrompt = _prepInstructPrompt;
+      final refText = _prepRefText;
+
+      // #23 — Run synthesis in a background isolate so the UI thread
+      // stays responsive. The model file is already mmap'd from
+      // prepare(), so re-open in the isolate hits the OS page cache.
+      Float32List pcm = await Isolate.run<Float32List>(() {
+        late final crispasr.CrispasrSession s;
+        if (backend != null) {
+          s = crispasr.CrispasrSession.open(modelPath, backend: backend);
+        } else {
+          s = crispasr.CrispasrSession.open(modelPath);
+        }
+        try {
+          if (codecPath != null) s.setCodecPath(codecPath);
+          if (instructPrompt != null && instructPrompt.isNotEmpty) {
+            try { s.setInstruct(instructPrompt); } catch (_) {}
+          } else if (speakerName != null && speakerName.isNotEmpty) {
+            try { s.setSpeakerName(speakerName); } catch (_) {}
+          } else if (speakerId != null) {
+            try { s.setSpeakerID(speakerId); } catch (_) {}
+          } else if (voicePath != null) {
+            s.setVoice(voicePath, refText: refText);
+          }
+          // Per-call sampling overrides. Setters no-op on backends
+          // that don't honour the field.
+          if (ttsSteps != null) {
+            try { s.setTtsSteps(ttsSteps); } catch (_) {}
+          }
+          if (clampedSpeed != 1.0) {
+            try { s.setLengthScale(1.0 / clampedSpeed); } catch (_) {}
+          }
+          if (temperature != null) {
+            try { s.setTemperature(temperature); } catch (_) {}
+          }
+          if (topP != null) {
+            try { s.setTopP(topP); } catch (_) {}
+          }
+          if (minP != null) {
+            try { s.setMinP(minP); } catch (_) {}
+          }
+          if (cfgWeight != null) {
+            try { s.setCfgWeight(cfgWeight); } catch (_) {}
+          }
+          if (exaggeration != null) {
+            try { s.setExaggeration(exaggeration); } catch (_) {}
+          }
+          if (repetitionPenalty != null) {
+            try { s.setRepetitionPenalty(repetitionPenalty); } catch (_) {}
+          }
+          if (maxSpeechTokens != null) {
+            try { s.setMaxSpeechTokens(maxSpeechTokens); } catch (_) {}
+          }
+          if (seed != null) {
+            try { s.setTtsSeed(seed); } catch (_) {}
+          }
+          if (frequencyPenalty != null) {
+            try { s.setFrequencyPenalty(frequencyPenalty); } catch (_) {}
+          }
+          return s.synthesize(synthText);
+        } finally {
+          s.close();
+        }
+      });
       // CrispASR's TTS backends all output 24 kHz mono float32.
       final int beforeSamples = pcm.length;
       // Diagnostic: capture min/max/mean + finite-count so a silent
@@ -390,7 +409,6 @@ class TtsService {
         });
       }
       if (trimSilence) pcm = _trimSilence(pcm);
-      final clampedSpeed = speed.clamp(0.25, 4.0).toDouble();
       if ((clampedSpeed - 1.0).abs() > 1e-3) {
         pcm = _resampleSpeed(pcm, clampedSpeed);
       }
@@ -431,6 +449,17 @@ class TtsService {
           'the asset bundle on first launch. Check that '
           'CRISPASR_ESPEAK_DATA_PATH points at a populated dir or that '
           'espeak-ng is on PATH.';
+    }
+    // #22 — aggressive quantisation can cause qwen3-tts to produce
+    // empty audio (codebook tokens become garbage → codec decodes silence).
+    if (backend == 'qwen3-tts') {
+      return 'qwen3-tts may produce no audio with aggressive quantisation '
+          '(q4_k or below). Try the q8_0 variant for reliable output.';
+    }
+    if (backend == 'pocket-tts') {
+      return 'pocket-tts Mimi decoder may fail on GPU backends. '
+          'The engine now pins Mimi decode to CPU; if this persists, '
+          'try a different TTS model.';
     }
     return null;
   }
@@ -601,6 +630,9 @@ class TtsService {
     _session = null;
     _key = null;
     _backend = null;
+    _modelPath = null;
+    _voicePath = null;
+    _codecPath = null;
   }
 
   /// Drop the open session's per-phoneme cache. Useful for long-
