@@ -1,0 +1,86 @@
+# Web build + Vercel deploy. Every push to main builds the Flutter web
+# bundle and deploys to https://web-nu-peach-46.vercel.app — but only
+# when the Vercel secrets are set, so the workflow stays green on forks.
+#
+# Required repo secrets (Settings → Secrets → Actions):
+#   VERCEL_TOKEN       — Vercel account token
+#   VERCEL_ORG_ID      — from build/web/.vercel/project.json
+#   VERCEL_PROJECT_ID  — likewise (project "web")
+
+name: Deploy Web
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      FLUTTER_VERSION: "3.38.5"
+      CRISPASR_REPO: CrispStrobe/CrispASR
+      CRISPASR_REF: main
+      CRISPEMBED_REPO: CrispStrobe/CrispEmbed
+      CRISPEMBED_REF: main
+
+    steps:
+      # -- Checkout repos (pubspec references ../CrispASR, ../CrispEmbed) --
+      - name: Check out CrisperWeaver
+        uses: actions/checkout@v5
+        with:
+          path: repos/CrisperWeaver
+
+      - name: Check out sibling CrispASR (Dart FFI package)
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ env.CRISPASR_REPO }}
+          ref: ${{ env.CRISPASR_REF }}
+          path: repos/CrispASR
+
+      - name: Check out sibling CrispEmbed (Dart FFI package)
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ env.CRISPEMBED_REPO }}
+          ref: ${{ env.CRISPEMBED_REF }}
+          path: repos/CrispEmbed
+
+      # -- Flutter SDK -----------------------------------------------------
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      # -- Build -----------------------------------------------------------
+      - name: Resolve dependencies
+        working-directory: repos/CrisperWeaver
+        run: flutter pub get
+
+      - name: Build web (release, dart2js)
+        working-directory: repos/CrisperWeaver
+        run: flutter build web --release --base-href="/"
+
+      - name: Add Vercel SPA-rewrite config
+        run: cp repos/CrisperWeaver/vercel.json repos/CrisperWeaver/build/web/vercel.json
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: crisperweaver-web
+          path: repos/CrisperWeaver/build/web
+          retention-days: 14
+
+      # -- Deploy to Vercel ------------------------------------------------
+      - name: Deploy to Vercel (production)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && env.VERCEL_TOKEN != ''
+        run: |
+          npm install -g vercel@latest
+          vercel deploy repos/CrisperWeaver/build/web --prod --yes --archive=tgz --token="$VERCEL_TOKEN"
