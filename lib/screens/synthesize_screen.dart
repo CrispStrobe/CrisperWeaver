@@ -606,6 +606,7 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
   Future<void> _pickCustomVoice() async {
     try {
       final pick = await pickFilesRobust(
+        type: FileType.audio,
         allowedExtensions: const ['wav', 'flac', 'mp3'],
       );
       if (pick.isEmpty) return;

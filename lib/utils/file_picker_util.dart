@@ -15,6 +15,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
+export 'package:file_picker/file_picker.dart' show FileType;
 import 'package:flutter/services.dart' show PlatformException;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -59,8 +60,17 @@ class FilePickerCloudUriUnsupported implements Exception {
 /// transparently handling Android content:// URIs that can't be
 /// resolved to a real path.
 ///
-/// `allowedExtensions` is the same as the upstream API; pass null /
-/// empty to mean "any" (and the underlying call uses [FileType.any]).
+/// [type] – the broad category shown to the OS picker.  Use
+/// [FileType.audio] when picking audio files so that Android shows
+/// **all** audio files as selectable (instead of greying out
+/// extensions whose MIME type Android can't resolve).  When a broad
+/// [type] is given together with [allowedExtensions], the picker
+/// uses [type] for the OS filter, and results are **post-filtered**
+/// to the requested extensions.
+///
+/// If [type] is `null`, the behaviour is the legacy default:
+/// `FileType.custom` when [allowedExtensions] is non-empty,
+/// `FileType.any` otherwise.
 ///
 /// Throws [FilePickerCloudUriUnsupported] if both the normal and
 /// the readAsByteStream-fallback picks fail. Returns
@@ -69,25 +79,33 @@ Future<RobustFilePick> pickFilesRobust({
   List<String>? allowedExtensions,
   bool allowMultiple = false,
   String? dialogTitle,
+  FileType? type,
 }) async {
-  final useCustomType =
+  final hasExtensions =
       allowedExtensions != null && allowedExtensions.isNotEmpty;
 
-  final FileType type = useCustomType ? FileType.custom : FileType.any;
+  // When a broad type (e.g. audio) is given, don't pass extensions to the
+  // native picker — we'll post-filter ourselves.
+  final bool postFilter = type != null && hasExtensions;
+
+  final FileType effectiveType = type ??
+      (hasExtensions ? FileType.custom : FileType.any);
+  final List<String>? nativeExtensions =
+      (postFilter || !hasExtensions) ? null : allowedExtensions;
 
   FilePickerResult? result;
   var usedCloudFallback = false;
   try {
     if (allowMultiple) {
       result = await FilePicker.pickFiles(
-        type: type,
-        allowedExtensions: useCustomType ? allowedExtensions : null,
+        type: effectiveType,
+        allowedExtensions: nativeExtensions,
         dialogTitle: dialogTitle,
       );
     } else {
       final file = await FilePicker.pickFile(
-        type: type,
-        allowedExtensions: useCustomType ? allowedExtensions : null,
+        type: effectiveType,
+        allowedExtensions: nativeExtensions,
         dialogTitle: dialogTitle,
       );
       if (file != null) {
@@ -104,14 +122,14 @@ Future<RobustFilePick> pickFilesRobust({
       // Re-pick; we'll read via readAsByteStream below when path is null.
       if (allowMultiple) {
         result = await FilePicker.pickFiles(
-          type: type,
-          allowedExtensions: useCustomType ? allowedExtensions : null,
+          type: effectiveType,
+          allowedExtensions: nativeExtensions,
           dialogTitle: dialogTitle,
         );
       } else {
         final file = await FilePicker.pickFile(
-          type: type,
-          allowedExtensions: useCustomType ? allowedExtensions : null,
+          type: effectiveType,
+          allowedExtensions: nativeExtensions,
           dialogTitle: dialogTitle,
         );
         if (file != null) {
@@ -130,9 +148,20 @@ Future<RobustFilePick> pickFilesRobust({
     return RobustFilePick.empty;
   }
 
+  // When using a broad type (e.g. FileType.audio) with allowedExtensions,
+  // the native picker accepted all files of that category.  Drop any files
+  // that don't match the requested extensions.
+  final extensionSet = postFilter
+      ? allowedExtensions!.map((e) => e.toLowerCase()).toSet()
+      : null;
+
   final localPaths = <String>[];
   final tmpDir = await getTemporaryDirectory();
   for (final f in result.files) {
+    if (extensionSet != null) {
+      final ext = p.extension(f.name).toLowerCase().replaceFirst('.', '');
+      if (!extensionSet.contains(ext)) continue;
+    }
     if (f.path != null) {
       localPaths.add(f.path!);
       continue;

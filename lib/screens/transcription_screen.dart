@@ -1798,6 +1798,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
     RobustFilePick pick;
     try {
       pick = await pickFilesRobust(
+        type: FileType.audio,
         allowedExtensions: const ['wav', 'mp3', 'flac', 'ogg'],
         allowMultiple: true,
       );

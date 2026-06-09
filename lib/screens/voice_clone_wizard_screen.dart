@@ -150,6 +150,7 @@ class _VoiceCloneWizardScreenState
     setState(() => _captureError = null);
     try {
       final pick = await pickFilesRobust(
+        type: FileType.audio,
         allowedExtensions: const ['wav', 'flac', 'mp3'],
       );
       if (pick.isEmpty) return;

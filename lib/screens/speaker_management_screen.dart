@@ -262,6 +262,7 @@ class _EnrolSpeakerScreenState extends ConsumerState<_EnrolSpeakerScreen> {
     setState(() => _error = null);
     try {
       final pick = await pickFilesRobust(
+        type: FileType.audio,
         allowedExtensions: const ['wav', 'flac', 'mp3', 'm4a', 'ogg'],
       );
       if (pick.isEmpty) return;

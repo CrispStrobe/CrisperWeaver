@@ -130,6 +130,8 @@ flutter_launcher_icons:
     generate: true
   image_path: "assets/images/app_logo.png"
   min_sdk_android: 21
+  adaptive_icon_background: "#1d325f"
+  adaptive_icon_foreground: "assets/images/app_logo.png"
 
 # Pin the Linux implementation of `record` to a version that matches the
 # current platform interface contract — the transitively-resolved 0.7.2 is

@@ -43,6 +43,7 @@ class _VoiceBakeScreenState extends ConsumerState<VoiceBakeScreen> {
   Future<void> _pickWav() async {
     try {
       final pick = await pickFilesRobust(
+        type: FileType.audio,
         allowedExtensions: const ['wav'],
       );
       if (pick.isEmpty) return;
