@@ -179,10 +179,8 @@ Future<RobustFilePick> pickFilesRobust({
         final ext = p.extension(f.name).toLowerCase().replaceFirst('.', '');
         if (!extensionSet.contains(ext)) continue;
       }
-      if (f.bytes != null) {
-        bytes.add(f.bytes!);
-        names.add(f.name);
-      }
+      bytes.add(await f.readAsBytes());
+      names.add(f.name);
     }
     return RobustFilePick(
       localPaths: const [],

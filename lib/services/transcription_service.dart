@@ -583,7 +583,7 @@ class TranscriptionService {
       // For HfSpaceEngine, call transcribeBytes directly.
       final engine = currentEngine!;
       if (engine is HfSpaceEngine) {
-        final result = await (engine as HfSpaceEngine).transcribeBytes(
+        final result = await engine.transcribeBytes(
           bytes,
           filename,
           language: language,

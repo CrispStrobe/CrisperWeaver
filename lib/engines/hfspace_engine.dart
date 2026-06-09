@@ -110,7 +110,7 @@ class HfSpaceEngine implements TranscriptionEngine {
     // to wait for a cold-start.
     for (var attempt = 0; attempt < 24; attempt++) {
       try {
-        final r = await _dio.get('$_baseUrl/health',
+        final r = await _dio.get<dynamic>('$_baseUrl/health',
             options: Options(receiveTimeout: const Duration(seconds: 10)));
         if (r.statusCode == 200) {
           _initialized = true;
@@ -172,7 +172,7 @@ class HfSpaceEngine implements TranscriptionEngine {
     }
     onProgress?.call(0.1);
     try {
-      final r = await _dio.post(
+      final r = await _dio.post<dynamic>(
         '$_baseUrl/load',
         data: FormData.fromMap({
           'backend': spec.backend,
@@ -261,7 +261,7 @@ class HfSpaceEngine implements TranscriptionEngine {
       final fields = <String, dynamic>{
         'model': 'loaded-model',
         'response_format': 'verbose_json',
-        'temperature': '${temperature.toStringAsFixed(2)}',
+        'temperature': temperature.toStringAsFixed(2),
       };
       if (language != null && language != 'auto') {
         fields['language'] = language;
@@ -277,7 +277,7 @@ class HfSpaceEngine implements TranscriptionEngine {
 
       onProgress?.call(0.2);
 
-      final r = await _dio.post(
+      final r = await _dio.post<dynamic>(
         '$_baseUrl/v1/audio/transcriptions',
         data: formData,
         cancelToken: _cancelToken,

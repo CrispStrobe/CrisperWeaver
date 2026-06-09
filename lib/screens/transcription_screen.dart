@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:desktop_drop/desktop_drop.dart';
 
 import '../utils/platform_utils.dart' as plat;

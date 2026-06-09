@@ -36,11 +36,9 @@ class HfSpaceTtsService {
 
   /// Load a TTS backend on the remote server.
   Future<void> loadBackend(String backend) async {
-    final spec =
-        hfSpaceTtsBackends.where((b) => b.backend == backend).firstOrNull;
-    final lang = 'en';
+    const lang = 'en';
     try {
-      await _dio.post(
+      await _dio.post<dynamic>(
         '$_baseUrl/load',
         data: FormData.fromMap({
           'backend': backend,
@@ -72,7 +70,7 @@ class HfSpaceTtsService {
     }
 
     try {
-      final r = await _dio.post(
+      final r = await _dio.post<dynamic>(
         '$_baseUrl/v1/audio/speech',
         data: payload,
         options: Options(
@@ -98,7 +96,7 @@ class HfSpaceTtsService {
   /// List available voices from the server.
   Future<List<String>> listVoices() async {
     try {
-      final r = await _dio.get('$_baseUrl/v1/voices');
+      final r = await _dio.get<dynamic>('$_baseUrl/v1/voices');
       final voices = (r.data as Map<String, dynamic>?)?['voices'] as List?;
       if (voices == null || voices.isEmpty) return const ['af_heart'];
       return voices.map((v) {

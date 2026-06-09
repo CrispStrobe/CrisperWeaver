@@ -7,6 +7,15 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 
 ## 0.7.7 — 2026-06-09
 
+### Added — Web/PWA HF Space cloud engine
+- **`HfSpaceEngine`** (new `EngineType.hfspace`) — on web/PWA, where on-device
+  FFI is unavailable, transcription + TTS route to the `cstr/CrispASR`
+  Hugging Face Space (`/v1/audio/transcriptions`, `/v1/audio/speech`,
+  `/load`, `/v1/voices`, `/health`). Adds `hfspace_tts_service.dart`,
+  web byte-stream file picking, and a `vercel.json` for the web deploy.
+- Lint cleanup across the new web/PWA code so the analyze gate is green
+  (explicit Dio type args, `PlatformFile.readAsBytes()`, unused imports).
+
 ### Fixed — iOS + macOS release builds (regressed in v0.7.6)
 - **iOS** — bump the app's iOS deployment target 13.0 → **15.0** (Podfile
   `platform`/`post_install`, `AppframeworkInfo.plist`, Xcode project). The

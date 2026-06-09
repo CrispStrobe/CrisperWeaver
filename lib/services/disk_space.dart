@@ -16,7 +16,6 @@
 // "Insufficient storage" before the download even started.
 
 import 'dart:ffi';
-import 'dart:io';
 
 import 'package:ffi/ffi.dart';
 
