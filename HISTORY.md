@@ -27,6 +27,55 @@ pending.
 
 ---
 
+## June 2026 — Split-on-punct subtitle formatting (§5.8)
+
+Dart-side post-processing that splits segments at sentence-ending
+punctuation (`. ! ?`), creating natural subtitle lines from any backend's
+output. Mirrors CrispASR CLI's `--split-on-punct` but runs in Dart so it
+works with every backend, not just whisper.
+
+`splitSegmentsOnPunct()` scans each segment's text for `[.!?]\s+` matches,
+splits into sub-segments, and linearly interpolates timestamps by character
+position. Wired as a toggle in Advanced Options (`splitOnPunct`), preset
+serialization included, i18n EN/DE.
+
+---
+
+## June 2026 — Cross-modal audio embeddings (§5.25.2)
+
+Extended semantic search with audio embeddings via CrispEmbed's
+`encodeAudio(Float32List pcm)` (already present in the Dart binding).
+
+* `HistoryEntry.audioEmbedding` — optional `List<double>`, single vector
+  for the whole audio clip. Persisted in JSON, backwards-compatible.
+* Computed at save time alongside segment text embeddings; all 4
+  `historyService.save()` call sites pass `audioData`.
+* Search: `max(text_score, audio_score)` per entry. Dimension mismatch
+  (e.g. 384-d MiniLM text vs 2048-d BidirLM-Omni audio) silently
+  yields audio_score=0.
+* `bidirlm-omni-2.5b-q4_k` (2048-d, ~1.7 GB) catalogued as
+  `ModelKind.embed` for audio-capable embedding search.
+* 6 new tests (audio embedding round-trip, back-compat, dimension
+  mismatch, null handling).
+
+---
+
+## June 2026 — Riverpod Notifier migration
+
+Migrated 3 of 4 `StateNotifier` subclasses to modern Riverpod 3
+`Notifier` pattern:
+
+* `AppStateNotifier` → `Notifier<AppState>`, `build()` returns const
+* `LocaleNotifier` → `Notifier<Locale?>`, reads settings via `ref`
+* `EngineManagerNotifier` → `Notifier<EngineManagerState>`,
+  `ref.onDispose()` replaces `dispose()` override
+
+`BatchQueueNotifier` kept on legacy (18+ tests construct directly).
+2 `StateProvider` kept on legacy (50+ external `.state=` call sites).
+`app_state_test.dart` refactored to use `ProviderContainer`.
+
+---
+
 ## June 2026 — Riverpod 2→3 migration
 
 Bumped `flutter_riverpod` from 2.4.9 to 3.3.1 (riverpod 3.2.1).
