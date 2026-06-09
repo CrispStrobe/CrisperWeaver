@@ -298,6 +298,7 @@ class ServerService {
     final input = args['input'] as String?;
     final voice = args['voice'] as String?;
     final modelName = args['model'] as String?;
+    final spokenDisclaimer = args['spoken_disclaimer'] as bool? ?? true;
     final speed =
         ((args['speed'] as num?)?.toDouble() ?? 1.0).clamp(0.25, 4.0).toDouble();
     if (input == null || input.trim().isEmpty || modelName == null) {
@@ -320,7 +321,11 @@ class ServerService {
     if (audio == null) {
       return Response.internalServerError(body: 'synthesize returned null');
     }
-    final wav = await tts.writeWav(audio);
+    final wav = await tts.writeWav(
+      audio,
+      voiceRefPath: voice,
+      spokenDisclaimer: spokenDisclaimer,
+    );
     final bytes = await wav.readAsBytes();
     return Response.ok(bytes, headers: const {
       'content-type': 'audio/wav',

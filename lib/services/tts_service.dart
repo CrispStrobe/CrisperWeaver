@@ -485,11 +485,17 @@ class TtsService {
   ///
   /// When [voiceRefPath] is non-null, the output uses a cloned voice and
   /// a beep-based AI disclaimer marker is prepended to the PCM (EU AI Act
-  /// Art. 50(4)). A consent attestation is also logged for audit purposes.
+  /// Art. 50(4)) unless [spokenDisclaimer] is false. A consent attestation
+  /// is also logged for audit purposes.
+  ///
+  /// Note: the spread-spectrum watermark is now auto-applied by
+  /// `crispasr_session_synthesize` at the C API level — no need to call
+  /// `CrispasrWatermark.embed()` here.
   Future<File> writeWav(
     SynthesizedAudio audio, {
     String? basename,
     String? voiceRefPath,
+    bool spokenDisclaimer = true,
   }) async {
     final dir = await getTemporaryDirectory();
     // macOS with sandbox-app disabled returns
@@ -509,16 +515,20 @@ class TtsService {
     var samples = audio.samples;
     final bool isVoiceClone = voiceRefPath != null && voiceRefPath.isNotEmpty;
     if (isVoiceClone) {
-      // Prepend beep-based AI disclaimer marker to the PCM.
-      final beeps = AudioWatermarkService.generateBeepDisclaimer(
-        sampleRate: audio.sampleRate,
-      );
-      final combined = Float32List(beeps.length + samples.length);
-      combined.setRange(0, beeps.length, beeps);
-      combined.setRange(beeps.length, combined.length, samples);
-      samples = combined;
-      Log.instance.d('tts', 'beep disclaimer prepended',
-          fields: {'beep_samples': beeps.length});
+      if (spokenDisclaimer) {
+        // Prepend beep-based AI disclaimer marker to the PCM.
+        final beeps = AudioWatermarkService.generateBeepDisclaimer(
+          sampleRate: audio.sampleRate,
+        );
+        final combined = Float32List(beeps.length + samples.length);
+        combined.setRange(0, beeps.length, beeps);
+        combined.setRange(beeps.length, combined.length, samples);
+        samples = combined;
+        Log.instance.d('tts', 'beep disclaimer prepended',
+            fields: {'beep_samples': beeps.length});
+      } else {
+        Log.instance.d('tts', 'beep disclaimer skipped (opt-out)');
+      }
 
       // Log consent attestation for audit trail.
       _logConsentAttestation(
@@ -527,20 +537,19 @@ class TtsService {
       );
     }
 
-    // Watermark the float32 PCM before WAV encoding. Prefer the native
-    // CrispASR watermark (spread-spectrum / AudioSeal) when the dylib
-    // exports the symbols; fall back to the pure-Dart LSB watermark.
+    // Watermark: crispasr_session_synthesize() now auto-embeds the
+    // spread-spectrum / AudioSeal watermark at the C API level, so the
+    // PCM arriving here is already watermarked. We only fall back to
+    // the pure-Dart LSB watermark when the native watermark symbols are
+    // unavailable (e.g. web builds or very old dylibs).
     bool nativeWatermarked = false;
     if (AppConstants.enableAudioWatermark) {
       try {
-        if (crispasr.CrispasrWatermark.isAvailable()) {
-          samples = crispasr.CrispasrWatermark.embed(samples);
-          nativeWatermarked = true;
-          Log.instance.d('tts', 'native watermark applied');
+        nativeWatermarked = crispasr.CrispasrWatermark.isAvailable();
+        if (nativeWatermarked) {
+          Log.instance.d('tts', 'native watermark auto-applied by C API');
         }
-      } catch (e) {
-        Log.instance.w('tts', 'native watermark unavailable', error: e);
-      }
+      } catch (_) {}
     }
     var bytes = _floatPcmToWavBytes(
       samples,
