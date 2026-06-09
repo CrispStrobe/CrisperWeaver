@@ -438,8 +438,6 @@ class CrispasrSession {
     throw UnsupportedError('CrispasrSession is not available on web');
   }
 
-  CrispasrSession._();
-
   static List<String> availableBackends({String? libPath}) => const [];
 
   List<SessionSegment> transcribe(Float32List pcm, {String? language}) {
@@ -591,8 +589,6 @@ class CrispasrChatSession {
       {ChatOpenParams params = const ChatOpenParams(), String? libPath}) {
     throw UnsupportedError('CrispasrChatSession is not available on web');
   }
-
-  CrispasrChatSession._();
 
   void reset() {
     throw UnsupportedError('CrispasrChatSession is not available on web');
