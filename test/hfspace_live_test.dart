@@ -257,15 +257,31 @@ void main() {
     }, timeout: const Timeout(Duration(minutes: 3)));
 
     test('synthesize returns audio samples', () async {
-      final result = await tts.synthesize(
-        'CrispASR is one binary, twenty-four ASR backends, and eight TTS '
-        'engines, running fully offline on your device.',
-        voice: 'af_heart',
-      );
-      expect(result.samples, isNotEmpty);
-      expect(result.sampleRate, greaterThan(0));
-      expect(result.durationSeconds, greaterThan(0));
-    }, timeout: const Timeout(Duration(minutes: 2)));
+      // Kokoro's first synthesis after a cold load can fail while espeak-ng
+      // data is being located. Retry once after a short delay.
+      for (var attempt = 0; attempt < 2; attempt++) {
+        try {
+          final result = await tts.synthesize(
+            'CrispASR is one binary, twenty-four ASR backends, and eight TTS '
+            'engines, running fully offline on your device.',
+            voice: 'af_heart',
+          );
+          expect(result.samples, isNotEmpty);
+          expect(result.sampleRate, greaterThan(0));
+          expect(result.durationSeconds, greaterThan(0));
+          return; // success
+        } on DioException catch (e) {
+          if (attempt == 0 && e.response?.statusCode == 500) {
+            // Retry once — server may need warmup
+            await Future<void>.delayed(const Duration(seconds: 5));
+            await tts.loadBackend('kokoro');
+            await Future<void>.delayed(const Duration(seconds: 3));
+            continue;
+          }
+          rethrow;
+        }
+      }
+    }, timeout: const Timeout(Duration(minutes: 3)));
 
     test('listVoices returns at least one voice', () async {
       final voices = await tts.listVoices();
