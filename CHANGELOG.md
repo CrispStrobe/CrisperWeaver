@@ -5,6 +5,15 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 
 ## [Unreleased]
 
+### Added — HF Space engine: Gradio-API fallback mode
+- `HfSpaceEngine` gains an `HfSpaceApiMode` toggle (`setApiMode`). Default
+  `openai` uses the Space's OpenAI-compatible `/v1` REST API (now exposed by
+  the CrispASR space's FastAPI proxy); `gradio` drives the Space's
+  auto-generated Gradio call API (`/gradio_api/upload` + `/call/transcribe`,
+  SSE result) instead — a portable fallback that works against any Gradio
+  space even without a `/v1` proxy. (Pairs with the CrispASR `hf-space`
+  `/v1` proxy change.)
+
 ## 0.7.8 — 2026-06-10
 
 ### Fixed — iOS release build (device_info_plus needs the iOS 26.1 SDK)

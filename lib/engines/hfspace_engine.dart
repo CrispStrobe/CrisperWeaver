@@ -3,6 +3,7 @@
 // Used automatically on web; optionally available on desktop via settings.
 
 import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
@@ -49,11 +50,25 @@ class _RemoteModel {
       this.defaultLang, this.approxBytes, this.blurb);
 }
 
+/// How [HfSpaceEngine] talks to the Space.
+///
+/// * [openai] — the OpenAI-compatible REST API (`/v1/audio/transcriptions`,
+///   `/health`, `/load`). Needs the Space to expose those routes; the
+///   CrispASR space does, via its FastAPI `/v1` proxy. Clean + preferred.
+/// * [gradio] — the Space's auto-generated Gradio call API
+///   (`/gradio_api/upload` + `/gradio_api/call/<fn>`). Works against *any*
+///   Gradio space, even one exposing only the UI, at the cost of being
+///   coupled to the demo's function signature. Portable fallback for future
+///   spaces that don't ship the `/v1` proxy.
+enum HfSpaceApiMode { openai, gradio }
+
 class HfSpaceEngine implements TranscriptionEngine {
-  HfSpaceEngine({String? baseUrl})
-      : _baseUrl = baseUrl ?? 'https://cstr-crispasr.hf.space';
+  HfSpaceEngine({String? baseUrl, HfSpaceApiMode apiMode = HfSpaceApiMode.openai})
+      : _baseUrl = baseUrl ?? 'https://cstr-crispasr.hf.space',
+        _apiMode = apiMode;
 
   String _baseUrl;
+  HfSpaceApiMode _apiMode;
   late final Dio _dio = Dio(BaseOptions(
     connectTimeout: const Duration(seconds: 30),
     receiveTimeout: const Duration(seconds: 900),
@@ -65,6 +80,11 @@ class HfSpaceEngine implements TranscriptionEngine {
   CancelToken? _cancelToken;
 
   void setBaseUrl(String url) => _baseUrl = url.replaceAll(RegExp(r'/+$'), '');
+
+  /// Switch between the OpenAI `/v1` REST API and the raw Gradio call API.
+  /// See [HfSpaceApiMode]. Defaults to [HfSpaceApiMode.openai].
+  void setApiMode(HfSpaceApiMode mode) => _apiMode = mode;
+  HfSpaceApiMode get apiMode => _apiMode;
 
   // -- Identity -----------------------------------------------------------
 
@@ -107,10 +127,13 @@ class HfSpaceEngine implements TranscriptionEngine {
       setBaseUrl(config['baseUrl'] as String);
     }
     // Probe the server — HF Spaces sleep after inactivity so we may need
-    // to wait for a cold-start.
+    // to wait for a cold-start. In gradio mode there is no /health, so probe
+    // the always-present Gradio API descriptor instead.
+    final healthPath =
+        _apiMode == HfSpaceApiMode.gradio ? '/gradio_api/info' : '/health';
     for (var attempt = 0; attempt < 24; attempt++) {
       try {
-        final r = await _dio.get<dynamic>('$_baseUrl/health',
+        final r = await _dio.get<dynamic>('$_baseUrl$healthPath',
             options: Options(receiveTimeout: const Duration(seconds: 10)));
         if (r.statusCode == 200) {
           _initialized = true;
@@ -252,6 +275,14 @@ class HfSpaceEngine implements TranscriptionEngine {
     void Function(TranscriptionSegment segment)? onSegment,
     void Function(double progress)? onProgress,
   }) async {
+    if (_apiMode == HfSpaceApiMode.gradio) {
+      return _transcribeViaGradio(fileBytes, filename,
+          language: language,
+          initialPrompt: initialPrompt,
+          temperature: temperature,
+          onSegment: onSegment,
+          onProgress: onProgress);
+    }
     _processing = true;
     _cancelToken = CancelToken();
     final sw = Stopwatch()..start();
@@ -332,6 +363,130 @@ class HfSpaceEngine implements TranscriptionEngine {
       _processing = false;
       _cancelToken = null;
     }
+  }
+
+  // -- Gradio call API (portable fallback, see [HfSpaceApiMode.gradio]) ----
+
+  /// Transcribe via the Space's auto-generated Gradio API instead of the
+  /// `/v1` REST proxy: upload the file, invoke the demo's `transcribe`
+  /// function, then read the SSE result. Coupled to the demo's input order
+  /// (audio, language, prompt, temperature, response_format) and outputs
+  /// (transcript text, raw verbose_json string).
+  Future<TranscriptionResult> _transcribeViaGradio(
+    Uint8List fileBytes,
+    String filename, {
+    String? language,
+    String? initialPrompt,
+    double temperature = 0.0,
+    void Function(TranscriptionSegment segment)? onSegment,
+    void Function(double progress)? onProgress,
+  }) async {
+    _processing = true;
+    _cancelToken = CancelToken();
+    final sw = Stopwatch()..start();
+    onProgress?.call(0.05);
+    try {
+      // 1. Upload the audio to the Gradio file store.
+      final up = await _dio.post<dynamic>(
+        '$_baseUrl/gradio_api/upload',
+        data: FormData.fromMap({
+          'files': MultipartFile.fromBytes(fileBytes, filename: filename),
+        }),
+        cancelToken: _cancelToken,
+      );
+      final uploaded = (up.data as List).first as String;
+      onProgress?.call(0.2);
+
+      // 2. Invoke `transcribe`; data order matches the demo's inputs.
+      final call = await _dio.post<dynamic>(
+        '$_baseUrl/gradio_api/call/transcribe',
+        data: {
+          'data': [
+            {
+              'path': uploaded,
+              'meta': {'_type': 'gradio.FileData'},
+            },
+            (language == null || language == 'auto') ? null : language,
+            initialPrompt ?? '',
+            temperature,
+            'verbose_json',
+          ],
+        },
+        cancelToken: _cancelToken,
+      );
+      final eventId =
+          (call.data as Map<String, dynamic>)['event_id'] as String;
+      onProgress?.call(0.3);
+
+      // 3. Drain the SSE result stream for that event.
+      final res = await _dio.get<dynamic>(
+        '$_baseUrl/gradio_api/call/transcribe/$eventId',
+        options: Options(responseType: ResponseType.plain),
+        cancelToken: _cancelToken,
+      );
+      onProgress?.call(0.85);
+
+      final payload = _parseGradioSse(res.data as String);
+      final text = payload.isNotEmpty ? (payload[0]?.toString() ?? '') : '';
+      Map<String, dynamic> raw = const {};
+      if (payload.length > 1 && payload[1] is String) {
+        try {
+          final decoded = jsonDecode(payload[1] as String);
+          if (decoded is Map<String, dynamic>) raw = decoded;
+        } catch (_) {}
+      }
+
+      final segments = <TranscriptionSegment>[];
+      for (final s in (raw['segments'] as List<dynamic>? ?? const [])) {
+        if (s is! Map<String, dynamic>) continue;
+        final seg = TranscriptionSegment(
+          text: (s['text'] as String?) ?? '',
+          startTime: (s['start'] as num?)?.toDouble() ?? 0.0,
+          endTime: (s['end'] as num?)?.toDouble() ?? 0.0,
+          confidence: (s['avg_logprob'] as num?)?.toDouble() ?? 1.0,
+          speaker: s['speaker'] as String?,
+        );
+        segments.add(seg);
+        onSegment?.call(seg);
+      }
+
+      sw.stop();
+      onProgress?.call(1.0);
+      return TranscriptionResult(
+        fullText: text,
+        segments: segments,
+        processingTime: sw.elapsed,
+        detectedLanguage: raw['language'] as String?,
+        metadata: {'engine': engineId, 'baseUrl': _baseUrl, 'api': 'gradio'},
+      );
+    } on DioException catch (e) {
+      if (e.type == DioExceptionType.cancel) {
+        throw TranscriptionException('Cancelled', engineId);
+      }
+      throw TranscriptionException('Gradio call failed: ${e.message}', engineId, e);
+    } finally {
+      _processing = false;
+      _cancelToken = null;
+    }
+  }
+
+  /// Extract the `data` array from a Gradio SSE response. Gradio streams:
+  ///   event: complete
+  ///   data: ["transcript", "{...verbose_json...}"]
+  /// We keep the last well-formed `data:` JSON array (the completion).
+  List<dynamic> _parseGradioSse(String body) {
+    List<dynamic>? last;
+    for (final line in body.split('\n')) {
+      final t = line.trim();
+      if (!t.startsWith('data:')) continue;
+      final jsonStr = t.substring(5).trim();
+      if (jsonStr.isEmpty || jsonStr == 'null') continue;
+      try {
+        final decoded = jsonDecode(jsonStr);
+        if (decoded is List) last = decoded;
+      } catch (_) {}
+    }
+    return last ?? const [];
   }
 
   // -- Streaming (not supported) ------------------------------------------
