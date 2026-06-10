@@ -279,11 +279,10 @@ void main() {
             continue;
           }
           // Kokoro needs ~300MB model + voice downloads on first use.
-          // On the free-tier Space this can fail silently.
-          final body = e.response?.data?.toString() ?? '';
-          if (body.contains('empty audio')) {
+          // On the free-tier Space this can fail silently with 500.
+          if (e.response?.statusCode == 500) {
             markTestSkipped(
-                'Kokoro returned empty audio — model files may not have '
+                'Kokoro TTS returned 500 — model files may not have '
                 'downloaded yet on the free-tier Space (~300MB first use)');
             return;
           }
