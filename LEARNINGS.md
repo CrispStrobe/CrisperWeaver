@@ -440,3 +440,31 @@ A TTS model generates roughly one second of audio per 2-3 input words. "Hello wo
 
 `test/jfk-2s.wav` is the first 2 s of `test/jfk.wav` (`ffmpeg -t 2`). The full clip is 11 s of "And so my fellow americans, ask not what your country can do for you. Ask what you can do for your country." The 2 s trim only covers "And so my fellow americans" — `expect(transcript, contains("ask"))` fails because "ask" is in the back half. We assert `contains("americans")` instead, which is in both. ~5× faster ASR decode for the same dispatch verification.
 
+---
+
+## Flutter Web / PWA
+
+### `dart:io` Platform causes white screen on web
+
+`dart:io` compiles for web (dart2js stubs it) but `Platform.isWindows`, `Platform.operatingSystem`, etc. throw `UnsupportedError` at **runtime**. If any `Platform.*` call executes before `runApp()`, the app dies silently — white screen with no visible error (only in DevTools console). We had 47 files importing `dart:io` for Platform checks.
+
+Fix: created `lib/utils/platform_utils.dart` with web-safe wrappers (`isWeb`, `isAndroid`, `isMacOS`, etc.) that return `false` on web instead of throwing. Replaced all 50+ `Platform.*` call sites across 23 files. Top-level initializers like `final bool _stderrUsable = stdioType(stderr)` are especially dangerous — they run at import time, not at call time.
+
+### `file_picker` returns bytes on web, not paths
+
+On native platforms, `FilePicker.pickFiles()` returns `PlatformFile.path` (a filesystem string). On web, `path` is always `null` — only `PlatformFile.bytes` (`Uint8List`) is available. The entire transcription pipeline (`transcribeFile(File(...))`) assumed filesystem paths.
+
+Fix: added `fileBytes` / `fileNames` fields to `RobustFilePick`, a `transcribeBytes()` method on `TranscriptionService`, and a web-specific branch in the transcription screen that sends raw bytes to `HfSpaceEngine.transcribeBytes()` which POSTs them directly to the HF Space API.
+
+### Vercel token types: `vca_*` vs `vcp_*`
+
+`npx vercel login` stores an OAuth session token (`vca_*`) in `~/.local/share/com.vercel.cli/auth.json`. This works for local CLI commands but **fails** in CI with "The token provided via --token argument is not valid." CI needs a proper API token (`vcp_*`) created at vercel.com/account/tokens. The `~/.env` file has the correct `vcp_*` token.
+
+### CrispEmbed WASM: Emscripten `-pthread` must be in compile flags, not just link flags
+
+When compiling CrispEmbed to WASM, passing `-pthread` only in `CMAKE_EXE_LINKER_FLAGS` is insufficient. Object files compiled without `-pthread` lack atomics/bulk-memory features, causing `wasm-ld: error: --shared-memory is disallowed by X.o because it was not compiled with 'atomics' or 'bulk-memory' features`. Fix: add `-pthread` to both `CMAKE_C_FLAGS` and `CMAKE_CXX_FLAGS`.
+
+### COOP/COEP headers required for SharedArrayBuffer
+
+WASM pthreads require `SharedArrayBuffer`, which browsers only enable under cross-origin isolation. The `vercel.json` must set `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp` headers. Without these, the WASM module falls back to single-threaded mode. HuggingFace model file downloads work under COEP because HF sets `Cross-Origin-Resource-Policy: cross-origin` on file responses.
+
