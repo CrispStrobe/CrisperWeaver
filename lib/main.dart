@@ -530,17 +530,19 @@ final modelServiceProvider = Provider<ModelService>((ref) {
 });
 
 /// §5.25.2 — Optional CrispEmbed instance for semantic transcript search.
-/// Lazy-loads when a native library + embedding GGUF are available on disk.
-/// Returns null otherwise — callers fall back to TF-IDF.
-final crispEmbedProvider = Provider<CrispEmbed?>((ref) {
+/// Lazy-loads a CrispEmbed instance. On desktop: probes local model files.
+/// On web: async-loads WASM module + fetches model from HuggingFace.
+/// Returns null on any failure — callers fall back to TF-IDF.
+final crispEmbedProvider = FutureProvider<CrispEmbed?>((ref) async {
+  if (plat.isWeb) {
+    return _tryLoadCrispEmbedWeb();
+  }
   final modelService = ref.watch(modelServiceProvider);
-  return _tryLoadCrispEmbed(modelService);
+  return _tryLoadCrispEmbedNative(modelService);
 });
 
-/// Attempt to find a downloaded embedding GGUF and load it via CrispEmbed.
-/// Returns null on any failure (missing native lib, no model on disk, …).
-CrispEmbed? _tryLoadCrispEmbed(ModelService modelService) {
-  if (plat.isWeb) return null;
+/// Desktop/mobile: sync load from local disk.
+CrispEmbed? _tryLoadCrispEmbedNative(ModelService modelService) {
   try {
     final modelsDir = modelService.whisperCppDir();
     for (final def in ModelService.whisperCppModels.values) {
@@ -552,7 +554,22 @@ CrispEmbed? _tryLoadCrispEmbed(ModelService modelService) {
     }
     return null;
   } catch (_) {
-    // Native library not bundled or model load failed — degrade silently.
+    return null;
+  }
+}
+
+/// Web: async load via WASM + model fetch.
+Future<CrispEmbed?> _tryLoadCrispEmbedWeb() async {
+  try {
+    return await CrispEmbed.load(
+      nThreads: 1,
+      onProgress: (p) {
+        Log.instance.d('crispembed-web', 'load progress: ${(p * 100).toStringAsFixed(0)}%');
+      },
+    );
+  } catch (e, st) {
+    Log.instance.w('crispembed-web', 'WASM load failed — semantic search unavailable',
+        error: e, stack: st);
     return null;
   }
 }

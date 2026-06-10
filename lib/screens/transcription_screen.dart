@@ -2231,7 +2231,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
               diarizationEnabled: _enableDiarization,
               processingTime: DateTime.now().difference(started),
               speakerNames: ref.read(appStateProvider).speakerNames,
-              embedder: ref.read(crispEmbedProvider),
+              embedder: ref.read(crispEmbedProvider).value,
               audioData: transcriptionService.lastAudioData,
             );
         appStateNotifier.setHistoryEntryId(saved.id);
@@ -2593,7 +2593,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
                 diarizationEnabled: _enableDiarization,
                 processingTime: DateTime.now().difference(started),
                 speakerNames: ref.read(appStateProvider).speakerNames,
-                embedder: ref.read(crispEmbedProvider),
+                embedder: ref.read(crispEmbedProvider).value,
                 audioData: transcriptionService.lastAudioData,
               );
           historyId = saved.id;
@@ -2916,7 +2916,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
               diarizationEnabled: enableDiarization,
               processingTime: DateTime.now().difference(started),
               speakerNames: const {},
-              embedder: ref.read(crispEmbedProvider),
+              embedder: ref.read(crispEmbedProvider).value,
               audioData: transcriptionService.lastAudioData,
             );
         historyId = saved.id;
@@ -3307,7 +3307,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
       final segmentsB = results[1];
 
       // Save both results to history.
-      final embedder = ref.read(crispEmbedProvider);
+      final embedder = ref.read(crispEmbedProvider).value;
       final abAudioData = ref.read(transcriptionServiceProvider).lastAudioData;
       final saves = await Future.wait([
         historyService.save(

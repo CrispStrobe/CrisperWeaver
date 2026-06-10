@@ -83,7 +83,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     // the query, keep entries with at least one matching segment.
     // When a CrispEmbed model is available, use real vector embeddings;
     // otherwise fall back to TF-IDF.
-    final embedder = ref.read(crispEmbedProvider);
+    final embedder = ref.read(crispEmbedProvider).value;
     final scored = <(HistoryEntry, double)>[];
     for (final entry in result) {
       final results = SemanticSearchService.search(
@@ -104,7 +104,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   /// §5.25.2 — Backfill embeddings for all history entries that lack
   /// them. Triggered by the user via the AppBar action.
   Future<void> _reindexEmbeddings() async {
-    final embedder = ref.read(crispEmbedProvider);
+    final embedder = ref.read(crispEmbedProvider).value;
     if (embedder == null) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
