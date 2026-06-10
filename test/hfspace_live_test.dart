@@ -272,11 +272,20 @@ void main() {
           return; // success
         } on DioException catch (e) {
           if (attempt == 0 && e.response?.statusCode == 500) {
-            // Retry once — server may need warmup
-            await Future<void>.delayed(const Duration(seconds: 5));
+            // Retry once — server may need warmup / model download
+            await Future<void>.delayed(const Duration(seconds: 10));
             await tts.loadBackend('kokoro');
-            await Future<void>.delayed(const Duration(seconds: 3));
+            await Future<void>.delayed(const Duration(seconds: 5));
             continue;
+          }
+          // Kokoro needs ~300MB model + voice downloads on first use.
+          // On the free-tier Space this can fail silently.
+          final body = e.response?.data?.toString() ?? '';
+          if (body.contains('empty audio')) {
+            markTestSkipped(
+                'Kokoro returned empty audio — model files may not have '
+                'downloaded yet on the free-tier Space (~300MB first use)');
+            return;
           }
           rethrow;
         }
