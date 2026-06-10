@@ -63,17 +63,17 @@ class _RemoteModel {
 enum HfSpaceApiMode { openai, gradio }
 
 class HfSpaceEngine implements TranscriptionEngine {
-  HfSpaceEngine({String? baseUrl, HfSpaceApiMode apiMode = HfSpaceApiMode.openai})
+  HfSpaceEngine({String? baseUrl, Dio? dio, HfSpaceApiMode apiMode = HfSpaceApiMode.openai})
       : _baseUrl = baseUrl ?? 'https://cstr-crispasr.hf.space',
-        _apiMode = apiMode;
-
-  String _baseUrl;
-  HfSpaceApiMode _apiMode;
-  late final Dio _dio = Dio(BaseOptions(
+        _apiMode = apiMode,
+        _dio = dio ?? Dio(BaseOptions(
     connectTimeout: const Duration(seconds: 30),
     receiveTimeout: const Duration(seconds: 900),
   ));
 
+  String _baseUrl;
+  HfSpaceApiMode _apiMode;
+  final Dio _dio;
   bool _initialized = false;
   bool _processing = false;
   String? _currentModelId;

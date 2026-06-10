@@ -559,14 +559,23 @@ CrispEmbed? _tryLoadCrispEmbedNative(ModelService modelService) {
 }
 
 /// Web: async load via WASM + model fetch.
+/// Uses the CrispEmbed.load() static method which only exists in
+/// crispembed_web.dart (conditionally imported on web). On native
+/// this function is dead code but must compile — hence the dynamic
+/// dispatch to avoid a static reference to the web-only method.
 Future<CrispEmbed?> _tryLoadCrispEmbedWeb() async {
+  // Dynamic call to CrispEmbed.load() — only exists in the web
+  // conditional import. On native builds this function is never
+  // called (guarded by plat.isWeb) but must still compile.
   try {
-    return await CrispEmbed.load(
+    // ignore: avoid_dynamic_calls
+    final result = await (CrispEmbed as dynamic).load(
       nThreads: 1,
-      onProgress: (p) {
+      onProgress: (double p) {
         Log.instance.d('crispembed-web', 'load progress: ${(p * 100).toStringAsFixed(0)}%');
       },
     );
+    return result as CrispEmbed?;
   } catch (e, st) {
     Log.instance.w('crispembed-web', 'WASM load failed — semantic search unavailable',
         error: e, stack: st);

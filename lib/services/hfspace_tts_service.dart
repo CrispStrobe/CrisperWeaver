@@ -25,14 +25,15 @@ const hfSpaceTtsBackends = <HfSpaceTtsBackend>[
 ];
 
 class HfSpaceTtsService {
-  HfSpaceTtsService({required String baseUrl})
-      : _baseUrl = baseUrl.replaceAll(RegExp(r'/+$'), '');
-
-  final String _baseUrl;
-  final Dio _dio = Dio(BaseOptions(
+  HfSpaceTtsService({required String baseUrl, Dio? dio})
+      : _baseUrl = baseUrl.replaceAll(RegExp(r'/+$'), ''),
+        _dio = dio ?? Dio(BaseOptions(
     connectTimeout: const Duration(seconds: 30),
     receiveTimeout: const Duration(seconds: 300),
   ));
+
+  final String _baseUrl;
+  final Dio _dio;
 
   /// Load a TTS backend on the remote server.
   Future<void> loadBackend(String backend) async {
