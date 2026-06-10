@@ -50,8 +50,9 @@ pending.
 - **Transcription params**: translate, VAD, diarize, punctuation forwarded to
   the HF Space `/v1/audio/transcriptions` endpoint on web.
 - **Text LID on web**: `detectTextLanguage()` via Gradio call API to `crispasr-lid`.
-- **Test suite**: 32 unit tests (mock Dio) + 12 live integration tests covering
-  HfSpaceEngine, HfSpaceTtsService, platform_utils, and all Gradio API endpoints.
+- **Test suite**: 32 unit tests (mock Dio) + 13 live integration tests (all pass)
+  covering HfSpaceEngine, HfSpaceTtsService, platform_utils, kokoro TTS with
+  readiness polling, and all Gradio API endpoints (transcribe, LID, translate).
 - **Kokoro g2p dict fallback** (CrispASR §156): wired permissive IPA dicts into
   kokoro's phonemizer — EN/DE/FR/ES work without espeak-ng (GPL). Auto-downloads
   CMUdict (BSD) + pre-generated IPA dicts from HuggingFace.

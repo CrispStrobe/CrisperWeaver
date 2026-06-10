@@ -39,9 +39,10 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 - 32 unit tests (mock Dio): `hfspace_engine_test`, `hfspace_tts_service_test`,
   `platform_utils_test`. Covers init, model load, transcribe, TTS, WAV parse,
   cancel, translate/VAD/diarize/punct param forwarding.
-- 12 live integration tests (`@Tags(['live'])`, `RUN_LIVE_TESTS=1`): real
+- 13 live integration tests (`@Tags(['live'])`, `RUN_LIVE_TESTS=1`): real
   HF Space API calls — health, backends, whisper load, JFK transcription,
-  TTS synthesize, Gradio transcribe/LID/translate endpoints.
+  kokoro TTS synthesize (with readiness poll), Gradio transcribe/LID/translate.
+  All 13 pass, 0 skip.
 
 ### Changed — CrispASR HF Space infrastructure
 - **Kokoro g2p dict fallback** (CrispASR): wired §156 permissive G2P dicts
