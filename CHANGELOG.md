@@ -5,6 +5,16 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 
 ## [Unreleased]
 
+## 0.7.8 — 2026-06-10
+
+### Fixed — iOS release build (device_info_plus needs the iOS 26.1 SDK)
+- The iOS job now runs on **`macos-26`** (Xcode 26 / iOS 26.1 SDK) instead of
+  `macos-latest` (Xcode 16.4). `device_info_plus 13.1.0` calls
+  `-[NSProcessInfo isiOSAppOnVision]` guarded by `@available(iOS 26.1, *)`,
+  which still must *compile* against the 26.1 SDK — undeclared on the older
+  SDK, this broke the v0.7.7 iOS build (`No visible @interface … isiOSAppOnVision`).
+  No dependency change (a downgrade is blocked by the plus_plugins win32 ^6 set).
+
 ## 0.7.7 — 2026-06-09
 
 ### Added — Web/PWA HF Space cloud engine

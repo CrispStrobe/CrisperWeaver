@@ -642,7 +642,11 @@ jobs:
   # verified end-to-end (first release in which we attempt it).
   build-ios:
     name: iOS IPA (unsigned, sideload-ready)
-    runs-on: macos-latest
+    # macos-26 ships Xcode 26 (iOS 26.1 SDK). device_info_plus 13.1.0 calls
+    # -[NSProcessInfo isiOSAppOnVision] under @available(iOS 26.1) — it needs
+    # the 26.1 SDK to *compile* (the selector is undeclared on macos-latest's
+    # Xcode 16.4 / iOS 18.5 SDK), which broke the v0.7.7 iOS build.
+    runs-on: macos-26
     permissions:
       contents: write
     continue-on-error: true
