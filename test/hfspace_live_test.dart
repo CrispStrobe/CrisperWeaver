@@ -241,64 +241,67 @@ void main() {
   // ── 3. TTS tests (kokoro — runs LAST) ─────────────────────────────────
   group('3. HfSpaceTtsService — live TTS', skip: _skip, () {
     late HfSpaceTtsService tts;
+    late Dio rawDio;
 
     setUpAll(() async {
       tts = HfSpaceTtsService(baseUrl: _baseUrl);
-      // Load kokoro — this evicts the ASR backend.
-      // Then wait and retry until synthesis actually works (the server
-      // may still be swapping models / downloading voice packs).
-      await tts.loadBackend('kokoro');
-      for (var i = 0; i < 5; i++) {
+      rawDio = Dio(BaseOptions(
+        connectTimeout: const Duration(seconds: 30),
+        receiveTimeout: const Duration(seconds: 60),
+      ));
+
+      // Load kokoro via the /load endpoint directly
+      await rawDio.post<dynamic>(
+        '$_baseUrl/load',
+        data: FormData.fromMap(
+            {'backend': 'kokoro', 'model': 'auto', 'language': 'en'}),
+        options: Options(receiveTimeout: const Duration(seconds: 120)),
+      );
+
+      // Poll until synthesis actually returns audio (not 500).
+      // The server needs time to download voice packs + init phonemizer
+      // after the model swap from whisper.
+      for (var i = 0; i < 12; i++) {
         await Future<void>.delayed(const Duration(seconds: 5));
         try {
-          await tts.synthesize('warmup test');
-          break; // warmup succeeded
+          final r = await rawDio.post<List<int>>(
+            '$_baseUrl/v1/audio/speech',
+            data: {'input': 'warmup', 'speed': 1.0, 'response_format': 'wav'},
+            options: Options(
+              headers: {'Content-Type': 'application/json'},
+              responseType: ResponseType.bytes,
+              validateStatus: (s) => true,
+            ),
+          );
+          if (r.statusCode == 200 && (r.data?.length ?? 0) > 100) {
+            break; // TTS is ready
+          }
         } catch (_) {
-          if (i < 4) continue;
+          continue;
         }
       }
     });
 
-    tearDownAll(() => tts.dispose());
+    tearDownAll(() {
+      tts.dispose();
+      rawDio.close();
+    });
 
     test('loadBackend kokoro succeeds', () async {
-      await tts.loadBackend('kokoro');
+      // Verify kokoro is the active backend
+      final r = await rawDio.get<dynamic>('$_baseUrl/health');
+      expect(r.data['backend'], 'kokoro');
     }, timeout: const Timeout(Duration(minutes: 3)));
 
     test('synthesize returns audio samples', () async {
-      // Kokoro's first synthesis after a cold load can fail while espeak-ng
-      // data is being located. Retry once after a short delay.
-      for (var attempt = 0; attempt < 2; attempt++) {
-        try {
-          final result = await tts.synthesize(
-            'CrispASR is one binary, twenty-four ASR backends, and eight TTS '
-            'engines, running fully offline on your device.',
-            voice: 'af_heart',
-          );
-          expect(result.samples, isNotEmpty);
-          expect(result.sampleRate, greaterThan(0));
-          expect(result.durationSeconds, greaterThan(0));
-          return; // success
-        } on DioException catch (e) {
-          if (attempt == 0 && e.response?.statusCode == 500) {
-            // Retry once — server may need warmup / model download
-            await Future<void>.delayed(const Duration(seconds: 10));
-            await tts.loadBackend('kokoro');
-            await Future<void>.delayed(const Duration(seconds: 5));
-            continue;
-          }
-          // Kokoro needs ~300MB model + voice downloads on first use.
-          // On the free-tier Space this can fail silently with 500.
-          if (e.response?.statusCode == 500) {
-            markTestSkipped(
-                'Kokoro TTS returned 500 — model files may not have '
-                'downloaded yet on the free-tier Space (~300MB first use)');
-            return;
-          }
-          rethrow;
-        }
-      }
-    }, timeout: const Timeout(Duration(minutes: 3)));
+      final result = await tts.synthesize(
+        'CrispASR is one binary, twenty-four ASR backends, and eight TTS '
+        'engines, running fully offline on your device.',
+      );
+      expect(result.samples, isNotEmpty);
+      expect(result.sampleRate, greaterThan(0));
+      expect(result.durationSeconds, greaterThan(0));
+    }, timeout: const Timeout(Duration(minutes: 2)));
 
     test('listVoices returns at least one voice', () async {
       final voices = await tts.listVoices();
