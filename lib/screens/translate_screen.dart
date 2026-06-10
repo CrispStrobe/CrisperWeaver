@@ -1,5 +1,6 @@
 import '../native/crispasr_import.dart' as crispasr;
 import '../utils/platform_utils.dart' as plat;
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,6 +10,7 @@ import '../l10n/generated/app_localizations.dart';
 import '../main.dart' show modelServiceProvider;
 import '../services/log_service.dart';
 import '../services/model_service.dart';
+import '../services/settings_service.dart';
 import '../services/text_translation_service.dart';
 
 /// Text-to-text translation via CrispASR's `crispasr_session_translate_text`.
@@ -192,34 +194,7 @@ class _TranslateScreenState extends ConsumerState<TranslateScreen> {
         .toList(growable: false);
 
     if (plat.isWeb) {
-      return Scaffold(
-        appBar: AppBar(title: Text(l.translateTitle)),
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(32),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.cloud_off, size: 48),
-                const SizedBox(height: 16),
-                Text(
-                  'Text translation requires local NMT models (M2M-100, WMT21, MADLAD-400) '
-                  'which are not available on web.\n\n'
-                  'Speech translation (audio → English) is available via the Transcribe tab '
-                  'with the "Translate" option enabled.',
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 24),
-                FilledButton.icon(
-                  icon: const Icon(Icons.arrow_back),
-                  label: const Text('Back'),
-                  onPressed: () => context.pop(),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
+      return _WebTranslateScreen(key: const ValueKey('web-translate'));
     }
 
     return Scaffold(
@@ -415,6 +390,181 @@ class _TranslateScreenState extends ConsumerState<TranslateScreen> {
       onChanged: (v) {
         if (v != null) onChanged(v);
       },
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Web translate screen — routes through the CrispASR HF Space Gradio API
+// ---------------------------------------------------------------------------
+
+class _WebTranslateScreen extends ConsumerStatefulWidget {
+  const _WebTranslateScreen({super.key});
+
+  @override
+  ConsumerState<_WebTranslateScreen> createState() =>
+      _WebTranslateScreenState();
+}
+
+class _WebTranslateScreenState extends ConsumerState<_WebTranslateScreen> {
+  final _inputCtrl = TextEditingController(
+      text: 'The quick brown fox jumps over the lazy dog.');
+  final _outputCtrl = TextEditingController();
+  String _srcLang = 'en';
+  String _tgtLang = 'de';
+  String _model = 'M2M-100 418M — 100 langs, any→any';
+  bool _busy = false;
+
+  static const _models = [
+    'M2M-100 418M — 100 langs, any→any',
+    'WMT21 Dense — en↔X, 14 high-resource',
+    'MADLAD-400 — 419 langs (CC-BY-SA)',
+  ];
+
+  @override
+  void dispose() {
+    _inputCtrl.dispose();
+    _outputCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _translate() async {
+    final text = _inputCtrl.text.trim();
+    if (text.isEmpty) return;
+    setState(() => _busy = true);
+    try {
+      final baseUrl = ref.read(settingsServiceProvider).hfSpaceUrl;
+      final dio = Dio(BaseOptions(
+        connectTimeout: const Duration(seconds: 30),
+        receiveTimeout: const Duration(seconds: 300),
+      ));
+      // Call the Gradio API
+      final r = await dio.post<dynamic>(
+        '$baseUrl/call/translate_text',
+        data: {
+          'data': [text, _model, _srcLang, _tgtLang]
+        },
+        options: Options(headers: {'Content-Type': 'application/json'}),
+      );
+      final eventId =
+          (r.data as Map<String, dynamic>?)?['event_id'] as String?;
+      if (eventId == null) {
+        _outputCtrl.text = '(no event_id returned)';
+        return;
+      }
+      // SSE result
+      final sse = await dio.get<String>(
+        '$baseUrl/call/translate_text/$eventId',
+        options: Options(responseType: ResponseType.plain),
+      );
+      for (final line in (sse.data ?? '').split('\n')) {
+        if (!line.startsWith('data: ')) continue;
+        final json = line.substring(6);
+        // The result is a JSON array; first element is the translated text
+        if (json.startsWith('[')) {
+          final match = RegExp(r'"([^"]*)"').firstMatch(json);
+          if (match != null) {
+            _outputCtrl.text = match.group(1) ?? '';
+            return;
+          }
+        }
+      }
+      _outputCtrl.text = '(no result parsed)';
+    } catch (e) {
+      _outputCtrl.text = 'Error: $e';
+      Log.instance.e('translate-web', 'translation failed', error: e);
+    } finally {
+      setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    return Scaffold(
+      appBar: AppBar(title: Text(l.translateTitle)),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('Via CrispASR Cloud (HF Space)',
+                style: Theme.of(context).textTheme.bodySmall),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<String>(
+              value: _model,
+              decoration: const InputDecoration(labelText: 'NMT Model'),
+              items: _models
+                  .map((m) => DropdownMenuItem(value: m, child: Text(m)))
+                  .toList(),
+              onChanged: (v) {
+                if (v != null) setState(() => _model = v);
+              },
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    initialValue: _srcLang,
+                    decoration: const InputDecoration(labelText: 'Source lang'),
+                    onChanged: (v) => _srcLang = v,
+                  ),
+                ),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 8),
+                  child: Icon(Icons.arrow_forward),
+                ),
+                Expanded(
+                  child: TextFormField(
+                    initialValue: _tgtLang,
+                    decoration: const InputDecoration(labelText: 'Target lang'),
+                    onChanged: (v) => _tgtLang = v,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Expanded(
+              child: TextField(
+                controller: _inputCtrl,
+                maxLines: null,
+                expands: true,
+                decoration: const InputDecoration(
+                  labelText: 'Source text',
+                  border: OutlineInputBorder(),
+                  alignLabelWithHint: true,
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            FilledButton.icon(
+              onPressed: _busy ? null : _translate,
+              icon: _busy
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.translate),
+              label: Text(_busy ? 'Translating...' : 'Translate'),
+            ),
+            const SizedBox(height: 8),
+            Expanded(
+              child: TextField(
+                controller: _outputCtrl,
+                maxLines: null,
+                expands: true,
+                readOnly: true,
+                decoration: const InputDecoration(
+                  labelText: 'Translation',
+                  border: OutlineInputBorder(),
+                  alignLabelWithHint: true,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
