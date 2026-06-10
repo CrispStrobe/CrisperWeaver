@@ -43,6 +43,16 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
   HF Space API calls — health, backends, whisper load, JFK transcription,
   TTS synthesize, Gradio transcribe/LID/translate endpoints.
 
+### Changed — CrispASR HF Space infrastructure
+- **Kokoro g2p dict fallback** (CrispASR): wired §156 permissive G2P dicts
+  into kokoro's `phonemize_cached()`. Kokoro now tries EN/DE/FR/ES IPA dicts
+  (auto-download from HF, permissive license) before falling back to espeak-ng.
+- **Pre-built binaries**: HF Space Dockerfile now downloads pre-built linux
+  x64 binaries from GitHub Releases instead of compiling from source (avoids
+  6+ min build timeout on HF free tier).
+- **Dedicated Vercel project**: `crisperweaver-web` at
+  `crisperweaver-web.vercel.app` (was sharing the `web` project with CrispCloud).
+
 ## 0.7.8 — 2026-06-10
 
 ### Fixed — iOS release build (device_info_plus needs the iOS 26.1 SDK)

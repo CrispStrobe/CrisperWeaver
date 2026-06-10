@@ -468,3 +468,23 @@ When compiling CrispEmbed to WASM, passing `-pthread` only in `CMAKE_EXE_LINKER_
 
 WASM pthreads require `SharedArrayBuffer`, which browsers only enable under cross-origin isolation. The `vercel.json` must set `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp` headers. Without these, the WASM module falls back to single-threaded mode. HuggingFace model file downloads work under COEP because HF sets `Cross-Origin-Resource-Policy: cross-origin` on file responses.
 
+### HF Space free-tier Docker build timeout is ~5 minutes
+
+The HF free-tier Docker build has a hard timeout around 5–6 minutes. Compiling CrispASR from source (60+ C++ backends) takes 15+ minutes even with `-j1`. Solution: upload pre-built binaries to GitHub Releases and `curl` them in the Dockerfile instead of compiling. Changed from multi-stage build to single-stage with pre-built tarball.
+
+### Ubuntu 24.04 in Docker: UID 1000 conflict and pip
+
+Ubuntu 24.04 base images have a pre-existing `ubuntu` user with UID 1000. `useradd -u 1000 app` fails silently. Use `USER 1000` (numeric) instead of `USER app`. Also, pip requires `--break-system-packages` on 24.04 (PEP 668).
+
+### HF Space free-tier: 3 cpu-basic slots max
+
+The free tier allows 3 concurrent `cpu-basic` Spaces. Starting a 4th gives "Quota exceeded for flavor cpu-basic". Pause unused Spaces via `HfApi().pause_space('cstr/name')` to free slots.
+
+### Kokoro g2p dict auto-download needs writable HOME
+
+The `phonemizer.cpp` g2p dict auto-download writes to `$HOME/.cache/crispasr/`. In Docker containers running as non-root, `HOME` may point to a non-writable directory. Set `ENV HOME=/cache` (or another writable path) in the Dockerfile. Pre-downloading dicts at build time is more reliable than runtime auto-download.
+
+### Shared library SOVERSION symlinks in tarballs
+
+When packaging shared libraries (e.g. `libcrispasr.so.0.7.1`), the tarball must include SOVERSION symlinks (`libcrispasr.so.1 → libcrispasr.so.0.7.1`) because the binary links against the SOVERSION name, not the full version. Missing symlinks cause silent `dlopen` failures — the binary starts but can't find its libraries.
+

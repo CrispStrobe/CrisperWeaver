@@ -52,6 +52,14 @@ pending.
 - **Text LID on web**: `detectTextLanguage()` via Gradio call API to `crispasr-lid`.
 - **Test suite**: 32 unit tests (mock Dio) + 12 live integration tests covering
   HfSpaceEngine, HfSpaceTtsService, platform_utils, and all Gradio API endpoints.
+- **Kokoro g2p dict fallback** (CrispASR §156): wired permissive IPA dicts into
+  kokoro's phonemizer — EN/DE/FR/ES work without espeak-ng (GPL). Auto-downloads
+  CMUdict (BSD) + pre-generated IPA dicts from HuggingFace.
+- **HF Space pre-built binaries**: switched from compiling CrispASR in the Docker
+  build (exceeded 6 min timeout) to downloading pre-built binaries from GitHub
+  Releases. Ubuntu 24.04 base image with libomp5/libgomp1 for OpenMP.
+- **Dedicated Vercel project**: `crisperweaver-web` at `crisperweaver-web.vercel.app`,
+  separated from the shared `web` project that CrispCloud was also using.
 
 ### CI fix, web conditional imports, Windows Zen3 crash (#19)
 
