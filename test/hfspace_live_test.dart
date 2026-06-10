@@ -244,10 +244,19 @@ void main() {
 
     setUpAll(() async {
       tts = HfSpaceTtsService(baseUrl: _baseUrl);
-      // Load kokoro — this evicts the ASR backend
+      // Load kokoro — this evicts the ASR backend.
+      // Then wait and retry until synthesis actually works (the server
+      // may still be swapping models / downloading voice packs).
       await tts.loadBackend('kokoro');
-      // Give the server a moment to finish model init
-      await Future<void>.delayed(const Duration(seconds: 2));
+      for (var i = 0; i < 5; i++) {
+        await Future<void>.delayed(const Duration(seconds: 5));
+        try {
+          await tts.synthesize('warmup test');
+          break; // warmup succeeded
+        } catch (_) {
+          if (i < 4) continue;
+        }
+      }
     });
 
     tearDownAll(() => tts.dispose());
