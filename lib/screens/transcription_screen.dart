@@ -2098,6 +2098,9 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
           _selectedFileName ?? 'audio.wav',
           language: language,
           translate: adv.translate,
+          vad: adv.vad,
+          diarize: _enableDiarization,
+          punctuation: adv.restorePunctuation,
           initialPrompt:
               mergedInitialPrompt.isEmpty ? null : mergedInitialPrompt,
           temperature: adv.temperature,

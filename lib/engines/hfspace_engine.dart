@@ -270,6 +270,9 @@ class HfSpaceEngine implements TranscriptionEngine {
     String filename, {
     String? language,
     bool translate = false,
+    bool vad = false,
+    bool diarize = false,
+    bool punctuation = true,
     String? initialPrompt,
     double temperature = 0.0,
     void Function(TranscriptionSegment segment)? onSegment,
@@ -300,6 +303,10 @@ class HfSpaceEngine implements TranscriptionEngine {
       if (initialPrompt != null && initialPrompt.isNotEmpty) {
         fields['prompt'] = initialPrompt;
       }
+      if (translate) fields['translate'] = 'true';
+      if (vad) fields['vad'] = 'true';
+      if (diarize) fields['diarize'] = 'true';
+      if (!punctuation) fields['punctuation'] = 'false';
 
       final formData = FormData.fromMap({
         ...fields,
@@ -516,6 +523,71 @@ class HfSpaceEngine implements TranscriptionEngine {
 
   @override
   Map<String, dynamic> get currentConfig => {'baseUrl': _baseUrl};
+
+  // -- Text language detection (via Gradio API) ---------------------------
+
+  /// Detect the language of [text] using the HF Space's `crispasr-lid` binary.
+  /// Returns a list of `{language, confidence}` maps, or empty on failure.
+  Future<List<Map<String, dynamic>>> detectTextLanguage(String text,
+      {int topK = 3}) async {
+    try {
+      // Use the Gradio call API: POST /call/detect_text_language
+      final r = await _dio.post<dynamic>(
+        '$_baseUrl/call/detect_text_language',
+        data: {'data': [text, 'CLD3 — 109 ISO-639-1 (default)', topK]},
+        options: Options(
+          headers: {'Content-Type': 'application/json'},
+          receiveTimeout: const Duration(seconds: 60),
+        ),
+      );
+      final eventId = (r.data as Map<String, dynamic>?)?['event_id'];
+      if (eventId == null) return [];
+
+      // SSE result endpoint
+      final sse = await _dio.get<String>(
+        '$_baseUrl/call/detect_text_language/$eventId',
+        options: Options(responseType: ResponseType.plain),
+      );
+      // Parse SSE: lines starting with "data: " contain the JSON result
+      final lines = (sse.data ?? '').split('\n');
+      for (final line in lines) {
+        if (!line.startsWith('data: ')) continue;
+        final json = line.substring(6);
+        try {
+          final parsed = _parseJson(json);
+          if (parsed is List && parsed.isNotEmpty) {
+            // First element is the table data [[lang, confidence], ...]
+            final table = parsed[0];
+            if (table is List) {
+              return table
+                  .whereType<List>()
+                  .map((row) => {
+                        'language': row[0]?.toString() ?? '',
+                        'confidence': (row[1] is num)
+                            ? (row[1] as num).toDouble()
+                            : double.tryParse(row[1]?.toString() ?? '') ?? 0.0,
+                      })
+                  .toList();
+            }
+          }
+        } catch (_) {
+          continue;
+        }
+      }
+      return [];
+    } catch (e) {
+      Log.instance.w('hfspace', 'detectTextLanguage failed: $e');
+      return [];
+    }
+  }
+
+  static dynamic _parseJson(String s) {
+    try {
+      return Uri.decodeFull(s); // fallthrough
+    } catch (_) {}
+    // Simple JSON parse — use dart:convert
+    return null;
+  }
 
   // -- Helpers ------------------------------------------------------------
 

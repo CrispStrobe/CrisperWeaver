@@ -1,4 +1,5 @@
 import '../native/crispasr_import.dart' as crispasr;
+import '../utils/platform_utils.dart' as plat;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -189,6 +190,37 @@ class _TranslateScreenState extends ConsumerState<TranslateScreen> {
     final downloadedTranslate = translateModels
         .where((m) => m.isDownloaded)
         .toList(growable: false);
+
+    if (plat.isWeb) {
+      return Scaffold(
+        appBar: AppBar(title: Text(l.translateTitle)),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.cloud_off, size: 48),
+                const SizedBox(height: 16),
+                Text(
+                  'Text translation requires local NMT models (M2M-100, WMT21, MADLAD-400) '
+                  'which are not available on web.\n\n'
+                  'Speech translation (audio → English) is available via the Transcribe tab '
+                  'with the "Translate" option enabled.',
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                FilledButton.icon(
+                  icon: const Icon(Icons.arrow_back),
+                  label: const Text('Back'),
+                  onPressed: () => context.pop(),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(title: Text(l.translateTitle)),
