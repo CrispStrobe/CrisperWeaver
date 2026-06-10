@@ -4,16 +4,16 @@
 // Run with:
 //   RUN_LIVE_TESTS=1 flutter test test/hfspace_live_test.dart --tags=live
 //
-// The HF Space may need 1-2 minutes to wake from sleep on first call.
-// The Space holds ONE model in memory — loading TTS evicts ASR and vice
-// versa. Tests are ordered to minimize model swaps: all ASR tests first,
-// then TTS, then Gradio API tests.
+// The HF Space holds ONE model in memory at a time — loading TTS evicts
+// ASR and vice versa. Test groups are ordered to manage this:
+//   1. ASR tests (whisper)
+//   2. Gradio API tests (reload whisper explicitly)
+//   3. TTS tests (kokoro — runs last so it doesn't evict whisper)
 
 @Tags(['live'])
 library;
 
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -26,34 +26,15 @@ final _skip = Platform.environment['RUN_LIVE_TESTS'] != '1'
     ? 'Set RUN_LIVE_TESTS=1 to run live HF Space tests'
     : null;
 
-/// Helper: check if a Gradio endpoint exists (returns 200 on POST).
-Future<bool> _gradioEndpointExists(Dio dio, String endpoint) async {
-  try {
-    final r = await dio.post<dynamic>(
-      '$_baseUrl/gradio_api/call/$endpoint',
-      data: {'data': []},
-      options: Options(
-        headers: {'Content-Type': 'application/json'},
-        validateStatus: (s) => true, // don't throw
-      ),
-    );
-    // 200 = endpoint exists (even if args are wrong), 404 = not deployed
-    return r.statusCode != 404;
-  } catch (_) {
-    return false;
-  }
-}
-
 void main() {
-  // ── ASR tests (whisper loaded) ────────────────────────────────────────
-  group('HfSpaceEngine — live ASR', skip: _skip, () {
+  // ── 1. ASR tests (whisper loaded) ─────────────────────────────────────
+  group('1. HfSpaceEngine — live ASR', skip: _skip, () {
     late HfSpaceEngine engine;
 
     setUpAll(() async {
       engine = HfSpaceEngine(baseUrl: _baseUrl);
       final ok = await engine.initialize();
       if (!ok) fail('HF Space did not become ready');
-      // Ensure whisper is loaded for all ASR tests
       await engine.loadModel('whisper');
     });
 
@@ -94,8 +75,7 @@ void main() {
       expect(ids, contains('qwen3'));
     });
 
-    test('loadModel whisper succeeds', () async {
-      // Already loaded in setUpAll, but verify state
+    test('whisper is loaded', () {
       expect(engine.currentModelId, 'whisper');
     });
 
@@ -113,7 +93,6 @@ void main() {
       );
 
       expect(result.fullText, isNotEmpty);
-      // The 2-second clip covers "And so my fellow Americans"
       expect(result.fullText.toLowerCase(), contains('america'));
       expect(result.segments, isNotEmpty);
       expect(result.segments.first.startTime, greaterThanOrEqualTo(0.0));
@@ -133,54 +112,8 @@ void main() {
     }, timeout: const Timeout(Duration(minutes: 2)));
   });
 
-  // ── TTS tests (kokoro loaded) ─────────────────────────────────────────
-  group('HfSpaceTtsService — live TTS', skip: _skip, () {
-    late HfSpaceTtsService tts;
-
-    setUpAll(() async {
-      tts = HfSpaceTtsService(baseUrl: _baseUrl);
-      await tts.loadBackend('kokoro');
-    });
-
-    tearDownAll(() => tts.dispose());
-
-    test('loadBackend kokoro succeeds', () async {
-      // Already loaded in setUpAll — re-load to verify idempotent
-      await tts.loadBackend('kokoro');
-    }, timeout: const Timeout(Duration(minutes: 3)));
-
-    test('synthesize returns audio samples', () async {
-      // Use a longer sentence — the free-tier kokoro sometimes returns
-      // empty audio for very short inputs.
-      try {
-        final result = await tts.synthesize(
-          'CrispASR is one binary, twenty-four ASR backends, and eight TTS '
-          'engines, running fully offline on your device.',
-          voice: 'af_heart',
-        );
-        expect(result.samples, isNotEmpty);
-        expect(result.sampleRate, greaterThan(0));
-        expect(result.durationSeconds, greaterThan(0));
-      } on DioException catch (e) {
-        // The free-tier HF Space sometimes fails TTS synthesis due to
-        // resource constraints (500 "empty audio"). Mark as known flake.
-        if (e.response?.statusCode == 500) {
-          markTestSkipped(
-              'TTS synthesis returned 500 — free-tier resource limit');
-        } else {
-          rethrow;
-        }
-      }
-    }, timeout: const Timeout(Duration(minutes: 2)));
-
-    test('listVoices returns at least one voice', () async {
-      final voices = await tts.listVoices();
-      expect(voices, isNotEmpty);
-    });
-  });
-
-  // ── Gradio call API tests ─────────────────────────────────────────────
-  group('HF Space Gradio API — live', skip: _skip, () {
+  // ── 2. Gradio call API tests ──────────────────────────────────────────
+  group('2. HF Space Gradio API — live', skip: _skip, () {
     late Dio dio;
 
     setUp(() {
@@ -196,7 +129,7 @@ void main() {
       final jfkFile = File('test/jfk-2s.wav');
       if (!jfkFile.existsSync()) return;
 
-      // First load whisper (Gradio transcribe needs an ASR backend)
+      // Ensure whisper is loaded (previous TTS group may have swapped)
       await dio.post<dynamic>(
         '$_baseUrl/load',
         data: FormData.fromMap(
@@ -204,7 +137,6 @@ void main() {
         options: Options(receiveTimeout: const Duration(seconds: 120)),
       );
 
-      // Upload via Gradio upload endpoint
       final uploadR = await dio.post<dynamic>(
         '$_baseUrl/gradio_api/upload',
         data: FormData.fromMap({
@@ -217,7 +149,6 @@ void main() {
       expect(uploadedFiles, isNotEmpty);
       final uploadedPath = uploadedFiles.first as String;
 
-      // Call the transcribe function
       final callR = await dio.post<dynamic>(
         '$_baseUrl/gradio_api/call/transcribe',
         data: {
@@ -235,7 +166,6 @@ void main() {
       final eventId = (callR.data as Map)['event_id'];
       expect(eventId, isNotNull);
 
-      // Get SSE result
       final sseR = await dio.get<String>(
         '$_baseUrl/gradio_api/call/transcribe/$eventId',
         options: Options(responseType: ResponseType.plain),
@@ -267,56 +197,79 @@ void main() {
       expect(sseR.data!.toLowerCase(), contains('fr'));
     }, timeout: const Timeout(Duration(minutes: 2)));
 
-    test('Gradio /call/translate_text works (if deployed)', () async {
-      // The translate tab may not be deployed yet on the live Space,
-      // or the NMT model download may fail on the free tier.
-      try {
-        final callR = await dio.post<dynamic>(
-          '$_baseUrl/gradio_api/call/translate_text',
-          data: {
-            'data': [
-              'Hello world',
-              'M2M-100 418M \u2014 100 langs, any\u2192any',
-              'en',
-              'de',
-            ]
-          },
-          options: Options(headers: {'Content-Type': 'application/json'}),
-        );
-        if (callR.statusCode == 404) {
-          markTestSkipped('translate_text endpoint not deployed yet');
-          return;
-        }
-        expect(callR.statusCode, 200);
-        final eventId = (callR.data as Map)['event_id'];
-        expect(eventId, isNotNull);
-
-        final sseR = await dio.get<String>(
-          '$_baseUrl/gradio_api/call/translate_text/$eventId',
-          options: Options(responseType: ResponseType.plain),
-        );
-        // SSE may contain an error from the subprocess; check we at least
-        // got a response.
-        expect(sseR.data, isNotEmpty);
-        if (sseR.data!.contains('"error"') ||
-            sseR.data!.contains('Translation failed')) {
+    test('Gradio /call/translate_text works', () async {
+      // This endpoint requires the HF Space to be rebuilt with the
+      // translate tab. If not deployed yet, skip gracefully.
+      final probeR = await dio.post<dynamic>(
+        '$_baseUrl/gradio_api/call/translate_text',
+        data: {
+          'data': [
+            'Hello world',
+            'M2M-100 418M \u2014 100 langs, any\u2192any',
+            'en',
+            'de',
+          ]
+        },
+        options: Options(
+          headers: {'Content-Type': 'application/json'},
+          validateStatus: (s) => true,
+        ),
+      );
+      if (probeR.statusCode == 404 || probeR.statusCode == 500) {
+        // Check if it's a "function not found" error vs a real translate error
+        final body = probeR.data?.toString() ?? '';
+        if (body.contains('FnIndexInferError') ||
+            body.contains('Could not infer')) {
           markTestSkipped(
-              'translate_text returned server-side error — NMT model '
-              'may not be available on the free-tier Space');
+              'translate_text not deployed on the live Space yet — '
+              'rebuild the Space from CrispASR main');
           return;
-        }
-        expect(sseR.data, contains('data:'));
-      } on DioException catch (e) {
-        if (e.response?.statusCode == 404) {
-          markTestSkipped('translate_text endpoint not deployed yet');
-        } else if (e.response?.statusCode == 500) {
-          markTestSkipped(
-              'translate_text returned 500 — NMT backend not available '
-              'on the free-tier Space');
-        } else {
-          rethrow;
         }
       }
+      expect(probeR.statusCode, 200);
+      final eventId = (probeR.data as Map)['event_id'];
+      expect(eventId, isNotNull);
+
+      final sseR = await dio.get<String>(
+        '$_baseUrl/gradio_api/call/translate_text/$eventId',
+        options: Options(responseType: ResponseType.plain),
+      );
+      expect(sseR.data, contains('data:'));
+    }, timeout: const Timeout(Duration(minutes: 5)));
+  });
+
+  // ── 3. TTS tests (kokoro — runs LAST) ─────────────────────────────────
+  group('3. HfSpaceTtsService — live TTS', skip: _skip, () {
+    late HfSpaceTtsService tts;
+
+    setUpAll(() async {
+      tts = HfSpaceTtsService(baseUrl: _baseUrl);
+      // Load kokoro — this evicts the ASR backend
+      await tts.loadBackend('kokoro');
+      // Give the server a moment to finish model init
+      await Future<void>.delayed(const Duration(seconds: 2));
+    });
+
+    tearDownAll(() => tts.dispose());
+
+    test('loadBackend kokoro succeeds', () async {
+      await tts.loadBackend('kokoro');
     }, timeout: const Timeout(Duration(minutes: 3)));
+
+    test('synthesize returns audio samples', () async {
+      final result = await tts.synthesize(
+        'CrispASR is one binary, twenty-four ASR backends, and eight TTS '
+        'engines, running fully offline on your device.',
+        voice: 'af_heart',
+      );
+      expect(result.samples, isNotEmpty);
+      expect(result.sampleRate, greaterThan(0));
+      expect(result.durationSeconds, greaterThan(0));
+    }, timeout: const Timeout(Duration(minutes: 2)));
+
+    test('listVoices returns at least one voice', () async {
+      final voices = await tts.listVoices();
+      expect(voices, isNotEmpty);
+    });
   });
 }
