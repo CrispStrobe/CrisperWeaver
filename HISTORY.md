@@ -45,6 +45,13 @@ pending.
   and deploys to Vercel on every push to main.
 - **HF Space updated**: added canary, hubert, data2vec ASR + vibevoice, orpheus,
   chatterbox, chatterbox-turbo TTS backends to `../CrispASR/hf-space/app.py`.
+- **Text translation on web**: Translate screen routes through HF Space's new
+  Translate tab (M2M-100, WMT21, MADLAD-400) via Gradio call API.
+- **Transcription params**: translate, VAD, diarize, punctuation forwarded to
+  the HF Space `/v1/audio/transcriptions` endpoint on web.
+- **Text LID on web**: `detectTextLanguage()` via Gradio call API to `crispasr-lid`.
+- **Test suite**: 32 unit tests (mock Dio) + 12 live integration tests covering
+  HfSpaceEngine, HfSpaceTtsService, platform_utils, and all Gradio API endpoints.
 
 ### CI fix, web conditional imports, Windows Zen3 crash (#19)
 

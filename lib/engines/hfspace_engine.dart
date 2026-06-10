@@ -531,9 +531,9 @@ class HfSpaceEngine implements TranscriptionEngine {
   Future<List<Map<String, dynamic>>> detectTextLanguage(String text,
       {int topK = 3}) async {
     try {
-      // Use the Gradio call API: POST /call/detect_text_language
+      // Use the Gradio call API: POST /gradio_api/call/detect_text_language
       final r = await _dio.post<dynamic>(
-        '$_baseUrl/call/detect_text_language',
+        '$_baseUrl/gradio_api/call/detect_text_language',
         data: {'data': [text, 'CLD3 — 109 ISO-639-1 (default)', topK]},
         options: Options(
           headers: {'Content-Type': 'application/json'},
@@ -545,7 +545,7 @@ class HfSpaceEngine implements TranscriptionEngine {
 
       // SSE result endpoint
       final sse = await _dio.get<String>(
-        '$_baseUrl/call/detect_text_language/$eventId',
+        '$_baseUrl/gradio_api/call/detect_text_language/$eventId',
         options: Options(responseType: ResponseType.plain),
       );
       // Parse SSE: lines starting with "data: " contain the JSON result

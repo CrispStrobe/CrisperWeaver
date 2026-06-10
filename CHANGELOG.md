@@ -26,6 +26,23 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 - **`platform_utils.dart`** — web-safe `Platform.*` wrappers used across
   23 files to prevent `UnsupportedError` crashes on web.
 
+### Added — Web text translation via HF Space
+- **Translate screen on web** — routes text-to-text translation through the
+  CrispASR HF Space's new Translate tab (M2M-100, WMT21, MADLAD-400) via
+  Gradio call API. No local NMT models needed on web.
+- **Transcription params** — `translate`, `vad`, `diarize`, `punctuation`
+  fields now forwarded to the HF Space `/v1/audio/transcriptions` endpoint.
+- **Text LID** — `detectTextLanguage()` method on HfSpaceEngine calls the
+  Space's `crispasr-lid` via Gradio API.
+
+### Added — Unit + live tests for web/HF Space features
+- 32 unit tests (mock Dio): `hfspace_engine_test`, `hfspace_tts_service_test`,
+  `platform_utils_test`. Covers init, model load, transcribe, TTS, WAV parse,
+  cancel, translate/VAD/diarize/punct param forwarding.
+- 12 live integration tests (`@Tags(['live'])`, `RUN_LIVE_TESTS=1`): real
+  HF Space API calls — health, backends, whisper load, JFK transcription,
+  TTS synthesize, Gradio transcribe/LID/translate endpoints.
+
 ## 0.7.8 — 2026-06-10
 
 ### Fixed — iOS release build (device_info_plus needs the iOS 26.1 SDK)

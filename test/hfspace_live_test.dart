@@ -170,7 +170,7 @@ void main() {
 
       // Call the transcribe function
       final callR = await dio.post<dynamic>(
-        '$_baseUrl/call/transcribe',
+        '$_baseUrl/gradio_api/call/transcribe',
         data: {
           'data': [
             {'path': uploadedPath},
@@ -188,7 +188,7 @@ void main() {
 
       // Get SSE result
       final sseR = await dio.get<String>(
-        '$_baseUrl/call/transcribe/$eventId',
+        '$_baseUrl/gradio_api/call/transcribe/$eventId',
         options: Options(responseType: ResponseType.plain),
       );
       expect(sseR.data, contains('data:'));
@@ -196,7 +196,7 @@ void main() {
 
     test('Gradio /call/detect_text_language works', () async {
       final callR = await dio.post<dynamic>(
-        '$_baseUrl/call/detect_text_language',
+        '$_baseUrl/gradio_api/call/detect_text_language',
         data: {
           'data': [
             'Bonjour le monde',
@@ -211,7 +211,7 @@ void main() {
       expect(eventId, isNotNull);
 
       final sseR = await dio.get<String>(
-        '$_baseUrl/call/detect_text_language/$eventId',
+        '$_baseUrl/gradio_api/call/detect_text_language/$eventId',
         options: Options(responseType: ResponseType.plain),
       );
       expect(sseR.data, contains('data:'));
@@ -221,7 +221,7 @@ void main() {
 
     test('Gradio /call/translate_text works', () async {
       final callR = await dio.post<dynamic>(
-        '$_baseUrl/call/translate_text',
+        '$_baseUrl/gradio_api/call/translate_text',
         data: {
           'data': [
             'Hello world',
@@ -237,7 +237,7 @@ void main() {
       expect(eventId, isNotNull);
 
       final sseR = await dio.get<String>(
-        '$_baseUrl/call/translate_text/$eventId',
+        '$_baseUrl/gradio_api/call/translate_text/$eventId',
         options: Options(responseType: ResponseType.plain),
       );
       expect(sseR.data, contains('data:'));

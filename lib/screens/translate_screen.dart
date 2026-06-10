@@ -440,7 +440,7 @@ class _WebTranslateScreenState extends ConsumerState<_WebTranslateScreen> {
       ));
       // Call the Gradio API
       final r = await dio.post<dynamic>(
-        '$baseUrl/call/translate_text',
+        '$baseUrl/gradio_api/call/translate_text',
         data: {
           'data': [text, _model, _srcLang, _tgtLang]
         },
@@ -454,7 +454,7 @@ class _WebTranslateScreenState extends ConsumerState<_WebTranslateScreen> {
       }
       // SSE result
       final sse = await dio.get<String>(
-        '$baseUrl/call/translate_text/$eventId',
+        '$baseUrl/gradio_api/call/translate_text/$eventId',
         options: Options(responseType: ResponseType.plain),
       );
       for (final line in (sse.data ?? '').split('\n')) {
