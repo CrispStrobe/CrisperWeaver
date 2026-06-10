@@ -171,7 +171,7 @@ Downloads pull f16 from `ggerganov/whisper.cpp` and quantised variants from [`cs
 | Windows  | ✅ Released — portable `.zip` + installable `.msix` with Explorer "Open With" registration for audio + subtitle types |
 | Android  | ✅ Released — real-ASR APK (`arm64-v8a`) with `libwhisper.so` cross-built in CI. External models dir picker requests "All files access" runtime permission (Android 11+) so reinstalls don't lose access to `/storage/emulated/0/...` paths. |
 | iOS      | ⚠️ Unsigned IPA — sideload via [SideStore](https://sidestore.io/) / AltStore / Feather |
-| Web (PWA) | 🆕 Installable PWA — standalone display, branded icons. Feature set limited to mock engine / remote server mode (no FFI). |
+| Web (PWA) | ✅ Live at [`web-nu-peach-46.vercel.app`](https://web-nu-peach-46.vercel.app/) — ASR + TTS via CrispASR HF Space cloud engine (9 ASR + 5 TTS backends). Client-side text embeddings via CrispEmbed WASM (~19 MB model, ~50-100ms/sentence). Auto-deploys from GitHub Actions. |
 
 Roadmap and blockers: see [`PLAN.md`](PLAN.md).
 

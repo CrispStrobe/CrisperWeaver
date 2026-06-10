@@ -27,7 +27,26 @@ pending.
 
 ---
 
-## June 2026 — CI fix, web conditional imports, Windows Zen3 crash (#19)
+## June 2026 — Web/PWA with HF Space cloud engine + WASM embeddings
+
+### Web/PWA deployment (v0.7.7+)
+- **White screen fix**: `dart:io` `Platform.*` calls crash on web; replaced with
+  `platform_utils.dart` web-safe wrappers across 23 files.
+- **HfSpaceEngine**: new `TranscriptionEngine` implementation that routes ASR + TTS
+  through the `cstr/CrispASR` HF Space via OpenAI-compatible HTTP endpoints.
+  Engine factory auto-selects `hfspace` on web, `crispasr` on native.
+- **File picker web path**: `RobustFilePick` gained `fileBytes`/`fileNames` fields;
+  on web, raw bytes go directly to `TranscriptionService.transcribeBytes()` →
+  `HfSpaceEngine.transcribeBytes()` → `POST /v1/audio/transcriptions`.
+- **CrispEmbed WASM**: compiled CrispEmbed C++ to WebAssembly via Emscripten
+  (1.1 MB WASM + 78 KB JS). `crispembed_web.dart` fetches Q4_K model (~19 MB)
+  from HuggingFace and runs text embeddings client-side for semantic search.
+- **Vercel deploy**: `deploy-web.yml` GitHub Actions workflow builds Flutter web
+  and deploys to Vercel on every push to main.
+- **HF Space updated**: added canary, hubert, data2vec ASR + vibevoice, orpheus,
+  chatterbox, chatterbox-turbo TTS backends to `../CrispASR/hf-space/app.py`.
+
+### CI fix, web conditional imports, Windows Zen3 crash (#19)
 
 ### CrispEmbed checkout in CI/release workflows
 

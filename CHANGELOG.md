@@ -14,6 +14,18 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
   space even without a `/v1` proxy. (Pairs with the CrispASR `hf-space`
   `/v1` proxy change.)
 
+### Added — Client-side WASM text embeddings
+- **CrispEmbed WASM** — the CrispEmbed C++ library (ggml) now compiles to
+  WebAssembly via Emscripten. On web, `crispembed_web.dart` loads the WASM
+  module, fetches a Q4_K model (~19 MB) from HuggingFace, and runs text
+  embedding inference client-side in the browser (~50-100ms per sentence).
+  Enables semantic search over transcripts without a server roundtrip.
+- **`deploy-web.yml`** GitHub Actions workflow — auto-builds Flutter web
+  and deploys to Vercel on every push to main. Requires `VERCEL_TOKEN`,
+  `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID` secrets.
+- **`platform_utils.dart`** — web-safe `Platform.*` wrappers used across
+  23 files to prevent `UnsupportedError` crashes on web.
+
 ## 0.7.8 — 2026-06-10
 
 ### Fixed — iOS release build (device_info_plus needs the iOS 26.1 SDK)
