@@ -37,6 +37,10 @@ class RepoSpec {
   /// non-commercial licences gate downloads in the Model Manager.
   final String? license;
 
+  /// True for TTS models that need an external voice reference before
+  /// synthesis can produce audio (qwen3-tts Base, vibevoice Base).
+  final bool requiresVoice;
+
   const RepoSpec({
     required this.backend,
     required this.repoId,
@@ -47,6 +51,7 @@ class RepoSpec {
     this.voicepackBaseName,
     this.extension = '.gguf',
     this.license,
+    this.requiresVoice = false,
   });
 }
 
@@ -471,8 +476,9 @@ const _repos = <RepoSpec>[
     repoId: 'cstr/qwen3-tts-0.6b-base-GGUF',
     baseName: 'qwen3-tts-12hz-0.6b-base',
     displayPrefix: 'Qwen3-TTS 0.6B base',
-    description: 'Qwen3-TTS base talker — needs qwen3-tts-tokenizer-12hz codec',
+    description: 'Qwen3-TTS base talker — needs qwen3-tts-tokenizer-12hz codec + voice',
     kind: 'tts',
+    requiresVoice: true,
   ),
   RepoSpec(
     backend: 'qwen3-tts',
@@ -571,7 +577,7 @@ const _repos = <RepoSpec>[
   RepoSpec(backend: 'qwen3-tts', repoId: 'cstr/gwen-tts-0.6b-GGUF', baseName: 'gwen-tts-0.6b',
     displayPrefix: 'Gwen-TTS', description: 'Vietnamese Qwen3-TTS finetune', kind: 'tts'),
   RepoSpec(backend: 'qwen3-tts', repoId: 'cstr/qwen3-tts-1.7b-base-GGUF', baseName: 'qwen3-tts-12hz-1.7b-base',
-    displayPrefix: 'Qwen3-TTS 1.7B base', description: 'Qwen3-TTS 1.7B base voice clone', kind: 'tts'),
+    displayPrefix: 'Qwen3-TTS 1.7B base', description: 'Qwen3-TTS 1.7B base voice clone', kind: 'tts', requiresVoice: true),
   RepoSpec(backend: 'vibevoice-tts', repoId: 'cstr/vibevoice-1.5b-GGUF', baseName: 'vibevoice-1.5b-tts',
     displayPrefix: 'VibeVoice 1.5B', description: 'VibeVoice 1.5B TTS', kind: 'tts'),
   // ----- Phase 2 parity: new ASR models -----
@@ -775,6 +781,9 @@ Future<void> main() async {
       buf.writeln('    kind: ModelKind.${repo.kind},');
       if (repo.license != null) {
         buf.writeln("    license: '${_escape(repo.license!)}',");
+      }
+      if (repo.requiresVoice) {
+        buf.writeln('    requiresVoice: true,');
       }
       buf.writeln('  ),');
       repoEntries++;

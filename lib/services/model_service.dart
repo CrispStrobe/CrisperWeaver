@@ -914,11 +914,12 @@ class ModelService {
       sizeBytes: 700 * 1024 * 1024,
       checksum: '',
       description:
-          'Qwen3-TTS base — needs the qwen3-tts-tokenizer-12hz codec GGUF',
+          'Qwen3-TTS base — needs the qwen3-tts-tokenizer-12hz codec GGUF + voice',
       quantization: 'q8_0',
       backend: 'qwen3-tts',
       kind: ModelKind.tts,
       companions: ['qwen3-tts-tokenizer-12hz'],
+      requiresVoice: true,
     ),
     // #18 — qwen3-tts CustomVoice has no BackendRepo (the deep HF probe
     // can't surface it), so without a hardcoded entry it never appears in
@@ -2112,11 +2113,12 @@ class ModelService {
       sizeBytes: 1900 * 1024 * 1024,
       checksum: '',
       description:
-          'Qwen3-TTS 1.7B base — higher quality, needs qwen3-tts-tokenizer-12hz codec',
+          'Qwen3-TTS 1.7B base — higher quality, needs qwen3-tts-tokenizer-12hz codec + voice',
       quantization: 'q8_0',
       backend: 'qwen3-tts',
       kind: ModelKind.tts,
       companions: ['qwen3-tts-tokenizer-12hz'],
+      requiresVoice: true,
       languages: langsQwen3Tts10,
     ),
     // Gwen-TTS — Vietnamese-optimised Qwen3-TTS-0.6B-Base finetune (MIT).

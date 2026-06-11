@@ -221,11 +221,10 @@ void main() {
       // Base models need a voice pack or WAV clone — without one the
       // C-side returns "qwen3-tts Base requires a voice" and the
       // Synthesize button should be disabled.
+      // Only q8_0 variants live in crispasrBackendModels; q4_k/f16 are
+      // in baked_models_catalog (discovered at runtime via HF probe).
       const baseKeys = [
-        'qwen3-tts-12hz-0.6b-base-q4_k',
         'qwen3-tts-12hz-0.6b-base-q8_0',
-        'qwen3-tts-12hz-0.6b-base-f16',
-        'qwen3-tts-12hz-1.7b-base-f16',
         'qwen3-tts-12hz-1.7b-base-q8_0',
       ];
       for (final key in baseKeys) {
