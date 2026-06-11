@@ -146,7 +146,10 @@ class SpeakerIdService {
     if (await consentFile.exists()) {
       try {
         await consentFile.delete();
-      } catch (_) {}
+      } catch (e) {
+        Log.instance.w('speakers', 'failed to delete consent file',
+            fields: {'file': consentFile.path, 'err': e.toString()});
+      }
     }
     // Force the DB to re-scan next time it's opened — it caches profiles
     // on load.
@@ -195,7 +198,10 @@ class SpeakerIdService {
     if (await consentFile.exists()) {
       try {
         data['consent'] = jsonDecode(await consentFile.readAsString());
-      } catch (_) {}
+      } catch (e) {
+        Log.instance.w('speakers', 'failed to parse consent file',
+            fields: {'file': consentFile.path, 'err': e.toString()});
+      }
     }
     return data;
   }
@@ -225,10 +231,16 @@ class SpeakerIdService {
   void _closeHandles() {
     try {
       _embedder?.close();
-    } catch (_) {}
+    } catch (e) {
+      Log.instance.d('speakers', 'embedder close threw',
+          fields: {'err': e.toString()});
+    }
     try {
       _db?.close();
-    } catch (_) {}
+    } catch (e) {
+      Log.instance.d('speakers', 'speaker DB close threw',
+          fields: {'err': e.toString()});
+    }
     _embedder = null;
     _db = null;
   }

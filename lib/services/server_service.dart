@@ -198,7 +198,10 @@ class ServerService {
     } finally {
       try {
         await tempFile.delete();
-      } catch (_) {/* best-effort */}
+      } catch (e) {
+        Log.instance.d('server', 'temp file cleanup failed',
+            fields: {'path': tempFile.path, 'err': e.toString()});
+      }
     }
 
     return _formatTranscriptionResponse(segments, responseFormat);
@@ -301,6 +304,12 @@ class ServerService {
     final spokenDisclaimer = args['spoken_disclaimer'] as bool? ?? true;
     final speed =
         ((args['speed'] as num?)?.toDouble() ?? 1.0).clamp(0.25, 4.0).toDouble();
+    Log.instance.i('server', 'tts request', fields: {
+      'model': modelName ?? '',
+      'voice': voice ?? '',
+      'text_len': input?.length ?? 0,
+      'speed': speed,
+    });
     if (input == null || input.trim().isEmpty || modelName == null) {
       return Response.badRequest(
         body: 'missing required fields: model + input',
@@ -352,6 +361,12 @@ class ServerService {
     final tgt = args['tgt'] as String? ?? args['target_language'] as String?;
     final modelName = args['model'] as String?;
     final maxTokens = (args['max_tokens'] as num?)?.toInt() ?? 200;
+    Log.instance.i('server', 'translate request', fields: {
+      'model': modelName ?? '',
+      'src': src ?? '',
+      'tgt': tgt ?? '',
+      'text_len': text?.length ?? 0,
+    });
     if (text == null ||
         text.trim().isEmpty ||
         src == null ||

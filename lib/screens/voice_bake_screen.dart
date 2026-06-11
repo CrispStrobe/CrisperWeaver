@@ -69,6 +69,10 @@ class _VoiceBakeScreenState extends ConsumerState<VoiceBakeScreen> {
   }
 
   Future<void> _bake() async {
+    Log.instance.i('voice-bake', 'bake start', fields: {
+      'wav': _wavPath ?? '',
+      'output': _outputController.text.trim(),
+    });
     final l = AppLocalizations.of(context);
     if (_wavPath == null || _outputController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(

@@ -21,6 +21,7 @@ import 'dart:isolate';
 
 import 'local_llm_cleanup_service.dart' show LocalLlmConfig, LocalLlmException;
 import 'local_llm_worker.dart';
+import 'log_service.dart';
 
 abstract class LocalLlmBackend {
   /// True once a session has been opened and not yet disposed.
@@ -253,7 +254,10 @@ class IsolateLocalLlmBackend implements LocalLlmBackend {
     if (port != null) {
       try {
         port.send(<String, Object?>{'type': 'shutdown'});
-      } catch (_) {/* worker already gone */}
+      } catch (e) {
+        Log.instance.d('llm-backend', 'shutdown send failed (worker already gone)',
+            fields: {'err': e.toString()});
+      }
     }
     _cmdPort = null;
     _isolate?.kill(priority: Isolate.beforeNextEvent);

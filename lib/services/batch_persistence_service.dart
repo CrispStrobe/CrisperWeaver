@@ -201,9 +201,9 @@ class BatchPersistenceService {
       if (ent is File) {
         try {
           await ent.delete();
-        } catch (_) {
-          // Best-effort. A locked file on Windows is not worth
-          // surfacing — the user can drop the directory manually.
+        } catch (e) {
+          Log.instance.w('batch-persist', 'clearAll: could not delete file',
+              fields: {'file': ent.path, 'err': e.toString()});
         }
       }
     }
@@ -246,8 +246,10 @@ class BatchPersistenceService {
       try {
         final json = jsonDecode(line) as Map<String, dynamic>;
         segments.add(_segmentFromJson(json));
-      } catch (_) {
+      } catch (e) {
         // Last write was torn — stop and return what we have.
+        Log.instance.d('batch-persist', 'checkpoint line corrupt — stopping replay',
+            fields: {'jobId': jobId, 'err': e.toString()});
         break;
       }
     }

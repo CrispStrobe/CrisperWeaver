@@ -51,7 +51,10 @@ class DiarizationService {
   void invalidatePyannoteCache() {
     try {
       _pyannoteCache?.close();
-    } catch (_) {}
+    } catch (e) {
+      Log.instance.w('diarize', 'pyannote cache close threw',
+          fields: {'err': e.toString()});
+    }
     _pyannoteCache = null;
     _pyannoteCacheAudioKey = null;
   }

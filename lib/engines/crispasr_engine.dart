@@ -376,7 +376,10 @@ class CrispASREngine implements TranscriptionEngine {
     int fileBytes = 0;
     try {
       fileBytes = await File(modelPath).length();
-    } catch (_) {}
+    } catch (e) {
+      Log.instance.d('crispasr', 'model file size probe failed',
+          fields: {'path': modelPath, 'err': e.toString()});
+    }
     final done = Log.instance.stopwatch(
       'crispasr',
       msg: 'model loaded',
@@ -587,7 +590,9 @@ class CrispASREngine implements TranscriptionEngine {
     final crispasr.CrispASR model;
     try {
       model = _ensureWhisperModel(); // §1 — lazy open if not yet created
-    } catch (_) {
+    } catch (e) {
+      Log.instance.w('crispasr', 'detectLanguage: whisper model not available',
+          fields: {'err': e.toString()});
       return null;
     }
     if (!model.supportsExtended) return null;
@@ -1799,8 +1804,9 @@ class CrispASREngine implements TranscriptionEngine {
               },
             ));
           }
-        } catch (_) {
-          // Flush failures at stream end are not worth surfacing.
+        } catch (e) {
+          Log.instance.d('crispasr', 'stream flush at end failed',
+              fields: {'err': e.toString()});
         }
         session.close();
         controller.close();

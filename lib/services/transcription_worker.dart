@@ -130,7 +130,7 @@ Future<void> transcriptionWorkerEntry(TranscriptionWorkerArgs args) async {
     if (type == 'shutdown') {
       try {
         session.close();
-      } catch (_) {}
+      } catch (_) {} // FFI feature probe — silent
       cmdReceive.close();
       return;
     }
@@ -198,37 +198,37 @@ Future<void> transcriptionWorkerEntry(TranscriptionWorkerArgs args) async {
       if (language != null && language.isNotEmpty && language != 'auto') {
         try {
           session.setSourceLanguage(language);
-        } on Object catch (_) {}
+        } on Object catch (_) {} // FFI feature probe — silent
       } else {
         try {
           session.setSourceLanguage('');
-        } on Object catch (_) {}
+        } on Object catch (_) {} // FFI feature probe — silent
       }
       if (targetLanguage != null && targetLanguage.isNotEmpty) {
         try {
           session.setTargetLanguage(targetLanguage);
-        } on Object catch (_) {}
+        } on Object catch (_) {} // FFI feature probe — silent
       } else {
         try {
           session.setTargetLanguage('');
-        } on Object catch (_) {}
+        } on Object catch (_) {} // FFI feature probe — silent
       }
       try {
         session.setTranslate(translate);
-      } on Object catch (_) {}
+      } on Object catch (_) {} // FFI feature probe — silent
       // setAsk always fires (even with empty string) so the
       // previous job's prompt doesn't stick across the boundary.
       try {
         session.setAsk(askPrompt ?? '');
-      } on Object catch (_) {}
+      } on Object catch (_) {} // FFI feature probe — silent
       // Fire setTemperature on every dispatch — same reasoning as
       // setAsk; the slider's previous value mustn't leak forward.
       try {
         session.setTemperature(temperature);
-      } on Object catch (_) {}
+      } on Object catch (_) {} // FFI feature probe — silent
       try {
         session.setBestOf(bestOf);
-      } on Object catch (_) {}
+      } on Object catch (_) {} // FFI feature probe — silent
       // Beam search width (whisper today; other beam-capable backends
       // per the feature matrix have their session-API surface
       // tracked as a CrispASR follow-up). Older libcrispasr builds
@@ -237,7 +237,7 @@ Future<void> transcriptionWorkerEntry(TranscriptionWorkerArgs args) async {
       // of the sticky setters.
       try {
         session.setBeamSize(beamSize);
-      } on Object catch (_) {}
+      } on Object catch (_) {} // FFI feature probe — silent
       // Whisper decoder-fallback thresholds. Pre-0.5.10 dylibs
       // lack the symbol — UnsupportedError gets swallowed.
       try {

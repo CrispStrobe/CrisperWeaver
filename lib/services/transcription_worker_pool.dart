@@ -395,7 +395,10 @@ class TranscriptionWorkerPool {
       if (w.dead) continue;
       try {
         w.sendPort.send(<String, Object?>{'type': 'shutdown'});
-      } catch (_) {}
+      } catch (e) {
+        Log.instance.d('worker-pool', 'shutdown send failed (worker already gone)',
+            fields: {'err': e.toString()});
+      }
     }
     // Give workers a moment to close their sessions cleanly. We
     // can't await Isolate exit without a per-worker onExit port; a
@@ -404,7 +407,10 @@ class TranscriptionWorkerPool {
     for (final w in _workers) {
       try {
         w.isolate.kill(priority: Isolate.beforeNextEvent);
-      } catch (_) {}
+      } catch (e) {
+        Log.instance.d('worker-pool', 'isolate kill failed',
+            fields: {'err': e.toString()});
+      }
     }
   }
 }

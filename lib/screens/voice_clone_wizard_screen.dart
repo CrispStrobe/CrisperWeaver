@@ -87,6 +87,8 @@ class _VoiceCloneWizardScreenState
   // ----- Step 1: capture -----
 
   Future<void> _startRecording() async {
+    Log.instance.i('voice-clone', 'recording start',
+        fields: {'target_seconds': _recordSecondsTarget});
     setState(() {
       _captureError = null;
       _recording = true;

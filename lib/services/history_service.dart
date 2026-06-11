@@ -11,6 +11,7 @@ import '../native/crispembed_import.dart' show CrispEmbed;
 
 import '../engines/transcription_engine.dart';
 import 'audio_fingerprint_service.dart';
+import 'log_service.dart';
 
 /// A single saved transcription, shown in the history screen.
 class HistoryEntry {
@@ -254,7 +255,9 @@ class HistoryService {
       final raw = await file.readAsString();
       final json = jsonDecode(raw) as Map<String, dynamic>;
       return HistoryEntry.fromJson(json);
-    } catch (_) {
+    } catch (e) {
+      Log.instance.w('history', 'failed to load entry',
+          fields: {'id': id, 'err': e.toString()});
       return null;
     }
   }
@@ -296,8 +299,9 @@ class HistoryService {
     if (fp == null && sourcePath != null) {
       try {
         fp = await AudioFingerprintService.computeFileFingerprint(sourcePath);
-      } catch (_) {
-        // Non-critical — dedup just won't catch this file.
+      } catch (e) {
+        Log.instance.w('history', 'fingerprint compute failed',
+            fields: {'path': sourcePath, 'err': e.toString()});
       }
     }
     // §5.25.2 — Pre-compute embeddings at save time so search doesn't
@@ -338,8 +342,9 @@ class HistoryService {
         try {
           final json = jsonDecode(await ent.readAsString());
           entries.add(HistoryEntry.fromJson(json as Map<String, dynamic>));
-        } catch (_) {
-          // Skip corrupt entries rather than crashing history list.
+        } catch (e) {
+          Log.instance.w('history', 'skipping corrupt entry file',
+              fields: {'file': ent.path, 'err': e.toString()});
         }
       }
     }
@@ -394,8 +399,9 @@ class HistoryService {
       final vec = embedder.encodeAudio(audioData);
       if (vec.isEmpty) return null;
       return vec.toList();
-    } catch (_) {
-      // Non-critical — text-only search still works.
+    } catch (e) {
+      Log.instance.w('history', 'audio embedding failed',
+          fields: {'err': e.toString()});
       return null;
     }
   }
@@ -416,8 +422,9 @@ class HistoryService {
         if (vec.isNotEmpty) {
           result[i] = vec.toList();
         }
-      } catch (_) {
-        // Skip segments that fail to encode — non-critical.
+      } catch (e) {
+        Log.instance.w('history', 'segment embedding failed',
+            fields: {'segment': i, 'err': e.toString()});
       }
     }
     return result.isEmpty ? null : result;

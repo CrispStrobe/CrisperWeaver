@@ -440,7 +440,10 @@ class HfSpaceEngine implements TranscriptionEngine {
         try {
           final decoded = jsonDecode(payload[1] as String);
           if (decoded is Map<String, dynamic>) raw = decoded;
-        } catch (_) {}
+        } catch (e) {
+          Log.instance.w('hfspace', 'failed to parse verbose_json from Gradio response',
+              fields: {'err': e.toString()});
+        }
       }
 
       final segments = <TranscriptionSegment>[];
@@ -491,7 +494,10 @@ class HfSpaceEngine implements TranscriptionEngine {
       try {
         final decoded = jsonDecode(jsonStr);
         if (decoded is List) last = decoded;
-      } catch (_) {}
+      } catch (e) {
+        Log.instance.d('hfspace', 'SSE line parse failed',
+            fields: {'err': e.toString()});
+      }
     }
     return last ?? const [];
   }
@@ -570,7 +576,9 @@ class HfSpaceEngine implements TranscriptionEngine {
                   .toList();
             }
           }
-        } catch (_) {
+        } catch (e) {
+          Log.instance.d('hfspace', 'detectTextLanguage SSE line parse failed',
+              fields: {'err': e.toString()});
           continue;
         }
       }
@@ -584,7 +592,7 @@ class HfSpaceEngine implements TranscriptionEngine {
   static dynamic _parseJson(String s) {
     try {
       return Uri.decodeFull(s); // fallthrough
-    } catch (_) {}
+    } catch (_) {} // URI decode probe — silent
     // Simple JSON parse — use dart:convert
     return null;
   }

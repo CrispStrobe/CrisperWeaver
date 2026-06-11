@@ -387,7 +387,10 @@ class SystemAudioCaptureService {
     if (p != null) {
       try {
         p.kill(ProcessSignal.sigterm);
-      } catch (_) {}
+      } catch (e) {
+        Log.instance.w('sysaudio', 'subprocess kill failed',
+            fields: {'err': e.toString()});
+      }
     }
     final c = _activeController;
     _activeController = null;

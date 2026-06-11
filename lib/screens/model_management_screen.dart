@@ -295,7 +295,10 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
     try {
       final b = crispasr.CrispasrSession.availableBackends();
       if (b.isNotEmpty) return b;
-    } catch (_) {/* fall through to default list */}
+    } catch (e) {
+      Log.instance.w('model-mgmt', 'availableBackends() failed, using defaults',
+          fields: {'err': e.toString()});
+    }
     return const ['whisper'];
   }
 

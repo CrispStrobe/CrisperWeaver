@@ -4574,7 +4574,10 @@ class ModelService {
         int realBytes = 0;
         try {
           realBytes = await File(tempPath).length();
-        } catch (_) {}
+        } catch (e) {
+          Log.instance.d('model-svc', 'post-download size probe failed',
+              fields: {'path': tempPath, 'err': e.toString()});
+        }
         dlDone(extra: {'actual_bytes': realBytes});
       } catch (e) {
         dlDone(error: e);
@@ -4888,7 +4891,9 @@ class ModelService {
       int sz;
       try {
         sz = await ent.length();
-      } catch (_) {
+      } catch (e) {
+        Log.instance.d('model-svc', 'storage size probe failed',
+            fields: {'file': ent.path, 'err': e.toString()});
         sz = 0;
       }
       final g = groups.putIfAbsent(backend, () => _BackendBytes());
@@ -5107,7 +5112,10 @@ class ModelService {
           error: e, stack: st);
       try {
         await File(zipPath).delete();
-      } catch (_) {/* ignore */}
+      } catch (e) {
+        Log.instance.d('coreml', 'CoreML zip cleanup failed',
+            fields: {'path': zipPath, 'err': e.toString()});
+      }
     }
   }
 

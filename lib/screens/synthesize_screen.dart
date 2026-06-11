@@ -307,6 +307,8 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
   /// the user knows the work is happening; refreshes the model list when
   /// done so the "(not downloaded)" suffix clears.
   Future<void> _downloadCompanion(ModelInfo info) async {
+    Log.instance.i('synth', 'companion download start',
+        fields: {'name': info.name, 'backend': info.backend});
     final l10n = AppLocalizations.of(context);
     final svc = ref.read(modelServiceProvider);
     final messenger = ScaffoldMessenger.of(context);

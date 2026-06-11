@@ -39,6 +39,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../utils/platform_utils.dart' as plat;
+import 'log_service.dart';
 
 class MemoryEstimate {
   const MemoryEstimate({
@@ -119,7 +120,9 @@ class MemoryEstimator {
     if (_haveReadPhysical) return _cachedPhysical;
     try {
       _cachedPhysical = _readPhysicalMemory();
-    } catch (_) {
+    } catch (e) {
+      Log.instance.w('memory-est', 'physical memory probe failed',
+          fields: {'err': e.toString()});
       _cachedPhysical = null;
     }
     _haveReadPhysical = true;
@@ -185,7 +188,9 @@ class MemoryEstimator {
       final f = File(modelPath);
       if (!f.existsSync()) return 0;
       return f.lengthSync();
-    } catch (_) {
+    } catch (e) {
+      Log.instance.w('memory-est', 'model file size probe failed',
+          fields: {'path': modelPath, 'err': e.toString()});
       return 0;
     }
   }

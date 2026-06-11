@@ -45,6 +45,7 @@ import 'dart:async';
 import 'dart:isolate';
 
 import '../native/crispasr_import.dart' as crispasr;
+import 'log_service.dart';
 
 /// Spawn-time args passed to [localLlmWorkerEntry]. Kept tiny —
 /// the worker resolves libcrispasr through the binding's own
@@ -72,7 +73,10 @@ Future<void> localLlmWorkerEntry(LocalLlmWorkerArgs args) async {
     if (type == 'shutdown') {
       try {
         session?.close();
-      } catch (_) {/* best effort */}
+      } catch (e) {
+        Log.instance.d('llm-worker', 'session close on shutdown threw',
+            fields: {'err': e.toString()});
+      }
       cmdReceive.close();
       return;
     }
@@ -85,7 +89,10 @@ Future<void> localLlmWorkerEntry(LocalLlmWorkerArgs args) async {
         // when the config has actually changed.
         try {
           session?.close();
-        } catch (_) {}
+        } catch (e) {
+          Log.instance.d('llm-worker', 'prior session close on reopen threw',
+              fields: {'err': e.toString()});
+        }
         session = null;
         final modelPath = raw['modelPath'] as String?;
         if (modelPath == null || modelPath.isEmpty) {

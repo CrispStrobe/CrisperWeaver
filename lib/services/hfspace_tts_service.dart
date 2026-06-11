@@ -104,7 +104,9 @@ class HfSpaceTtsService {
         if (v is Map) return (v['name'] ?? v.toString()) as String;
         return v.toString();
       }).toList();
-    } catch (_) {
+    } catch (e) {
+      Log.instance.w('hfspace-tts', 'listVoices failed',
+          fields: {'err': e.toString()});
       return const ['af_heart'];
     }
   }

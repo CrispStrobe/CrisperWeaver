@@ -131,7 +131,9 @@ class AudioService {
       // Map -160..0 dB to 0..1 linear
       final linear = (amp.current + 160) / 160;
       return linear.clamp(0.0, 1.0);
-    } catch (_) {
+    } catch (e) {
+      Log.instance.d('audio', 'getAmplitude failed',
+          fields: {'err': e.toString()});
       return 0.0;
     }
   }
@@ -169,8 +171,9 @@ class AudioService {
     } finally {
       try {
         await probe?.dispose();
-      } catch (_) {
-        // Probe-only disposal failure isn't actionable.
+      } catch (e) {
+        Log.instance.d('audio', 'probe player dispose failed',
+            fields: {'err': e.toString()});
       }
     }
   }
@@ -273,7 +276,10 @@ class AudioService {
     int fileBytes = 0;
     try {
       fileBytes = await audioFile.length();
-    } catch (_) {}
+    } catch (e) {
+      Log.instance.d('audio', 'file length probe failed',
+          fields: {'file': path.basename(audioFile.path), 'err': e.toString()});
+    }
     final done = Log.instance.stopwatch('audio', msg: 'decode done', fields: {
       'file': path.basename(audioFile.path),
       'file_bytes': fileBytes

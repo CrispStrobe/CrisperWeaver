@@ -74,6 +74,12 @@ class _TranslateScreenState extends ConsumerState<TranslateScreen> {
   Future<void> _translate() async {
     final input = _inputController.text.trim();
     if (input.isEmpty || _selectedModel == null) return;
+    Log.instance.i('translate', 'start', fields: {
+      'model': _selectedModel ?? '',
+      'src': _srcLang,
+      'tgt': _tgtLang,
+      'text_len': input.length,
+    });
     setState(() {
       _busy = true;
       _outputController.text = '';
@@ -431,6 +437,8 @@ class _WebTranslateScreenState extends ConsumerState<_WebTranslateScreen> {
   Future<void> _translate() async {
     final text = _inputCtrl.text.trim();
     if (text.isEmpty) return;
+    Log.instance.i('translate-web', 'start',
+        fields: {'text_len': text.length});
     setState(() => _busy = true);
     try {
       final baseUrl = ref.read(settingsServiceProvider).hfSpaceUrl;

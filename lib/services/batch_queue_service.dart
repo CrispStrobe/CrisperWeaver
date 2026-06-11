@@ -297,7 +297,10 @@ class BatchQueueNotifier extends StateNotifier<List<BatchJob>> {
     try {
       final fp = await AudioFingerprintService.computeFileFingerprint(filePath);
       if (_knownFingerprints.contains(fp)) return fp;
-    } catch (_) {}
+    } catch (e) {
+      Log.instance.d('batch-queue', 'fingerprint dedup check failed',
+          fields: {'path': filePath, 'err': e.toString()});
+    }
     return null;
   }
 
