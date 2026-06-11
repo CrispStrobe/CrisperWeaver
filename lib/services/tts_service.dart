@@ -422,17 +422,17 @@ class TtsService {
       });
       return SynthesizedAudio(samples: pcm, sampleRate: 24000);
     } catch (e, st) {
-      // Diagnostic enrichment: the upstream message "synthesize
-      // returned no audio for backend kokoro" is opaque — the actual
-      // failure path is almost always "kokoro can't phonemize because
-      // libespeak-ng / espeak-ng-data is missing on this platform"
-      // (issue #6 on Windows + Android pre-fix). Surface a hint so
-      // bug reports come with actionable context.
+      // Diagnostic enrichment: the upstream C-side last_synth_error now
+      // carries a specific reason (e.g. "qwen3-tts Base requires a
+      // voice"). Surface that to the caller rather than swallowing it.
       final msg = e.toString();
       final hint = _diagnosticHint(_backend ?? '', msg);
       Log.instance.e('tts', 'synth failed', error: e, stack: st,
           fields: hint == null ? null : {'hint': hint});
-      return null;
+      // Rethrow with the C-side error or a diagnostic hint so the UI
+      // can show the specific reason instead of a generic "no audio".
+      final reason = hint ?? msg;
+      throw Exception(reason);
     }
   }
 

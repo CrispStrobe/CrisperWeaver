@@ -317,7 +317,12 @@ class ServerService {
             '${status.errorMessage ?? status.missingModelName ?? status.missingVoiceName ?? "unknown"}',
       );
     }
-    final audio = await tts.synthesize(input, speed: speed);
+    SynthesizedAudio? audio;
+    try {
+      audio = await tts.synthesize(input, speed: speed);
+    } catch (e) {
+      return Response.internalServerError(body: 'synthesize failed: $e');
+    }
     if (audio == null) {
       return Response.internalServerError(body: 'synthesize returned null');
     }
