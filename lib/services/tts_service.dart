@@ -318,6 +318,17 @@ class TtsService {
       final instructPrompt = _prepInstructPrompt;
       final refText = _prepRefText;
 
+      Log.instance.i('tts', 'synth starting', fields: {
+        'backend': backend ?? '',
+        'model': p.basename(modelPath),
+        'voice': voicePath == null ? '' : p.basename(voicePath),
+        'codec': codecPath == null ? '' : p.basename(codecPath),
+        'speaker': speakerName ?? '',
+        'speaker_id': speakerId ?? -1,
+        'text_len': synthText.length,
+        'speed': clampedSpeed,
+      });
+
       // #23 — Run synthesis in a background isolate so the UI thread
       // stays responsive. The model file is already mmap'd from
       // prepare(), so re-open in the isolate hits the OS page cache.
@@ -330,17 +341,20 @@ class TtsService {
         }
         try {
           if (codecPath != null) s.setCodecPath(codecPath);
+          // Voice / speaker selection — these are critical; let errors
+          // propagate so the caller sees the actual failure reason
+          // instead of a generic "no audio produced".
           if (instructPrompt != null && instructPrompt.isNotEmpty) {
-            try { s.setInstruct(instructPrompt); } catch (_) {}
+            s.setInstruct(instructPrompt);
           } else if (speakerName != null && speakerName.isNotEmpty) {
-            try { s.setSpeakerName(speakerName); } catch (_) {}
+            s.setSpeakerName(speakerName);
           } else if (speakerId != null) {
-            try { s.setSpeakerID(speakerId); } catch (_) {}
+            s.setSpeakerID(speakerId);
           } else if (voicePath != null) {
             s.setVoice(voicePath, refText: refText);
           }
           // Per-call sampling overrides. Setters no-op on backends
-          // that don't honour the field.
+          // that don't honour the field — swallow safely.
           if (ttsSteps != null) {
             try { s.setTtsSteps(ttsSteps); } catch (_) {}
           }

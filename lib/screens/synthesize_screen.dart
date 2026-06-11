@@ -462,6 +462,13 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
     try {
       final refText = _refTextController.text.trim();
       final instructPrompt = _instructController.text.trim();
+      Log.instance.i('synth', 'prepare', fields: {
+        'model': _selectedModel ?? '',
+        'voice': _selectedVoice ?? '',
+        'codec': _selectedCodec ?? '',
+        'speaker': _selectedSpeaker ?? '',
+        'customWav': _customVoiceWavPath != null,
+      });
       final status = await tts.prepare(
         modelName: _selectedModel!,
         voiceName: _selectedVoice,
@@ -473,12 +480,16 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
         voiceWavPath: _customVoiceWavPath,
       );
       if (!status.ready) {
+        Log.instance.w('synth', 'prepare failed', fields: {
+          'model': _selectedModel ?? '',
+          'missing_model': status.missingModelName ?? '',
+          'missing_voice': status.missingVoiceName ?? '',
+          'missing_codec': status.missingCodecName ?? '',
+          'unsupported': status.unsupportedBackend ?? '',
+          'error': status.errorMessage ?? '',
+        });
         if (!mounted) return;
         final l = AppLocalizations.of(context);
-        // #16 — a backend the bundled engine can't dispatch (piper today)
-        // gets its own clear message rather than the generic "missing
-        // companion" one, and crucially never reaches the native open
-        // that would crash the process.
         if (status.unsupportedBackend != null) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
