@@ -1182,7 +1182,11 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
                         child: FilledButton.icon(
                           onPressed: _busy ||
                                   _selectedModel == null ||
-                                  downloadedTtsModels.isEmpty
+                                  downloadedTtsModels.isEmpty ||
+                                  (modelDef?.requiresVoice == true &&
+                                      _selectedVoice == null &&
+                                      _customVoiceWavPath == null &&
+                                      _presetSpeakers.isEmpty)
                               ? null
                               : _synthesize,
                           icon: _busy
@@ -1204,6 +1208,19 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
                       ),
                     ],
                   ),
+                  if (modelDef?.requiresVoice == true &&
+                      _selectedVoice == null &&
+                      _customVoiceWavPath == null &&
+                      _presetSpeakers.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        'This model requires a voice reference — download a voice pack or use the voice clone wizard.',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Theme.of(context).colorScheme.error,
+                            ),
+                      ),
+                    ),
                   const SizedBox(height: 12),
                   if (_lastWav != null) ...[
                     Card(

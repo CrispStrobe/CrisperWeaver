@@ -5255,6 +5255,13 @@ class ModelDefinition {
   /// [isNonCommercial] (EU AI Act / licence-compliance surfacing).
   final String? license;
 
+  /// True for TTS models that need an external voice reference (voice
+  /// pack, WAV clone, or custom voice) before synthesis can produce
+  /// audio. The Synthesize screen uses this to block the Synthesize
+  /// button and show a hint when no voice is selected. Examples:
+  /// qwen3-tts Base, vibevoice-1.5b Base.
+  final bool requiresVoice;
+
   const ModelDefinition({
     required this.name,
     required this.displayName,
@@ -5269,6 +5276,7 @@ class ModelDefinition {
     this.companions = const [],
     this.languages = const [],
     this.license,
+    this.requiresVoice = false,
   });
 
   /// True when [license] denotes a non-commercial / research-only grant
