@@ -216,6 +216,33 @@ void main() {
         expect(ModelService.crispasrBackendModels.containsKey(c), isTrue);
       }
     });
+
+    test('qwen3-tts Base models are tagged requiresVoice', () {
+      // Base models need a voice pack or WAV clone — without one the
+      // C-side returns "qwen3-tts Base requires a voice" and the
+      // Synthesize button should be disabled.
+      const baseKeys = [
+        'qwen3-tts-12hz-0.6b-base-q4_k',
+        'qwen3-tts-12hz-0.6b-base-q8_0',
+        'qwen3-tts-12hz-0.6b-base-f16',
+        'qwen3-tts-12hz-1.7b-base-f16',
+        'qwen3-tts-12hz-1.7b-base-q8_0',
+      ];
+      for (final key in baseKeys) {
+        final def = ModelService.crispasrBackendModels[key];
+        expect(def, isNotNull, reason: '$key missing from catalog');
+        expect(def!.requiresVoice, isTrue,
+            reason: '$key must be tagged requiresVoice');
+      }
+    });
+
+    test('qwen3-tts CustomVoice models are NOT tagged requiresVoice', () {
+      final def = ModelService
+          .crispasrBackendModels['qwen3-tts-12hz-0.6b-customvoice-q8_0'];
+      expect(def, isNotNull);
+      expect(def!.requiresVoice, isFalse,
+          reason: 'CustomVoice has baked speakers, no external voice needed');
+    });
   });
 
   group('#23 — orpheus ANR: background-isolate synthesis', () {
