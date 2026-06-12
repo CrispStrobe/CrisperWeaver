@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:device_info_plus/device_info_plus.dart';
@@ -10,6 +11,7 @@ import 'package:permission_handler/permission_handler.dart';
 
 import 'package:path/path.dart' as p;
 
+import '../build_info.dart';
 import '../engines/engine_factory.dart';
 import '../l10n/generated/app_localizations.dart';
 import '../main.dart';
@@ -1343,9 +1345,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           subtitle: FutureBuilder<PackageInfo>(
             future: PackageInfo.fromPlatform(),
             builder: (context, snapshot) => Text(snapshot.hasData
-                ? '${snapshot.data!.version} (${snapshot.data!.buildNumber})'
+                ? '${snapshot.data!.version}+${snapshot.data!.buildNumber} ($kBuildGitHash)'
                 : AppLocalizations.of(context).settingsLoading),
           ),
+          onLongPress: () {
+            // Copy full build info to clipboard on long-press.
+            final info = 'git:$kBuildGitHashFull built:$kBuildTimestamp';
+            Clipboard.setData(ClipboardData(text: info));
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                  content: Text('Build info copied to clipboard'),
+                  duration: Duration(seconds: 2)),
+            );
+          },
         ),
         ListTile(
           title: Text(AppLocalizations.of(context).settingsAboutCrisperWeaver),

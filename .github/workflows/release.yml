@@ -97,6 +97,10 @@ jobs:
         working-directory: repos/CrisperWeaver
         run: flutter pub get
 
+      - name: Generate build info (git hash + timestamp)
+        working-directory: repos/CrisperWeaver
+        run: bash scripts/gen_build_info.sh
+
       - name: Refresh baked models catalogue
         working-directory: repos/CrisperWeaver
         # Re-bake `lib/services/baked_models_catalog.dart` from the live
@@ -214,6 +218,10 @@ jobs:
         run: |
           flutter config --enable-linux-desktop
           flutter pub get
+
+      - name: Generate build info (git hash + timestamp)
+        working-directory: repos/CrisperWeaver
+        run: bash scripts/gen_build_info.sh
 
       - name: Refresh baked models catalogue
         working-directory: repos/CrisperWeaver
@@ -603,6 +611,10 @@ jobs:
         working-directory: repos/CrisperWeaver
         run: flutter pub get
 
+      - name: Generate build info (git hash + timestamp)
+        working-directory: repos/CrisperWeaver
+        run: bash scripts/gen_build_info.sh
+
       - name: Refresh baked models catalogue
         working-directory: repos/CrisperWeaver
         # Re-bake `lib/services/baked_models_catalog.dart` from the live
@@ -703,6 +715,10 @@ jobs:
       - name: Pub get
         working-directory: repos/CrisperWeaver
         run: flutter pub get
+
+      - name: Generate build info (git hash + timestamp)
+        working-directory: repos/CrisperWeaver
+        run: bash scripts/gen_build_info.sh
 
       - name: Refresh baked models catalogue
         working-directory: repos/CrisperWeaver
@@ -894,6 +910,11 @@ jobs:
         run: |
           flutter config --enable-windows-desktop
           flutter pub get
+
+      - name: Generate build info (git hash + timestamp)
+        working-directory: repos/CrisperWeaver
+        shell: bash
+        run: bash scripts/gen_build_info.sh
 
       - name: Refresh baked models catalogue
         working-directory: repos/CrisperWeaver

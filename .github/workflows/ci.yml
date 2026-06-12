@@ -61,6 +61,10 @@ jobs:
         working-directory: repos/CrisperWeaver
         run: flutter pub get
 
+      - name: Generate build info (git hash + timestamp)
+        working-directory: repos/CrisperWeaver
+        run: bash scripts/gen_build_info.sh
+
       - name: Dart analyze (treat errors as failures only)
         working-directory: repos/CrisperWeaver
         # `flutter analyze` exits non-zero on infos/warnings too. We only want

@@ -68,6 +68,10 @@ jobs:
         working-directory: repos/CrisperWeaver
         run: flutter pub get
 
+      - name: Generate build info (git hash + timestamp)
+        working-directory: repos/CrisperWeaver
+        run: bash scripts/gen_build_info.sh
+
       - name: Build web (release, dart2js)
         working-directory: repos/CrisperWeaver
         run: flutter build web --release --base-href="/"
