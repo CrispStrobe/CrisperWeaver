@@ -1775,3 +1775,604 @@ The same batch would previously have run serially because each
 of those features individually disqualified the job from the
 pool. ~190 tests pass on every commit during the slice; stable
 across 5 consecutive full-suite runs.
+
+---
+
+## June 2026 — Shipped items archived from PLAN.md
+
+The following sections were completed and archived from PLAN.md on 2026-06-12.
+
+### §5.1 Competitor-gap features — shipped items
+
+#### Shipped (see earlier HISTORY.md entries for full write-ups)
+
+- ✅ **5.1.1** System audio capture (macOS / Linux / Windows /
+  Android; iOS deliberately unsupported).
+- ✅ **5.1.2** Custom vocabulary / dictionary boost.
+- ✅ **5.1.3** Inline transcript editing + history persistence.
+- ✅ **5.1.4** History search.
+- ✅ **5.1.5** Audio waveform editor + bidirectional transcript
+  sync (Phases A → D).
+- ✅ **5.1.6 v1** Deterministic "Tidy transcript" pass.
+- ✅ **5.1.6 v2** BYOK cloud LLM cleanup pass.
+- ✅ **5.1.6 v3** Local on-device LLM cleanup + summarisation.
+- ✅ **5.1.7** Templates / presets.
+- ✅ **5.1.8** Meeting-style summarisation.
+- ✅ **5.1.11** Global hotkey for push-to-transcribe.
+- ✅ **5.1.12** Voice clone wizard.
+
+#### Shipped open items (formerly listed as strikethrough in §5.1)
+
+* **LID picker — Firered / Ecapa methods** —
+  **shipped May 2026**. Upstream CrispASR 0.5.8 extended
+  `LidMethod` to all four methods; CrisperWeaver's Advanced
+  Options picker now offers all four, the model registry has
+  catalogue entries for `firered-lid-f16` + `ecapa-lid-107-f16`,
+  and `LidService.methodForFilename` routes by basename.
+
+* **5.1.6 v3.1 Curated chat-model catalogue** —
+  **shipped May 2026**. 5 entries spanning small/medium/large
+  buckets + ≥ 2 families (SmolLM2-360M, Qwen2.5-0.5B,
+  Llama-3.2-1B, Qwen2.5-3B, Llama-3.2-3B — all Q4_K_M via
+  bartowski/* HF repos). Settings → Local LLM gets a
+  "Suggested chat models" picker; Model Management gets a
+  Chat-LLM filter chip. Recommended `nCtx` / `nGpuLayers`
+  values live in the model description text — users tune via
+  the existing Advanced section sliders.
+
+* **Responsive UI — phone sub-screens for Settings dialogs**
+  — **shipped May 2026**. The Cloud LLM / Local LLM / Hotkey
+  dialogs now route to dedicated sub-screens
+  (`/settings/cloud-llm` / `/settings/local-llm` /
+  `/settings/hotkey`) on phone-width viewports, sharing the
+  same form-widget body with the wide-layout dialogs. See
+  CHANGELOG → "Responsive UI — Settings sub-screens on mobile".
+
+* **Platform-native share / receive — shipped sub-items:**
+
+  - **iOS Share Extension target wiring** — **shipped
+    (build side) May 2026**.
+    `scripts/wire_ios_share_extension.rb` lands the
+    PBXNativeTarget / build configurations / Embed App
+    Extensions phase / Runner CODE_SIGN_ENTITLEMENTS /
+    App Groups SystemCapability into `Runner.xcodeproj`.
+    `ios/ShareExtension/RSIShareViewController.swift` vendors
+    the extension-safe subset of receive_sharing_intent v1.8.1
+    so the extension target doesn't link the upstream
+    framework (which calls extension-disallowed
+    `addApplicationDelegate`). End-to-end codesigned build
+    verified: Runner.app + Runner.app/PlugIns/ShareExtension.appex
+    both carry the
+    `com.apple.security.application-groups =
+    [group.com.crispstrobe.crisperweaver]` entitlement under
+    team N9XSJ4M3GT. Only the on-device tap-Share smoke test
+    in Voice Memos remains.
+  - **macOS Open-With handler** — **shipped May 2026**.
+    `OpenWithReceiver.swift` + Dart-side `DesktopOpenWithBridge`
+    feed Finder's Open With / `open foo.wav` from the terminal
+    / dock-drop into `ShareIntakeService.acceptPaths`.
+  - **macOS NSServices** — **shipped May 2026**. Right-click
+    a file in Finder → Services → "Transcribe with
+    CrisperWeaver" routes the file URLs through the same
+    OpenWithReceiver buffer as Open-With. Info.plist
+    NSServices entry + `AppDelegate.transcribeAudio(_:userData:error:)`
+    + `NSApp.servicesProvider = self` in
+    `applicationDidFinishLaunching`.
+  - **Windows file association** — **shipped (config
+    side) May 2026**. MSIX packaging wired via the `msix` pub
+    package + `msix_config:` block in `pubspec.yaml`. The
+    Windows job in `release.yml` runs `flutter pub run
+    msix:create` after the standard build and uploads the
+    resulting `.msix` alongside the existing `.zip`; the MSIX
+    declares file-type associations for audio + subtitle types
+    (`.wav` / `.mp3` / `.m4a` / `.flac` / `.ogg` / `.aac` /
+    `.opus` / `.wma` / `.srt` / `.vtt`). Sideload-only for now
+    — Microsoft Store registration is on the roadmap; the
+    `pubspec.yaml` block flips to `store: true` + Partner
+    Center-issued publisher when that lands. Manual smoke
+    test on a real Windows machine still pending.
+
+* **5.8.1 Named speaker recognition (TitaNet + SpeakerDB)** —
+  **shipped May 2026**. See earlier HISTORY.md entry for the
+  full write-up.
+
+* **5.1.10 Audio enhancement before transcribe** —
+  **shipped May 2026 (CrispASR 0.5.12 + CrisperWeaver)**.
+  RNNoise (xiph/rnnoise v0.1, BSD-3, ~425 KB GRU weights
+  embedded in the binary) vendored under `CrispASR/src/rnnoise/`
+  alongside grammar-parser; new C-ABI
+  `crispasr_enhance_audio_rnnoise(in, n, out, out_cap)`
+  upsamples 16 kHz → 48 kHz via miniaudio's resampler, runs
+  RNNoise's 480-sample frame loop, downsamples back. State
+  is per-call so worker isolates run concurrently with no
+  coordination. Dart `enhanceAudioRnnoise(pcm)` wraps the
+  ABI; pre-0.5.12 dylibs raise UnsupportedError so callers
+  graceful-degrade. CrisperWeaver: one switch in Advanced
+  Options ("Enhance audio (noise reduction)"), backend-
+  agnostic, runs before the §5.8 window slice in both the
+  single-file path (`TranscriptionService.transcribeFile`)
+  and the parallel-pool dispatch (`_runJobOnPool`). Preset
+  round-trip pinned; live test (slow-tagged) asserts ≥20%
+  RMS drop on synthetic AWGN PCM.
+
+  Dereverberation is still deferred — RNNoise covers the
+  HVAC / fan / keyboard background-noise case, which is the
+  common one; reverb removal needs a different model class
+  (Demucs / WPE) at ~50–100× the compute. Revisit if user
+  feedback flags reverb-heavy recordings.
+
+### §5.8 Advanced-Options — shipped items
+
+* **GBNF (grammar-constrained sampling)** —
+  **shipped May 2026 (CrispASR 0.5.9 + CrisperWeaver)**. All
+  six steps landed:
+  1. `grammar-parser.{h,cpp}` promoted to `CrispASR/src/`.
+  2. C ABI `crispasr_session_set_grammar_text` added with
+     parse + symbol-resolution + session-level storage.
+  3. wparams.grammar_rules / n_grammar_rules / i_start_rule /
+     grammar_penalty wired into the whisper transcribe path.
+  4. Dart `CrispasrSession.setGrammar(text, rootRule:,
+     penalty:)` + `clearGrammar()` with UnsupportedError /
+     ArgumentError mapping.
+  5. CrisperWeaver Advanced Options: ExpansionTile with the
+     multi-line GBNF TextField + root-rule field + penalty
+     slider; Whisper-only gating; wired through both the
+     worker pool path AND the engine-direct path.
+  6. Tests: upstream Dart smoke (parse / re-set / clear /
+     invalid / unknown-root, 3/3 green against real
+     libcrispasr + ggml-tiny.en.bin) plus a preset round-trip
+     case in CrisperWeaver.
+
+* **CrispASR CLI features — shipped items:**
+  - ✅ `--offset-t` / `--duration` — **shipped May 2026**.
+    Two AdvancedOptions fields + UI in the widget; the screen +
+    service layer slices the PCM and shifts segment timestamps
+    back to absolute file time via the existing
+    `shiftSegmentForResume` helper. New static
+    `CrispASREngine.sliceTranscribeWindow` handles the
+    sample-rate-aware slice math. 10 unit tests pin the edge
+    cases.
+  - ✅ `--alt N` / `--alt-n` — alternative-candidate tokens —
+    **shipped May 2026 (CrispASR 0.5.13 + CrisperWeaver)**. Full
+    write-up in earlier HISTORY.md entry "§5.8 Whisper alt-token
+    capture". Four-layer landing: whisper internals capture top-N
+    runners-up on each greedy step; C-ABI exposes token + word
+    accessors; Dart binding surfaces `Word.alts`; CrisperWeaver
+    wires through AdvancedOptions / preset / worker pool and renders
+    tap-to-pick chip row in the segment edit dialog.
+    - ✅ Widget test for the alt-picker popover — **shipped May 2026**
+      as `test/alt_picker_widget_test.dart`.
+    - ✅ Live-tagged end-to-end test — **shipped May 2026** as
+      `flutter/crispasr/test/alt_tokens_live_test.dart`.
+  - ✅ Whisper decoder fallback thresholds (`--entropy-thold`,
+    `--logprob-thold`, `--no-speech-thold`, `--temperature-inc`
+    / `--no-fallback`) — **shipped May 2026 (CrispASR 0.5.10 +
+    CrisperWeaver)**.
+  - ✅ Subtitle line formatting `--max-len` / `--split-on-word`
+    (May 2026). ✅ `--split-on-punct` **shipped June 2026**.
+  - ✅ Token suppression (`--suppress-nst`, `--suppress-regex`)
+    and `--carry-initial-prompt` — **shipped May 2026 (CrispASR
+    0.5.11 + CrisperWeaver)**.
+
+* **Auto-download default** — CrispASR's `-m auto` per backend.
+  **✅ Option (a) shipped (May 2026).** Per-backend recommended-default
+  + "Recommended" badge. `ModelService.recommendedDefaultModels` map,
+  `defaultForBackend()`, one-tap download banner in Transcribe picker.
+  **✅ Option (b) Quick-start bottom-sheet shipped May 2026 (v0.6.48).**
+  Curated starter set with per-item + one-tap "download all".
+
+### §5.9 Dependency refresh — shipped June 2026
+
+**Flutter SDK upgraded: 3.35.1 → 3.44.1** (Dart 3.9.0 → 3.12.1).
+36 tier-2 packages bumped, including `device_info_plus` 13.1,
+`share_plus` 13.1, `package_info_plus` 10.1, `win32` 6.3,
+`file_picker` 12.0.0-beta.5. The `<12.4.0` Xcode pin on
+`device_info_plus` was removed. Three files fixed for API changes
+(`edit_audio_screen.dart`, `file_picker_util.dart`,
+`transcript_summarize_service.dart`). `flutter analyze` 0 issues,
+527 tests pass.
+
+**Riverpod 2→3: shipped June 2026.** `flutter_riverpod` 3.3.1.
+3 of 4 `StateNotifier` subclasses migrated to modern `Notifier`:
+`AppStateNotifier`, `LocaleNotifier`, `EngineManagerNotifier`.
+`BatchQueueNotifier` kept on legacy (tests construct directly).
+2 `StateProvider` kept on legacy (50+ external `.state=` sites).
+`file_picker` 12 is in beta — once stable, the constraint will
+naturally pick it up.
+
+### §5.23 Batch transcription — shipped May 2026
+
+✅ **Shipped May 2026.** All four sub-questions (Q1 foundation,
+Q1 grouping + duration probe, Q2 v1 pipeline prefetch, Q2 v2
+N-way session pool with OOM pre-flight + worker-protocol
+expansion + drain-loop integration, Q3 resume-from-checkpoint,
+Q3 polish) shipped end-to-end. Full per-step write-up in
+earlier HISTORY.md entry "§5.23 Batch transcription".
+
+**CrispASR-side beam follow-up — ✅ shipped upstream (CrispASR 0.6.11).**
+The earlier "granite / voxtral / qwen3 still pending" note was
+**stale**. Verified 2026-05-30 against CrispASR `origin/main`: commit
+`0c24178e` ("feat(session): wire beam_size through qwen3-asr, granite,
+and voxtral", 2026-05-23) is an ancestor of tag `v0.6.11`, and the
+bundled dylib is `libcrispasr.0.6.11` — so all three families now consult
+`s->beam_size` in the unified session `transcribe_single` path
+(qwen3-asr / granite via `core_beam_decode::run_with_probs`, voxtral via
+`run_voxtral_family(…, beam_size)`). Together with the five previously
+wired (whisper native + glm-asr / kyutai-stt / firered / moonshine /
+omniasr-llm per-backend setters), **nine session backends are beam-wired**.
+No CrisperWeaver code change was needed: the worker pool + engine already
+drive `CrispasrSession.setBeamSize(...)` for beam-capable backends, so this
+is live in the shipped build.
+
+**Build-validated 2026-05-31** (this dev box, M1/Metal, CrispASR
+`origin/main` worktree, `test-session-beam`): all three beam *mechanisms*
+pass on real models — **whisper** (native BEAM_SEARCH: greedy
+no-regression at beam=1, non-empty at beam 2/4), **qwen3-asr** (the
+`0c24178e` `run_with_probs` replay path: no-regression + beam=2), and
+**glm-asr** (per-backend `_set_beam_size` setter: no-regression + beam=2).
+The exercise also caught two bugs in the upstream test suite, both fixed in
+CrispASR (`fix/session-beam-test`): the qwen3 case opened backend
+`"qwen3-asr"` (the dispatch string is `"qwen3"`) so it never opened a
+session, and the no-regression cases passed *vacuously* on a tensorless
+test-fixture model (added a `!text.empty()` stub-guard). Whisper beam still
+wants an in-app beam-vs-greedy spot check on a real clip, but the engine
+path is confirmed sound.
+
+**canary / cohere beam — ✅ now BUILT + bundled (off `origin/main`); live
+functional run still postponed.** Commit `52cfec83` ("feat(beam): wire
+canary + cohere AED beam search via `run_with_probs_branched`") adds
+`canary_set_beam_size` / `cohere_set_beam_size` and a per-decoder beam that
+**shares the cross-attention KV across beams and snapshots only the
+self-attention KV per beam** (the AED-correct shape), wired into the
+`transcribe_single` dispatch behind `s->beam_size > 1`; greedy stays the
+default branch. This brings the upstream count to **11 beam-wired session
+backends**.
+
+**Build-validated 2026-05-31** (this dev box, M1/Metal): a full libwhisper
+rebuilt off `origin/main` (`d846274d`, which contains `52cfec83`) **compiles
+clean** and ships both symbols — `nm -gU libwhisper.dylib` shows
+`_canary_set_beam_size` + `_cohere_set_beam_size`. The rebuilt dylib is
+bundled into the local macOS `.app` (via `scripts/build_macos.sh release`).
+So the earlier "not in any tag / not in bundled 0.6.11 / unbuilt" caveat is
+resolved on the build axis. **Note:** the source still self-identifies as
+`0.6.11` (version string not bumped upstream), but the binary is 35 commits
+ahead; CI/release build CrispASR from `CRISPASR_REF: main`, so this ships on
+the next CrisperWeaver release automatically.
+
+**Still postponed (deliberately, this session):** the greedy no-regression
++ beam-2/4 *functional* run on a real canary/cohere clip — i.e. confirming
+beam actually changes/improves the decode, not just that the symbols link.
+That AED live case remains the test gap. The session-beam regression suite
+(`tests/test-session-beam.cpp`, commits `ef3c37e4` + `3a04b672`) covers
+whisper (native) / qwen3-asr (replay) / glm-asr (setter); canary/cohere AED
+is the one still needing a live assertion.
+
+**Genuinely out of scope (no beam):** **voxtral4b** routes through the
+streaming API (`voxtral4b_stream_*`), which has no beam hook; CTC/NAR
+backends (parakeet-ctc, fastconformer-ctc, wav2vec2, funasr, paraformer,
+sensevoice) don't take a token-AR beam either.
+
+### §5.24 Backend wiring — shipped items
+
+**A. Post-rebuild guard tightening — ✅ mostly done.**
+- ✅ `indextts`, `madlad`, `m2m100-wmt21` (and `cosyvoice3-tts`) dropped
+  from the `pending` set in `test/backend_dispatch_test.dart`. Verified
+  2026-05-30 against the bundled `libcrispasr.0.6.11` dylib (the one app
+  v0.6.44/0.6.45 ship): `availableBackends()` returns 40 backends and all
+  four are present. The catalogue-dispatch guard runs green (not stale —
+  funasr / paraformer / sensevoice / gemma4-e2b all present).
+- ✅ `piper` **build-verified present** in a rebuilt engine. A libwhisper
+  rebuilt off CrispASR `origin/main` (`d846274d`, 2026-05-31, this dev box)
+  lists `piper` in `CrispasrSession.availableBackends()`: the unified-session
+  dispatch arm (`crispasr_c_api.cpp`, `"piper"/"piper-tts"`) + the
+  `availableBackends` entry + the CMake `piper-tts` static target are all
+  live (piper synthesis also still ships through the separate standalone
+  C-ABI, CrispASR `a3bb6586`). `scripts/build_macos.sh` was missing
+  `piper-tts` from its explicit `BACKEND_TARGETS` list — fixed in the same
+  change.
+  - **Kept in `pending`** (alongside the new `f5-tts`, see C) rather than
+    dropped: the guard auto-resolves the DEFAULT local dylib
+    (`../CrispASR/build-flutter-bundle`), and older bundled / not-yet-rebuilt
+    dylibs predate both backends, so emptying `pending` reds the forward
+    guard against any stale engine. (CI's `analyze-and-test` job checks out
+    CrispASR for the path-dependency but does **not** build it, so the
+    `CRISPASR_LIB`-gated guard *skips* in CI; it only runs locally against a
+    resolvable dylib.) Verified green both ways 2026-05-31:
+    `CRISPASR_LIB=<rebuilt dylib> flutter test test/backend_dispatch_test.dart`
+    (fresh engine, has piper+f5-tts) AND the default `flutter test` (stale
+    local dylib, lacks them — `pending` covers it). Drop both once the
+    standard sibling-build / bundled dylib is past `d846274d`. CI/release
+    build CrispASR from `CRISPASR_REF: main`, so the runtime ships on the
+    next release automatically.
+  - **Runtime guard added (v0.6.48, issue #16):** tapping Synthesize with
+    a piper voice used to crash the app — `CrispasrSession.open(backend:
+    'piper')` segfaults natively on a dylib that can't dispatch it.
+    `TtsService.prepare()` now checks `availableBackends()` and returns
+    `TtsLoadStatus.unsupported` (clear message) before the native open;
+    it self-heals once a rebuilt dylib lists the backend.
+
+**B. cosyvoice3 catalogue — ✅ DONE.** The sibling landed the session
+dispatch (CrispASR `36133247`); catalogued app-side: `cosyvoice3-llm-q4_k`
+(default, `kind: tts`, backend `cosyvoice3-tts`, `langsCosyvoice10` —
+cardData minus `yue`, folded under `zh`) + five `kind: codec` companions
+(`flow-q8_0`, `hift-f16`, `voices`, `s3tok-q4_k`, `campplus-f16`) it
+declares as `companions`/`defaultCompanions`, plus a `cosyvoice3-tts`
+`BackendRepo`. The engine AUTO-DISCOVERS those siblings by filename next
+to the LLM, and `_downloadModel` co-locates them (downloads the full
+`companions` list into the models dir) — so listing them is what makes it
+work; `setCodecPath` is a harmless no-op for cosyvoice3. `check_model_
+languages`: 0 diffs. Verified present in the rebuilt libcrispasr
+(40 backends) and **dropped from the forward-guard `pending` set** (see A
+for the current `pending` contents).
+- **✅ AUDIO-VERIFIED 2026-05-31** — real cosyvoice3 synth run (LLM →
+  flow → HiFT) on the origin/main dylib + local models: a TTS→ASR
+  roundtrip ("The quick brown fox…" → whisper-base) came back
+  "the quick ground fox jumps over the lazy dog" (~3 s of 24 kHz audio,
+  4/5 content words — only brown→ground, a tiny-whisper artefact). Voice
+  selection: leave it unset → synth uses the first baked voice in
+  `voices.gguf` (`voice_name = NULL`); no `setVoice`/`setCodecPath`
+  needed. Codified as a `slow`-tagged roundtrip in
+  `backend_dispatch_test.dart` (`CRISPASR_TEST_COSYVOICE3_MODEL`).
+- Remaining: confirm the Synthesize-screen UX picks a sensible companion
+  (it auto-selects the first `kind: codec` of the backend → some
+  cosyvoice3 codec; the others are still on disk for auto-discovery, so
+  it should be fine, but verify on a run).
+
+**C. Reverse audit — engine backends not yet catalogued. ✅ done.**
+Diffed `availableBackends()` (CrispASR origin/main) against the catalogue
+backend set. Only two backend-level deltas, both intentionally
+engine-only (no catalogue entry warranted):
+- `canary-ctc` — shares the canary_ctc compute path, but the only
+  published GGUF is `canary-ctc-aligner` (consumed by AlignerService for
+  word timestamps); no standalone canary-ctc ASR model is published.
+- `omniasr` (bare) — the dispatcher prefix; the concrete `omniasr-llm` /
+  `omniasr-llm-unlimited` variants are catalogued.
+**Update:** `data2vec-audio` IS dispatchable — its GGUF carries
+arch="wav2vec2" and the C-side open accepts `"wav2vec2"/"hubert"/
+"data2vec"`, so it runs through the existing `wav2vec2` backend. Now
+catalogued as a `BackendRepo` (`cstr/data2vec-audio-960h-GGUF`, backend
+`wav2vec2`, en) — no engine change needed. (`bidirlm-omni` is NOT an
+audio backend — see F.)
+Model-level CTC variants that ARE published (omniASR-CTC, parakeet-tdt_ctc,
+fastconformer xlarge/xxlarge) map to already-catalogued backends and are
+reachable via the Models-screen HF probe — no hardcoding needed.
+Operationalised as a **reverse guard test** (`backend_dispatch_test.dart`:
+"every engine backend is catalogued (or intentionally engine-only)") with
+an `engineOnly = {whisper, canary-ctc, omniasr}` allowlist — it fails the
+moment the engine gains a new backend (e.g. cosyvoice3) so the catalogue
+can't silently fall behind.
+**Update 2026-05-31:** this guard did its job — the libwhisper rebuilt off
+`origin/main` (`d846274d`) exposed a new `f5-tts` backend (CrispASR landed
+F5-TTS, a DiT flow-matching zero-shot voice-clone TTS) that the catalogue
+didn't list, so the reverse guard went red. Now catalogued: a `BackendRepo`
++ `ModelDefinition` (`cstr/f5-tts-GGUF` → `f5-tts-v1-base-f16.gguf`,
+~953 MB, single self-contained GGUF with a baked-in Vocos vocoder, English,
+`kind: tts`, backend `f5-tts`), added to `_kindForBackend`'s TTS set, and
+re-baked into `baked_models_catalog.dart` (206 → 207 entries). Both guards
+green again. **✅ Audio-verified 2026-05-31** (see D): a TTS→ASR roundtrip
+(zero-shot clone from `test/jfk.wav` via `setVoice(wav, refText:)`)
+returned the target phrase cleanly. Caveat: the DiT synth is **extremely
+slow** on the current CPU/Metal build (~50 min for one short sentence), so
+the catalogue description warns users and the roundtrip test is opt-in only.
+
+**F. Text-LID — shipped May 2026 (v0.6.43).** C-ABI
+(`crispasr_text_detect_language`) + Dart wrapper
+`detectTextLanguage(text, modelPath)` → `TextLanguage(code,
+confidence)` (CrispASR `1332c5a1`, live-verified de/en/fr/es ≥ 0.99).
+Both app-side pieces landed: (a) `cld3-f16` is catalogued
+(`kind: ModelKind.lid`, `cstr/cld3-GGUF`, ~430 KB) in
+`model_service.dart`; (b) the Translate screen's *Auto-detect source
+language* button runs `detectTextLanguage` over the typed text and sets
+the source-language dropdown, prompting a CLD3 download if it isn't
+present (`translate_screen.dart`). **shipped May 2026 (v0.6.48)**: a
+"Detect language" action on the transcript output overflow menu runs
+`detectTextLanguage` over the current transcript and reports the
+language + confidence.
+
+**G. User-reported TTS bug batch (GitHub #16/#17/#18) — ✅ fixed
+(v0.6.47/0.6.48), on-device confirm pending.**
+- **#16 piper crash (Android & Windows)** — see A: `TtsService.prepare()`
+  now gates non-dispatchable backends via `availableBackends()` before the
+  native open. *Native no-crash behaviour still wants an on-device run.*
+- **#17 qwen3-tts CustomVoice = silence** — CustomVoice needs a
+  `setSpeakerName()`; the Synthesize screen had no speaker picker so
+  `_selectedSpeaker` was always null. Added a **Speaker** dropdown
+  (`session.speakers()`), auto-selecting the first, + a fallback auto-pick
+  in `_synthesize`. The selection decision was extracted to a pure static
+  `SynthesizeScreen.resolveSpeakerSelection(speakers, current)` (empty→null,
+  preserve a still-valid choice, else first) and is now locked by 4 unit
+  tests in `test/tts_issue_fixes_test.dart` — the picker's *rendering* still
+  sits behind a synchronous FFI session open, so it needs a real
+  libcrispasr / on-device run; the *selection contract* no longer does.
+  *Audio output still wants an on-device run.*
+- **#18 TTS models hidden until deep refresh** — qwen3-tts custom-voice +
+  chatterbox turbo T3 added to the static catalogue; the bake script was
+  also synced with `backendRepos` (35→63 repos, 206 entries) so all
+  drifted models list on a fresh launch. Fully verified by the catalogue
+  tests. Re-run `scripts/bake_models_catalog.dart` whenever a `BackendRepo`
+  is added — the script's `_repos` list is now in sync.
+
+### §5.25 Next-generation features — all 14 shipped (June 2026)
+
+Fourteen feature proposals spanning UX, intelligence, and workflow
+automation. Grouped by projected impact; priority picks marked with ⚡.
+
+#### Tier A — High impact, aligned with existing architecture
+
+* **5.25.1 ⚡ Confidence heatmap on transcript** — ✅ **Enhanced
+  June 2026.** The existing text-color confidence tint (green/orange/
+  red) is upgraded to a proper background-color heatmap: transparent
+  at ≥0.9, subtle yellow tint at 0.7–0.9, orange at 0.5–0.7, red
+  at <0.5. Low-confidence words (<0.5) additionally get colored text
+  + underline for accessibility. Toggle unchanged (transcript ⋮ menu).
+
+  **Files:** `lib/widgets/transcription_output_widget.dart`
+  (`_getConfidenceBackground`, `_buildConfidenceTintedText`).
+
+* **5.25.2 ⚡ Semantic transcript search via CrispEmbed** — ✅
+  **Scaffold shipped June 2026.** `SemanticSearchService` provides
+  a TF-IDF fallback scorer that ranks segments by word-overlap
+  relevance (better than substring matching for natural language
+  queries). `cosineSimilarity()` helper ready for when real
+  CrispEmbed vectors are available.
+
+  **Files:** `lib/services/semantic_search_service.dart`.
+
+  CrispEmbed Dart FFI binding added as a path dependency.
+  `crispEmbedProvider` lazy-loads the first downloaded
+  `ModelKind.embed` GGUF. History screen passes the embedder to
+  `SemanticSearchService.search()` for real cosine-similarity ranking.
+  Embedding cache avoids re-encoding. `all-MiniLM-L6-v2` (384-dim,
+  ~23 MB Q8_0) catalogued.
+
+  Follow-ups shipped: (a) vector persistence — **shipped June 2026**.
+  (b) audio embedding — **shipped June 2026**. Cross-modal search
+  via `crispembed_encode_audio`; `audioEmbedding` persisted per entry;
+  `bidirlm-omni-2.5b-q4_k` (2048-d, ~1.7 GB) catalogued.
+
+* **5.25.3 ⚡ Real-time subtitle overlay / teleprompter mode** — ✅
+  **Shipped June 2026.** A dedicated fullscreen dark-transparent
+  screen (`/subtitle-overlay`) showing the latest streaming
+  transcription as large subtitle text. On macOS the window is set
+  to always-on-top + reduced opacity via a new platform channel
+  (`crisperweaver/window_overlay`). Controls: font size +/-, position
+  top/bottom, background toggle. Accessible from the AppBar (wide)
+  or overflow menu (phone).
+
+  **Files:** `lib/screens/subtitle_overlay_screen.dart`,
+  `macos/Runner/MainFlutterWindow.swift` (platform channel).
+
+* **5.25.4 Speaker-adaptive vocabulary** — ✅ **Shipped
+  June 2026.** `SpeakerVocab` model with per-speaker term lists,
+  persisted as `<name>.vocab.json` alongside `.spk` profiles.
+  `mergeForSpeakers(allVocabs, identifiedSpeakers)` computes the
+  union of all active speakers' terms for injection into
+  `initial_prompt`. Wired: after diarisation resolves speaker names,
+  `SpeakerVocab.mergeForSpeakers()` injects domain terms into
+  `advancedOptionsProvider` vocabulary for subsequent transcriptions.
+  Vocab editor dialog accessible from Settings → Diarization →
+  Speaker Vocabulary.
+
+  **Files:** `lib/models/speaker_vocab.dart`.
+
+* **5.25.5 Multilingual simultaneous transcription** — ✅ **Service
+  shipped June 2026.** `MultilingualTranscriptionService` runs
+  per-segment LID (via `LidService.detectIfModelAvailable`) on each
+  segment's PCM slice and tags it with `metadata['lang']`. Static
+  `groupByLanguage()` groups consecutive same-language segments for
+  optional re-transcription with a language-specific model. Toggle in
+  Advanced Options ("Tag segment languages").
+
+  **Files:** `lib/services/multilingual_transcription_service.dart`.
+
+* **5.25.6 Audio chapter markers / podcast show notes** — ✅
+  **Service shipped June 2026.** `ChapterDetectionService` detects
+  topic shifts via sliding-window Jaccard distance between segment
+  vocabularies. Exports to YouTube chapter format (`HH:MM:SS Title`)
+  and Podcasting 2.0 `podcast:chapters` JSON. Three export actions in
+  the transcript share menu.
+
+  **Files:** `lib/services/chapter_detection_service.dart`.
+
+#### Tier B — Medium impact, fills real user gaps
+
+* **5.25.7 Transcript diff / comparison view** — ✅ **Shipped
+  June 2026.** `TranscriptCompareScreen` accepts two history entry
+  IDs, aligns segments by timestamp overlap, and renders a
+  side-by-side view with LCS-based word-level diff highlighting.
+  Stats row shows word counts + Jaccard similarity.
+
+  **Files:** `lib/screens/transcript_compare_screen.dart`,
+  `lib/services/history_service.dart` (`loadEntry`).
+
+* **5.25.8 Watch-folder / scheduled transcription** — ✅ **Shipped
+  June 2026.** `WatchFolderService` monitors a user-configured
+  directory via `FileSystemEntity.watch()`. New files with audio
+  extensions trigger a 2-second debounce. Settings → "Watch folder"
+  section (desktop-only) with enable toggle + folder picker.
+
+  **Files:** `lib/services/watch_folder_service.dart`,
+  `lib/screens/settings_screen.dart`, `lib/services/settings_service.dart`.
+
+* **5.25.9 TTS pronunciation lexicon** — ✅ **Shipped June 2026.**
+  `PronunciationLexicon` model with word-boundary-aware text
+  substitution, JSON persistence at `<app-docs>/lexicon.json`. Wired
+  into `TtsService.synthesize()`. Lexicon editor card in Synthesize
+  screen's Advanced section.
+
+  **Files:** `lib/models/pronunciation_lexicon.dart`,
+  `lib/services/tts_service.dart`.
+
+* **5.25.10 Transcript annotation / tagging system** — ✅ **Model
+  shipped June 2026.** `SegmentTag` enum with 7 tag types. Tags in
+  the long-press menu, persisted in history JSON, and filterable via
+  tag chips on the History screen.
+
+  **Files:** `lib/models/segment_tag.dart`.
+
+* **5.25.11 Audio fingerprint deduplication** — ✅ **Shipped
+  June 2026.** `AudioFingerprintService` computes SHA-256 fingerprints
+  from the first 30 s of PCM. Wired: watch folder auto-skips
+  duplicates; batch enqueue silently skips; single-file drag-drop
+  shows a confirmation dialog.
+
+  **Files:** `lib/services/audio_fingerprint_service.dart`.
+
+#### Tier C — Lower effort, high polish
+
+* **5.25.12 Keyboard-driven transcript navigation** — ✅ **Shipped
+  June 2026.** J/K/↑/↓ segment navigation, Space play/pause, Enter
+  edit, Tab jump-to-next-low-confidence, Escape deselect.
+  Implemented directly in `TranscriptionOutputWidget`.
+
+  **Files:** `lib/widgets/transcript_keyboard_nav.dart`.
+
+* **5.25.13 Model A/B testing mode** — ✅ **Shipped June 2026.**
+  `AbTestResult` stores per-segment winner picks. `ModelRatings`
+  aggregates results into a win-rate leaderboard. Two single-worker
+  pools run in parallel via `Future.wait`. Persisted to
+  `<app-docs>/model_ratings.json`.
+
+  **Files:** `lib/services/ab_test_service.dart`.
+
+* **5.25.14 Export to note-taking tools** — ✅ **Shipped June 2026.**
+  `NoteExportService` with four pure formatters: `toObsidian`,
+  `toNotion`, `toLogseq`, `toYouTubeChapters`. All support segment
+  tags. Wired into the transcript share menu.
+
+  **Files:** `lib/services/note_export_service.dart`,
+  `lib/screens/transcription_screen.dart`.
+
+### §5.26 CrispASR mid-2026 catch-up — shipped June 2026
+
+Brings CrisperWeaver up to CrispASR `origin/main` as of June 2026.
+Covers new backends, new capabilities (hotwords, speech-to-speech),
+and free improvements from linking against the latest engine binary
+(long-form chunking, global diarization, beam search expansion,
+permissive G2P). Full write-up in earlier HISTORY.md entry
+"June 2026 — CrispASR mid-2026 catch-up (§5.26)".
+
+#### 5.26.1 New backend catalog entries
+
+Four new backends added upstream since the last parity sweep:
+
+| Backend | Type | Size | Notes |
+|---------|------|------|-------|
+| **LFM2-Audio 1.5B** | ASR+TTS+S2S | ~1.6 GB (Q5_K) | LiquidAI hybrid conv+attention |
+| **Mini-Omni2** | ASR+TTS+S2S | ~1.0 GB (Q4_K) + ~80 MB SNAC codec | Whisper + Qwen2 0.5B |
+| **MOSS-Audio 4B** | ASR (audio understanding) | ~3.8 GB (Q4_K) | Audio-understanding backend |
+| **Parakeet-RNNT 0.6B/1.1B** | ASR | ~447 MB / ~770 MB (Q4_K) | Standard RNN-Transducer |
+
+#### 5.26.2 Hotwords / contextual biasing UI
+
+Session-level `crispasr_session_set_hotwords` + Dart FFI + UI in
+Advanced Options. All 3 transcription paths wired. 13 unit + 2 live tests.
+
+#### 5.26.3 Speech-to-Speech mode
+
+`crispasr_session_speech_to_speech` C API + Dart FFI + S2S toggle on
+Synthesize screen (lfm2-audio/mini-omni2 only). 3 unit + 1 live test.
+
+#### 5.26.4–7 Free upgrades (no code change)
+
+- Global diarization, long-form chunking, permissive G2P, beam search 18/24.
