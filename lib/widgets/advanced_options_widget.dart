@@ -1790,8 +1790,8 @@ class _AdvancedDecodingSectionState
     final svc = ref.read(transcriptionServiceProvider);
     final modelId = svc.currentEngine?.currentModelId;
     if (modelId == null) return '';
-    final cached = ModelService.whisperCppModels[modelId] ??
-        ModelService.crispasrBackendModels[modelId];
+    final cached = ModelCatalog.whisperCppModels[modelId] ??
+        ModelCatalog.crispasrBackendModels[modelId];
     return cached?.backend ?? '';
   }
 

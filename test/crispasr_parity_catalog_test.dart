@@ -34,7 +34,7 @@ void main() {
         'lid',
       ];
       final actualBackends =
-          ModelService.crispasrBackendModels.values.map((m) => m.backend).toSet();
+          ModelCatalog.crispasrBackendModels.values.map((m) => m.backend).toSet();
       for (final b in expectedNewBackends) {
         expect(actualBackends, contains(b),
             reason: 'parity sweep added the "$b" backend; catalog must keep '
@@ -59,7 +59,7 @@ void main() {
         'pyannote',
       ];
       for (final backend in expectedRepos) {
-        expect(ModelService.backendRepos.containsKey(backend), isTrue,
+        expect(ModelCatalog.backendRepos.containsKey(backend), isTrue,
             reason: 'BackendRepo "$backend" missing — HF probe will skip it');
       }
     });
@@ -78,7 +78,7 @@ void main() {
         'qwen3-tts-12hz-1.7b-voicedesign-q8_0',
         'vibevoice-1.5b-tts-f16',
       ]) {
-        final def = ModelService.crispasrBackendModels[id];
+        final def = ModelCatalog.crispasrBackendModels[id];
         expect(def, isNotNull, reason: '$id missing from catalog');
         expect(def!.kind, ModelKind.tts,
             reason: '$id should be ModelKind.tts (TTS filter chip)');
@@ -89,17 +89,17 @@ void main() {
       // fullstop-punc → punc; pyannote → diarize; firered-vad → vad;
       // silero-lang95 → lid. These bucket assignments drive the new
       // filter chips in Model Management.
-      expect(ModelService.crispasrBackendModels['fullstop-punc-multilang-q8_0']
+      expect(ModelCatalog.crispasrBackendModels['fullstop-punc-multilang-q8_0']
               ?.kind,
           ModelKind.punc);
       expect(
-          ModelService.crispasrBackendModels['pyannote-v3-seg-q8_0']?.kind,
+          ModelCatalog.crispasrBackendModels['pyannote-v3-seg-q8_0']?.kind,
           ModelKind.diarize);
       expect(
-          ModelService.crispasrBackendModels['firered-vad-q4_k']?.kind,
+          ModelCatalog.crispasrBackendModels['firered-vad-q4_k']?.kind,
           ModelKind.vad);
       expect(
-          ModelService.crispasrBackendModels['silero-lang95-v1-f16']?.kind,
+          ModelCatalog.crispasrBackendModels['silero-lang95-v1-f16']?.kind,
           ModelKind.lid);
     });
 
@@ -107,7 +107,7 @@ void main() {
       // Synthesize screen looks up `companions` to suggest extra
       // downloads. Drop the link and users see "missing codec" only
       // at first synth, not on the model card.
-      final def = ModelService
+      final def = ModelCatalog
           .crispasrBackendModels['qwen3-tts-12hz-1.7b-voicedesign-q8_0'];
       expect(def, isNotNull);
       expect(def!.companions, contains('qwen3-tts-tokenizer-12hz'));
@@ -125,7 +125,7 @@ void main() {
         'madlad400-3b-mt-q4_k',
       ];
       for (final id in expected) {
-        final def = ModelService.crispasrBackendModels[id];
+        final def = ModelCatalog.crispasrBackendModels[id];
         expect(def, isNotNull, reason: '$id missing from catalog');
         expect(def!.kind, ModelKind.translate,
             reason: '$id should be ModelKind.translate');
@@ -133,29 +133,29 @@ void main() {
       // WMT21 uses the dedicated `m2m100-wmt21` backend on the C side
       // — picks the right runtime path inside crispasr_session_open.
       expect(
-          ModelService.crispasrBackendModels['wmt21-dense-24-wide-en-x-q4_k']
+          ModelCatalog.crispasrBackendModels['wmt21-dense-24-wide-en-x-q4_k']
               ?.backend,
           'm2m100-wmt21');
       expect(
-          ModelService.crispasrBackendModels['wmt21-dense-24-wide-x-en-q4_k']
+          ModelCatalog.crispasrBackendModels['wmt21-dense-24-wide-x-en-q4_k']
               ?.backend,
           'm2m100-wmt21');
       expect(
-          ModelService.crispasrBackendModels['madlad400-3b-mt-q4_k']?.backend,
+          ModelCatalog.crispasrBackendModels['madlad400-3b-mt-q4_k']?.backend,
           'madlad');
       // Each translation backend has a HF probe entry too.
       for (final b in ['m2m100', 'm2m100-wmt21', 'madlad']) {
-        expect(ModelService.backendRepos.containsKey(b), isTrue,
+        expect(ModelCatalog.backendRepos.containsKey(b), isTrue,
             reason: 'BackendRepo "$b" missing — HF probe will skip it');
       }
       // WMT21 ships two HF repos (en-x + x-en) — both must be probed
       // or users see only one direction's quants in the auto-
       // discovered list.
-      expect(ModelService.backendRepos.containsKey('m2m100-wmt21-x-en'),
+      expect(ModelCatalog.backendRepos.containsKey('m2m100-wmt21-x-en'),
           isTrue,
           reason: 'WMT21 x-en sibling repo missing — HF probe will only '
               'surface en→X quants');
-      final wmt21XEn = ModelService.backendRepos['m2m100-wmt21-x-en']!;
+      final wmt21XEn = ModelCatalog.backendRepos['m2m100-wmt21-x-en']!;
       expect(wmt21XEn.backend, 'm2m100-wmt21',
           reason: 'sibling row routes to the same C backend as en-x');
       expect(wmt21XEn.repoId, contains('wmt21-dense-24-wide-x-en'),

@@ -74,14 +74,14 @@ void main() {
     test('qwen3-tts CustomVoice has a companion codec declared', () {
       // Without the codec, the session can't open and speakers can't be
       // enumerated. Verify the catalog wires the dependency.
-      final def = ModelService
+      final def = ModelCatalog
           .crispasrBackendModels['qwen3-tts-12hz-0.6b-customvoice-q8_0'];
       expect(def, isNotNull);
       expect(def!.companions, isNotEmpty,
           reason: 'CustomVoice needs a codec companion');
       // The companion must itself be catalogued.
       for (final c in def.companions) {
-        expect(ModelService.crispasrBackendModels.containsKey(c), isTrue,
+        expect(ModelCatalog.crispasrBackendModels.containsKey(c), isTrue,
             reason: 'companion "$c" must resolve in the catalog');
       }
     });
@@ -91,7 +91,7 @@ void main() {
     test('the model from the crash report is catalogued as piper', () {
       // Issue #16 specifically mentions "Piper en_US LibriTTS-R (medium)".
       final def =
-          ModelService.crispasrBackendModels['piper-en-libritts-r-medium'];
+          ModelCatalog.crispasrBackendModels['piper-en-libritts-r-medium'];
       expect(def, isNotNull,
           reason: 'the exact model from the #16 crash report must be '
               'in the static catalog');
@@ -100,7 +100,7 @@ void main() {
     });
 
     test('all piper entries have backend=piper and kind=tts', () {
-      final piperEntries = ModelService.crispasrBackendModels.entries
+      final piperEntries = ModelCatalog.crispasrBackendModels.entries
           .where((e) => e.value.backend == 'piper')
           .toList();
       expect(piperEntries, isNotEmpty,
@@ -129,7 +129,7 @@ void main() {
     test('each model is present in the hardcoded catalogue as a TTS entry',
         () {
       for (final entry in expected.entries) {
-        final def = ModelService.crispasrBackendModels[entry.key];
+        final def = ModelCatalog.crispasrBackendModels[entry.key];
         expect(def, isNotNull,
             reason: '${entry.key} missing from crispasrBackendModels — it '
                 'would only appear after a Model-Management deep refresh '
@@ -145,9 +145,9 @@ void main() {
 
     test('their companions resolve to real catalogue entries', () {
       for (final key in expected.keys) {
-        final def = ModelService.crispasrBackendModels[key]!;
+        final def = ModelCatalog.crispasrBackendModels[key]!;
         for (final companion in def.companions) {
-          expect(ModelService.crispasrBackendModels.containsKey(companion),
+          expect(ModelCatalog.crispasrBackendModels.containsKey(companion),
               isTrue,
               reason: '$key → "$companion" does not resolve');
         }
@@ -162,7 +162,7 @@ void main() {
   group('#20 — pocket-tts catalog + Mimi CPU scheduler', () {
     test('pocket-tts f16 is catalogued with backend=pocket-tts', () {
       final def =
-          ModelService.crispasrBackendModels['pocket-tts-english-f16'];
+          ModelCatalog.crispasrBackendModels['pocket-tts-english-f16'];
       expect(def, isNotNull);
       expect(def!.backend, 'pocket-tts');
       expect(def.kind, ModelKind.tts);
@@ -172,13 +172,13 @@ void main() {
       // The noise bug was caused by ggml_conv_transpose_1d on GPU, NOT
       // a missing codec. Verify no external companion is required.
       final def =
-          ModelService.crispasrBackendModels['pocket-tts-english-f16'];
+          ModelCatalog.crispasrBackendModels['pocket-tts-english-f16'];
       expect(def, isNotNull);
       expect(def!.companions, isEmpty);
     });
 
     test('pocket-tts BackendRepo exists for HF probe', () {
-      final repo = ModelService.backendRepos['pocket-tts'];
+      final repo = ModelCatalog.backendRepos['pocket-tts'];
       expect(repo, isNotNull);
       expect(repo!.backend, 'pocket-tts');
     });
@@ -194,7 +194,7 @@ void main() {
     });
 
     test('all piper entries have backend=piper', () {
-      final piperModels = ModelService.crispasrBackendModels.entries
+      final piperModels = ModelCatalog.crispasrBackendModels.entries
           .where((e) => e.value.backend == 'piper')
           .toList();
       expect(piperModels, isNotEmpty);
@@ -207,13 +207,13 @@ void main() {
   group('#22 — qwen3-tts diagnostic hint for empty audio', () {
     test('qwen3-tts base has codec companion wired', () {
       final def =
-          ModelService.crispasrBackendModels['qwen3-tts-12hz-0.6b-base-q8_0'];
+          ModelCatalog.crispasrBackendModels['qwen3-tts-12hz-0.6b-base-q8_0'];
       expect(def, isNotNull);
       expect(def!.backend, 'qwen3-tts');
       expect(def.companions, isNotEmpty,
           reason: 'codec companion needed for synthesis');
       for (final c in def.companions) {
-        expect(ModelService.crispasrBackendModels.containsKey(c), isTrue);
+        expect(ModelCatalog.crispasrBackendModels.containsKey(c), isTrue);
       }
     });
 
@@ -228,7 +228,7 @@ void main() {
         'qwen3-tts-12hz-1.7b-base-q8_0',
       ];
       for (final key in baseKeys) {
-        final def = ModelService.crispasrBackendModels[key];
+        final def = ModelCatalog.crispasrBackendModels[key];
         expect(def, isNotNull, reason: '$key missing from catalog');
         expect(def!.requiresVoice, isTrue,
             reason: '$key must be tagged requiresVoice');
@@ -236,7 +236,7 @@ void main() {
     });
 
     test('qwen3-tts CustomVoice models are NOT tagged requiresVoice', () {
-      final def = ModelService
+      final def = ModelCatalog
           .crispasrBackendModels['qwen3-tts-12hz-0.6b-customvoice-q8_0'];
       expect(def, isNotNull);
       expect(def!.requiresVoice, isFalse,
@@ -247,14 +247,14 @@ void main() {
   group('#23 — orpheus ANR: background-isolate synthesis', () {
     test('orpheus 3B has codec companion for isolate replay', () {
       final def =
-          ModelService.crispasrBackendModels['orpheus-3b-base-q8_0'];
+          ModelCatalog.crispasrBackendModels['orpheus-3b-base-q8_0'];
       expect(def, isNotNull);
       expect(def!.backend, 'orpheus');
       expect(def.companions, contains('snac-24khz'));
     });
 
     test('SNAC codec catalogued', () {
-      final codec = ModelService.crispasrBackendModels['snac-24khz'];
+      final codec = ModelCatalog.crispasrBackendModels['snac-24khz'];
       expect(codec, isNotNull);
       expect(codec!.kind, ModelKind.codec);
       expect(codec.backend, 'orpheus');
@@ -267,8 +267,8 @@ void main() {
     test('S2S-capable backends are catalogued', () {
       // Every S2S backend must have at least one catalogue entry
       // so the Synthesize screen can show it.
-      const allModels = ModelService.crispasrBackendModels;
-      const allRepos = ModelService.backendRepos;
+      const allModels = ModelCatalog.crispasrBackendModels;
+      const allRepos = ModelCatalog.backendRepos;
       for (final backend in ['lfm2-audio', 'mini-omni2']) {
         final hasModel =
             allModels.values.any((m) => m.backend == backend);
@@ -280,14 +280,14 @@ void main() {
     });
 
     test('mini-omni2 has SNAC codec companion', () {
-      final def = ModelService.crispasrBackendModels['mini-omni2-q4_k'];
+      final def = ModelCatalog.crispasrBackendModels['mini-omni2-q4_k'];
       expect(def, isNotNull);
       expect(def!.companions, contains('snac-24khz'));
     });
 
     test('lfm2-audio catalogued with ASR kind (not TTS)', () {
       final def =
-          ModelService.crispasrBackendModels['lfm2-audio-1.5b-q5_k'];
+          ModelCatalog.crispasrBackendModels['lfm2-audio-1.5b-q5_k'];
       expect(def, isNotNull);
       // LFM2 is primarily ASR; TTS/S2S are secondary capabilities.
       expect(def!.kind, ModelKind.asr);

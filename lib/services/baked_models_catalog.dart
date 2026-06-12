@@ -11,7 +11,7 @@
 
 // ignore_for_file: lines_longer_than_80_chars
 
-import 'model_service.dart';
+import 'model_catalog.dart';
 
 const Map<String, ModelDefinition> bakedDiscoveredModels = {
   'parakeet-tdt-0.6b-v3-q4_k': ModelDefinition(

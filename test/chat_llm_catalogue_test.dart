@@ -26,8 +26,8 @@ void main() {
   /// look at both statics directly to keep the test pure (no I/O).
   Iterable<ModelDefinition> chatLlmEntries() {
     return [
-      ...ModelService.whisperCppModels.values,
-      ...ModelService.crispasrBackendModels.values,
+      ...ModelCatalog.whisperCppModels.values,
+      ...ModelCatalog.crispasrBackendModels.values,
     ].where((m) => m.kind == ModelKind.chatLlm);
   }
 

@@ -545,7 +545,7 @@ final crispEmbedProvider = FutureProvider<CrispEmbed?>((ref) async {
 CrispEmbed? _tryLoadCrispEmbedNative(ModelService modelService) {
   try {
     final modelsDir = modelService.whisperCppDir();
-    for (final def in ModelService.whisperCppModels.values) {
+    for (final def in ModelCatalog.whisperCppModels.values) {
       if (def.kind != ModelKind.embed) continue;
       final modelPath = '$modelsDir/${def.fileName}';
       if (File(modelPath).existsSync()) {

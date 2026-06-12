@@ -237,10 +237,10 @@ void main() {
       const pending = {'piper', 'f5-tts', 'lfm2-audio', 'mini-omni2'};
 
       final catalogueBackends = <String>{
-        for (final m in ModelService.crispasrBackendModels.values)
+        for (final m in ModelCatalog.crispasrBackendModels.values)
           if (sessionKinds.contains(m.kind) && m.backend.isNotEmpty)
             m.backend,
-        for (final r in ModelService.backendRepos.values)
+        for (final r in ModelCatalog.backendRepos.values)
           if (sessionKinds.contains(r.kind) && r.backend.isNotEmpty)
             r.backend,
       };
@@ -281,9 +281,9 @@ void main() {
       const engineOnly = {'whisper', 'canary-ctc', 'omniasr'};
 
       final catalogued = <String>{
-        for (final m in ModelService.crispasrBackendModels.values)
+        for (final m in ModelCatalog.crispasrBackendModels.values)
           if (m.backend.isNotEmpty) m.backend,
-        for (final r in ModelService.backendRepos.values)
+        for (final r in ModelCatalog.backendRepos.values)
           if (r.backend.isNotEmpty) r.backend,
       };
 

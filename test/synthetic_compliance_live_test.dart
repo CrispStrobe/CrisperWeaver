@@ -44,7 +44,7 @@ String? _resolveLibPath() {
 }
 
 String? _resolveModel(String catalogName) {
-  final def = ModelService.crispasrBackendModels[catalogName];
+  final def = ModelCatalog.crispasrBackendModels[catalogName];
   if (def == null) return null;
   final fileName = def.fileName;
 
@@ -118,7 +118,7 @@ void main() {
     if (p != null) {
       ttsModelPath = p;
       ttsModelName = name;
-      ttsBackend = ModelService.crispasrBackendModels[name]!.backend;
+      ttsBackend = ModelCatalog.crispasrBackendModels[name]!.backend;
       break;
     }
   }
@@ -139,9 +139,9 @@ void main() {
       );
       try {
         // Set voice if needed.
-        final def = ModelService.crispasrBackendModels[ttsModelName]!;
+        final def = ModelCatalog.crispasrBackendModels[ttsModelName]!;
         for (final companion in def.companions) {
-          final compDef = ModelService.crispasrBackendModels[companion];
+          final compDef = ModelCatalog.crispasrBackendModels[companion];
           if (compDef != null && compDef.kind == ModelKind.codec) {
             final cp = _resolveModel(companion);
             if (cp != null) session.setCodecPath(cp);

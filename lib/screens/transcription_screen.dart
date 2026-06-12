@@ -585,10 +585,10 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
     // was intended to run against — §5.23 Q1 grouping + Q3 resume.
     final extras = supported.skip(1).toList();
     final q = ref.read(batchQueueProvider.notifier);
-    final enqueueBackend = ModelService
+    final enqueueBackend = ModelCatalog
             .crispasrBackendModels[_modelName]
             ?.backend ??
-        ModelService.whisperCppModels[_modelName]?.backend ??
+        ModelCatalog.whisperCppModels[_modelName]?.backend ??
         'whisper';
     final enqueueLang = _language == 'auto' ? null : _language;
     int skippedDups = 0;
@@ -1242,13 +1242,13 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
   }
 
   /// Codes the language dropdown should offer for [def]. Thin wrapper
-  /// over [ModelService.resolveLanguageCodes] — the shared helper
+  /// over [ModelCatalog.resolveLanguageCodes] — the shared helper
   /// handles the def.languages → BackendRepo.defaultLanguages → `[*]`
   /// expansion chain so the catalogue-invariant tests can exercise
   /// the same code path. Local concern is only the fallback when
   /// nothing resolves (UI-side: 9-code historical default).
   List<String> _languageCodesFor(ModelDefinition? def) {
-    final resolved = ModelService.resolveLanguageCodes(
+    final resolved = ModelCatalog.resolveLanguageCodes(
       def,
       expandAll: () => AppConstants.supportedLanguages.keys
           .where((c) => c != 'auto')
@@ -1393,8 +1393,8 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
   /// in the catalog, else use the engine type id as a best-
   /// effort fallback.
   String _activeBackendName() {
-    return ModelService.crispasrBackendModels[_modelName]?.backend ??
-        ModelService.whisperCppModels[_modelName]?.backend ??
+    return ModelCatalog.crispasrBackendModels[_modelName]?.backend ??
+        ModelCatalog.whisperCppModels[_modelName]?.backend ??
         ref.read(settingsServiceProvider).preferredEngine.id;
   }
 
@@ -1881,10 +1881,10 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
         final q = ref.read(batchQueueProvider.notifier);
         // Snapshot backend/modelId/language for the batched files so
         // a crash-recovered job knows which model to reload — §5.23.
-        final enqueueBackend = ModelService
+        final enqueueBackend = ModelCatalog
                 .crispasrBackendModels[_modelName]
                 ?.backend ??
-            ModelService.whisperCppModels[_modelName]?.backend ??
+            ModelCatalog.whisperCppModels[_modelName]?.backend ??
             'whisper';
         final enqueueLang = _language == 'auto' ? null : _language;
         int enqueued = 0;
@@ -2676,8 +2676,8 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
     final settings = ref.read(settingsServiceProvider);
     final requested = settings.maxConcurrentSessions;
     if (requested <= 1) return null;
-    final modelDef = ModelService.whisperCppModels[_modelName] ??
-        ModelService.crispasrBackendModels[_modelName];
+    final modelDef = ModelCatalog.whisperCppModels[_modelName] ??
+        ModelCatalog.crispasrBackendModels[_modelName];
     if (modelDef == null) {
       Log.instance.d('batch',
           'pool skipped: $_modelName not in catalog (custom GGUF?)');
@@ -2986,8 +2986,8 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
   /// string is what the per-backend capability sets in
   /// AdvancedOptions key on.
   static String _resolveBackend(String modelId) {
-    return ModelService.crispasrBackendModels[modelId]?.backend ??
-        ModelService.whisperCppModels[modelId]?.backend ??
+    return ModelCatalog.crispasrBackendModels[modelId]?.backend ??
+        ModelCatalog.whisperCppModels[modelId]?.backend ??
         'whisper';
   }
 

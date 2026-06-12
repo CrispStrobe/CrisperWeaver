@@ -55,7 +55,7 @@ String? _resolveLibPath() {
 ///   1. CRISPASR_MODELS_DIR env var + fileName
 ///   2. ../CrispASR/models/ + fileName
 String? _resolveModel(String catalogName) {
-  final def = ModelService.crispasrBackendModels[catalogName];
+  final def = ModelCatalog.crispasrBackendModels[catalogName];
   if (def == null) return null;
   final fileName = def.fileName;
 
@@ -96,7 +96,7 @@ void main() {
 
     test('piper catalog entry exists and backend matches', () {
       final def =
-          ModelService.crispasrBackendModels['piper-en-libritts-r-medium'];
+          ModelCatalog.crispasrBackendModels['piper-en-libritts-r-medium'];
       expect(def, isNotNull);
       expect(def!.backend, 'piper');
     }, skip: libSkip);
@@ -196,7 +196,7 @@ void main() {
     for (final modelName in modelsToTest) {
       test('$modelName opens a valid session', () {
         final modelPath = _resolveModel(modelName);
-        final def = ModelService.crispasrBackendModels[modelName]!;
+        final def = ModelCatalog.crispasrBackendModels[modelName]!;
         final session = crispasr.CrispasrSession.open(
           modelPath!,
           backend: def.backend,
@@ -206,7 +206,7 @@ void main() {
           // If the model needs a codec companion, set it.
           for (final companion in def.companions) {
             final compDef =
-                ModelService.crispasrBackendModels[companion];
+                ModelCatalog.crispasrBackendModels[companion];
             if (compDef != null && compDef.kind == ModelKind.codec) {
               final compPath = _resolveModel(companion);
               if (compPath != null) {

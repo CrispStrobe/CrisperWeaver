@@ -130,7 +130,7 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
   /// downloadable model. Mirrors `crispasr --hf-repo OWNER/NAME` on
   /// the CLI side. Catalogue-baked entries cover the common models
   /// out of the box; this is the escape hatch for repos that aren't
-  /// in [ModelService.backendRepos] yet.
+  /// in [ModelCatalog.backendRepos] yet.
   Future<void> _showAddHfRepoDialog() async {
     final l10n = AppLocalizations.of(context);
     final repoController = TextEditingController();
@@ -788,7 +788,7 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
   /// §5.8(b) — curated starter set spanning the app's three pillars:
   /// transcribe (Whisper base), synthesise (Kokoro TTS) and tidy/summarise
   /// (a small chat LLM). Curation lives in one place
-  /// (ModelService.recommendedDefaultModels) and is resolved here via
+  /// (ModelCatalog.recommendedDefaultModels) and is resolved here via
   /// defaultForBackend, so this stays a pure consumer.
   static const _quickStartBackends = <String>['whisper', 'kokoro', 'chat'];
 

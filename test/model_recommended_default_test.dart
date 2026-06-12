@@ -22,14 +22,14 @@ void main() {
   // entries are intentionally excluded — defaults only ever point at
   // the two maintained maps (see `recommendedDefaultModels` doc).
   final catalogue = <String, ModelDefinition>{
-    ...ModelService.whisperCppModels,
-    ...ModelService.crispasrBackendModels,
+    ...ModelCatalog.whisperCppModels,
+    ...ModelCatalog.crispasrBackendModels,
   };
 
   group('recommendedDefaultModels (PLAN §5.4)', () {
     test('every default resolves to a real entry whose backend matches',
         () {
-      ModelService.recommendedDefaultModels.forEach((backend, name) {
+      ModelCatalog.recommendedDefaultModels.forEach((backend, name) {
         final def = catalogue[name];
         expect(def, isNotNull,
             reason: 'default "$name" for backend "$backend" is not in the '
@@ -44,7 +44,7 @@ void main() {
       // The Map keys are unique by construction; this asserts the
       // values can't resolve two different names to the same backend.
       final byBackend = <String, List<String>>{};
-      ModelService.recommendedDefaultModels.forEach((_, name) {
+      ModelCatalog.recommendedDefaultModels.forEach((_, name) {
         final b = catalogue[name]!.backend;
         byBackend.putIfAbsent(b, () => <String>[]).add(name);
       });
@@ -56,13 +56,13 @@ void main() {
     });
 
     test('isRecommendedDefault tracks the map values', () {
-      expect(ModelService.isRecommendedDefault('base'), isTrue);
-      expect(ModelService.isRecommendedDefault('kokoro-82m-q8_0'), isTrue);
+      expect(ModelCatalog.isRecommendedDefault('base'), isTrue);
+      expect(ModelCatalog.isRecommendedDefault('kokoro-82m-q8_0'), isTrue);
       // real catalogue entries that are NOT defaults
-      expect(ModelService.isRecommendedDefault('large-v3'), isFalse);
-      expect(ModelService.isRecommendedDefault('tiny'), isFalse);
+      expect(ModelCatalog.isRecommendedDefault('large-v3'), isFalse);
+      expect(ModelCatalog.isRecommendedDefault('tiny'), isFalse);
       // not a model at all
-      expect(ModelService.isRecommendedDefault('nope-xyz'), isFalse);
+      expect(ModelCatalog.isRecommendedDefault('nope-xyz'), isFalse);
     });
   });
 

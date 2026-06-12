@@ -1465,8 +1465,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 /// estimator treats null as "unknown size", refuses to project a
 /// pool count.
 String? _activeModelPath(WidgetRef ref, String modelId) {
-  final def = ModelService.whisperCppModels[modelId] ??
-      ModelService.crispasrBackendModels[modelId];
+  final def = ModelCatalog.whisperCppModels[modelId] ??
+      ModelCatalog.crispasrBackendModels[modelId];
   if (def == null) return null;
   final dir = ref.read(modelServiceProvider).whisperCppDir();
   return p.join(dir, def.fileName);

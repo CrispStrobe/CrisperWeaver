@@ -86,7 +86,7 @@ void main() {
     test('every backend that needs a companion declares one on every entry',
         () {
       final offenders = <String>[];
-      for (final entry in ModelService.crispasrBackendModels.entries) {
+      for (final entry in ModelCatalog.crispasrBackendModels.entries) {
         final def = entry.value;
         if (!companionNeedingBackends.contains(def.backend)) continue;
         // Codec / voice / VAD / LID / punctuation / diarisation
@@ -115,17 +115,17 @@ void main() {
       // BackendRepo.defaultCompanions. Names that don't exist as a
       // crispasrBackendModels key will throw a ModelLoadException
       // at runtime (engine line 388 in crispasr_engine.dart).
-      for (final entry in ModelService.crispasrBackendModels.entries) {
+      for (final entry in ModelCatalog.crispasrBackendModels.entries) {
         for (final companionName in entry.value.companions) {
-          if (!ModelService.crispasrBackendModels.containsKey(companionName)) {
+          if (!ModelCatalog.crispasrBackendModels.containsKey(companionName)) {
             dangling
                 .add('${entry.key} → "$companionName" (not in catalogue)');
           }
         }
       }
-      for (final repoEntry in ModelService.backendRepos.entries) {
+      for (final repoEntry in ModelCatalog.backendRepos.entries) {
         for (final companionName in repoEntry.value.defaultCompanions) {
-          if (!ModelService.crispasrBackendModels.containsKey(companionName)) {
+          if (!ModelCatalog.crispasrBackendModels.containsKey(companionName)) {
             dangling.add(
                 'BackendRepo[${repoEntry.key}] → "$companionName" (not in catalogue)');
           }
@@ -146,7 +146,7 @@ void main() {
       // works, second-quant load throws.
       final offenders = <String>[];
       for (final backend in companionNeedingBackends) {
-        final repos = ModelService.backendRepos.values
+        final repos = ModelCatalog.backendRepos.values
             .where((r) => r.backend == backend);
         if (repos.isEmpty) {
           offenders.add(
@@ -178,14 +178,14 @@ void main() {
     test('every language code in the catalogue is a recognised ISO 639-1 '
         'or the multilingual sentinel "*"', () {
       final bad = <String>[];
-      for (final entry in ModelService.crispasrBackendModels.entries) {
+      for (final entry in ModelCatalog.crispasrBackendModels.entries) {
         for (final code in entry.value.languages) {
           if (!validLanguageCodes.contains(code)) {
             bad.add('${entry.key}.languages[$code]');
           }
         }
       }
-      for (final entry in ModelService.backendRepos.entries) {
+      for (final entry in ModelCatalog.backendRepos.entries) {
         for (final code in entry.value.defaultLanguages) {
           if (!validLanguageCodes.contains(code)) {
             bad.add('BackendRepo[${entry.key}].defaultLanguages[$code]');
@@ -253,7 +253,7 @@ void main() {
       // case. If this fails after a catalogue refactor we have a
       // real UX regression — German-only finetunes vanished, or a
       // major multilingual model lost its German tag, or both.
-      Iterable<String> deModels() => ModelService.crispasrBackendModels.values
+      Iterable<String> deModels() => ModelCatalog.crispasrBackendModels.values
           .where((d) => d.matchesLanguage('de'))
           .map((d) => d.name);
       final got = deModels().toSet();
@@ -289,12 +289,12 @@ void main() {
       // whisperCppModels, everything else in crispasrBackendModels.
       // Both are checked on fresh launch by getWhisperCppModels().
       final allStatic = <String, ModelDefinition>{
-        ...ModelService.crispasrBackendModels,
-        ...ModelService.whisperCppModels,
+        ...ModelCatalog.crispasrBackendModels,
+        ...ModelCatalog.whisperCppModels,
       };
 
       final orphaned = <String>[];
-      for (final repoEntry in ModelService.backendRepos.entries) {
+      for (final repoEntry in ModelCatalog.backendRepos.entries) {
         if (lazyOnlyBackendRepos.contains(repoEntry.key)) continue;
         final repo = repoEntry.value;
         // A BackendRepo for a codec/voice is a companion — those are
@@ -339,7 +339,7 @@ void main() {
     // covered by the prefix-mapping rules documented in the helper.
     test('kokoro hardcoded voicepacks map to the right language', () {
       // Spot-check: af_heart should be English, dm_bernd German.
-      const m = ModelService.crispasrBackendModels;
+      const m = ModelCatalog.crispasrBackendModels;
       final heart = m['kokoro-voice-af_heart'];
       if (heart != null) {
         // Hardcoded kokoro voicepacks predate the language field
@@ -407,7 +407,7 @@ void main() {
         'madlad',
       };
       final underwhelming = <String>[];
-      for (final entry in ModelService.crispasrBackendModels.entries) {
+      for (final entry in ModelCatalog.crispasrBackendModels.entries) {
         final def = entry.value;
         if (!multilingualBackends.contains(def.backend)) continue;
         // Voicepack / codec entries can legitimately tag a single
@@ -415,7 +415,7 @@ void main() {
         // family being multi). Only assert on the main ASR / TTS
         // rows.
         if (def.kind != ModelKind.asr && def.kind != ModelKind.tts) continue;
-        final resolved = ModelService.resolveLanguageCodes(
+        final resolved = ModelCatalog.resolveLanguageCodes(
           def,
           expandAll: fakeExpandAll,
         );
@@ -434,14 +434,14 @@ void main() {
       // that triggered the #14 reporter on v0.6.33 (every Whisper
       // variant returned the 9-code fallback because `languages:`
       // wasn't set and the BackendRepo fallback hadn't been wired).
-      for (final entry in ModelService.whisperCppModels.entries) {
+      for (final entry in ModelCatalog.whisperCppModels.entries) {
         // Skip the `.en` and `-german` variants — those legitimately
         // resolve to a single-language list.
         if (entry.key.endsWith('.en')) continue;
         if (entry.key.contains('-german')) continue;
         if (entry.key.startsWith('distil-')) continue;
         final def = entry.value;
-        final resolved = ModelService.resolveLanguageCodes(
+        final resolved = ModelCatalog.resolveLanguageCodes(
           def,
           expandAll: fakeExpandAll,
         );
@@ -468,9 +468,9 @@ void main() {
     test('whisper resolves to its 99-code list', () {
       // Anchor — if this fails, the whisper BackendRepo lost its
       // defaultLanguages OR the resolver stopped routing through it.
-      final base = ModelService.whisperCppModels['base'];
+      final base = ModelCatalog.whisperCppModels['base'];
       expect(base, isNotNull, reason: '"base" Whisper entry must exist');
-      final resolved = ModelService.resolveLanguageCodes(
+      final resolved = ModelCatalog.resolveLanguageCodes(
         base!,
         expandAll: () => ['must-not-be-called'],
       );
@@ -488,9 +488,9 @@ void main() {
       // This test pins TODAY'S behaviour so we notice when we change
       // it — if we add per-entry `languages: ['en']` to the .en
       // variants later, update this test accordingly.
-      final tinyEn = ModelService.whisperCppModels['tiny.en'];
+      final tinyEn = ModelCatalog.whisperCppModels['tiny.en'];
       if (tinyEn != null) {
-        final resolved = ModelService.resolveLanguageCodes(
+        final resolved = ModelCatalog.resolveLanguageCodes(
           tinyEn,
           expandAll: () => List.generate(99, (i) => 'lang$i'),
         );
@@ -509,9 +509,9 @@ void main() {
       // Distinct-language test: the catalogue's kartoffelbox-de-q8_0
       // has `languages: langsDe` so this exercises the def.languages
       // direct path, not the BackendRepo fallback.
-      final kart = ModelService.crispasrBackendModels['kartoffelbox-de-q8_0'];
+      final kart = ModelCatalog.crispasrBackendModels['kartoffelbox-de-q8_0'];
       expect(kart, isNotNull);
-      final resolved = ModelService.resolveLanguageCodes(
+      final resolved = ModelCatalog.resolveLanguageCodes(
         kart!,
         expandAll: () => ['must-not-be-called'],
       );
@@ -547,12 +547,12 @@ void main() {
       };
       final mismatches = <String>[];
       for (final entry in expectations.entries) {
-        final def = ModelService.crispasrBackendModels[entry.key];
+        final def = ModelCatalog.crispasrBackendModels[entry.key];
         if (def == null) {
           mismatches.add('${entry.key}: catalogue entry missing');
           continue;
         }
-        final resolved = ModelService.resolveLanguageCodes(
+        final resolved = ModelCatalog.resolveLanguageCodes(
           def,
           expandAll: () => List.generate(99, (i) => 'x$i'),
         );
