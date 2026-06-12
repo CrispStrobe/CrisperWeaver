@@ -882,12 +882,12 @@ automation. Grouped by projected impact; priority picks marked with ⚡.
 
   **Files:** `lib/services/multilingual_transcription_service.dart`.
 
-  **Remaining:** wire into the transcription screen as an optional
-  post-processing pass (toggle in Advanced Options). Re-transcribe
-  path (slow, per-language-group dispatch) deferred until demand.
+  **Remaining:** none (v1 complete). Toggle in Advanced Options
+  ("Tag segment languages") runs LID on each segment's audio after
+  transcription and tags `metadata['lang']`. Re-transcribe path
+  (per-language-group dispatch) deferred until demand.
 
-  **Effort:** ~2 days. **Risk:** medium — model switching latency;
-  need to keep multiple sessions warm or accept cold-start per switch.
+  **Effort:** done. **Risk:** n/a.
 
 * **5.25.6 Audio chapter markers / podcast show notes** — ✅
   **Service shipped June 2026.** `ChapterDetectionService` detects
@@ -899,12 +899,15 @@ automation. Grouped by projected impact; priority picks marked with ⚡.
 
   **Files:** `lib/services/chapter_detection_service.dart`.
 
-  **Remaining:** wire into the transcript output share menu as
-  "Export chapters" action. Optionally feed chapter boundaries to
-  the Summarise LLM for better titles.
+  **Remaining:** none (v1 complete). Three export actions in the
+  transcript share menu: YouTube chapters (speaker-based via
+  NoteExportService), auto-detected chapters (topic-shift via
+  ChapterDetectionService), and Podcasting 2.0 JSON. Optionally
+  feed chapter boundaries to the Summarise LLM for better titles
+  (deferred — current auto-titles from first segment text are
+  serviceable).
 
-  **Effort:** ~2 days (assumes §5.25.2 embedding is done).
-  **Risk:** low — pure post-processing.
+  **Effort:** done. **Risk:** n/a.
 
 #### Tier B — Medium impact, fills real user gaps
 
