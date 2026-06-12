@@ -42,17 +42,17 @@ void main() {
 
     test('GET /health returns ready', () async {
       final dio = Dio();
-      final r = await dio.get('$_baseUrl/health');
+      final r = await dio.get<Map<String, dynamic>>('$_baseUrl/health');
       expect(r.statusCode, 200);
-      expect(r.data['status'] ?? r.data['backend'], isNotNull);
+      expect(r.data!['status'] ?? r.data!['backend'], isNotNull);
       dio.close();
     });
 
     test('GET /backends returns non-empty list', () async {
       final dio = Dio();
-      final r = await dio.get('$_baseUrl/backends');
+      final r = await dio.get<Map<String, dynamic>>('$_baseUrl/backends');
       expect(r.statusCode, 200);
-      final backends = r.data['backends'] as List?;
+      final backends = r.data!['backends'] as List<dynamic>?;
       expect(backends, isNotNull);
       expect(backends, isNotEmpty);
       dio.close();
@@ -60,9 +60,9 @@ void main() {
 
     test('GET /v1/models returns model data', () async {
       final dio = Dio();
-      final r = await dio.get('$_baseUrl/v1/models');
+      final r = await dio.get<Map<String, dynamic>>('$_baseUrl/v1/models');
       expect(r.statusCode, 200);
-      expect(r.data['data'], isA<List>());
+      expect(r.data!['data'], isA<List<dynamic>>());
       dio.close();
     });
 

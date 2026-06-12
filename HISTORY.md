@@ -27,6 +27,86 @@ pending.
 
 ---
 
+## June 2026 — CrispASR mid-2026 catch-up (§5.26)
+
+Brings CrisperWeaver to CrispASR `origin/main` as of June 2026. Four new
+backends, two new capabilities (hotwords + speech-to-speech), and five
+free upgrades from the latest engine binary.
+
+### §5.26.1 — New backend catalog entries
+- **LFM2-Audio 1.5B** (EN Q5_K + JP Q4_K): ASR + TTS + S2S. LiquidAI
+  hybrid conv+attention. `ModelDefinition` + `BackendRepo` + recommended
+  default + baked catalog (4+3 quant entries from HuggingFace).
+- **Mini-Omni2** (Q4_K + SNAC codec): Whisper + Qwen2 0.5B multimodal.
+  `ModelDefinition` + `BackendRepo` + recommended default + baked catalog
+  (3 quant entries).
+- **MOSS-Audio 4B** was already catalogued — confirmed working (the
+  upstream PLAN.md label "in progress" was stale; commit `fece86c2` says
+  "TRANSCRIPTION WORKS").
+- **Parakeet-RNNT 0.6B/1.1B** — already in baked catalog; added
+  `BackendRepo` entries for HF probe.
+- Bake script synced: 110 repos, 310 entries (was 107/300).
+
+### §5.26.2 — Hotwords / contextual biasing
+- **C API** (`crispasr_session_set_hotwords`): session-level setter that
+  stores comma-separated hotwords + boost factor. Parakeet CTC/TDT gets
+  Aho-Corasick trie immediately; LLM backends get ask-prompt injection at
+  `transcribe_single` dispatch via a scoped guard.
+- **Dart FFI** (`CrispasrSession.setHotwords`): `providesSymbol()` graceful
+  degradation on older dylibs.
+- **UI**: "Hotwords" text field in Advanced Options with backend-aware
+  helper text (enabled for 15 backends, disabled for CTC-only).
+- **Wiring**: all 3 transcription paths (single-file, batch, pool) pass
+  hotwords through `AdvancedTranscribeOptions` → engine → `setHotwords()`.
+- **Tests**: 13 unit tests (field roundtrip, capability sets, prompt merge,
+  backend exclusion) + 2 live tests (setHotwords + transcribe, empty string).
+
+### §5.26.3 — Speech-to-Speech mode
+- **C API** (`crispasr_session_speech_to_speech`): wraps
+  `lfm2_audio_speech_to_speech` + `mini_omni2_speech_to_speech`. Returns
+  malloc'd PCM + optional intermediate transcript.
+- **Dart FFI** (`CrispasrSession.speechToSpeech`): returns `({Float32List
+  pcm, String transcript})`.
+- **UI**: S2S toggle + audio file picker on Synthesize screen (visible only
+  for lfm2-audio/mini-omni2). When S2S mode is on, text input is replaced
+  by audio input. Synthesize button gated on `_s2sInputPath != null`.
+- **Service**: `TtsService.speechToSpeech()` runs S2S in a background
+  isolate.
+- **Tests**: 3 unit tests (catalog entries, companion, kind) + 1 live test
+  (mini-omni2 S2S roundtrip).
+
+### §5.26.4–7 — Free upgrades (no CrisperWeaver code change)
+- **Global diarization** (#110): sherpa/ECAPA runs once on full audio.
+- **Long-form chunking** (#89/#114): per-backend chunked-encode + dedup.
+- **Permissive G2P** (#156): replaces espeak-ng GPL dep with IPA dicts.
+- **Beam search** (#139): 18/24 backends now beam-capable.
+
+### CI fixes
+- Fixed 5 pre-existing `flutter analyze` errors: `crispembed_web.dart`
+  `dynamic` → `int`, `translate_screen.dart` deprecated `value:`,
+  `hfspace_live_test.dart` type inference failures.
+
+**Files touched** (22 modified, 1 new):
+`PLAN.md`, `CHANGELOG.md`, `HISTORY.md`,
+`model_service.dart`, `baked_models_catalog.dart`, `preset_service.dart`,
+`advanced_options_widget.dart`, `synthesize_screen.dart`,
+`transcription_screen.dart`, `transcription_service.dart`,
+`transcription_worker.dart`, `transcription_worker_pool.dart`,
+`tts_service.dart`, `crispasr_engine.dart`, `diarization_service.dart`,
+`crispembed_web.dart`, `hfspace_engine.dart`, `translate_screen.dart`,
+`app_en.arb`, `app_de.arb` + generated l10n,
+`bake_models_catalog.dart` (script),
+`advanced_options_test.dart`, `tts_issue_fixes_test.dart`,
+`backend_dispatch_test.dart`, `hfspace_live_test.dart`,
+`hfspace_engine_test.dart`,
+new `s26_integration_live_test.dart`.
+
+**Upstream CrispASR** (`feat/session-s2s-hotwords`, merged to main):
+`include/crispasr.h`, `src/crispasr_c_api.cpp`,
+`flutter/crispasr/lib/src/crispasr.dart`.
+
+---
+
 ## June 2026 — Web/PWA with HF Space cloud engine + WASM embeddings
 
 ### Web/PWA deployment (v0.7.7+)

@@ -173,6 +173,7 @@ Map<String, dynamic> _advancedOptionsToJson(AdvancedOptions o) =>
       'transcribeWindowStartSec': o.transcribeWindowStartSec,
       'transcribeWindowDurationSec': o.transcribeWindowDurationSec,
       'altN': o.altN,
+      'hotwords': o.hotwords,
     };
 
 AdvancedOptions _advancedOptionsFromJson(Map<String, dynamic> j) {
@@ -245,6 +246,7 @@ AdvancedOptions _advancedOptionsFromJson(Map<String, dynamic> j) {
     transcribeWindowDurationSec:
         ((j['transcribeWindowDurationSec'] as num?) ?? 0.0).toDouble(),
     altN: (j['altN'] as int?) ?? 0,
+    hotwords: (j['hotwords'] as String?) ?? '',
   );
 }
 

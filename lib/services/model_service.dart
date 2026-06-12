@@ -1314,7 +1314,7 @@ class ModelService {
           'https://huggingface.co/cstr/snac-24khz-GGUF/resolve/main/snac-24khz.gguf',
       sizeBytes: 50 * 1024 * 1024,
       checksum: '',
-      description: 'SNAC 24 kHz codec for Orpheus (load via setCodecPath)',
+      description: 'SNAC 24 kHz codec for Orpheus / Mini-Omni2 (load via setCodecPath)',
       quantization: 'f16',
       backend: 'orpheus',
       kind: ModelKind.codec,
@@ -1352,6 +1352,64 @@ class ModelService {
       quantization: 'q4_k',
       backend: 'moss-audio',
     ),
+    // ============================================================
+    // CrispASR mid-2026 catch-up (June 2026) — PLAN §5.26
+    // ============================================================
+    //
+    // LFM2-Audio 1.5B — LiquidAI hybrid conv+attention ASR (+TTS, +S2S).
+    // English base model; Q5_K recommended (Q4_K too aggressive for EN).
+    // LFM Open License v1.0 (commercial OK <$10M revenue).
+    'lfm2-audio-1.5b-q5_k': ModelDefinition(
+      name: 'lfm2-audio-1.5b-q5_k',
+      displayName: 'LFM2-Audio 1.5B (q5_k)',
+      fileName: 'lfm2-audio-1.5b-q5_k.gguf',
+      url:
+          'https://huggingface.co/cstr/lfm2-audio-1.5b-GGUF/resolve/main/lfm2-audio-1.5b-q5_k.gguf',
+      sizeBytes: 1600 * 1024 * 1024,
+      checksum: '',
+      description:
+          'LiquidAI LFM2-Audio 1.5B — ASR + TTS + S2S, English, ~1.6 GB',
+      quantization: 'q5_k',
+      backend: 'lfm2-audio',
+      languages: langsEn,
+    ),
+    // LFM2-Audio 1.5B Japanese variant — Q4_K is safe for Japanese.
+    'lfm2-audio-1.5b-jp-q4_k': ModelDefinition(
+      name: 'lfm2-audio-1.5b-jp-q4_k',
+      displayName: 'LFM2-Audio 1.5B JP (q4_k)',
+      fileName: 'lfm2-audio-1.5b-jp-q4_k.gguf',
+      url:
+          'https://huggingface.co/cstr/lfm2-audio-1.5b-jp-GGUF/resolve/main/lfm2-audio-1.5b-jp-q4_k.gguf',
+      sizeBytes: 1500 * 1024 * 1024,
+      checksum: '',
+      description:
+          'LiquidAI LFM2-Audio 1.5B — ASR + TTS + S2S, Japanese, ~1.5 GB',
+      quantization: 'q4_k',
+      backend: 'lfm2-audio',
+      languages: langsJa,
+    ),
+    // Mini-Omni2 — Whisper-small encoder + Qwen2-0.5B LLM (ASR+TTS+S2S).
+    // Q4_K safe — identical ASR transcript to F16 on JFK 11s.
+    // Needs snac-24khz.gguf codec companion for TTS/S2S output.
+    'mini-omni2-q4_k': ModelDefinition(
+      name: 'mini-omni2-q4_k',
+      displayName: 'Mini-Omni2 (q4_k)',
+      fileName: 'mini-omni2-q4_k.gguf',
+      url:
+          'https://huggingface.co/cstr/mini-omni2-GGUF/resolve/main/mini-omni2-q4_k.gguf',
+      sizeBytes: 1000 * 1024 * 1024,
+      checksum: '',
+      description:
+          'Mini-Omni2 — Whisper + Qwen2 0.5B, ASR + TTS + S2S, ~1.0 GB',
+      quantization: 'q4_k',
+      backend: 'mini-omni2',
+      companions: ['snac-24khz'],
+      languages: langsEn,
+    ),
+    // Parakeet-RNNT 0.6B/1.1B — standard RNN-Transducers. Already in
+    // baked_models_catalog.dart with all quant variants; BackendRepo
+    // entries added in backendRepos below for HF probe.
+    //
     // OmniASR LLM unlimited — streaming variant, 15 s protocol.
     'omniasr-llm-unlimited-q4_k': ModelDefinition(
       name: 'omniasr-llm-unlimited-q4_k',
@@ -2661,6 +2719,8 @@ class ModelService {
     'granite-4.1-nar': 'granite-speech-4.1-nar-q4_k',
     'gemma4-e2b': 'gemma4-e2b-q4_k',
     'moss-audio': 'moss-audio-4b-instruct-q4_k',
+    'lfm2-audio': 'lfm2-audio-1.5b-q5_k',
+    'mini-omni2': 'mini-omni2-q4_k',
     // TTS
     'kokoro': 'kokoro-82m-q8_0',
     'vibevoice-tts': 'vibevoice-realtime-0.5b-tts-f16',
@@ -3254,6 +3314,37 @@ class ModelService {
       description: 'ASR + audio QA + scene description (Whisper enc + Qwen3 LLM)',
       defaultLanguages: langsAll,
     ),
+    // LFM2-Audio — LiquidAI hybrid conv+attention (ASR + TTS + S2S).
+    'lfm2-audio': BackendRepo(
+      backend: 'lfm2-audio',
+      repoId: 'cstr/lfm2-audio-1.5b-GGUF',
+      baseName: 'lfm2-audio-1.5b',
+      displayPrefix: 'LFM2-Audio 1.5B',
+      description: 'LiquidAI LFM2-Audio 1.5B — ASR + TTS + S2S (English)',
+      defaultLanguages: langsEn,
+    ),
+    'lfm2-audio-jp': BackendRepo(
+      backend: 'lfm2-audio',
+      repoId: 'cstr/lfm2-audio-1.5b-jp-GGUF',
+      baseName: 'lfm2-audio-1.5b-jp',
+      displayPrefix: 'LFM2-Audio 1.5B JP',
+      description: 'LiquidAI LFM2-Audio 1.5B — ASR + TTS + S2S (Japanese)',
+      defaultLanguages: langsJa,
+    ),
+    // Mini-Omni2 — Whisper-small + Qwen2-0.5B (ASR + TTS + S2S).
+    // Needs SNAC 24 kHz codec companion for TTS/S2S.
+    'mini-omni2': BackendRepo(
+      backend: 'mini-omni2',
+      repoId: 'cstr/mini-omni2-GGUF',
+      baseName: 'mini-omni2',
+      displayPrefix: 'Mini-Omni2',
+      description: 'Whisper + Qwen2 0.5B multimodal (ASR + TTS + S2S)',
+      defaultCompanions: ['snac-24khz'],
+      defaultLanguages: langsEn,
+    ),
+    // Parakeet-RNNT 0.6B/1.1B BackendRepo entries are in the baked
+    // catalog section below (generated by scripts/bake_models_catalog.dart).
+    //
     // OmniASR LLM unlimited streaming variant.
     'omniasr-llm-unlimited': BackendRepo(
       backend: 'omniasr-llm-unlimited',

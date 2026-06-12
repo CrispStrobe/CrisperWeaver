@@ -26,6 +26,14 @@ import 'speaker_id_service.dart';
 /// upstream C-ABI. The shared-lib call runs in one FFI hop and matches
 /// exactly what `crispasr --diarize --diarize-method vad-turns`
 /// produces on the CLI.
+///
+/// §5.26.4 — Global diarization timeline (CrispASR #110): linking
+/// against CrispASR mid-2026+ automatically gets the global timeline
+/// improvement — sherpa/ECAPA runs once on the full audio (not
+/// per-slice), giving consistent speaker IDs across chunks.
+/// `CrispasrSherpaCache` mirrors the pyannote global-cache pattern.
+/// No CrisperWeaver code change needed for this — it's transparent
+/// through the existing `diarizeSegments` C API call.
 class DiarizationService {
   /// Optional ModelService — used to auto-locate the pyannote-v3-seg
   /// GGUF when the user picks `DiarizeMethod.pyannote` and a model path

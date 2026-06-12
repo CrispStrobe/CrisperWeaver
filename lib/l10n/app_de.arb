@@ -746,6 +746,12 @@
   "advancedVocabularyHelperPrompt": "Beeinflusst den Whisper-Decoder über initial_prompt. Nützlich für Markennamen, Akronyme, Fachjargon und Personennamen, die das Modell sonst falsch transkribiert.",
   "advancedVocabularyHelperAsk": "Beeinflusst das LLM, indem die Begriffe dem Prompt vorangestellt werden. Wird mit Q&A kombiniert — deine Frage läuft weiter.",
   "advancedVocabularyHelperUnsupported": "Das aktive Backend ist CTC-basiert und kann das Vokabular nicht im Decoder berücksichtigen. Wechsle zu Whisper / Moonshine / einem LLM-Backend (Voxtral, Qwen3, Granite, …), um diese Funktion zu aktivieren.",
+
+  "advancedHotwords": "Hotwords",
+  "advancedHotwordsHint": "Kommagetrennte Wörter oder Phrasen (z. B. ACME Corp, TensorFlow, Dr. Schmidt)",
+  "advancedHotwordsHelper": "Lenkt den Decoder auf diese Wörter/Phrasen. Nützlich für Namen, Marken oder Fachbegriffe, die das Modell sonst falsch erkennt.",
+  "advancedHotwordsUnsupported": "Das aktive Backend unterstützt keine Hotword-Erkennung. Wechsle zu einem LLM-Backend oder Whisper, um diese Funktion zu aktivieren.",
+
   "advancedAskPrompt": "Audio fragen (Q&A-Modus)",
   "advancedAskPromptHint": "z. B. „Zusammenfassen\" oder „Wie klingt der Sprecher?\"",
   "advancedAskPromptHelper": "Nur Voxtral / Qwen3-ASR. Wenn gesetzt, ANTWORTET das LLM auf deine Frage, statt eine wortgetreue Transkription zu liefern. Leer lassen für normale Transkription.",
@@ -794,6 +800,10 @@
   "synthTextHint": "Text zum Synthetisieren eingeben…",
   "synthDiaTextHint": "[S1] Hallo, wie geht es dir? [S2] Mir geht es gut, danke!",
   "synthDiaHelper": "Dia verwendet [S1]- und [S2]-Tags für verschiedene Sprecher im Dialog. Verwende Texte mit 100+ Zeichen für beste Ergebnisse.",
+  "synthS2sToggle": "Sprache-zu-Sprache-Modus",
+  "synthS2sHelper": "Transformiert Audio-Eingabe durch das Modell, anstatt aus Text zu synthetisieren. Erfordert LFM2-Audio oder Mini-Omni2.",
+  "synthS2sPickAudio": "Keine Audiodatei ausgewählt",
+  "synthS2sBrowse": "Durchsuchen",
   "synthRunButton": "Synthetisieren",
   "synthPlayButton": "Abspielen",
   "synthStopButton": "Stopp",

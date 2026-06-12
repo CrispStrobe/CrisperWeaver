@@ -260,4 +260,37 @@ void main() {
       expect(codec.backend, 'orpheus');
     });
   });
+
+  // ---- §5.26.3 S2S mode ----
+
+  group('§5.26.3 — Speech-to-Speech backend support', () {
+    test('S2S-capable backends are catalogued', () {
+      // Every S2S backend must have at least one catalogue entry
+      // so the Synthesize screen can show it.
+      const allModels = ModelService.crispasrBackendModels;
+      const allRepos = ModelService.backendRepos;
+      for (final backend in ['lfm2-audio', 'mini-omni2']) {
+        final hasModel =
+            allModels.values.any((m) => m.backend == backend);
+        final hasRepo =
+            allRepos.values.any((r) => r.backend == backend);
+        expect(hasModel || hasRepo, isTrue,
+            reason: '$backend must be catalogued for S2S');
+      }
+    });
+
+    test('mini-omni2 has SNAC codec companion', () {
+      final def = ModelService.crispasrBackendModels['mini-omni2-q4_k'];
+      expect(def, isNotNull);
+      expect(def!.companions, contains('snac-24khz'));
+    });
+
+    test('lfm2-audio catalogued with ASR kind (not TTS)', () {
+      final def =
+          ModelService.crispasrBackendModels['lfm2-audio-1.5b-q5_k'];
+      expect(def, isNotNull);
+      // LFM2 is primarily ASR; TTS/S2S are secondary capabilities.
+      expect(def!.kind, ModelKind.asr);
+    });
+  });
 }

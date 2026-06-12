@@ -691,6 +691,20 @@ class CrispASREngine implements TranscriptionEngine {
             'setAsk rejected by ${_session?.backend}: $e');
       }
     }
+    // §5.26.2 — Hotwords: set at session level for CTC/TDT backends
+    // (parakeet trie) and as a prompt hint for LLM backends. The Dart
+    // layer also merges hotwords into the askPrompt string, so LLM
+    // backends get them both ways; CTC backends only get them here.
+    if (_session != null && advanced.hotwords.isNotEmpty) {
+      try {
+        _session!.setHotwords(advanced.hotwords,
+            boost: advanced.hotwordsBoost);
+      } catch (e) {
+        // Graceful: older dylibs without the symbol silently skip.
+        Log.instance.d('crispasr',
+            'setHotwords rejected by ${_session?.backend}: $e');
+      }
+    }
     // Native punctuation: Canary/Cohere/LLM backends can produce
     // punctuated + capitalized output natively (no extra model
     // needed). Always enable — the setter silently no-ops on

@@ -566,7 +566,7 @@ class HfSpaceEngine implements TranscriptionEngine {
             final table = parsed[0];
             if (table is List) {
               return table
-                  .whereType<List>()
+                  .whereType<List<dynamic>>()
                   .map((row) => {
                         'language': row[0]?.toString() ?? '',
                         'confidence': (row[1] is num)

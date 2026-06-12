@@ -1725,6 +1725,21 @@ class AppLocalizationsEn extends AppLocalizations {
       'The active backend is CTC-style and can\'t bias vocabulary at the decoder. Switch to Whisper / Moonshine / an LLM-backend (Voxtral, Qwen3, Granite, …) to enable.';
 
   @override
+  String get advancedHotwords => 'Hotwords';
+
+  @override
+  String get advancedHotwordsHint =>
+      'Comma-separated words or phrases (e.g. ACME Corp, TensorFlow, Dr. Smith)';
+
+  @override
+  String get advancedHotwordsHelper =>
+      'Biases the decoder toward these words/phrases. Useful for names, brands, or domain terms the model is likely to mishear.';
+
+  @override
+  String get advancedHotwordsUnsupported =>
+      'The active backend doesn\'t support hotword biasing. Switch to an LLM-backend or Whisper to enable.';
+
+  @override
   String get voiceCloneOpenTooltip => 'Clone a voice…';
 
   @override
@@ -1841,6 +1856,19 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get synthDiaHelper =>
       'Dia uses [S1] and [S2] tags to mark different speakers in dialogue. Use 100+ character prompts for best results.';
+
+  @override
+  String get synthS2sToggle => 'Speech-to-Speech mode';
+
+  @override
+  String get synthS2sHelper =>
+      'Transform audio input through the model instead of synthesizing from text. Requires LFM2-Audio or Mini-Omni2.';
+
+  @override
+  String get synthS2sPickAudio => 'No audio file selected';
+
+  @override
+  String get synthS2sBrowse => 'Browse';
 
   @override
   String get synthRunButton => 'Synthesize';

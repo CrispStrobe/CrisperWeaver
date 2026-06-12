@@ -86,6 +86,10 @@ All 10 CrispASR backends are runtime-ready through `CrispasrSession`. The bundle
 | GLM-ASR Nano         | ✅       | ✅ via `CrispasrSession`          | GLM-family multilingual                    |
 | VibeVoice ASR        | ✅       | ✅ via `CrispasrSession`          | Large multilingual (~4.5 GB)               |
 | MiMo ASR             | ✅       | ✅ via `CrispasrSession`          | XiaomiMiMo MiMo-Audio                      |
+| MOSS-Audio 4B        | ✅       | ✅ via `CrispasrSession`          | ASR + audio QA + scene description          |
+| LFM2-Audio 1.5B      | ✅       | ✅ via `CrispasrSession`          | ASR + TTS + S2S (English + Japanese)        |
+| Mini-Omni2           | ✅       | ✅ via `CrispasrSession`          | ASR + TTS + S2S (Whisper + Qwen2)           |
+| Parakeet-RNNT        | ✅       | ✅ via `CrispasrSession`          | RNN-Transducer variants (0.6B/1.1B)        |
 
 The same unified dispatcher is shared with the Python (`crispasr.Session`) and Rust (`crispasr::Session`) wrappers — one C-ABI, three languages.
 
@@ -1018,6 +1022,155 @@ automation. Grouped by projected impact; priority picks marked with ⚡.
   PopupMenuItems).
 
   **Effort:** ~0.5 day. **Risk:** low.
+
+### 5.26 CrispASR mid-2026 catch-up (June 2026) — ✅ shipped
+
+Brings CrisperWeaver up to CrispASR `origin/main` as of June 2026.
+Covers new backends, new capabilities (hotwords, speech-to-speech),
+and free improvements from linking against the latest engine binary
+(long-form chunking, global diarization, beam search expansion,
+permissive G2P). Full write-up in [HISTORY.md](HISTORY.md).
+
+#### 5.26.1 New backend catalog entries
+
+Four new backends added upstream since the last parity sweep:
+
+| Backend | Type | Size | Notes |
+|---------|------|------|-------|
+| **LFM2-Audio 1.5B** | ASR+TTS+S2S | ~1.6 GB (Q5_K) | LiquidAI hybrid conv+attention. Also has JP variant (~1.5 GB Q4_K). TTS + S2S via SNAC-like detokenizer baked in. LFM Open License (commercial OK <$10M). |
+| **Mini-Omni2** | ASR+TTS+S2S | ~1.0 GB (Q4_K) + ~80 MB SNAC codec | Whisper-small encoder + Qwen2-0.5B LLM. Needs `snac-24khz.gguf` codec companion for TTS/S2S. |
+| **MOSS-Audio 4B** | ASR (audio understanding) | ~3.8 GB (Q4_K) | First audio-understanding backend — transcribe + instruction-follow. Already cataloged in model_service.dart but not in baked catalog or model table. |
+| **Parakeet-RNNT 0.6B/1.1B** | ASR | ~447 MB / ~770 MB (Q4_K) | Standard RNN-Transducer (no TDT). Runtime auto-detects RNNT. English only. Dispatched through `parakeet` backend. |
+
+**Files:** `lib/services/model_service.dart` (ModelDefinition +
+BackendRepo + recommendedDefaultModels + _kindForBackend),
+`lib/services/baked_models_catalog.dart` (re-bake).
+
+**Tests:** catalog invariant tests (`model_catalogue_invariants_test.dart`,
+`model_recommended_default_test.dart`, `backend_dispatch_test.dart`).
+
+**Effort:** ~0.5 day. **Risk:** low — catalog-only, no engine changes.
+
+#### 5.26.2 Hotwords / contextual biasing UI
+
+CrispASR #98 shipped hotword support at the CLI level:
+- **CTC-WS trie** for Parakeet CTC/TDT (`parakeet_set_hotwords`)
+- **LLM prompt injection** for Qwen3-ASR / Voxtral / Granite (via
+  `--hotwords` → ask-prompt prepend)
+
+For CrisperWeaver, hotwords are delivered through the existing
+vocabulary mechanism extended with a dedicated hotwords field:
+- A "Hotwords" text field in Advanced Options (comma-separated)
+- For LLM backends: merged into the ask prompt via `setAsk()`
+  (same path as vocabulary, but with explicit "the following words
+  may appear" phrasing matching CrispASR's CLI behavior)
+- For CTC backends: hotwords currently only work through the CLI
+  binary; session-level `set_hotwords` not yet in the public C API.
+  Track upstream CrispASR for a `crispasr_session_set_hotwords()`
+  addition. Until then, LLM prompt injection covers 4 of 6
+  hotword-capable backends.
+- Preset round-trip for the new field.
+
+**Files:** `lib/widgets/advanced_options_widget.dart`
+(`AdvancedOptions.hotwords` field + UI), `lib/services/
+transcription_service.dart` (merge hotwords into ask prompt).
+
+**Tests:** unit (preset round-trip, hotwords merge into ask prompt),
+live (opt-in, real model + hotword → transcript contains the term).
+
+**Effort:** ~1 day. **Risk:** low — extends existing vocabulary
+mechanism.
+
+#### 5.26.3 Speech-to-Speech (S2S) mode
+
+CrispASR now supports `--s2s` for LFM2-Audio and Mini-Omni2 —
+audio in → audio out in a single model pass. The C API routes
+through `crispasr_session_synthesize()` when the backend has
+S2S capability and audio has been loaded.
+
+CrisperWeaver surface:
+- A "Speech-to-Speech" toggle on the Synthesize screen (visible
+  only when the loaded model is S2S-capable: `lfm2-audio` or
+  `mini-omni2`).
+- When enabled: user picks/records audio input, the engine
+  produces transformed audio output (voice conversion, style
+  transfer, translation depending on model).
+- The session loads the input audio via `transcribe()` internally,
+  then `synthesize()` produces the output PCM.
+
+**Files:** `lib/screens/synthesize_screen.dart` (S2S toggle + flow),
+`lib/services/tts_service.dart` (S2S-aware synthesize path).
+
+**Tests:** unit (S2S toggle visibility per backend), live (opt-in,
+real S2S roundtrip with mini-omni2 or lfm2-audio).
+
+**Effort:** ~1.5 days. **Risk:** medium — new UX flow, needs
+careful session lifecycle management (load audio → synthesize in
+same session).
+
+#### 5.26.4 Global diarization timeline
+
+CrispASR #110 shipped global diarization — sherpa/ECAPA runs once
+on the full audio (not per-slice), giving consistent speaker IDs
+across the entire recording. `CrispasrSherpaCache` mirrors the
+pyannote global-cache pattern.
+
+CrisperWeaver's `DiarizationService` already calls
+`crispasr.diarizeSegments()` which routes through the C API.
+**No code change needed** — linking against the latest libcrispasr
+picks up the global timeline automatically. The improvement is
+C-side: segments are split at speaker-turn boundaries via
+word-level overlap scoring.
+
+**Verification:** confirm speaker IDs are consistent across chunks
+in a multi-minute test file. Add a live test.
+
+**Effort:** ~0.5 day (verification + test only). **Risk:** none.
+
+#### 5.26.5 Long-form chunking compatibility
+
+CrispASR #89/#114 made chunked-encode + single-decode the default
+for Parakeet/Canary/FastConformer. Voxtral/Cohere got proper
+streamed-encode paths. Boundary-overlap dedup + splice-punct
+cleanup are built in.
+
+CrisperWeaver chunks audio at 30s in the Dart layer
+(`TranscriptionService`). The C-side now also auto-chunks for
+backends with `CAP_INTERNAL_CHUNKING` dropped. **Risk of double-
+chunking:** low — CrisperWeaver's Dart-side chunking sends ≤30s
+slices, and the C-side auto-chunking only fires for audio >30s.
+Since each Dart slice is ≤30s, the C-side won't re-chunk.
+
+**Verification:** confirm no truncation or duplication on a 60s+
+test file with parakeet/canary/voxtral. Add a note to the
+chunking code documenting the interaction.
+
+**Effort:** ~0.5 day (verification + comment). **Risk:** low.
+
+#### 5.26.6 Permissive G2P phonemizer
+
+CrispASR #156 replaced the espeak-ng GPL dependency with
+pre-generated IPA pronunciation dicts (EN 126K, DE 667K, FR 257K,
+ES 600K). This is transparent to CrisperWeaver — Kokoro TTS uses
+the new G2P automatically when linking against the latest
+libcrispasr.
+
+**No CrisperWeaver code change needed.** Build scripts already
+pull the latest CrispASR; the G2P dicts are compiled into the
+binary.
+
+**Effort:** 0. **Risk:** none.
+
+#### 5.26.7 Beam search expansion (free upgrade)
+
+CrispASR #139 expanded beam search from 10 to 18 of 24 backends.
+CrisperWeaver's Advanced Options already has a beam size slider
+that wires through `CrispasrSession.setBeamSize()`. **No code
+change needed** — the beam slider now works on 8 additional
+backends (including Qwen3-ASR, Granite, Voxtral, Canary, Cohere)
+automatically.
+
+**Effort:** 0. **Risk:** none.
 
 ---
 

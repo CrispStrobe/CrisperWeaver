@@ -166,6 +166,18 @@ class AdvancedTranscribeOptions {
   /// for full semantics.
   final int altN;
 
+  /// §5.26.2 — Hotwords for contextual biasing. Comma-separated.
+  /// For CTC/TDT backends (parakeet), the C API applies the Aho-Corasick
+  /// trie. For LLM backends, hotwords are injected into the ask prompt
+  /// (done at the Dart level via mergeHotwordsIntoPrompt). Setting this
+  /// here additionally calls session.setHotwords() at the FFI level,
+  /// which gives CTC backends native hotword support.
+  final String hotwords;
+
+  /// Boost factor for CTC hotwords (default 1.5). Only used when
+  /// [hotwords] is non-empty and the backend is CTC/TDT.
+  final double hotwordsBoost;
+
   const AdvancedTranscribeOptions({
     this.vadBackend = VadBackend.silero,
     this.vadThreshold = 0.5,
@@ -201,6 +213,8 @@ class AdvancedTranscribeOptions {
     this.transcribeWindowStartSec = 0.0,
     this.transcribeWindowDurationSec = 0.0,
     this.altN = 0,
+    this.hotwords = '',
+    this.hotwordsBoost = 1.5,
   });
 }
 
@@ -273,7 +287,16 @@ List<TranscriptionSegment> splitSegmentsOnPunct(
   return result;
 }
 
-/// Main transcription service that coordinates engines, audio processing, and diarization
+/// Main transcription service that coordinates engines, audio processing, and diarization.
+///
+/// §5.26.5 — Long-form chunking note: CrisperWeaver sends the full audio
+/// to the CrispASR session C API in one call. The C side handles internal
+/// chunking per-backend (CrispASR #89/#114): parakeet/canary/fastconformer
+/// use chunked-encode + single-decode; voxtral/cohere have streamed-encode
+/// paths with boundary-overlap dedup. Since we don't do Dart-side 30s
+/// chunking, there is no double-chunking risk. The `--offset-t/--duration`
+/// window slice in the transcription screen is a user-driven trim, not a
+/// chunking step.
 class TranscriptionService {
   final AudioService _audioService;
   final ModelService _modelService;

@@ -3008,6 +3008,30 @@ abstract class AppLocalizations {
   /// **'The active backend is CTC-style and can\'t bias vocabulary at the decoder. Switch to Whisper / Moonshine / an LLM-backend (Voxtral, Qwen3, Granite, …) to enable.'**
   String get advancedVocabularyHelperUnsupported;
 
+  /// No description provided for @advancedHotwords.
+  ///
+  /// In en, this message translates to:
+  /// **'Hotwords'**
+  String get advancedHotwords;
+
+  /// No description provided for @advancedHotwordsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Comma-separated words or phrases (e.g. ACME Corp, TensorFlow, Dr. Smith)'**
+  String get advancedHotwordsHint;
+
+  /// No description provided for @advancedHotwordsHelper.
+  ///
+  /// In en, this message translates to:
+  /// **'Biases the decoder toward these words/phrases. Useful for names, brands, or domain terms the model is likely to mishear.'**
+  String get advancedHotwordsHelper;
+
+  /// No description provided for @advancedHotwordsUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'The active backend doesn\'t support hotword biasing. Switch to an LLM-backend or Whisper to enable.'**
+  String get advancedHotwordsUnsupported;
+
   /// No description provided for @voiceCloneOpenTooltip.
   ///
   /// In en, this message translates to:
@@ -3217,6 +3241,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Dia uses [S1] and [S2] tags to mark different speakers in dialogue. Use 100+ character prompts for best results.'**
   String get synthDiaHelper;
+
+  /// No description provided for @synthS2sToggle.
+  ///
+  /// In en, this message translates to:
+  /// **'Speech-to-Speech mode'**
+  String get synthS2sToggle;
+
+  /// No description provided for @synthS2sHelper.
+  ///
+  /// In en, this message translates to:
+  /// **'Transform audio input through the model instead of synthesizing from text. Requires LFM2-Audio or Mini-Omni2.'**
+  String get synthS2sHelper;
+
+  /// No description provided for @synthS2sPickAudio.
+  ///
+  /// In en, this message translates to:
+  /// **'No audio file selected'**
+  String get synthS2sPickAudio;
+
+  /// No description provided for @synthS2sBrowse.
+  ///
+  /// In en, this message translates to:
+  /// **'Browse'**
+  String get synthS2sBrowse;
 
   /// No description provided for @synthRunButton.
   ///

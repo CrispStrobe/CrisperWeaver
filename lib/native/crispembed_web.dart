@@ -103,14 +103,14 @@ class CrispEmbed {
 
     // 5. Initialize the embedding context via ccall
     Log.instance.i('crispembed-web', 'loading model...');
-    final ctxPtr = _ccall(module, 'wasm_embed_init', 'number',
-        ['string', 'number'], [modelPath, nThreads]);
+    final ctxPtr = (_ccall(module, 'wasm_embed_init', 'number',
+        ['string', 'number'], [modelPath, nThreads]) as num).toInt();
     if (ctxPtr == 0) {
       throw Exception('wasm_embed_init failed — model may be corrupt');
     }
 
     // 6. Get dimension
-    final dim = _ccall(module, 'wasm_embed_dim', 'number', ['number'], [ctxPtr]) as int;
+    final dim = (_ccall(module, 'wasm_embed_dim', 'number', ['number'], [ctxPtr]) as num).toInt();
     Log.instance.i('crispembed-web', 'model loaded, dim=$dim');
     onProgress?.call(1.0);
 

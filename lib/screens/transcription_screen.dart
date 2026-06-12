@@ -2064,6 +2064,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
         transcribeWindowStartSec: adv.transcribeWindowStartSec,
         transcribeWindowDurationSec: adv.transcribeWindowDurationSec,
         altN: adv.altN,
+        hotwords: adv.hotwords,
       );
 
       // §5.1.2 vocabulary merge — resolve the active backend
@@ -2072,24 +2073,30 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
       // capability matrix. CTC backends fall through to the
       // existing user-typed prompts unchanged.
       final activeBackend = _resolveBackend(_modelName);
-      final mergedInitialPrompt =
-          AdvancedOptions.vocabularyViaInitialPromptBackends
-                  .contains(activeBackend)
-              ? AdvancedOptions.mergeVocabularyIntoPrompt(
-                  backend: activeBackend,
-                  vocabulary: adv.vocabulary,
-                  existing: adv.initialPrompt,
-                )
-              : adv.initialPrompt;
-      final mergedAskPrompt =
-          AdvancedOptions.vocabularyViaAskPromptBackends
-                  .contains(activeBackend)
-              ? AdvancedOptions.mergeVocabularyIntoPrompt(
-                  backend: activeBackend,
-                  vocabulary: adv.vocabulary,
-                  existing: adv.askPrompt,
-                )
-              : adv.askPrompt;
+      final mergedInitialPrompt = AdvancedOptions.mergeHotwordsIntoPrompt(
+        backend: activeBackend,
+        hotwords: adv.hotwords,
+        existing: AdvancedOptions.vocabularyViaInitialPromptBackends
+                .contains(activeBackend)
+            ? AdvancedOptions.mergeVocabularyIntoPrompt(
+                backend: activeBackend,
+                vocabulary: adv.vocabulary,
+                existing: adv.initialPrompt,
+              )
+            : adv.initialPrompt,
+      );
+      final mergedAskPrompt = AdvancedOptions.mergeHotwordsIntoPrompt(
+        backend: activeBackend,
+        hotwords: adv.hotwords,
+        existing: AdvancedOptions.vocabularyViaAskPromptBackends
+                .contains(activeBackend)
+            ? AdvancedOptions.mergeVocabularyIntoPrompt(
+                backend: activeBackend,
+                vocabulary: adv.vocabulary,
+                existing: adv.askPrompt,
+              )
+            : adv.askPrompt,
+      );
 
       if (_selectedFileBytes != null && plat.isWeb) {
         // Web path: send raw bytes to the cloud engine.
@@ -2307,6 +2314,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
       transcribeWindowStartSec: adv.transcribeWindowStartSec,
       transcribeWindowDurationSec: adv.transcribeWindowDurationSec,
       altN: adv.altN,
+      hotwords: adv.hotwords,
     );
 
     // Load the model once for the whole batch.
@@ -2509,24 +2517,32 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
         // currently-loaded model if missing.
         final perJobBackend =
             _resolveBackend(next.modelId ?? _modelName);
-        final perJobInitial = AdvancedOptions
-                .vocabularyViaInitialPromptBackends
-                .contains(perJobBackend)
-            ? AdvancedOptions.mergeVocabularyIntoPrompt(
-                backend: perJobBackend,
-                vocabulary: adv.vocabulary,
-                existing: adv.initialPrompt,
-              )
-            : adv.initialPrompt;
-        final perJobAsk = AdvancedOptions
-                .vocabularyViaAskPromptBackends
-                .contains(perJobBackend)
-            ? AdvancedOptions.mergeVocabularyIntoPrompt(
-                backend: perJobBackend,
-                vocabulary: adv.vocabulary,
-                existing: adv.askPrompt,
-              )
-            : adv.askPrompt;
+        final perJobInitial = AdvancedOptions.mergeHotwordsIntoPrompt(
+          backend: perJobBackend,
+          hotwords: adv.hotwords,
+          existing: AdvancedOptions
+                  .vocabularyViaInitialPromptBackends
+                  .contains(perJobBackend)
+              ? AdvancedOptions.mergeVocabularyIntoPrompt(
+                  backend: perJobBackend,
+                  vocabulary: adv.vocabulary,
+                  existing: adv.initialPrompt,
+                )
+              : adv.initialPrompt,
+        );
+        final perJobAsk = AdvancedOptions.mergeHotwordsIntoPrompt(
+          backend: perJobBackend,
+          hotwords: adv.hotwords,
+          existing: AdvancedOptions
+                  .vocabularyViaAskPromptBackends
+                  .contains(perJobBackend)
+              ? AdvancedOptions.mergeVocabularyIntoPrompt(
+                  backend: perJobBackend,
+                  vocabulary: adv.vocabulary,
+                  existing: adv.askPrompt,
+                )
+              : adv.askPrompt,
+        );
         final segments = await transcriptionService.transcribeFile(
           File(next.filePath),
           language: language,
@@ -2774,15 +2790,19 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
       // Pool workers consume both via their sticky setter
       // protocol, so we just pass the merged strings here.
       final poolBackend = _resolveBackend(job.modelId ?? _modelName);
-      final poolAsk = AdvancedOptions
-              .vocabularyViaAskPromptBackends
-              .contains(poolBackend)
-          ? AdvancedOptions.mergeVocabularyIntoPrompt(
-              backend: poolBackend,
-              vocabulary: adv.vocabulary,
-              existing: adv.askPrompt,
-            )
-          : adv.askPrompt;
+      final poolAsk = AdvancedOptions.mergeHotwordsIntoPrompt(
+        backend: poolBackend,
+        hotwords: adv.hotwords,
+        existing: AdvancedOptions
+                .vocabularyViaAskPromptBackends
+                .contains(poolBackend)
+            ? AdvancedOptions.mergeVocabularyIntoPrompt(
+                backend: poolBackend,
+                vocabulary: adv.vocabulary,
+                existing: adv.askPrompt,
+              )
+            : adv.askPrompt,
+      );
       var segments = await pool.dispatch(
         samples: windowedSamples,
         language: language,
@@ -2818,6 +2838,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
         suppressTokensRegex: adv.suppressTokensRegex,
         carryInitialPrompt: adv.carryInitialPrompt,
         altN: adv.altN,
+        hotwords: adv.hotwords,
         onSegment: (seg) {
           // Apply the window shift here too so the checkpoint /
           // streamed-into-UI timestamps match the post-loop shift

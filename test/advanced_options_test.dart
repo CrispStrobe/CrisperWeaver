@@ -431,5 +431,112 @@ void main() {
         expect(cleared.altN, 0);
       });
     });
+
+    group('hotwords (§5.26.2)', () {
+      test('default hotwords is empty', () {
+        expect(const AdvancedOptions().hotwords, isEmpty);
+      });
+
+      test('copyWith roundtrips the hotwords string', () {
+        const o = AdvancedOptions();
+        final next = o.copyWith(hotwords: 'ACME, TensorFlow');
+        expect(next.hotwords, 'ACME, TensorFlow');
+        // Other fields untouched.
+        expect(next.bestOf, o.bestOf);
+        expect(next.vocabulary, o.vocabulary);
+      });
+
+      test('hotwordsCapableBackends covers the documented backends', () {
+        expect(
+            AdvancedOptions.hotwordsCapableBackends,
+            containsAll([
+              'whisper',
+              'moonshine',
+              'voxtral',
+              'qwen3',
+              'granite',
+              'granite-4.1',
+              'glm-asr',
+              'gemma4-e2b',
+              'omniasr-llm',
+              'mimo-asr',
+              'moss-audio',
+              'lfm2-audio',
+              'mini-omni2',
+            ]));
+      });
+
+      test('CTC backends excluded from hotwords', () {
+        for (final ctc in ['parakeet', 'canary', 'cohere', 'wav2vec2']) {
+          expect(
+              AdvancedOptions.hotwordsCapableBackends.contains(ctc), isFalse,
+              reason: '$ctc is CTC-style — no hotword support');
+        }
+      });
+    });
+
+    group('mergeHotwordsIntoPrompt (§5.26.2)', () {
+      test('empty hotwords returns existing unchanged', () {
+        expect(
+          AdvancedOptions.mergeHotwordsIntoPrompt(
+            backend: 'whisper',
+            hotwords: '',
+            existing: 'some prompt',
+          ),
+          'some prompt',
+        );
+      });
+
+      test('whitespace-only hotwords returns existing unchanged', () {
+        expect(
+          AdvancedOptions.mergeHotwordsIntoPrompt(
+            backend: 'qwen3',
+            hotwords: '   ',
+            existing: 'ask',
+          ),
+          'ask',
+        );
+      });
+
+      test('unsupported backend returns existing unchanged', () {
+        expect(
+          AdvancedOptions.mergeHotwordsIntoPrompt(
+            backend: 'parakeet',
+            hotwords: 'ACME, TensorFlow',
+            existing: '',
+          ),
+          '',
+        );
+      });
+
+      test('merges hotwords into empty prompt for LLM backend', () {
+        final result = AdvancedOptions.mergeHotwordsIntoPrompt(
+          backend: 'qwen3',
+          hotwords: 'ACME, TensorFlow',
+          existing: '',
+        );
+        expect(result, contains('ACME, TensorFlow'));
+        expect(result, contains('following words may appear'));
+      });
+
+      test('merges hotwords before existing prompt', () {
+        final result = AdvancedOptions.mergeHotwordsIntoPrompt(
+          backend: 'voxtral',
+          hotwords: 'Dr. Smith',
+          existing: 'Summarize the audio.',
+        );
+        expect(result, startsWith('The following words'));
+        expect(result, endsWith('Summarize the audio.'));
+      });
+
+      test('works for whisper (initial_prompt) backends', () {
+        final result = AdvancedOptions.mergeHotwordsIntoPrompt(
+          backend: 'whisper',
+          hotwords: 'kubectl, gRPC',
+          existing: '',
+        );
+        expect(result, contains('kubectl, gRPC'));
+      });
+    });
   });
 }

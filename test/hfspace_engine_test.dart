@@ -233,7 +233,7 @@ void main() {
         dio: Dio()
           ..httpClientAdapter = _CannedAdapter({
             '/v1/audio/transcriptions': (_) =>
-                _jsonBody({'text': 'ok', 'segments': []}),
+                _jsonBody({'text': 'ok', 'segments': <dynamic>[]}),
           }),
       );
       // Just verify it doesn't throw

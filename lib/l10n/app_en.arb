@@ -752,6 +752,11 @@
   "advancedVocabularyHelperAsk": "Biases the LLM by prepending these terms to its prompt. Combined with Q&A — your question still runs.",
   "advancedVocabularyHelperUnsupported": "The active backend is CTC-style and can't bias vocabulary at the decoder. Switch to Whisper / Moonshine / an LLM-backend (Voxtral, Qwen3, Granite, …) to enable.",
 
+  "advancedHotwords": "Hotwords",
+  "advancedHotwordsHint": "Comma-separated words or phrases (e.g. ACME Corp, TensorFlow, Dr. Smith)",
+  "advancedHotwordsHelper": "Biases the decoder toward these words/phrases. Useful for names, brands, or domain terms the model is likely to mishear.",
+  "advancedHotwordsUnsupported": "The active backend doesn't support hotword biasing. Switch to an LLM-backend or Whisper to enable.",
+
   "voiceCloneOpenTooltip": "Clone a voice…",
   "voiceCloneTitle": "Voice clone wizard",
   "voiceCloneStepCapture": "Capture",
@@ -796,6 +801,10 @@
   "synthTextHint": "Type text to synthesise…",
   "synthDiaTextHint": "[S1] Hello, how are you? [S2] I'm doing great, thanks!",
   "synthDiaHelper": "Dia uses [S1] and [S2] tags to mark different speakers in dialogue. Use 100+ character prompts for best results.",
+  "synthS2sToggle": "Speech-to-Speech mode",
+  "synthS2sHelper": "Transform audio input through the model instead of synthesizing from text. Requires LFM2-Audio or Mini-Omni2.",
+  "synthS2sPickAudio": "No audio file selected",
+  "synthS2sBrowse": "Browse",
   "synthRunButton": "Synthesize",
   "synthPlayButton": "Play",
   "synthStopButton": "Stop",

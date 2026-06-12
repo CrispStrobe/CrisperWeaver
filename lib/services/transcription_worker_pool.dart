@@ -292,6 +292,7 @@ class TranscriptionWorkerPool {
     String suppressTokensRegex = '',
     bool carryInitialPrompt = false,
     int altN = 0,
+    String hotwords = '',
     void Function(TranscriptionSegment seg)? onSegment,
   }) async {
     final worker = await _acquire();
@@ -371,6 +372,7 @@ class TranscriptionWorkerPool {
         // 0.5.13+). Always sent so a slider drag back to 0 actually
         // disables capture on the next dispatch.
         'altN': altN,
+        'hotwords': hotwords,
         'replyPort': replyReceive.sendPort,
       });
       return await completer.future;

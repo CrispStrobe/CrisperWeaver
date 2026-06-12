@@ -293,6 +293,14 @@ class AdvancedOptions {
   /// an analog today.
   final int altN;
 
+  /// §5.26.2 — Hotwords for contextual biasing. Comma-separated list
+  /// of words/phrases the user expects in the audio. Delivered to
+  /// LLM backends via setAsk() with "The following words may appear
+  /// in the audio: …" phrasing (matching CrispASR CLI behavior).
+  /// CTC backends: parakeet has native hotword support at the CLI
+  /// level but not yet in the session C API — tracked upstream.
+  final String hotwords;
+
   /// §5.1.2 — Custom-vocabulary boost list. Persistent across runs;
   /// the user manages it in Advanced Options as removable chips
   /// (brand names, acronyms, technical jargon, people's names).
@@ -361,6 +369,7 @@ class AdvancedOptions {
     this.transcribeWindowStartSec = 0.0,
     this.transcribeWindowDurationSec = 0.0,
     this.altN = 0,
+    this.hotwords = '',
   });
 
   AdvancedOptions copyWith({
@@ -409,6 +418,7 @@ class AdvancedOptions {
     double? transcribeWindowStartSec,
     double? transcribeWindowDurationSec,
     int? altN,
+    String? hotwords,
   }) =>
       AdvancedOptions(
         translate: translate ?? this.translate,
@@ -462,6 +472,7 @@ class AdvancedOptions {
         transcribeWindowDurationSec:
             transcribeWindowDurationSec ?? this.transcribeWindowDurationSec,
         altN: altN ?? this.altN,
+        hotwords: hotwords ?? this.hotwords,
       );
 
   /// Backends that accept a target-language hint different from the
@@ -638,6 +649,51 @@ class AdvancedOptions {
     final hint = 'Vocabulary: ${trimmedTerms.join(', ')}. ';
     return existing.isEmpty ? hint : '$hint$existing';
   }
+
+  /// §5.26.2 — Backends that support hotword biasing. For LLM backends
+  /// hotwords are injected into the ask prompt. Matches CrispASR CLI
+  /// behavior where `--hotwords` prepends "The following words may
+  /// appear in the audio: …" to the system prompt.
+  static const Set<String> hotwordsCapableBackends = {
+    // LLM backends — hotwords via ask-prompt injection
+    'voxtral',
+    'voxtral4b',
+    'qwen3',
+    'granite',
+    'granite-4.1',
+    'granite-4.1-plus',
+    'granite-4.1-nar',
+    'glm-asr',
+    'gemma4-e2b',
+    'omniasr-llm',
+    'omniasr-llm-unlimited',
+    'mimo-asr',
+    'moss-audio',
+    'lfm2-audio',
+    'mini-omni2',
+    // Encoder-decoder backends — hotwords via initial_prompt injection
+    'whisper',
+    'moonshine',
+    'moonshine-streaming',
+  };
+
+  /// §5.26.2 — Merge hotwords into the ask/initial prompt so the
+  /// decoder is biased toward these terms. Matches the CrispASR CLI
+  /// phrasing: "The following words may appear in the audio: …"
+  ///
+  /// Pure function; trivially unit-testable.
+  static String mergeHotwordsIntoPrompt({
+    required String backend,
+    required String hotwords,
+    required String existing,
+  }) {
+    final trimmed = hotwords.trim();
+    if (trimmed.isEmpty) return existing;
+    if (!hotwordsCapableBackends.contains(backend)) return existing;
+    final hint =
+        'The following words may appear in the audio: $trimmed. ';
+    return existing.isEmpty ? hint : '$hint$existing';
+  }
 }
 
 final advancedOptionsProvider =
@@ -787,6 +843,8 @@ class _AdvancedDecodingSectionState
         // the helper text changes to a "backend can't bias
         // vocabulary" note when the active backend is CTC-class.
         _buildVocabularyRow(context, opts),
+        // §5.26.2 — Hotwords for contextual biasing.
+        _buildHotwordsRow(context, opts),
         // LID method picker — visible only when the global language
         // dropdown is "auto" + active backend lacks native LID. We
         // can't see those preconditions here, so always show it; the
@@ -1910,6 +1968,37 @@ class _AdvancedDecodingSectionState
             ),
           ],
         ],
+      ),
+    );
+  }
+
+  /// §5.26.2 — Hotwords text field for contextual biasing.
+  /// Comma-separated words/phrases the user expects to hear.
+  /// Visible for all hotword-capable backends; shows an info note
+  /// for backends that don't support it.
+  Widget _buildHotwordsRow(BuildContext context, AdvancedOptions opts) {
+    final l = AppLocalizations.of(context);
+    final backend = _activeBackend();
+    final supported =
+        AdvancedOptions.hotwordsCapableBackends.contains(backend);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: TextField(
+        controller: TextEditingController(text: opts.hotwords),
+        decoration: InputDecoration(
+          labelText: l.advancedHotwords,
+          hintText: l.advancedHotwordsHint,
+          helperText: supported
+              ? l.advancedHotwordsHelper
+              : l.advancedHotwordsUnsupported,
+          border: const OutlineInputBorder(),
+          isDense: true,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        ),
+        enabled: supported,
+        onChanged: (v) => ref.read(advancedOptionsProvider.notifier).state =
+            opts.copyWith(hotwords: v),
       ),
     );
   }

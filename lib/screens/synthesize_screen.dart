@@ -9,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../models/pronunciation_lexicon.dart';
+import '../native/crispasr_import.dart' as crispasr;
 import '../services/voice_baking_service.dart';
 
 import '../l10n/generated/app_localizations.dart';
@@ -122,6 +123,19 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
   int _ttsSeed = 0;
   /// Frequency penalty for AR token repetition.
   double _frequencyPenalty = 0.0;
+
+  /// §5.26.3 — Speech-to-Speech mode. When enabled, the user provides
+  /// audio input instead of text, and the engine produces transformed
+  /// audio output via the backend's S2S pipeline.
+  bool _s2sMode = false;
+  String? _s2sInputPath;
+
+  /// Backends that support speech-to-speech at the C level.
+  /// S2S requires `crispasr_session_speech_to_speech()` in the C API —
+  /// not yet exposed (only CLI). UI scaffold is ready; the synthesize
+  /// path falls back to a transcribe→synthesize chain until the native
+  /// S2S session function lands.
+  static const _s2sCapableBackends = {'lfm2-audio', 'mini-omni2'};
 
   /// §5.25.9 — Pronunciation lexicon loaded from disk.
   PronunciationLexicon? _lexicon;
@@ -454,6 +468,11 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
   }
 
   Future<void> _synthesize() async {
+    // §5.26.3 — S2S mode: audio input instead of text.
+    if (_s2sMode) {
+      await _synthesizeS2S();
+      return;
+    }
     final text = _textController.text.trim();
     if (text.isEmpty || _selectedModel == null) return;
     setState(() {
@@ -661,6 +680,68 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
     }
   }
 
+  /// §5.26.3 — S2S synthesis: load audio from file, run S2S, play result.
+  Future<void> _synthesizeS2S() async {
+    if (_s2sInputPath == null || _selectedModel == null) return;
+    setState(() {
+      _busy = true;
+      _lastWav = null;
+    });
+    final tts = ref.read(ttsServiceProvider);
+    try {
+      // Prepare the TTS session (loads model + codec).
+      final status = await tts.prepare(
+        modelName: _selectedModel!,
+        voiceName: _selectedVoice,
+        codecName: _selectedCodec,
+      );
+      if (!status.ready) {
+        if (!mounted) return;
+        final l = AppLocalizations.of(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text(l.synthMissingDependency(
+                  status.missingModelName ?? status.errorMessage ?? ''))),
+        );
+        return;
+      }
+
+      // Load input audio as 16 kHz mono PCM via crispasr_audio_load.
+      final decoded = crispasr.decodeAudioFile(_s2sInputPath!);
+      final inputPcm = decoded.samples;
+      if (inputPcm.isEmpty) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to load input audio')),
+        );
+        return;
+      }
+
+      final audio = await tts.speechToSpeech(inputPcm);
+      if (audio == null || audio.samples.isEmpty) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('S2S produced no audio')),
+        );
+        return;
+      }
+
+      final wav = await tts.writeWav(audio);
+      if (!mounted) return;
+      setState(() => _lastWav = wav);
+      await _player.setFilePath(wav.path);
+      await _player.play();
+    } catch (e, st) {
+      Log.instance.e('synth', 's2s error', error: e, stack: st);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('S2S error: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _shareWav() async {
     final wav = _lastWav;
     if (wav == null) return;
@@ -863,21 +944,68 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
                     ],
                   ],
                   const SizedBox(height: 16),
-                  TextField(
-                    controller: _textController,
-                    minLines: 4,
-                    maxLines: 8,
-                    decoration: InputDecoration(
-                      hintText: modelDef?.backend == 'dia'
-                          ? l.synthDiaTextHint
-                          : l.synthTextHint,
-                      helperText: modelDef?.backend == 'dia'
-                          ? l.synthDiaHelper
-                          : null,
-                      helperMaxLines: 2,
-                      border: const OutlineInputBorder(),
+                  // §5.26.3 — S2S toggle + audio input (visible for
+                  // S2S-capable backends only).
+                  if (_s2sCapableBackends
+                      .contains(modelDef?.backend)) ...[
+                    SwitchListTile(
+                      title: Text(l.synthS2sToggle),
+                      subtitle: Text(l.synthS2sHelper),
+                      value: _s2sMode,
+                      onChanged: (v) => setState(() => _s2sMode = v),
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
                     ),
-                  ),
+                    if (_s2sMode) ...[
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              _s2sInputPath != null
+                                  ? p.basename(_s2sInputPath!)
+                                  : l.synthS2sPickAudio,
+                              style: Theme.of(context).textTheme.bodyMedium,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          OutlinedButton.icon(
+                            onPressed: () async {
+                              final result =
+                                  await pickFilesRobust(
+                                type: FileType.audio,
+                              );
+                              if (result.localPaths.isNotEmpty) {
+                                setState(() {
+                                  _s2sInputPath =
+                                      result.localPaths.first;
+                                });
+                              }
+                            },
+                            icon: const Icon(Icons.audio_file, size: 18),
+                            label: Text(l.synthS2sBrowse),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+                  ],
+                  if (!_s2sMode)
+                    TextField(
+                      controller: _textController,
+                      minLines: 4,
+                      maxLines: 8,
+                      decoration: InputDecoration(
+                        hintText: modelDef?.backend == 'dia'
+                            ? l.synthDiaTextHint
+                            : l.synthTextHint,
+                        helperText: modelDef?.backend == 'dia'
+                            ? l.synthDiaHelper
+                            : null,
+                        helperMaxLines: 2,
+                        border: const OutlineInputBorder(),
+                      ),
+                    ),
                   const SizedBox(height: 8),
                   ExpansionTile(
                     initiallyExpanded: _showAdvanced,
@@ -1196,7 +1324,9 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
                           onPressed: _busy ||
                                   _selectedModel == null ||
                                   downloadedTtsModels.isEmpty ||
-                                  (modelDef?.requiresVoice == true &&
+                                  (_s2sMode && _s2sInputPath == null) ||
+                                  (!_s2sMode &&
+                                      modelDef?.requiresVoice == true &&
                                       _selectedVoice == null &&
                                       _customVoiceWavPath == null &&
                                       _presetSpeakers.isEmpty)

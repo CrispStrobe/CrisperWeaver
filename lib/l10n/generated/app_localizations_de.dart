@@ -1740,6 +1740,21 @@ class AppLocalizationsDe extends AppLocalizations {
       'Das aktive Backend ist CTC-basiert und kann das Vokabular nicht im Decoder berücksichtigen. Wechsle zu Whisper / Moonshine / einem LLM-Backend (Voxtral, Qwen3, Granite, …), um diese Funktion zu aktivieren.';
 
   @override
+  String get advancedHotwords => 'Hotwords';
+
+  @override
+  String get advancedHotwordsHint =>
+      'Kommagetrennte Wörter oder Phrasen (z. B. ACME Corp, TensorFlow, Dr. Schmidt)';
+
+  @override
+  String get advancedHotwordsHelper =>
+      'Lenkt den Decoder auf diese Wörter/Phrasen. Nützlich für Namen, Marken oder Fachbegriffe, die das Modell sonst falsch erkennt.';
+
+  @override
+  String get advancedHotwordsUnsupported =>
+      'Das aktive Backend unterstützt keine Hotword-Erkennung. Wechsle zu einem LLM-Backend oder Whisper, um diese Funktion zu aktivieren.';
+
+  @override
   String get voiceCloneOpenTooltip => 'Stimme klonen…';
 
   @override
@@ -1856,6 +1871,19 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get synthDiaHelper =>
       'Dia verwendet [S1]- und [S2]-Tags für verschiedene Sprecher im Dialog. Verwende Texte mit 100+ Zeichen für beste Ergebnisse.';
+
+  @override
+  String get synthS2sToggle => 'Sprache-zu-Sprache-Modus';
+
+  @override
+  String get synthS2sHelper =>
+      'Transformiert Audio-Eingabe durch das Modell, anstatt aus Text zu synthetisieren. Erfordert LFM2-Audio oder Mini-Omni2.';
+
+  @override
+  String get synthS2sPickAudio => 'Keine Audiodatei ausgewählt';
+
+  @override
+  String get synthS2sBrowse => 'Durchsuchen';
 
   @override
   String get synthRunButton => 'Synthetisieren';

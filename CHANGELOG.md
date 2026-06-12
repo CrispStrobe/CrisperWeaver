@@ -5,6 +5,52 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 
 ## [Unreleased]
 
+### Added — CrispASR mid-2026 catch-up (§5.26)
+
+**New backends (4):**
+- **LFM2-Audio 1.5B** — LiquidAI hybrid ASR + TTS + Speech-to-Speech.
+  English (Q5_K ~1.6 GB) + Japanese variant (Q4_K ~1.5 GB). LFM Open License.
+- **Mini-Omni2** — Whisper-small + Qwen2-0.5B multimodal: ASR + TTS + S2S
+  in one 1 GB model. Needs SNAC 24 kHz codec companion (~80 MB).
+- **MOSS-Audio 4B** — Audio understanding: ASR + audio Q&A + scene
+  description via Whisper encoder + Qwen3 LLM (~3.8 GB).
+- **Parakeet-RNNT 0.6B/1.1B** — Standard RNN-Transducer English ASR,
+  complementing the existing TDT variants.
+
+**Hotwords / contextual biasing (§5.26.2):**
+- New "Hotwords" text field in Advanced Options — comma-separated words
+  or phrases the model should expect in the audio.
+- For LLM backends (Voxtral, Qwen3, Granite, etc.): merged into the ask
+  prompt as "The following words may appear in the audio: ...".
+- For CTC/TDT backends (Parakeet): applied to the Aho-Corasick trie via
+  the new `crispasr_session_set_hotwords()` C API.
+- Wired through all transcription paths: single-file, batch, pool dispatch.
+
+**Speech-to-Speech mode (§5.26.3):**
+- New S2S toggle on the Synthesize screen (visible for LFM2-Audio and
+  Mini-Omni2). When enabled, user picks/records audio input instead of
+  typing text — the engine transforms audio → audio in a single model pass.
+- Full pipeline: audio file picker → decode → S2S via background isolate →
+  WAV output → playback.
+- New `crispasr_session_speech_to_speech()` C API + Dart FFI binding.
+
+**Free upgrades from latest CrispASR:**
+- **Global diarization** (#110) — sherpa/ECAPA runs once on full audio,
+  consistent speaker IDs across chunks.
+- **Long-form chunking** (#89/#114) — per-backend chunked-encode + dedup.
+- **Beam search expansion** (#139) — 18/24 backends now beam-capable.
+- **Permissive G2P** (#156) — replaces espeak-ng GPL dep with IPA dicts.
+
+**Baked catalog:** 310 entries (was 300). LFM2-Audio, Mini-Omni2, and all
+their quant variants available on cold start without HF probe.
+
+### Fixed — Pre-existing CI analyze errors
+- `crispembed_web.dart`: `dynamic` → `int` cast for WASM ctxPtr/dim.
+- `translate_screen.dart`: deprecated `value:` → `initialValue:`.
+- `hfspace_live_test.dart`: explicit `<Map<String, dynamic>>` type args
+  on `dio.get()` calls.
+- `hfspace_engine_test.dart`: explicit `<dynamic>[]` type arg on empty list.
+
 ### Added — HF Space engine: Gradio-API fallback mode
 - `HfSpaceEngine` gains an `HfSpaceApiMode` toggle (`setApiMode`). Default
   `openai` uses the Space's OpenAI-compatible `/v1` REST API (now exposed by

@@ -595,6 +595,13 @@ const _repos = <RepoSpec>[
     displayPrefix: 'OmniASR CTC 300M', description: 'OmniASR CTC 300M — 1600+ languages'),
   RepoSpec(backend: 'moss-audio', repoId: 'cstr/MOSS-Audio-4B-Instruct-GGUF', baseName: 'moss-audio-4b-instruct',
     displayPrefix: 'MOSS-Audio 4B', description: 'ASR + audio QA (Whisper enc + Qwen3 LLM)'),
+  // §5.26 — LFM2-Audio + Mini-Omni2 (ASR + TTS + S2S)
+  RepoSpec(backend: 'lfm2-audio', repoId: 'cstr/lfm2-audio-1.5b-GGUF', baseName: 'lfm2-audio-1.5b',
+    displayPrefix: 'LFM2-Audio 1.5B', description: 'LiquidAI LFM2-Audio (ASR + TTS + S2S, English)'),
+  RepoSpec(backend: 'lfm2-audio', repoId: 'cstr/lfm2-audio-1.5b-jp-GGUF', baseName: 'lfm2-audio-1.5b-jp',
+    displayPrefix: 'LFM2-Audio 1.5B JP', description: 'LiquidAI LFM2-Audio (ASR + TTS + S2S, Japanese)'),
+  RepoSpec(backend: 'mini-omni2', repoId: 'cstr/mini-omni2-GGUF', baseName: 'mini-omni2',
+    displayPrefix: 'Mini-Omni2', description: 'Whisper + Qwen2 0.5B (ASR + TTS + S2S)'),
   RepoSpec(backend: 'parakeet', repoId: 'cstr/parakeet-tdt-0.6b-ja-GGUF', baseName: 'parakeet-tdt-0.6b-ja',
     displayPrefix: 'Parakeet JA', description: 'Parakeet TDT 0.6B Japanese'),
   RepoSpec(backend: 'fastconformer-ctc', repoId: 'cstr/parakeet-ctc-0.6b-GGUF', baseName: 'parakeet-ctc-0.6b',

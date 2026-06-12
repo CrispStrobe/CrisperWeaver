@@ -522,6 +522,62 @@ class TtsService {
     return out;
   }
 
+  /// §5.26.3 — Speech-to-Speech: audio in → audio out via a single
+  /// model pass. Supported on lfm2-audio and mini-omni2 backends.
+  ///
+  /// [inputPcm] is 16 kHz mono float32 input audio. Returns a
+  /// [SynthesizedAudio] with the output PCM and an optional
+  /// intermediate transcript.
+  Future<SynthesizedAudio?> speechToSpeech(
+    Float32List inputPcm,
+  ) async {
+    if (_session == null) return null;
+    final modelPath = _modelPath;
+    if (modelPath == null) return null;
+    final backend = _backend;
+    final codecPath = _codecPath;
+
+    Log.instance.i('tts', 's2s starting', fields: {
+      'backend': backend ?? '',
+      'model': modelPath.split('/').last,
+      'input_samples': inputPcm.length,
+    });
+
+    try {
+      final result =
+          await Isolate.run<({Float32List pcm, String transcript})>(() {
+        late final crispasr.CrispasrSession s;
+        if (backend != null) {
+          s = crispasr.CrispasrSession.open(modelPath, backend: backend);
+        } else {
+          s = crispasr.CrispasrSession.open(modelPath);
+        }
+        try {
+          if (codecPath != null) s.setCodecPath(codecPath);
+          // speechToSpeech() is available in CrispASR builds with the
+          // feat/session-s2s-hotwords branch merged. Older builds
+          // throw UnsupportedError.
+          return s.speechToSpeech(inputPcm);
+        } finally {
+          s.close();
+        }
+      });
+
+      Log.instance.i('tts', 's2s done', fields: {
+        'output_samples': result.pcm.length,
+        'transcript_len': result.transcript.length,
+      });
+
+      return SynthesizedAudio(
+        samples: result.pcm,
+        sampleRate: 24000,
+      );
+    } catch (e, st) {
+      Log.instance.e('tts', 's2s failed', error: e, stack: st);
+      return null;
+    }
+  }
+
   /// Write the synthesised PCM as a 16-bit WAV to a temp file. Returns
   /// the file path so the caller can hand it to the share sheet / save
   /// dialog.

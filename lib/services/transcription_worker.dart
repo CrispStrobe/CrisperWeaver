@@ -186,6 +186,7 @@ Future<void> transcriptionWorkerEntry(TranscriptionWorkerArgs args) async {
     // decode only). 0 = off; pre-0.5.13 dylibs lack the setter and
     // the worker silently no-ops.
     final altN = (raw['altN'] as num?)?.toInt() ?? 0;
+    final hotwords = (raw['hotwords'] as String?) ?? '';
 
     try {
       // Apply sticky session-state setters before dispatch. Empty
@@ -262,6 +263,13 @@ Future<void> transcriptionWorkerEntry(TranscriptionWorkerArgs args) async {
       try {
         session.setAltN(altN);
       } on Object catch (_) {/* old dylib or non-whisper backend */}
+      // §5.26.2 — Hotwords for contextual biasing. Gracefully
+      // degrades on older dylibs without the symbol.
+      if (hotwords.isNotEmpty) {
+        try {
+          session.setHotwords(hotwords);
+        } on Object catch (_) {/* old dylib */}
+      }
       // GBNF grammar (whisper-only — the C side silently no-ops on
       // other backends because grammar_active never flips true for
       // them, but the setter itself is whisper-aware). Empty text

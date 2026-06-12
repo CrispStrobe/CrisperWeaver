@@ -500,7 +500,7 @@ class _WebTranslateScreenState extends ConsumerState<_WebTranslateScreen> {
                 style: Theme.of(context).textTheme.bodySmall),
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
-              value: _model,
+              initialValue: _model,
               decoration: const InputDecoration(labelText: 'NMT Model'),
               items: _models
                   .map((m) => DropdownMenuItem(value: m, child: Text(m)))

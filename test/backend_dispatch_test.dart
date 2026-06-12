@@ -234,7 +234,7 @@ void main() {
       //     not-yet-rebuilt engine. Drop them once the standard bundled /
       //     sibling-build dylib is past d846274d. (CI's analyze-and-test job
       //     doesn't build CrispASR, so this guard skips there regardless.)
-      const pending = {'piper', 'f5-tts'};
+      const pending = {'piper', 'f5-tts', 'lfm2-audio', 'mini-omni2'};
 
       final catalogueBackends = <String>{
         for (final m in ModelService.crispasrBackendModels.values)
