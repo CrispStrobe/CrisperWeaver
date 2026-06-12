@@ -567,6 +567,14 @@ class CrispasrSession {
     throw UnsupportedError('CrispasrSession is not available on web');
   }
 
+  ({Float32List pcm, String transcript}) speechToSpeech(Float32List inputPcm) {
+    throw UnsupportedError('CrispasrSession is not available on web');
+  }
+
+  void setHotwords(String hotwords, {double boost = 1.5}) {
+    throw UnsupportedError('CrispasrSession is not available on web');
+  }
+
   StreamingSession openStream({
     int stepMs = 3000,
     int lengthMs = 10000,
