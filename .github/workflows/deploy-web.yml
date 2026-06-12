@@ -1,6 +1,7 @@
-# Web build + Vercel deploy. Every push to main builds the Flutter web
-# bundle and deploys to https://web-nu-peach-46.vercel.app — but only
-# when the Vercel secrets are set, so the workflow stays green on forks.
+# Web build + Vercel deploy. Every push to main (and release tags)
+# builds the Flutter web bundle and deploys to
+# https://crisperweaver-web.vercel.app — but only when the Vercel
+# secrets are set, so the workflow stays green on forks.
 #
 # Required repo secrets (Settings → Secrets → Actions):
 #   VERCEL_TOKEN       — Vercel account token
@@ -12,6 +13,8 @@ name: Deploy Web
 on:
   push:
     branches: [main]
+    tags:
+      - "v*"
   pull_request:
     branches: [main]
   workflow_dispatch:
