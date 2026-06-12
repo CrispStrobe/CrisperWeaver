@@ -103,10 +103,16 @@ Future<RobustFilePick> pickFilesRobust({
   // native picker — we'll post-filter ourselves.
   final bool postFilter = type != null && hasExtensions;
 
-  final FileType effectiveType = type ??
-      (hasExtensions ? FileType.custom : FileType.any);
+  // Safari silently ignores accept="audio/*" (FileType.audio) — the picker
+  // never opens or returns empty. On web, always fall back to FileType.any
+  // and rely on the extension post-filter instead.
+  final FileType webSafeType =
+      (plat.isWeb && type == FileType.audio) ? FileType.any : (type ?? FileType.any);
+  final FileType effectiveType = webSafeType == FileType.any && hasExtensions && !plat.isWeb
+      ? FileType.custom
+      : webSafeType;
   final List<String>? nativeExtensions =
-      (postFilter || !hasExtensions) ? null : allowedExtensions;
+      (postFilter || !hasExtensions || plat.isWeb) ? null : allowedExtensions;
 
   FilePickerResult? result;
   var usedCloudFallback = false;

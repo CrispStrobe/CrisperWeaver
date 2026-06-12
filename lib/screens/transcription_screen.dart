@@ -1831,7 +1831,10 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
     RobustFilePick pick;
     try {
       pick = await pickFilesRobust(
-        type: FileType.audio,
+        // On web, FileType.audio maps to accept="audio/*" which Safari
+        // silently ignores (picker never opens or returns empty). Use
+        // FileType.any on web and rely on the extension post-filter.
+        type: plat.isWeb ? FileType.any : FileType.audio,
         allowedExtensions: const ['wav', 'mp3', 'flac', 'ogg'],
         allowMultiple: true,
       );
