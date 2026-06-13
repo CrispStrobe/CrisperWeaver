@@ -198,7 +198,7 @@ MTLBinaryArchive pipeline cache shipped (38× cold-start speedup)
 | Win | Projected speedup | Status |
 |---|---|---|
 | CoreML for whisper on Apple Silicon (`WHISPER_USE_COREML=1` + paired `.mlmodelc`) | Whisper-tiny already 6 s; large-v3 → 2–3× | Deferred to a future CrispASR cycle |
-| Re-download q4_k variants for vibevoice / orpheus | vibevoice 17:22 → ~4 min projected; orpheus 11:50 → ~5 min | Blocked on HF availability |
+| Re-download q4_k variants for vibevoice / orpheus | vibevoice 17:22 → ~4 min projected; orpheus 11:50 → ~5 min | **vibevoice q4_k available** (636 MB, baked June 2026); orpheus q4_k still pending on HF |
 
 ### 5.22 iOS on-device verification — pending
 
