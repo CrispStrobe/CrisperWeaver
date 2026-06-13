@@ -326,7 +326,7 @@ Audit performed June 2026 against 111 Dart source files (~63 K
 LOC), 67 test files (~13 K LOC), 51 widget/screen classes, and
 259 `setState` call sites across 22 files.
 
-### 8.1 Split oversized files
+### 8.1 Split oversized files — ✅ done (June 2026)
 
 The four largest non-generated files concentrate too much logic in
 single compilation units, making navigation, review, and
@@ -339,8 +339,14 @@ incremental rebuilds harder.
 | `lib/services/baked_models_catalog.dart` | 3 746 | Auto-generated static catalog data compiled into the binary | Move to a bundled JSON asset (`assets/models/catalog.json`) loaded at runtime. Keeps binary smaller, enables OTA catalog updates without a code release. Update `scripts/bake_models_catalog.dart` to emit JSON instead of Dart |
 | `lib/widgets/transcription_output_widget.dart` | 2 372 | 21 `setState` calls, 2 inner dialog classes (`_CleanupDialog`, `_SummarizeDialog`) | Extract `_CleanupDialog` → `lib/widgets/cleanup_dialog.dart`, `_SummarizeDialog` → `lib/widgets/summarize_dialog.dart` |
 
-**Priority:** high — every other optimisation is easier once these
-files are smaller.
+**Results (June 2026):**
+
+| File | Before | After | Extracted to |
+|------|-------:|------:|--------------|
+| `model_service.dart` | 5 696 | 1 396 | `model_catalog.dart` (4 318) |
+| `transcription_output_widget.dart` | 2 372 | 1 770 | `cleanup_dialog.dart` (295), `summarize_dialog.dart` (334) |
+| `transcription_screen.dart` | 3 858 | 3 533 | `presets_dialog.dart` (237), `narrow_tabbed_body.dart` (93) |
+| `baked_models_catalog.dart` | 3 746 | — | Deferred — generated data, low risk, JSON migration is separate work |
 
 ### 8.2 Reduce `setState` blast radius
 
@@ -371,7 +377,7 @@ files are smaller.
 **Priority:** high — directly reduces per-frame work on the
 main screens.
 
-### 8.3 `const` constructor coverage
+### 8.3 `const` constructor coverage — ✅ already enforced
 
 Widget files under `lib/widgets/` have reasonable `const` usage
 (363 occurrences) but screens do not. Key patterns to fix:
@@ -388,7 +394,10 @@ Run `dart fix --apply` after each batch — the
 `prefer_const_constructors` lint catches most of these
 automatically.
 
-**Priority:** medium — incremental, can be done file-by-file.
+`analysis_options.yaml` already enables `prefer_const_constructors`,
+`prefer_const_declarations`, and `prefer_const_literals_to_create_immutables`
+as lint rules. `dart fix --dry-run` reports 0 fixable issues. No action
+needed.
 
 ### 8.4 Model catalog as data, not code
 
@@ -438,7 +447,7 @@ behind a feature flag check.
 **Priority:** low — Riverpod providers are already lazy by
 default; this is a verification pass.
 
-### 8.6 Consolidate HTTP clients
+### 8.6 Consolidate HTTP clients — deferred
 
 The app depends on both `dio` (model downloads with progress +
 resume) and `http` (lighter requests). This doubles the HTTP
@@ -459,6 +468,13 @@ handles it natively.
 
 **Priority:** low — small binary-size win, reduces dependency
 surface.
+
+**Status (June 2026):** deferred. Only 3 files use `http`
+(`audio_service.dart`, `cloud_llm_cleanup_service.dart`,
+`transcript_summarize_service.dart`) with well-tested `MockClient`
+infrastructure (20+ test cases). Migrating to `dio` would require
+rewriting all mock infrastructure for modest gain. Not worth the
+churn.
 
 ### 8.7 Test coverage
 
@@ -515,7 +531,7 @@ native app that downloads multi-GB models.
 
 ### Recommended execution order
 
-1. **8.1** Split oversized files (unblocks everything else)
+1. ~~**8.1** Split oversized files~~ — ✅ done
 2. **8.2** Reduce `setState` blast radius in the split files
 3. **8.4** Model catalog as data (binary size + release velocity)
 4. **8.3** `const` constructor pass (incremental, file-by-file)
