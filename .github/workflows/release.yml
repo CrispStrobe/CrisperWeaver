@@ -30,7 +30,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  FLUTTER_VERSION: "3.38.5"
+  FLUTTER_VERSION: "3.44.1"
   CRISPASR_REPO: CrispStrobe/CrispASR
   CRISPASR_REF: main
   CRISPEMBED_REPO: CrispStrobe/CrispEmbed

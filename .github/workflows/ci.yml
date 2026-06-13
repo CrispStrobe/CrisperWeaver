@@ -12,7 +12,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  FLUTTER_VERSION: "3.38.5"
+  FLUTTER_VERSION: "3.44.1"
   # Where we expect the sibling CrispASR checkout to live. The Dart pubspec
   # references the Flutter package inside it at `../CrispASR/flutter/crispasr`.
   CRISPASR_REPO: CrispStrobe/CrispASR

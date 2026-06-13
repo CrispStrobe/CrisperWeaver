@@ -28,7 +28,7 @@ jobs:
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-      FLUTTER_VERSION: "3.38.5"
+      FLUTTER_VERSION: "3.44.1"
       CRISPASR_REPO: CrispStrobe/CrispASR
       CRISPASR_REF: main
       CRISPEMBED_REPO: CrispStrobe/CrispEmbed

@@ -227,9 +227,11 @@ Static audit + xcframework bundling + plist cleanup all shipped
    `getApplicationDocumentsDirectory()` is writable for the
    unzip target and that the companion actually loads ("Loading
    Core ML model" in libwhisper logs).
-8. **`PrivacyInfo.xcprivacy`** — required for App Store Connect
-   uploads from May 2024. NSUserDefaults + FileTimestamp APIs
-   used; add the manifest before first TestFlight upload.
+8. ~~**`PrivacyInfo.xcprivacy`**~~ — **shipped**. Full manifest
+   at `ios/Runner/PrivacyInfo.xcprivacy` declaring
+   NSUserDefaults (CA92.1), FileTimestamp (C617.1), DiskSpace
+   (E174.1), SystemBootTime (35F9.1). Audio data declared as
+   AppFunctionality, not linked, not tracked.
 
 **Risk:** medium-high. Item 1 (xcframework bundling) was the
 only launch-blocker and is done. The rest are quality issues
