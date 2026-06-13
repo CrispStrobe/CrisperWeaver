@@ -425,7 +425,7 @@ patterns, model definitions). This:
 velocity, but requires updating every caller of the current
 static catalog API.
 
-### 8.5 Service layer — lazy initialisation
+### 8.5 Service layer — lazy initialisation — ✅ verified (June 2026)
 
 49 service files. Most are accessed via `ref.read()` from
 screens, but some niche services may be eagerly initialised:
@@ -444,8 +444,9 @@ screens, but some niche services may be eagerly initialised:
 any are eager, wrap them in `Provider.autoDispose` or gate
 behind a feature flag check.
 
-**Priority:** low — Riverpod providers are already lazy by
-default; this is a verification pass.
+**Result:** all five services are standard Riverpod `Provider`s
+(lazy by default). None are referenced in `main.dart` or
+eagerly initialized. No action needed.
 
 ### 8.6 Consolidate HTTP clients — deferred
 
