@@ -497,7 +497,7 @@ the model-download happy path + resume-after-interrupt.
 **Priority:** medium — does not change runtime performance but
 prevents regressions during the refactors above.
 
-### 8.8 Build performance
+### 8.8 Build performance — ✅ CI caching shipped (June 2026)
 
 The C++ native layer (CrispASR) dominates build time. Beyond
 the existing `CCACHE_DIR=/mnt/volume1/.ccache ninja` convention:
@@ -515,10 +515,11 @@ the existing `CCACHE_DIR=/mnt/volume1/.ccache ninja` convention:
   (`flutter gen-l10n`) and the `build_runner` JSON serialization;
   both are fast (<5 s).
 
-**Priority:** low — build times are already acceptable with
-ccache; CI caching is a convenience improvement.
+**Result:** `actions/cache@v4` added to both macOS and Linux build
+jobs in `ci.yml`, keyed on `CrispASR` commit hash. Cache hit skips
+the full native rebuild (~15-30 min saved).
 
-### 8.9 Asset optimisation
+### 8.9 Asset optimisation — ✅ done (June 2026)
 
 | Directory | Size | Action |
 |-----------|------|--------|
@@ -527,17 +528,16 @@ ccache; CI caching is a convenience improvement.
 | `assets/espeak-ng-data/` | 4 KB (placeholder) | No action — real data extracted at runtime on Android |
 | `assets/models/` | 4 KB | Metadata only — no action |
 
-**Priority:** low — 1.4 MB of images is not a bottleneck for a
-native app that downloads multi-GB models.
+**Result:** `optipng -o2` lossless compression applied:
+`app_logo.png` 1.4 MB → 883 KB (37%), `AppLogo.png` 1.8 MB → 1.2 MB
+(31%). Both are the only images; no unused variants found.
 
-### Recommended execution order
+### Recommended execution order (remaining)
 
-1. ~~**8.1** Split oversized files~~ — ✅ done
-2. **8.2** Reduce `setState` blast radius in the split files
-3. **8.4** Model catalog as data (binary size + release velocity)
-4. **8.3** `const` constructor pass (incremental, file-by-file)
-5. **8.7** Test coverage for refactored code
-6. **8.6** Consolidate HTTP clients
-7. **8.5** Service layer lazy-init audit
-8. **8.8** Build / CI caching
-9. **8.9** Asset compression
+1. **8.2** Reduce `setState` blast radius (large behavioral refactor)
+2. **8.4** Model catalog as data (binary size + release velocity)
+3. **8.7** Test coverage for refactored code
+
+**Already done:** 8.1 (file splits), 8.3 (const — already enforced),
+8.5 (lazy init — verified), 8.8 (CI caching), 8.9 (asset compression).
+**Deferred:** 8.6 (HTTP consolidation — not worth test churn).
