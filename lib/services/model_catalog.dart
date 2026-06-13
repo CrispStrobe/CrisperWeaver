@@ -132,6 +132,45 @@ class ModelDefinition {
     this.requiresVoice = false,
   });
 
+  /// Deserialise from a JSON map (e.g. from the baked catalog asset).
+  factory ModelDefinition.fromJson(Map<String, dynamic> json) =>
+      ModelDefinition(
+        name: json['name'] as String,
+        displayName: json['displayName'] as String,
+        fileName: json['fileName'] as String,
+        url: json['url'] as String,
+        sizeBytes: json['sizeBytes'] as int,
+        checksum: json['checksum'] as String? ?? '',
+        description: json['description'] as String,
+        quantization: json['quantization'] as String? ?? 'f16',
+        backend: json['backend'] as String? ?? 'whisper',
+        kind: ModelKind.values.byName(json['kind'] as String? ?? 'asr'),
+        companions:
+            (json['companions'] as List<dynamic>?)?.cast<String>() ?? const [],
+        languages:
+            (json['languages'] as List<dynamic>?)?.cast<String>() ?? const [],
+        license: json['license'] as String?,
+        requiresVoice: json['requiresVoice'] as bool? ?? false,
+      );
+
+  /// Serialise to a JSON-encodable map.
+  Map<String, dynamic> toJson() => <String, dynamic>{
+        'name': name,
+        'displayName': displayName,
+        'fileName': fileName,
+        'url': url,
+        'sizeBytes': sizeBytes,
+        'checksum': checksum,
+        'description': description,
+        'quantization': quantization,
+        'backend': backend,
+        'kind': kind.name,
+        if (companions.isNotEmpty) 'companions': companions,
+        if (languages.isNotEmpty) 'languages': languages,
+        if (license != null) 'license': license,
+        if (requiresVoice) 'requiresVoice': true,
+      };
+
   /// True when [license] denotes a non-commercial / research-only grant
   /// (CC-BY-NC, "non-commercial", "research only"). Used to warn before
   /// download/use so users don't unknowingly take on NC terms.

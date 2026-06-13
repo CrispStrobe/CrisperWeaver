@@ -9,7 +9,7 @@ import 'package:path/path.dart' as path;
 import 'package:crypto/crypto.dart';
 import '../native/crispasr_import.dart' as crispasr;
 
-import 'baked_models_catalog.dart';
+import 'baked_catalog_loader.dart';
 import 'ios_helpers.dart';
 import '../native/disk_space_import.dart';
 import 'log_service.dart';
@@ -190,7 +190,7 @@ class ModelService {
     // Spread order = merge priority (later wins). Live probe beats
     // hardcoded curated entries beats the baked snapshot.
     final merged = <String, ModelDefinition>{
-      ...bakedDiscoveredModels,
+      ...BakedCatalogLoader.cached,
       ...ModelCatalog.crispasrBackendModels,
       ...ModelCatalog.ttsVoicepacks,
       ..._discoveredModels,
@@ -228,7 +228,7 @@ class ModelService {
         ModelCatalog.whisperCppModels[name] ??
         ModelCatalog.crispasrBackendModels[name] ??
         ModelCatalog.ttsVoicepacks[name] ??
-        bakedDiscoveredModels[name];
+        BakedCatalogLoader.cached[name];
   }
 
   /// PLAN §5.4 — the recommended "start here" model for [backend], or
@@ -1082,7 +1082,7 @@ class ModelService {
   Map<String, String> _buildFilenameBackendMap() {
     final byFilename = <String, String>{};
     final allDefs = <ModelDefinition>[
-      ...bakedDiscoveredModels.values,
+      ...BakedCatalogLoader.cached.values,
       ...ModelCatalog.whisperCppModels.values,
       ...ModelCatalog.crispasrBackendModels.values,
       ...ModelCatalog.ttsVoicepacks.values,

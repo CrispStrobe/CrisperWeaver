@@ -27,30 +27,35 @@ class SettingsService {
   set preferredEngine(EngineType type) {
     Log.instance.d('settings', 'Saving preferredEngine: ${type.id}');
     _prefs.setString('preferred_engine', type.id);
+
   }
 
   String get defaultModel => _prefs.getString('default_model') ?? 'base';
   set defaultModel(String model) {
     Log.instance.d('settings', 'Saving defaultModel: $model');
     _prefs.setString('default_model', model);
+
   }
 
   String get defaultBackend => _prefs.getString('default_backend') ?? 'whisper';
   set defaultBackend(String backend) {
     Log.instance.d('settings', 'Saving defaultBackend: $backend');
     _prefs.setString('default_backend', backend);
+
   }
 
   String get defaultLanguage => _prefs.getString('default_language') ?? 'auto';
   set defaultLanguage(String lang) {
     Log.instance.d('settings', 'Saving defaultLanguage: $lang');
     _prefs.setString('default_language', lang);
+
   }
 
   bool get autoDetectLanguage => _prefs.getBool('auto_detect_language') ?? true;
   set autoDetectLanguage(bool value) {
     Log.instance.d('settings', 'Saving autoDetectLanguage: $value');
     _prefs.setBool('auto_detect_language', value);
+
   }
 
   bool get enableWordTimestamps =>
@@ -58,6 +63,7 @@ class SettingsService {
   set enableWordTimestamps(bool value) {
     Log.instance.d('settings', 'Saving enableWordTimestamps: $value');
     _prefs.setBool('enable_word_timestamps', value);
+
   }
 
   // --- Audio Settings ---
@@ -66,12 +72,14 @@ class SettingsService {
   set audioQuality(double value) {
     Log.instance.d('settings', 'Saving audioQuality: $value');
     _prefs.setDouble('audio_quality', value);
+
   }
 
   bool get keepAudioFiles => _prefs.getBool('keep_audio_files') ?? false;
   set keepAudioFiles(bool value) {
     Log.instance.d('settings', 'Saving keepAudioFiles: $value');
     _prefs.setBool('keep_audio_files', value);
+
   }
 
   // --- Diarization Settings ---
@@ -81,6 +89,7 @@ class SettingsService {
   set enableDiarizationByDefault(bool value) {
     Log.instance.d('settings', 'Saving enableDiarizationByDefault: $value');
     _prefs.setBool('enable_diarization_by_default', value);
+
   }
 
   // --- App Locale (i18n) ---
@@ -93,6 +102,7 @@ class SettingsService {
     } else {
       _prefs.setString('app_locale', locale);
     }
+
   }
 
   // --- Developer / Debug Settings ---
@@ -108,18 +118,21 @@ class SettingsService {
   set logLevel(LogLevel level) {
     Log.instance.d('settings', 'Saving logLevel: ${level.name}');
     _prefs.setString('log_level', level.name);
+
   }
 
   bool get logToFile => _prefs.getBool('log_to_file') ?? false;
   set logToFile(bool value) {
     Log.instance.d('settings', 'Saving logToFile: $value');
     _prefs.setBool('log_to_file', value);
+
   }
 
   bool get skipChecksum => _prefs.getBool('skip_checksum') ?? false;
   set skipChecksum(bool value) {
     Log.instance.d('settings', 'Saving skipChecksum: $value');
     _prefs.setBool('skip_checksum', value);
+
   }
 
   String get hfToken => _prefs.getString('hf_token') ?? '';
@@ -127,6 +140,7 @@ class SettingsService {
     Log.instance
         .d('settings', 'Saving hfToken: ${token.isNotEmpty ? "SET" : "EMPTY"}');
     _prefs.setString('hf_token', token);
+
   }
 
   /// User-added HuggingFace repos for the "Add from HuggingFace repo"
@@ -156,6 +170,7 @@ class SettingsService {
 
   set hfUserRepos(List<Map<String, String>> repos) {
     _prefs.setString('hf_user_repos', jsonEncode(repos));
+
   }
 
   /// Add or replace a user HF repo entry (idempotent on the
@@ -192,6 +207,7 @@ class SettingsService {
     Log.instance.d('settings',
         'Saving customModelsDir: ${dir.isEmpty ? "DEFAULT" : dir}');
     _prefs.setString('custom_models_dir', dir);
+
   }
 
   /// Reorder a batch queue so jobs with the same
@@ -205,6 +221,7 @@ class SettingsService {
   set groupBatchByBackend(bool value) {
     Log.instance.d('settings', 'Saving groupBatchByBackend: $value');
     _prefs.setBool('group_batch_by_backend', value);
+
   }
 
   /// How many transcription jobs the drain loop runs in pipeline-
@@ -235,6 +252,7 @@ class SettingsService {
     Log.instance.d('settings',
         'Saving maxConcurrentTranscriptions: $clamped (requested $value, cap $cap)');
     _prefs.setInt('max_concurrent_transcriptions', clamped);
+
   }
 
   /// Per-platform upper bound for the concurrent-transcriptions
@@ -268,6 +286,7 @@ class SettingsService {
     Log.instance.d('settings',
         'Saving maxConcurrentSessions: $clamped (requested $value, cap $cap)');
     _prefs.setInt('max_concurrent_sessions', clamped);
+
   }
 
   /// Same per-platform shape as the prefetch slider — iOS caps at 2
@@ -290,6 +309,7 @@ class SettingsService {
     Log.instance.d('settings',
         'Saving cloudLlmApiUrl: ${url.isEmpty ? "EMPTY" : url}');
     _prefs.setString('cloud_llm_api_url', url);
+
   }
 
   // --- HF Space / Cloud ASR ---
@@ -298,6 +318,7 @@ class SettingsService {
       _prefs.getString('hf_space_url') ?? _defaultHfSpaceUrl;
   set hfSpaceUrl(String url) {
     _prefs.setString('hf_space_url', url);
+
   }
 
   /// API key — pasted by the user. Logged only as SET/EMPTY
@@ -313,6 +334,7 @@ class SettingsService {
     Log.instance.d('settings',
         'Saving cloudLlmApiKey: ${key.isEmpty ? "EMPTY" : "SET"}');
     _prefs.setString('cloud_llm_api_key', key);
+
   }
 
   /// Model id sent in the chat-completions request body.
@@ -325,6 +347,7 @@ class SettingsService {
   set cloudLlmModel(String model) {
     Log.instance.d('settings', 'Saving cloudLlmModel: $model');
     _prefs.setString('cloud_llm_model', model);
+
   }
 
   // --- §5.1.6 v3 Local-LLM cleanup ---
@@ -347,6 +370,7 @@ class SettingsService {
   set llmCleanupMode(LlmCleanupMode mode) {
     Log.instance.d('settings', 'Saving llmCleanupMode: ${mode.name}');
     _prefs.setString('llm_cleanup_mode', mode.name);
+
   }
 
   /// Absolute path to a GGUF chat model. Empty means "no model
@@ -361,6 +385,7 @@ class SettingsService {
     Log.instance.d('settings',
         'Saving localLlmModelPath: ${path.isEmpty ? "EMPTY" : path}');
     _prefs.setString('local_llm_model_path', path);
+
   }
 
   /// `-1` = all layers on GPU (default — Metal on macOS, CUDA
@@ -373,6 +398,7 @@ class SettingsService {
   set localLlmNGpuLayers(int n) {
     Log.instance.d('settings', 'Saving localLlmNGpuLayers: $n');
     _prefs.setInt('local_llm_n_gpu_layers', n);
+
   }
 
   /// Context window in tokens. 0 means "use the GGUF's baked-in
@@ -383,6 +409,7 @@ class SettingsService {
   set localLlmNCtx(int n) {
     Log.instance.d('settings', 'Saving localLlmNCtx: $n');
     _prefs.setInt('local_llm_n_ctx', n);
+
   }
 
   /// Generation threads. 0 = upstream's default (physical-cores cap).
@@ -390,6 +417,7 @@ class SettingsService {
   set localLlmNThreads(int n) {
     Log.instance.d('settings', 'Saving localLlmNThreads: $n');
     _prefs.setInt('local_llm_n_threads', n);
+
   }
 
   /// Per-call output cap. Smaller than the cloud default
@@ -402,6 +430,7 @@ class SettingsService {
   set localLlmMaxTokens(int n) {
     Log.instance.d('settings', 'Saving localLlmMaxTokens: $n');
     _prefs.setInt('local_llm_max_tokens', n);
+
   }
 
   /// Sampling temperature. 0.0 = greedy, matches the cloud
@@ -411,6 +440,7 @@ class SettingsService {
   set localLlmTemperature(double t) {
     Log.instance.d('settings', 'Saving localLlmTemperature: $t');
     _prefs.setDouble('local_llm_temperature', t);
+
   }
 
   // --- §5.1.11 Global hotkey ---
@@ -424,6 +454,7 @@ class SettingsService {
   set hotkeyEnabled(bool value) {
     Log.instance.d('settings', 'Saving hotkeyEnabled: $value');
     _prefs.setBool('hotkey_enabled', value);
+
   }
 
   /// Normalised combo string ("meta+shift+space",
@@ -434,6 +465,7 @@ class SettingsService {
   set hotkeyCombo(String combo) {
     Log.instance.d('settings', 'Saving hotkeyCombo: $combo');
     _prefs.setString('hotkey_combo', combo);
+
   }
 
   /// 'pushToTalk' (default) or 'toggle'. Stored as the enum
@@ -443,6 +475,7 @@ class SettingsService {
   set hotkeyActionName(String name) {
     Log.instance.d('settings', 'Saving hotkeyActionName: $name');
     _prefs.setString('hotkey_action', name);
+
   }
 
   /// Convenience: parse / write the enum directly. Defaults to
@@ -458,6 +491,7 @@ class SettingsService {
 
   set hotkeyAction(HotkeyAction v) {
     hotkeyActionName = v.name;
+
   }
 
   /// §5.1.5 Phase C — whether the EditAudioScreen's transcript
@@ -472,6 +506,7 @@ class SettingsService {
     Log.instance
         .d('settings', 'Saving editAudioShowTranscript: $value');
     _prefs.setBool('edit_audio_show_transcript', value);
+
   }
 
   /// Helper to clear all settings (for reset)
@@ -482,7 +517,10 @@ class SettingsService {
   // --- Watch Folder (§5.25.8) ---
 
   bool get watchFolderEnabled => _prefs.getBool('watch_folder_enabled') ?? false;
-  set watchFolderEnabled(bool v) => _prefs.setBool('watch_folder_enabled', v);
+  set watchFolderEnabled(bool v) {
+    _prefs.setBool('watch_folder_enabled', v);
+
+  }
 
   String? get watchFolderPath => _prefs.getString('watch_folder_path');
   set watchFolderPath(String? v) {
@@ -491,6 +529,7 @@ class SettingsService {
     } else {
       _prefs.setString('watch_folder_path', v);
     }
+
   }
 }
 

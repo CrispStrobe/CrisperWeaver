@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 
 import '../l10n/generated/app_localizations.dart';
 import '../main.dart' show modelServiceProvider;
+import '../providers/translate_screen_provider.dart';
 import '../services/log_service.dart';
 import '../services/model_service.dart';
 import '../services/settings_service.dart';
@@ -29,15 +30,6 @@ class _TranslateScreenState extends ConsumerState<TranslateScreen> {
   final _inputController = TextEditingController();
   final _outputController = TextEditingController();
 
-  List<ModelInfo> _all = const [];
-  bool _loading = true;
-  bool _busy = false;
-
-  String? _selectedModel;
-  String _srcLang = 'en';
-  String _tgtLang = 'de';
-  int _maxTokens = 200;
-
   @override
   void initState() {
     super.initState();
@@ -52,49 +44,54 @@ class _TranslateScreenState extends ConsumerState<TranslateScreen> {
   }
 
   Future<void> _refresh() async {
-    setState(() => _loading = true);
+    final n = ref.read(translateScreenProvider.notifier);
+    n.setLoading(true);
     try {
       final svc = ref.read(modelServiceProvider);
       svc.refreshFromCrispasrRegistry();
-      _all = await svc.getWhisperCppModels();
-      final downloaded = _all
+      final all = await svc.getWhisperCppModels();
+      n.setModels(all);
+      final downloaded = all
           .where((m) => m.kind == ModelKind.translate && m.isDownloaded)
           .toList();
       if (downloaded.isNotEmpty) {
-        _selectedModel ??= downloaded.first.name;
+        final current = ref.read(translateScreenProvider).selectedModel;
+        if (current == null) {
+          n.setSelectedModel(downloaded.first.name);
+        }
       }
     } catch (e, st) {
       Log.instance.w('translate', 'failed to refresh model list',
           error: e, stack: st);
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) n.setLoading(false);
     }
   }
 
   Future<void> _translate() async {
     final input = _inputController.text.trim();
-    if (input.isEmpty || _selectedModel == null) return;
+    final s = ref.read(translateScreenProvider);
+    if (input.isEmpty || s.selectedModel == null) return;
+    final n = ref.read(translateScreenProvider.notifier);
     Log.instance.i('translate', 'start', fields: {
-      'model': _selectedModel ?? '',
-      'src': _srcLang,
-      'tgt': _tgtLang,
+      'model': s.selectedModel ?? '',
+      'src': s.srcLang,
+      'tgt': s.tgtLang,
       'text_len': input.length,
     });
-    setState(() {
-      _busy = true;
-      _outputController.text = '';
-    });
+    n.setBusy(true);
+    _outputController.text = '';
     try {
       final svc = ref.read(textTranslationServiceProvider);
       final out = await svc.translate(
-        modelName: _selectedModel!,
+        modelName: s.selectedModel!,
         text: input,
-        srcLang: _srcLang,
-        tgtLang: _tgtLang,
-        maxTokens: _maxTokens,
+        srcLang: s.srcLang,
+        tgtLang: s.tgtLang,
+        maxTokens: s.maxTokens,
       );
       if (!mounted) return;
-      setState(() => _outputController.text = out);
+      _outputController.text = out;
     } on TextTranslationException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -109,7 +106,7 @@ class _TranslateScreenState extends ConsumerState<TranslateScreen> {
         );
       }
     } finally {
-      if (mounted) setState(() => _busy = false);
+      if (mounted) n.setBusy(false);
     }
   }
 
@@ -163,7 +160,7 @@ class _TranslateScreenState extends ConsumerState<TranslateScreen> {
         TextTranslationService.supportedLanguages.any((e) => e.key == code);
     final pct = (result.confidence * 100).round();
     if (known) {
-      setState(() => _srcLang = code);
+      ref.read(translateScreenProvider.notifier).setSrcLang(code);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('Detected source: $code ($pct%)'),
         duration: const Duration(seconds: 2),
@@ -176,23 +173,20 @@ class _TranslateScreenState extends ConsumerState<TranslateScreen> {
   }
 
   void _swapLanguages() {
-    setState(() {
-      final tmp = _srcLang;
-      _srcLang = _tgtLang;
-      _tgtLang = tmp;
-      // Promote any existing output to the input pane so a quick
-      // round-trip translation works without retyping.
-      if (_outputController.text.isNotEmpty) {
-        _inputController.text = _outputController.text;
-        _outputController.text = '';
-      }
-    });
+    ref.read(translateScreenProvider.notifier).swapLanguages();
+    // Promote any existing output to the input pane so a quick
+    // round-trip translation works without retyping.
+    if (_outputController.text.isNotEmpty) {
+      _inputController.text = _outputController.text;
+      _outputController.text = '';
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
-    final translateModels = _all
+    final s = ref.watch(translateScreenProvider);
+    final translateModels = s.models
         .where((m) => m.kind == ModelKind.translate)
         .toList(growable: false);
     final downloadedTranslate = translateModels
@@ -205,7 +199,7 @@ class _TranslateScreenState extends ConsumerState<TranslateScreen> {
 
     return Scaffold(
       appBar: AppBar(title: Text(l.translateTitle)),
-      body: _loading
+      body: s.loading
           ? const Center(child: CircularProgressIndicator())
           : Padding(
               padding: const EdgeInsets.all(16),
@@ -249,7 +243,7 @@ class _TranslateScreenState extends ConsumerState<TranslateScreen> {
                     DropdownButtonFormField<String>(
                       decoration:
                           InputDecoration(labelText: l.translateModelLabel),
-                      initialValue: _selectedModel,
+                      initialValue: s.selectedModel,
                       items: downloadedTranslate
                           .map((m) => DropdownMenuItem(
                                 value: m.name,
@@ -257,25 +251,31 @@ class _TranslateScreenState extends ConsumerState<TranslateScreen> {
                                     overflow: TextOverflow.ellipsis),
                               ))
                           .toList(),
-                      onChanged: (v) => setState(() => _selectedModel = v),
+                      onChanged: (v) => ref
+                          .read(translateScreenProvider.notifier)
+                          .setSelectedModel(v),
                     ),
                     const SizedBox(height: 12),
                     Row(
                       children: [
-                        Expanded(child: _langDropdown(l.translateSourceLang, _srcLang,
-                            (v) => setState(() => _srcLang = v))),
+                        Expanded(child: _langDropdown(l.translateSourceLang, s.srcLang,
+                            (v) => ref
+                                .read(translateScreenProvider.notifier)
+                                .setSrcLang(v))),
                         IconButton(
                           tooltip: 'Auto-detect source language (CLD3)',
                           icon: const Icon(Icons.language),
-                          onPressed: _busy ? null : _detectSourceLanguage,
+                          onPressed: s.busy ? null : _detectSourceLanguage,
                         ),
                         IconButton(
                           tooltip: l.translateSwap,
                           icon: const Icon(Icons.swap_horiz),
                           onPressed: _swapLanguages,
                         ),
-                        Expanded(child: _langDropdown(l.translateTargetLang, _tgtLang,
-                            (v) => setState(() => _tgtLang = v))),
+                        Expanded(child: _langDropdown(l.translateTargetLang, s.tgtLang,
+                            (v) => ref
+                                .read(translateScreenProvider.notifier)
+                                .setTgtLang(v))),
                       ],
                     ),
                   ],
@@ -295,12 +295,12 @@ class _TranslateScreenState extends ConsumerState<TranslateScreen> {
                     children: [
                       Expanded(
                         child: FilledButton.icon(
-                          onPressed: _busy ||
-                                  _selectedModel == null ||
+                          onPressed: s.busy ||
+                                  s.selectedModel == null ||
                                   downloadedTranslate.isEmpty
                               ? null
                               : _translate,
-                          icon: _busy
+                          icon: s.busy
                               ? const SizedBox(
                                   width: 18,
                                   height: 18,
@@ -348,17 +348,18 @@ class _TranslateScreenState extends ConsumerState<TranslateScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(l.translateMaxTokens(_maxTokens),
+                            Text(l.translateMaxTokens(s.maxTokens),
                                 style:
                                     const TextStyle(fontWeight: FontWeight.w500)),
                             Slider(
-                              value: _maxTokens.toDouble(),
+                              value: s.maxTokens.toDouble(),
                               min: 32,
                               max: 1024,
                               divisions: 31,
-                              label: _maxTokens.toString(),
-                              onChanged: (v) =>
-                                  setState(() => _maxTokens = v.round()),
+                              label: s.maxTokens.toString(),
+                              onChanged: (v) => ref
+                                  .read(translateScreenProvider.notifier)
+                                  .setMaxTokens(v.round()),
                             ),
                             Text(l.translateMaxTokensHelper,
                                 style: const TextStyle(

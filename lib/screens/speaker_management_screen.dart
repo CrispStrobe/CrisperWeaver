@@ -13,6 +13,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
 import '../l10n/generated/app_localizations.dart';
+import '../providers/speaker_management_provider.dart';
 import '../services/audio_service.dart' show audioServiceProvider;
 import '../services/log_service.dart';
 import '../services/settings_service.dart' show settingsServiceProvider;
@@ -30,9 +31,6 @@ class SpeakerManagementScreen extends ConsumerStatefulWidget {
 
 class _SpeakerManagementScreenState
     extends ConsumerState<SpeakerManagementScreen> {
-  List<String>? _speakers;
-  bool _modelAvailable = false;
-
   @override
   void initState() {
     super.initState();
@@ -44,10 +42,10 @@ class _SpeakerManagementScreenState
     final names = await svc.listSpeakers();
     final available = await svc.isAvailable;
     if (!mounted) return;
-    setState(() {
-      _speakers = names;
-      _modelAvailable = available;
-    });
+    ref.read(speakerManagementProvider.notifier).setRefreshResult(
+      speakers: names,
+      modelAvailable: available,
+    );
   }
 
   Future<void> _openEnrolFlow() async {
@@ -94,7 +92,8 @@ class _SpeakerManagementScreenState
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
-    final speakers = _speakers;
+    final spkState = ref.watch(speakerManagementProvider);
+    final speakers = spkState.speakers;
     return Scaffold(
       appBar: AppBar(title: Text(l.speakersTitle)),
       floatingActionButton: FloatingActionButton.extended(
@@ -119,7 +118,7 @@ class _SpeakerManagementScreenState
                     ),
                   ),
                 ),
-                if (!_modelAvailable) ...[
+                if (!spkState.modelAvailable) ...[
                   const SizedBox(height: 12),
                   Card(
                     color: Theme.of(context).colorScheme.surfaceContainerHighest,

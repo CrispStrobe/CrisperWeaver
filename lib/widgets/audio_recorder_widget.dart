@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../engines/transcription_engine.dart';
 import '../l10n/generated/app_localizations.dart';
 import '../main.dart';
+import '../providers/audio_recorder_provider.dart';
 import '../services/audio_service.dart';
 import '../services/hotkey_service.dart';
 import '../services/log_service.dart';
@@ -24,26 +25,9 @@ class AudioRecorderWidget extends ConsumerStatefulWidget {
 
 class _AudioRecorderWidgetState extends ConsumerState<AudioRecorderWidget>
     with TickerProviderStateMixin {
-  bool _isRecording = false;
-  bool _isPaused = false;
-  bool _isPlaying = false;
-  List<double> _amplitudes = [];
-  Duration _recordingDuration = Duration.zero;
   Timer? _timer;
-  String? _recordingPath;
-  // Stream-mode (Whisper-only sliding window). When true, mic frames
-  // pipe straight into CrispASREngine.transcribeStream and partial
-  // text appears in the output card while you talk. When false the
-  // recorder writes a WAV and you transcribe it after stop, the
-  // historical default.
-  bool _streamMode = false;
   StreamController<Float32List>? _micController;
   StreamSubscription<TranscriptionSegment>? _streamSub;
-  // §5.1.1 system-audio capture — separate from mic recording. When
-  // `_isCapturingSystemAudio` is true the same `transcribeStream`
-  // arm runs against the system-audio source instead of the mic.
-  bool _isCapturingSystemAudio = false;
-  bool _systemAudioSupported = false;
   StreamSubscription<Float32List>? _sysAudioFramesSub;
 
   late AnimationController _pulseController;
@@ -74,7 +58,7 @@ class _AudioRecorderWidgetState extends ConsumerState<AudioRecorderWidget>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final svc = ref.read(systemAudioCaptureServiceProvider);
       svc.isSupported().then((ok) {
-        if (mounted) setState(() => _systemAudioSupported = ok);
+        if (mounted) ref.read(audioRecorderProvider.notifier).setSystemAudioSupported(ok);
       });
       // §5.1.11 — start listening for global-hotkey events.
       // Mode (push-to-talk vs toggle) is read fresh on each
@@ -88,17 +72,18 @@ class _AudioRecorderWidgetState extends ConsumerState<AudioRecorderWidget>
   void _onHotkeyEvent(HotkeyEvent event) {
     if (!mounted) return;
     final action = ref.read(hotkeyServiceProvider).action;
+    final isRecording = ref.read(audioRecorderProvider).isRecording;
     switch (action) {
       case HotkeyAction.pushToTalk:
-        if (event == HotkeyEvent.keyDown && !_isRecording) {
+        if (event == HotkeyEvent.keyDown && !isRecording) {
           _startRecording();
-        } else if (event == HotkeyEvent.keyUp && _isRecording) {
+        } else if (event == HotkeyEvent.keyUp && isRecording) {
           _stopRecording();
         }
         break;
       case HotkeyAction.toggle:
         if (event != HotkeyEvent.keyDown) return;
-        if (_isRecording) {
+        if (isRecording) {
           _stopRecording();
         } else {
           _startRecording();
@@ -120,6 +105,7 @@ class _AudioRecorderWidgetState extends ConsumerState<AudioRecorderWidget>
 
   @override
   Widget build(BuildContext context) {
+    final rState = ref.watch(audioRecorderProvider);
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -151,10 +137,10 @@ class _AudioRecorderWidgetState extends ConsumerState<AudioRecorderWidget>
                       ),
                       const SizedBox(width: 4),
                       Switch(
-                        value: _streamMode,
-                        onChanged: _isRecording
+                        value: rState.streamMode,
+                        onChanged: rState.isRecording
                             ? null
-                            : (v) => setState(() => _streamMode = v),
+                            : (v) => ref.read(audioRecorderProvider.notifier).setStreamMode(v),
                       ),
                     ],
                   ),
@@ -171,15 +157,15 @@ class _AudioRecorderWidgetState extends ConsumerState<AudioRecorderWidget>
                   animation: _pulseAnimation,
                   builder: (context, child) {
                     return Transform.scale(
-                      scale: _isRecording ? _pulseAnimation.value : 1.0,
+                      scale: rState.isRecording ? _pulseAnimation.value : 1.0,
                       child: FloatingActionButton(
                         heroTag: "record_button",
                         onPressed:
-                            _isRecording ? _stopRecording : _startRecording,
+                            rState.isRecording ? _stopRecording : _startRecording,
                         backgroundColor:
-                            _isRecording ? Colors.red : Colors.blue,
+                            rState.isRecording ? Colors.red : Colors.blue,
                         child: Icon(
-                          _isRecording ? Icons.stop : Icons.mic,
+                          rState.isRecording ? Icons.stop : Icons.mic,
                           color: Colors.white,
                         ),
                       ),
@@ -193,22 +179,22 @@ class _AudioRecorderWidgetState extends ConsumerState<AudioRecorderWidget>
                 // when the platform doesn't support it (everything
                 // except macOS 13+ in v1). Mutually exclusive with
                 // mic recording — toggling either off cancels both.
-                if (_systemAudioSupported || _isCapturingSystemAudio)
+                if (rState.systemAudioSupported || rState.isCapturingSystemAudio)
                   Tooltip(
                     message: AppLocalizations.of(context)
                         .recorderSystemAudioTooltip,
                     child: IconButton(
                       iconSize: 28,
-                      onPressed: _isRecording
+                      onPressed: rState.isRecording
                           ? null
-                          : (_isCapturingSystemAudio
+                          : (rState.isCapturingSystemAudio
                               ? _stopSystemAudioCapture
                               : _startSystemAudioCapture),
                       icon: Icon(
-                        _isCapturingSystemAudio
+                        rState.isCapturingSystemAudio
                             ? Icons.stop_screen_share
                             : Icons.screen_share,
-                        color: _isCapturingSystemAudio
+                        color: rState.isCapturingSystemAudio
                             ? Colors.red
                             : null,
                       ),
@@ -216,10 +202,10 @@ class _AudioRecorderWidgetState extends ConsumerState<AudioRecorderWidget>
                   ),
 
                 // Pause/Resume button (only show when recording)
-                if (_isRecording) ...[
+                if (rState.isRecording) ...[
                   IconButton(
-                    onPressed: _isPaused ? _resumeRecording : _pauseRecording,
-                    icon: Icon(_isPaused ? Icons.play_arrow : Icons.pause),
+                    onPressed: rState.isPaused ? _resumeRecording : _pauseRecording,
+                    icon: Icon(rState.isPaused ? Icons.play_arrow : Icons.pause),
                     iconSize: 32,
                   ),
                   const SizedBox(width: 16),
@@ -231,21 +217,21 @@ class _AudioRecorderWidgetState extends ConsumerState<AudioRecorderWidget>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        _formatDuration(_recordingDuration),
+                        _formatDuration(rState.recordingDuration),
                         style:
                             Theme.of(context).textTheme.headlineSmall?.copyWith(
                                   fontFamily: 'monospace',
-                                  color: _isRecording ? Colors.red : null,
+                                  color: rState.isRecording ? Colors.red : null,
                                 ),
                       ),
-                      if (_isRecording)
+                      if (rState.isRecording)
                         Text(
-                          _isPaused ? 'Paused' : 'Recording...',
+                          rState.isPaused ? 'Paused' : 'Recording...',
                           style: Theme.of(context)
                               .textTheme
                               .bodySmall
                               ?.copyWith(
-                                color: _isPaused ? Colors.orange : Colors.red,
+                                color: rState.isPaused ? Colors.orange : Colors.red,
                               ),
                         ),
                     ],
@@ -255,13 +241,13 @@ class _AudioRecorderWidgetState extends ConsumerState<AudioRecorderWidget>
             ),
 
             // Recording visualizer
-            if (_isRecording) ...[
+            if (rState.isRecording) ...[
               const SizedBox(height: 16),
               _buildAudioVisualizer(),
             ],
 
             // Recorded file info
-            if (_recordingPath != null && !_isRecording) ...[
+            if (rState.recordingPath != null && !rState.isRecording) ...[
               const SizedBox(height: 16),
               _buildRecordedFileInfo(),
             ],
@@ -272,6 +258,7 @@ class _AudioRecorderWidgetState extends ConsumerState<AudioRecorderWidget>
   }
 
   Widget _buildAudioVisualizer() {
+    final rState = ref.watch(audioRecorderProvider);
     return Container(
       height: 60,
       width: double.infinity,
@@ -282,15 +269,16 @@ class _AudioRecorderWidgetState extends ConsumerState<AudioRecorderWidget>
       ),
       child: CustomPaint(
         painter: AudioVisualizerPainter(
-          isRecording: _isRecording && !_isPaused,
+          isRecording: rState.isRecording && !rState.isPaused,
           animationValue: _pulseController.value,
-          amplitudes: _amplitudes,
+          amplitudes: rState.amplitudes,
         ),
       ),
     );
   }
 
   Widget _buildRecordedFileInfo() {
+    final rState = ref.watch(audioRecorderProvider);
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -314,7 +302,7 @@ class _AudioRecorderWidgetState extends ConsumerState<AudioRecorderWidget>
                   ),
                 ),
                 Text(
-                  'Duration: ${_formatDuration(_recordingDuration)}',
+                  'Duration: ${_formatDuration(rState.recordingDuration)}',
                   style: TextStyle(color: Colors.green.shade600),
                 ),
               ],
@@ -324,9 +312,9 @@ class _AudioRecorderWidgetState extends ConsumerState<AudioRecorderWidget>
             mainAxisSize: MainAxisSize.min,
             children: [
               IconButton(
-                icon: Icon(_isPlaying ? Icons.stop : Icons.play_arrow),
-                onPressed: _isPlaying ? _stopPlayback : _playRecording,
-                tooltip: _isPlaying ? 'Stop playback' : 'Play recording',
+                icon: Icon(rState.isPlaying ? Icons.stop : Icons.play_arrow),
+                onPressed: rState.isPlaying ? _stopPlayback : _playRecording,
+                tooltip: rState.isPlaying ? 'Stop playback' : 'Play recording',
               ),
               IconButton(
                 icon: const Icon(Icons.delete),
@@ -347,24 +335,19 @@ class _AudioRecorderWidgetState extends ConsumerState<AudioRecorderWidget>
   }
 
   Future<void> _startRecording() async {
-    if (_streamMode) {
+    if (ref.read(audioRecorderProvider).streamMode) {
       await _startStreamRecording();
       return;
     }
     final audioService = ref.read(audioServiceProvider);
     final settingsService = ref.read(settingsServiceProvider);
+    final n = ref.read(audioRecorderProvider.notifier);
 
     try {
       final path =
           await audioService.startRecording(settingsService: settingsService);
       if (path != null) {
-        setState(() {
-          _isRecording = true;
-          _isPaused = false;
-          _recordingDuration = Duration.zero;
-          _recordingPath = path;
-          _amplitudes = [];
-        });
+        n.startRecording(path: path);
 
         // Start animation
         _pulseController.repeat(reverse: true);
@@ -372,14 +355,13 @@ class _AudioRecorderWidgetState extends ConsumerState<AudioRecorderWidget>
         // Start timer
         _timer =
             Timer.periodic(const Duration(milliseconds: 100), (timer) async {
-          if (_isRecording && !_isPaused) {
+          final s = ref.read(audioRecorderProvider);
+          if (s.isRecording && !s.isPaused) {
             final amp = await audioService.getAmplitude();
             if (mounted) {
-              setState(() {
-                _recordingDuration += const Duration(milliseconds: 100);
-                _amplitudes.add(amp);
-                if (_amplitudes.length > 100) _amplitudes.removeAt(0);
-              });
+              final rn = ref.read(audioRecorderProvider.notifier);
+              rn.incrementDuration(const Duration(milliseconds: 100));
+              rn.addAmplitude(amp);
             }
           }
         });
@@ -424,12 +406,7 @@ class _AudioRecorderWidgetState extends ConsumerState<AudioRecorderWidget>
       return;
     }
 
-    setState(() {
-      _isRecording = true;
-      _isPaused = false;
-      _recordingDuration = Duration.zero;
-      _amplitudes = [];
-    });
+    ref.read(audioRecorderProvider.notifier).startRecording(path: null);
     _pulseController.repeat(reverse: true);
 
     // Funnel mic frames through a controller so the engine stream can
@@ -470,9 +447,10 @@ class _AudioRecorderWidgetState extends ConsumerState<AudioRecorderWidget>
     // Heartbeat for the duration display (no amplitude — record
     // doesn't expose it during stream mode on every platform).
     _timer = Timer.periodic(const Duration(milliseconds: 100), (_) {
-      if (_isRecording && !_isPaused && mounted) {
-        setState(
-            () => _recordingDuration += const Duration(milliseconds: 100));
+      final s = ref.read(audioRecorderProvider);
+      if (s.isRecording && !s.isPaused && mounted) {
+        ref.read(audioRecorderProvider.notifier)
+            .incrementDuration(const Duration(milliseconds: 100));
       }
     });
   }
@@ -488,10 +466,7 @@ class _AudioRecorderWidgetState extends ConsumerState<AudioRecorderWidget>
     _pulseController.stop();
     _pulseController.reset();
     if (mounted) {
-      setState(() {
-        _isRecording = false;
-        _isPaused = false;
-      });
+      ref.read(audioRecorderProvider.notifier).stopRecording();
     }
   }
 
@@ -538,10 +513,7 @@ class _AudioRecorderWidgetState extends ConsumerState<AudioRecorderWidget>
       return;
     }
 
-    setState(() {
-      _isCapturingSystemAudio = true;
-      _recordingDuration = Duration.zero;
-    });
+    ref.read(audioRecorderProvider.notifier).startSystemCapture();
 
     _micController = StreamController<Float32List>(sync: true);
     _sysAudioFramesSub = frames.listen(
@@ -570,9 +542,9 @@ class _AudioRecorderWidgetState extends ConsumerState<AudioRecorderWidget>
     );
 
     _timer = Timer.periodic(const Duration(milliseconds: 100), (_) {
-      if (_isCapturingSystemAudio && mounted) {
-        setState(
-            () => _recordingDuration += const Duration(milliseconds: 100));
+      if (ref.read(audioRecorderProvider).isCapturingSystemAudio && mounted) {
+        ref.read(audioRecorderProvider.notifier)
+            .incrementDuration(const Duration(milliseconds: 100));
       }
     });
   }
@@ -588,14 +560,12 @@ class _AudioRecorderWidgetState extends ConsumerState<AudioRecorderWidget>
     _micController = null;
     _timer?.cancel();
     if (mounted) {
-      setState(() {
-        _isCapturingSystemAudio = false;
-      });
+      ref.read(audioRecorderProvider.notifier).stopSystemCapture();
     }
   }
 
   Future<void> _stopRecording() async {
-    if (_streamMode) {
+    if (ref.read(audioRecorderProvider).streamMode) {
       await _stopStreamRecording();
       return;
     }
@@ -603,11 +573,7 @@ class _AudioRecorderWidgetState extends ConsumerState<AudioRecorderWidget>
 
     try {
       final path = await audioService.stopRecording();
-      setState(() {
-        _isRecording = false;
-        _isPaused = false;
-        _recordingPath = path;
-      });
+      ref.read(audioRecorderProvider.notifier).stopRecording(path: path);
 
       // Auto-select the recording so the user can hit Transcribe
       // immediately. Tapping "Use Recording" still works (it shows
@@ -627,29 +593,27 @@ class _AudioRecorderWidgetState extends ConsumerState<AudioRecorderWidget>
   }
 
   void _pauseRecording() {
-    setState(() {
-      _isPaused = true;
-    });
+    ref.read(audioRecorderProvider.notifier).setIsPaused(true);
     _pulseController.stop();
   }
 
   void _resumeRecording() {
-    setState(() {
-      _isPaused = false;
-    });
+    ref.read(audioRecorderProvider.notifier).setIsPaused(false);
     _pulseController.repeat(reverse: true);
   }
 
   Future<void> _playRecording() async {
-    if (_recordingPath == null) return;
+    final recordingPath = ref.read(audioRecorderProvider).recordingPath;
+    if (recordingPath == null) return;
 
     final audioService = ref.read(audioServiceProvider);
+    final n = ref.read(audioRecorderProvider.notifier);
     try {
-      setState(() => _isPlaying = true);
-      await audioService.playAudio(File(_recordingPath!));
-      if (mounted) setState(() => _isPlaying = false);
+      n.setIsPlaying(true);
+      await audioService.playAudio(File(recordingPath));
+      if (mounted) n.setIsPlaying(false);
     } catch (e) {
-      if (mounted) setState(() => _isPlaying = false);
+      if (mounted) n.setIsPlaying(false);
       _showErrorDialog('Failed to play recording: $e');
     }
   }
@@ -658,7 +622,7 @@ class _AudioRecorderWidgetState extends ConsumerState<AudioRecorderWidget>
     final audioService = ref.read(audioServiceProvider);
     try {
       await audioService.stopPlayback();
-      if (mounted) setState(() => _isPlaying = false);
+      if (mounted) ref.read(audioRecorderProvider.notifier).setIsPlaying(false);
     } catch (_) {}
   }
 
@@ -687,13 +651,11 @@ class _AudioRecorderWidgetState extends ConsumerState<AudioRecorderWidget>
   }
 
   void _performDeleteRecording() {
-    if (_recordingPath != null) {
+    final recordingPath = ref.read(audioRecorderProvider).recordingPath;
+    if (recordingPath != null) {
       try {
-        File(_recordingPath!).deleteSync();
-        setState(() {
-          _recordingPath = null;
-          _recordingDuration = Duration.zero;
-        });
+        File(recordingPath).deleteSync();
+        ref.read(audioRecorderProvider.notifier).deleteRecording();
       } catch (e) {
         _showErrorDialog('Failed to delete recording: $e');
       }
@@ -701,9 +663,10 @@ class _AudioRecorderWidgetState extends ConsumerState<AudioRecorderWidget>
   }
 
   void _useRecording() {
-    if (_recordingPath == null) return;
+    final recordingPath = ref.read(audioRecorderProvider).recordingPath;
+    if (recordingPath == null) return;
     _stopPlayback();
-    ref.read(selectedAudioPathProvider.notifier).state = _recordingPath;
+    ref.read(selectedAudioPathProvider.notifier).state = recordingPath;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
           content: Text(

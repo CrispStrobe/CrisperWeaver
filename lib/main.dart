@@ -50,6 +50,7 @@ import 'services/native_licenses.dart';
 import 'services/share_intake_service.dart';
 import 'services/speaker_id_service.dart';
 import 'services/transcription_service.dart';
+import 'services/baked_catalog_loader.dart';
 import 'services/model_service.dart';
 import 'services/hotkey_service.dart';
 import 'services/preset_service.dart';
@@ -134,6 +135,11 @@ void main(List<String> args) async {
   await _initializeServices();
   await _configureAudioSession();
   await registerNativeLicenses();
+
+  // §8.4 — load the baked model catalog from the JSON asset so the
+  // model picker is fully populated at first launch without a network
+  // probe. Must complete before ModelService is first read.
+  await BakedCatalogLoader.load();
 
   final prefs = await SharedPreferences.getInstance();
   final settingsService = SettingsService(prefs);

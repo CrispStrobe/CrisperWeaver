@@ -9,13 +9,21 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:crisper_weaver/services/baked_models_catalog.dart';
-import 'package:crisper_weaver/services/model_catalog.dart';
+import 'package:crisper_weaver/services/baked_catalog_loader.dart';
 import 'package:crisper_weaver/services/model_service.dart';
 import 'package:crisper_weaver/services/settings_service.dart';
 
 void main() {
   late ModelService svc;
+
+  setUpAll(() async {
+    // Load the baked catalog from the JSON asset so BakedCatalogLoader.cached
+    // is available for ModelService's resolution chain.
+    TestWidgetsFlutterBinding.ensureInitialized();
+    await BakedCatalogLoader.load();
+  });
+
+  tearDownAll(() => BakedCatalogLoader.reset());
 
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
@@ -42,7 +50,7 @@ void main() {
 
     test('finds a baked discovered model', () {
       // Pick the first baked model — these come from the HF probe snapshot.
-      final firstBaked = bakedDiscoveredModels.keys.first;
+      final firstBaked = BakedCatalogLoader.cached.keys.first;
       final def = svc.lookupDefinition(firstBaked);
       expect(def, isNotNull);
       expect(def!.name, firstBaked);
@@ -55,7 +63,7 @@ void main() {
     test('whisper models take precedence over baked for same name', () {
       // If a name exists in both whisperCppModels and baked, whisper wins.
       for (final name in ModelCatalog.whisperCppModels.keys) {
-        if (bakedDiscoveredModels.containsKey(name)) {
+        if (BakedCatalogLoader.cached.containsKey(name)) {
           final def = svc.lookupDefinition(name);
           expect(def, same(ModelCatalog.whisperCppModels[name]),
               reason: '$name should resolve to whisperCppModels');

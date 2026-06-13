@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -14,6 +12,7 @@ import '../services/voice_baking_service.dart';
 
 import '../l10n/generated/app_localizations.dart';
 import '../main.dart' show modelServiceProvider;
+import '../providers/synthesize_screen_provider.dart';
 import '../services/log_service.dart';
 import '../services/model_service.dart';
 import '../services/tts_service.dart';
@@ -63,25 +62,6 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
   final _instructController = TextEditingController();
   final _player = AudioPlayer();
 
-  List<ModelInfo> _all = const [];
-  bool _loading = true;
-  bool _busy = false;
-
-  String? _selectedModel;
-  String? _selectedVoice;
-  String? _selectedCodec;
-  String? _selectedSpeaker;
-
-  /// #17 — preset speaker names baked into the selected model (orpheus,
-  /// qwen3-tts CustomVoice). Empty for backends without a preset-speaker
-  /// contract (kokoro / vibevoice / chatterbox / qwen3-tts Base &
-  /// VoiceDesign). Populated by [_loadSpeakers] once the session opens.
-  /// CustomVoice produces NO audio unless one of these is selected and
-  /// passed to setSpeakerName() — the previously-missing picker was why
-  /// qwen3-tts CustomVoice synthesised silence (issue #17).
-  List<String> _presetSpeakers = const [];
-  bool _loadingSpeakers = false;
-
   /// Backends that may expose preset speakers. We only open the model to
   /// enumerate speakers for these — opening kokoro / vibevoice / chatterbox
   /// just to discover an always-empty speaker list would be wasted work.
@@ -90,55 +70,9 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
   /// Backends with integer-indexed speakers (melotts, piper, fastpitch).
   /// Uses setSpeakerID(int) instead of setSpeakerName(String).
   static const _speakerIdCapableBackends = {'melotts', 'piper', 'fastpitch'};
-  int _nSpeakers = 0;
-  int? _selectedSpeakerId;
-
-  /// User-supplied reference WAV for runtime cloning (qwen3-tts Base,
-  /// vibevoice-1.5b, indextts). Takes priority over the catalog-voice
-  /// dropdown; pair with `_refTextController` for backends that need a
-  /// transcript of the reference.
-  String? _customVoiceWavPath;
-  File? _lastWav;
-
-  // CrispASR 0.6 TTS knobs.
-  bool _trimSilence = false;
-  double _speed = 1.0;
-  bool _showAdvanced = false;
-  // CrispASR 0.6.1 sampling knobs. Defaults that mirror the upstream
-  // C-side defaults so untouched sliders behave like the historical
-  // synthesize() call.
-  double _temperature = 0.8;
-  double _topP = 1.0;
-  double _cfgWeight = 0.5;
-  double _exaggeration = 0.5;
-  int _ttsSteps = 10;
-  // CrispASR 0.6 chatterbox extras — wired from tts_service.dart's
-  // `synthesize()` parameters but not previously surfaced. Each is
-  // null-on-default so the service forwards the C-side defaults
-  // when the user hasn't touched the slider.
-  double _minP = 0.0;
-  double _repetitionPenalty = 1.0;
-  int _maxSpeechTokens = 1000;
-  /// TTS random seed — 0 = non-deterministic.
-  int _ttsSeed = 0;
-  /// Frequency penalty for AR token repetition.
-  double _frequencyPenalty = 0.0;
-
-  /// §5.26.3 — Speech-to-Speech mode. When enabled, the user provides
-  /// audio input instead of text, and the engine produces transformed
-  /// audio output via the backend's S2S pipeline.
-  bool _s2sMode = false;
-  String? _s2sInputPath;
 
   /// Backends that support speech-to-speech at the C level.
-  /// S2S requires `crispasr_session_speech_to_speech()` in the C API —
-  /// not yet exposed (only CLI). UI scaffold is ready; the synthesize
-  /// path falls back to a transcribe→synthesize chain until the native
-  /// S2S session function lands.
   static const _s2sCapableBackends = {'lfm2-audio', 'mini-omni2'};
-
-  /// §5.25.9 — Pronunciation lexicon loaded from disk.
-  PronunciationLexicon? _lexicon;
 
   @override
   void initState() {
@@ -148,7 +82,7 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
     // we only set them once on screen-open.
     final wav = widget.initialVoiceWavPath;
     if (wav != null && wav.isNotEmpty) {
-      _customVoiceWavPath = wav;
+      ref.read(synthesizeScreenProvider.notifier).setCustomVoiceWavPath(wav);
     }
     final rt = widget.initialRefText;
     if (rt != null && rt.isNotEmpty) {
@@ -164,7 +98,7 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
       final docs = await getApplicationDocumentsDirectory();
       final loaded = await PronunciationLexicon.load(docs.path);
       if (!mounted) return;
-      setState(() => _lexicon = loaded);
+      ref.read(synthesizeScreenProvider.notifier).setLexicon(loaded);
       ref.read(ttsServiceProvider).lexicon = loaded;
     } catch (e) {
       Log.instance.w('synth', 'Failed to load lexicon: $e');
@@ -228,22 +162,23 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
       replacement: replacementCtrl.text,
       isIpa: isIpa,
     );
-    final updated = (_lexicon ?? const PronunciationLexicon()).put(entry);
+    final updated = (ref.read(synthesizeScreenProvider).lexicon ?? const PronunciationLexicon()).put(entry);
     final docs = await getApplicationDocumentsDirectory();
     await updated.save(docs.path);
     if (!mounted) return;
-    setState(() => _lexicon = updated);
+    ref.read(synthesizeScreenProvider.notifier).setLexicon(updated);
     ref.read(ttsServiceProvider).lexicon = updated;
   }
 
   /// §5.25.9 — Remove a lexicon entry by word.
   Future<void> _removeLexiconEntry(String word) async {
-    if (_lexicon == null) return;
-    final updated = _lexicon!.remove(word);
+    final lexicon = ref.read(synthesizeScreenProvider).lexicon;
+    if (lexicon == null) return;
+    final updated = lexicon.remove(word);
     final docs = await getApplicationDocumentsDirectory();
     await updated.save(docs.path);
     if (!mounted) return;
-    setState(() => _lexicon = updated);
+    ref.read(synthesizeScreenProvider.notifier).setLexicon(updated);
     ref.read(ttsServiceProvider).lexicon = updated;
   }
 
@@ -257,25 +192,28 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
   }
 
   Future<void> _refresh() async {
-    setState(() => _loading = true);
+    final n = ref.read(synthesizeScreenProvider.notifier);
+    n.setLoading(true);
     try {
       final svc = ref.read(modelServiceProvider);
       // Probe the C-side registry so any TTS backend the bundled
       // libcrispasr knows about shows up here without a code change.
       svc.refreshFromCrispasrRegistry();
-      _all = await svc.getWhisperCppModels();
+      final all = await svc.getWhisperCppModels();
+      n.setAllModels(all);
       // Auto-select the first downloaded TTS model + matching voice/codec.
       final ttsDownloaded =
-          _all.where((m) => m.kind == ModelKind.tts && m.isDownloaded).toList();
+          all.where((m) => m.kind == ModelKind.tts && m.isDownloaded).toList();
       if (ttsDownloaded.isNotEmpty) {
-        _selectedModel ??= ttsDownloaded.first.name;
+        final current = ref.read(synthesizeScreenProvider).selectedModel;
+        if (current == null) n.setSelectedModel(ttsDownloaded.first.name);
         _autoSelectCompanions();
       }
     } catch (e, st) {
       Log.instance
           .w('synth', 'failed to refresh model list', error: e, stack: st);
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) n.setLoading(false);
     }
     // NB: we deliberately do NOT enumerate speakers for the auto-selected
     // model here. speakers() requires opening the model, and the open is a
@@ -300,7 +238,7 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
       (m) => m.name == name,
       orElse: () => voices.first,
     );
-    setState(() => _selectedVoice = name);
+    ref.read(synthesizeScreenProvider.notifier).setSelectedVoice(name);
     if (picked.isDownloaded) return;
     await _downloadCompanion(picked);
   }
@@ -311,7 +249,7 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
       (m) => m.name == name,
       orElse: () => codecs.first,
     );
-    setState(() => _selectedCodec = name);
+    ref.read(synthesizeScreenProvider.notifier).setSelectedCodec(name);
     if (picked.isDownloaded) return;
     await _downloadCompanion(picked);
   }
@@ -354,25 +292,24 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
   }
 
   void _autoSelectCompanions() {
+    final n = ref.read(synthesizeScreenProvider.notifier);
+    final s = ref.read(synthesizeScreenProvider);
     // Model changed — drop any stale speaker selection; _loadSpeakers
     // repopulates for the new model.
-    _selectedSpeaker = null;
-    _selectedSpeakerId = null;
-    _nSpeakers = 0;
-    _presetSpeakers = const [];
+    n.resetSpeakerState();
     final modelDef =
-        ref.read(modelServiceProvider).lookupDefinition(_selectedModel ?? '');
+        ref.read(modelServiceProvider).lookupDefinition(s.selectedModel ?? '');
     if (modelDef == null) return;
-    final voices = _all.where((m) =>
+    final voices = s.allModels.where((m) =>
         m.kind == ModelKind.voice &&
         m.backend == modelDef.backend &&
         m.isDownloaded);
-    final codecs = _all.where((m) =>
+    final codecs = s.allModels.where((m) =>
         m.kind == ModelKind.codec &&
         m.backend == modelDef.backend &&
         m.isDownloaded);
-    _selectedVoice = voices.isEmpty ? null : voices.first.name;
-    _selectedCodec = codecs.isEmpty ? null : codecs.first.name;
+    n.setSelectedVoice(voices.isEmpty ? null : voices.first.name);
+    n.setSelectedCodec(codecs.isEmpty ? null : codecs.first.name);
   }
 
   /// #17 — open the selected model (when its backend can carry preset
@@ -388,7 +325,8 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
   /// user deliberately selects a speaker-capable model keeps the heavy work
   /// at a moment the user expects it.
   Future<void> _loadSpeakers() async {
-    final modelName = _selectedModel;
+    final s = ref.read(synthesizeScreenProvider);
+    final modelName = s.selectedModel;
     if (modelName == null) return;
     final svc = ref.read(modelServiceProvider);
     final backend = svc.lookupDefinition(modelName)?.backend;
@@ -399,59 +337,59 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
     if (backend == null || !_speakerCapableBackends.contains(backend)) {
       return;
     }
-    setState(() => _loadingSpeakers = true);
+    final n = ref.read(synthesizeScreenProvider.notifier);
+    n.setLoadingSpeakers(true);
     try {
       final tts = ref.read(ttsServiceProvider);
       final status = await tts.prepare(
         modelName: modelName,
-        voiceName: _selectedVoice,
-        codecName: _selectedCodec,
+        voiceName: s.selectedVoice,
+        codecName: s.selectedCodec,
       );
       if (!mounted) return;
       final speakers = status.ready ? tts.presetSpeakers : const <String>[];
-      setState(() {
-        _presetSpeakers = speakers;
-        // Auto-pick the first speaker so a one-tap synth Just Works;
-        // preserve a still-valid prior choice across rebuilds.
-        _selectedSpeaker =
-            SynthesizeScreen.resolveSpeakerSelection(speakers, _selectedSpeaker);
-      });
+      n.setPresetSpeakers(speakers);
+      // Auto-pick the first speaker so a one-tap synth Just Works;
+      // preserve a still-valid prior choice across rebuilds.
+      n.setSelectedSpeaker(
+          SynthesizeScreen.resolveSpeakerSelection(speakers, ref.read(synthesizeScreenProvider).selectedSpeaker));
     } catch (e, st) {
       Log.instance.w('synth', 'speaker enumeration failed',
           error: e, stack: st, fields: {'model': modelName});
     } finally {
-      if (mounted) setState(() => _loadingSpeakers = false);
+      if (mounted) n.setLoadingSpeakers(false);
     }
   }
 
   /// Load speaker count for integer-indexed backends (melotts, piper,
   /// fastpitch). Opens the session to query nSpeakers.
   Future<void> _loadSpeakersById() async {
-    final modelName = _selectedModel;
+    final s = ref.read(synthesizeScreenProvider);
+    final modelName = s.selectedModel;
     if (modelName == null) return;
-    setState(() => _loadingSpeakers = true);
+    final n = ref.read(synthesizeScreenProvider.notifier);
+    n.setLoadingSpeakers(true);
     try {
       final tts = ref.read(ttsServiceProvider);
       final status = await tts.prepare(
         modelName: modelName,
-        voiceName: _selectedVoice,
-        codecName: _selectedCodec,
+        voiceName: s.selectedVoice,
+        codecName: s.selectedCodec,
       );
       if (!mounted) return;
       if (status.ready) {
-        final n = tts.session?.nSpeakers ?? 0;
-        setState(() {
-          _nSpeakers = n;
-          _selectedSpeakerId = (n > 0) ? (_selectedSpeakerId ?? 0).clamp(0, n - 1) : null;
-          // Clear named speakers so the UI shows the ID picker instead.
-          _presetSpeakers = const [];
-        });
+        final count = tts.session?.nSpeakers ?? 0;
+        n.setNSpeakers(count);
+        n.setSelectedSpeakerId(
+            (count > 0) ? (s.selectedSpeakerId ?? 0).clamp(0, count - 1) : null);
+        // Clear named speakers so the UI shows the ID picker instead.
+        n.setPresetSpeakers(const []);
       }
     } catch (e, st) {
       Log.instance.w('synth', 'speaker ID enumeration failed',
           error: e, stack: st, fields: {'model': modelName});
     } finally {
-      if (mounted) setState(() => _loadingSpeakers = false);
+      if (mounted) n.setLoadingSpeakers(false);
     }
   }
 
@@ -468,41 +406,40 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
   }
 
   Future<void> _synthesize() async {
+    final ss = ref.read(synthesizeScreenProvider);
+    final sn = ref.read(synthesizeScreenProvider.notifier);
     // §5.26.3 — S2S mode: audio input instead of text.
-    if (_s2sMode) {
+    if (ss.s2sMode) {
       await _synthesizeS2S();
       return;
     }
     final text = _textController.text.trim();
-    if (text.isEmpty || _selectedModel == null) return;
-    setState(() {
-      _busy = true;
-      _lastWav = null;
-    });
+    if (text.isEmpty || ss.selectedModel == null) return;
+    sn.startSynth();
     final tts = ref.read(ttsServiceProvider);
     try {
       final refText = _refTextController.text.trim();
       final instructPrompt = _instructController.text.trim();
       Log.instance.i('synth', 'prepare', fields: {
-        'model': _selectedModel ?? '',
-        'voice': _selectedVoice ?? '',
-        'codec': _selectedCodec ?? '',
-        'speaker': _selectedSpeaker ?? '',
-        'customWav': _customVoiceWavPath != null,
+        'model': ss.selectedModel ?? '',
+        'voice': ss.selectedVoice ?? '',
+        'codec': ss.selectedCodec ?? '',
+        'speaker': ss.selectedSpeaker ?? '',
+        'customWav': ss.customVoiceWavPath != null,
       });
       final status = await tts.prepare(
-        modelName: _selectedModel!,
-        voiceName: _selectedVoice,
-        codecName: _selectedCodec,
+        modelName: ss.selectedModel!,
+        voiceName: ss.selectedVoice,
+        codecName: ss.selectedCodec,
         refText: refText.isEmpty ? null : refText,
-        speakerName: _selectedSpeaker,
-        speakerId: _selectedSpeakerId,
+        speakerName: ss.selectedSpeaker,
+        speakerId: ss.selectedSpeakerId,
         instructPrompt: instructPrompt.isEmpty ? null : instructPrompt,
-        voiceWavPath: _customVoiceWavPath,
+        voiceWavPath: ss.customVoiceWavPath,
       );
       if (!status.ready) {
         Log.instance.w('synth', 'prepare failed', fields: {
-          'model': _selectedModel ?? '',
+          'model': ss.selectedModel ?? '',
           'missing_model': status.missingModelName ?? '',
           'missing_voice': status.missingVoiceName ?? '',
           'missing_codec': status.missingCodecName ?? '',
@@ -535,45 +472,45 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
       // and re-open with it. Without a speaker these backends emit no
       // audio. instructPrompt is forced null here so prepare() takes the
       // speaker branch rather than the (mutually-exclusive) instruct one.
-      if (_selectedSpeaker == null && tts.presetSpeakers.isNotEmpty) {
+      final curSpeaker = ref.read(synthesizeScreenProvider).selectedSpeaker;
+      if (curSpeaker == null && tts.presetSpeakers.isNotEmpty) {
         final speakers = tts.presetSpeakers;
         if (mounted) {
-          setState(() {
-            _presetSpeakers = speakers;
-            _selectedSpeaker = speakers.first;
-          });
+          sn.setPresetSpeakers(speakers);
+          sn.setSelectedSpeaker(speakers.first);
         }
         await tts.prepare(
-          modelName: _selectedModel!,
-          voiceName: _selectedVoice,
-          codecName: _selectedCodec,
+          modelName: ss.selectedModel!,
+          voiceName: ss.selectedVoice,
+          codecName: ss.selectedCodec,
           speakerName: speakers.first,
         );
       }
 
+      final samp = ss.sampling;
       // Pass the chatterbox-specific knobs unconditionally; the
       // session setters no-op on backends that don't honour each
       // field, so no per-backend branching needed.
       final audio = await tts.synthesize(
         text,
-        trimSilence: _trimSilence,
-        speed: _speed,
-        ttsSteps: _ttsSteps,
-        temperature: _temperature,
-        topP: _topP,
+        trimSilence: ss.trimSilence,
+        speed: ss.speed,
+        ttsSteps: samp.ttsSteps,
+        temperature: samp.temperature,
+        topP: samp.topP,
         // Skip default-valued knobs so the C-side picks its own
         // backend-default — keeps untouched sliders identical to
         // pre-0.5.1 behaviour. Chatterbox is the only TTS backend
         // that honours these today; others silently ignore.
-        minP: _minP > 0 ? _minP : null,
-        cfgWeight: _cfgWeight,
-        exaggeration: _exaggeration,
+        minP: samp.minP > 0 ? samp.minP : null,
+        cfgWeight: samp.cfgWeight,
+        exaggeration: samp.exaggeration,
         repetitionPenalty:
-            (_repetitionPenalty - 1.0).abs() < 1e-3 ? null : _repetitionPenalty,
-        maxSpeechTokens: _maxSpeechTokens != 1000 ? _maxSpeechTokens : null,
-        seed: _ttsSeed != 0 ? _ttsSeed : null,
+            (samp.repetitionPenalty - 1.0).abs() < 1e-3 ? null : samp.repetitionPenalty,
+        maxSpeechTokens: samp.maxSpeechTokens != 1000 ? samp.maxSpeechTokens : null,
+        seed: samp.ttsSeed != 0 ? samp.ttsSeed : null,
         frequencyPenalty:
-            _frequencyPenalty.abs() < 1e-3 ? null : _frequencyPenalty,
+            samp.frequencyPenalty.abs() < 1e-3 ? null : samp.frequencyPenalty,
       );
       // #22 — surface a visible error when synthesis produces no audio
       // instead of silently returning. The previous `if (audio == null)
@@ -590,7 +527,7 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
         return;
       }
       final wav = await tts.writeWav(audio);
-      _lastWav = wav;
+      sn.setLastWav(wav);
 
       // Auto-play once synthesised so the user gets immediate feedback.
       try {
@@ -609,7 +546,7 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
         );
       }
     } finally {
-      if (mounted) setState(() => _busy = false);
+      if (mounted) sn.setBusy(false);
     }
   }
 
@@ -656,7 +593,7 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
       );
       if (pick.isEmpty) return;
       final path = pick.localPaths.first;
-      setState(() => _customVoiceWavPath = path);
+      ref.read(synthesizeScreenProvider.notifier).setCustomVoiceWavPath(path);
       Log.instance.i('synth', 'custom voice picked',
           fields: {'path': path, 'cloud_fallback': pick.usedCloudFallback});
     } on FilePickerCloudUriUnsupported catch (e, st) {
@@ -682,18 +619,17 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
 
   /// §5.26.3 — S2S synthesis: load audio from file, run S2S, play result.
   Future<void> _synthesizeS2S() async {
-    if (_s2sInputPath == null || _selectedModel == null) return;
-    setState(() {
-      _busy = true;
-      _lastWav = null;
-    });
+    final ss = ref.read(synthesizeScreenProvider);
+    final sn = ref.read(synthesizeScreenProvider.notifier);
+    if (ss.s2sInputPath == null || ss.selectedModel == null) return;
+    sn.startSynth();
     final tts = ref.read(ttsServiceProvider);
     try {
       // Prepare the TTS session (loads model + codec).
       final status = await tts.prepare(
-        modelName: _selectedModel!,
-        voiceName: _selectedVoice,
-        codecName: _selectedCodec,
+        modelName: ss.selectedModel!,
+        voiceName: ss.selectedVoice,
+        codecName: ss.selectedCodec,
       );
       if (!status.ready) {
         if (!mounted) return;
@@ -707,7 +643,7 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
       }
 
       // Load input audio as 16 kHz mono PCM via crispasr_audio_load.
-      final decoded = crispasr.decodeAudioFile(_s2sInputPath!);
+      final decoded = crispasr.decodeAudioFile(ss.s2sInputPath!);
       final inputPcm = decoded.samples;
       if (inputPcm.isEmpty) {
         if (!mounted) return;
@@ -728,7 +664,7 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
 
       final wav = await tts.writeWav(audio);
       if (!mounted) return;
-      setState(() => _lastWav = wav);
+      sn.setLastWav(wav);
       await _player.setFilePath(wav.path);
       await _player.play();
     } catch (e, st) {
@@ -738,12 +674,12 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
         SnackBar(content: Text('S2S error: $e')),
       );
     } finally {
-      if (mounted) setState(() => _busy = false);
+      if (mounted) sn.setBusy(false);
     }
   }
 
   Future<void> _shareWav() async {
-    final wav = _lastWav;
+    final wav = ref.read(synthesizeScreenProvider).lastWav;
     if (wav == null) return;
     try {
       await SharePlus.instance.share(ShareParams(
@@ -758,19 +694,21 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
+    final ss = ref.watch(synthesizeScreenProvider);
+    final sn = ref.read(synthesizeScreenProvider.notifier);
     final ttsModels =
-        _all.where((m) => m.kind == ModelKind.tts).toList(growable: false);
+        ss.allModels.where((m) => m.kind == ModelKind.tts).toList(growable: false);
     final downloadedTtsModels =
         ttsModels.where((m) => m.isDownloaded).toList(growable: false);
 
-    final modelDef = _selectedModel == null
+    final modelDef = ss.selectedModel == null
         ? null
-        : ref.read(modelServiceProvider).lookupDefinition(_selectedModel!);
-    final voices = _all
+        : ref.read(modelServiceProvider).lookupDefinition(ss.selectedModel!);
+    final voices = ss.allModels
         .where(
             (m) => m.kind == ModelKind.voice && m.backend == modelDef?.backend)
         .toList(growable: false);
-    final codecs = _all
+    final codecs = ss.allModels
         .where(
             (m) => m.kind == ModelKind.codec && m.backend == modelDef?.backend)
         .toList(growable: false);
@@ -795,7 +733,7 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
             ),
         ],
       ),
-      body: _loading
+      body: ss.loading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
               padding: const EdgeInsets.all(16),
@@ -841,7 +779,7 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
                   else ...[
                     DropdownButtonFormField<String>(
                       decoration: InputDecoration(labelText: l.synthModelLabel),
-                      initialValue: _selectedModel,
+                      initialValue: ss.selectedModel,
                       items: downloadedTtsModels
                           .map((m) => DropdownMenuItem(
                                 value: m.name,
@@ -850,10 +788,8 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
                               ))
                           .toList(),
                       onChanged: (v) {
-                        setState(() {
-                          _selectedModel = v;
-                          _autoSelectCompanions();
-                        });
+                        sn.setSelectedModel(v);
+                        _autoSelectCompanions();
                         // Re-enumerate preset speakers for the new model
                         // (#17); fire-and-forget so the dropdown stays
                         // responsive.
@@ -865,7 +801,7 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
                       DropdownButtonFormField<String>(
                         decoration:
                             InputDecoration(labelText: l.synthVoiceLabel),
-                        initialValue: _selectedVoice,
+                        initialValue: ss.selectedVoice,
                         items: voices
                             .map((m) => DropdownMenuItem(
                                   value: m.name,
@@ -884,7 +820,7 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
                       DropdownButtonFormField<String>(
                         decoration:
                             InputDecoration(labelText: l.synthCodecLabel),
-                        initialValue: _selectedCodec,
+                        initialValue: ss.selectedCodec,
                         items: codecs
                             .map((m) => DropdownMenuItem(
                                   value: m.name,
@@ -901,15 +837,15 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
                     // #17 — preset-speaker picker for backends that bake
                     // speakers in (qwen3-tts CustomVoice, orpheus). Without
                     // a selection here CustomVoice synthesises silence.
-                    if (_presetSpeakers.isNotEmpty) ...[
+                    if (ss.presetSpeakers.isNotEmpty) ...[
                       const SizedBox(height: 8),
                       DropdownButtonFormField<String>(
                         decoration: InputDecoration(
                           labelText: l.synthSpeakerLabel,
                           helperText: l.synthSpeakerHelper,
                         ),
-                        initialValue: _selectedSpeaker,
-                        items: _presetSpeakers
+                        initialValue: ss.selectedSpeaker,
+                        items: ss.presetSpeakers
                             .map((s) => DropdownMenuItem(
                                   value: s,
                                   child:
@@ -917,28 +853,28 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
                                 ))
                             .toList(),
                         onChanged: (v) =>
-                            setState(() => _selectedSpeaker = v),
+                            sn.setSelectedSpeaker(v),
                       ),
-                    ] else if (_nSpeakers > 1) ...[
+                    ] else if (ss.nSpeakers > 1) ...[
                       // Integer-indexed speaker picker (melotts, piper, fastpitch).
                       const SizedBox(height: 8),
                       DropdownButtonFormField<int>(
                         decoration: InputDecoration(
                           labelText: l.synthSpeakerLabel,
-                          helperText: '$_nSpeakers speakers available (0-indexed)',
+                          helperText: '${ss.nSpeakers} speakers available (0-indexed)',
                         ),
-                        initialValue: _selectedSpeakerId ?? 0,
+                        initialValue: ss.selectedSpeakerId ?? 0,
                         items: List.generate(
-                          _nSpeakers,
+                          ss.nSpeakers,
                           (i) => DropdownMenuItem(
                             value: i,
                             child: Text('Speaker $i'),
                           ),
                         ),
                         onChanged: (v) =>
-                            setState(() => _selectedSpeakerId = v),
+                            sn.setSelectedSpeakerId(v),
                       ),
-                    ] else if (_loadingSpeakers) ...[
+                    ] else if (ss.loadingSpeakers) ...[
                       const SizedBox(height: 8),
                       const LinearProgressIndicator(),
                     ],
@@ -951,18 +887,18 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
                     SwitchListTile(
                       title: Text(l.synthS2sToggle),
                       subtitle: Text(l.synthS2sHelper),
-                      value: _s2sMode,
-                      onChanged: (v) => setState(() => _s2sMode = v),
+                      value: ss.s2sMode,
+                      onChanged: (v) => sn.setS2sMode(v),
                       contentPadding: EdgeInsets.zero,
                       dense: true,
                     ),
-                    if (_s2sMode) ...[
+                    if (ss.s2sMode) ...[
                       Row(
                         children: [
                           Expanded(
                             child: Text(
-                              _s2sInputPath != null
-                                  ? p.basename(_s2sInputPath!)
+                              ss.s2sInputPath != null
+                                  ? p.basename(ss.s2sInputPath!)
                                   : l.synthS2sPickAudio,
                               style: Theme.of(context).textTheme.bodyMedium,
                               overflow: TextOverflow.ellipsis,
@@ -976,10 +912,7 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
                                 type: FileType.audio,
                               );
                               if (result.localPaths.isNotEmpty) {
-                                setState(() {
-                                  _s2sInputPath =
-                                      result.localPaths.first;
-                                });
+                                sn.setS2sInputPath(result.localPaths.first);
                               }
                             },
                             icon: const Icon(Icons.audio_file, size: 18),
@@ -990,7 +923,7 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
                       const SizedBox(height: 8),
                     ],
                   ],
-                  if (!_s2sMode)
+                  if (!ss.s2sMode)
                     TextField(
                       controller: _textController,
                       minLines: 4,
@@ -1008,9 +941,9 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
                     ),
                   const SizedBox(height: 8),
                   ExpansionTile(
-                    initiallyExpanded: _showAdvanced,
+                    initiallyExpanded: ss.showAdvanced,
                     onExpansionChanged: (v) =>
-                        setState(() => _showAdvanced = v),
+                        sn.setShowAdvanced(v),
                     tilePadding: EdgeInsets.zero,
                     title: Text(l.synthAdvancedSection),
                     children: [
@@ -1035,20 +968,20 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
                                         style: const TextStyle(
                                             fontWeight: FontWeight.w600)),
                                   ),
-                                  if (_customVoiceWavPath != null)
+                                  if (ss.customVoiceWavPath != null)
                                     IconButton(
                                       tooltip: l.synthCustomVoiceClear,
                                       icon: const Icon(Icons.close, size: 18),
-                                      onPressed: () => setState(
-                                          () => _customVoiceWavPath = null),
+                                      onPressed: () =>
+                                          sn.setCustomVoiceWavPath(null),
                                     ),
                                 ],
                               ),
-                              if (_customVoiceWavPath != null)
+                              if (ss.customVoiceWavPath != null)
                                 Padding(
                                   padding: const EdgeInsets.only(top: 4),
                                   child: Text(
-                                    p.basename(_customVoiceWavPath!),
+                                    p.basename(ss.customVoiceWavPath!),
                                     style: const TextStyle(fontSize: 11),
                                     overflow: TextOverflow.ellipsis,
                                   ),
@@ -1064,7 +997,7 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
                               OutlinedButton.icon(
                                 onPressed: _pickCustomVoice,
                                 icon: const Icon(Icons.audio_file),
-                                label: Text(_customVoiceWavPath == null
+                                label: Text(ss.customVoiceWavPath == null
                                     ? l.synthCustomVoicePick
                                     : l.synthCustomVoiceReplace),
                               ),
@@ -1108,8 +1041,8 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
                         title: Text(l.synthTrimSilence),
                         subtitle: Text(l.synthTrimSilenceSubtitle,
                             style: const TextStyle(fontSize: 11)),
-                        value: _trimSilence,
-                        onChanged: (v) => setState(() => _trimSilence = v),
+                        value: ss.trimSilence,
+                        onChanged: (v) => sn.setTrimSilence(v),
                       ),
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 4),
@@ -1117,17 +1050,17 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              l.synthSpeed(_speed.toStringAsFixed(2)),
+                              l.synthSpeed(ss.speed.toStringAsFixed(2)),
                               style:
                                   const TextStyle(fontWeight: FontWeight.w500),
                             ),
                             Slider(
-                              value: _speed,
+                              value: ss.speed,
                               min: 0.25,
                               max: 4.0,
                               divisions: 30,
-                              label: _speed.toStringAsFixed(2),
-                              onChanged: (v) => setState(() => _speed = v),
+                              label: ss.speed.toStringAsFixed(2),
+                              onChanged: (v) => sn.setSpeed(v),
                             ),
                             Text(l.synthSpeedHelper,
                                 style: const TextStyle(
@@ -1141,105 +1074,105 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
                       // the setter doesn't apply, so we always show
                       // the sliders rather than gating by backend.
                       _buildSampleSlider(
-                        label: l.synthTemperature(_temperature.toStringAsFixed(2)),
+                        label: l.synthTemperature(ss.sampling.temperature.toStringAsFixed(2)),
                         helper: l.synthTemperatureHelper,
-                        value: _temperature,
+                        value: ss.sampling.temperature,
                         min: 0.0,
                         max: 1.5,
                         divisions: 30,
-                        onChanged: (v) => setState(() => _temperature = v),
+                        onChanged: (v) => sn.setTemperature(v),
                       ),
                       _buildSampleSlider(
-                        label: l.synthTtsSteps(_ttsSteps),
+                        label: l.synthTtsSteps(ss.sampling.ttsSteps),
                         helper: l.synthTtsStepsHelper,
-                        value: _ttsSteps.toDouble(),
+                        value: ss.sampling.ttsSteps.toDouble(),
                         min: 1,
                         max: 50,
                         divisions: 49,
                         onChanged: (v) =>
-                            setState(() => _ttsSteps = v.round()),
+                            sn.setTtsSteps(v.round()),
                       ),
                       _buildSampleSlider(
-                        label: l.synthCfgWeight(_cfgWeight.toStringAsFixed(2)),
+                        label: l.synthCfgWeight(ss.sampling.cfgWeight.toStringAsFixed(2)),
                         helper: l.synthCfgWeightHelper,
-                        value: _cfgWeight,
+                        value: ss.sampling.cfgWeight,
                         min: 0.0,
                         max: 2.0,
                         divisions: 20,
-                        onChanged: (v) => setState(() => _cfgWeight = v),
+                        onChanged: (v) => sn.setCfgWeight(v),
                       ),
                       _buildSampleSlider(
                         label:
-                            l.synthExaggeration(_exaggeration.toStringAsFixed(2)),
+                            l.synthExaggeration(ss.sampling.exaggeration.toStringAsFixed(2)),
                         helper: l.synthExaggerationHelper,
-                        value: _exaggeration,
+                        value: ss.sampling.exaggeration,
                         min: 0.0,
                         max: 1.5,
                         divisions: 15,
-                        onChanged: (v) => setState(() => _exaggeration = v),
+                        onChanged: (v) => sn.setExaggeration(v),
                       ),
                       _buildSampleSlider(
-                        label: l.synthTopP(_topP.toStringAsFixed(2)),
+                        label: l.synthTopP(ss.sampling.topP.toStringAsFixed(2)),
                         helper: l.synthTopPHelper,
-                        value: _topP,
+                        value: ss.sampling.topP,
                         min: 0.05,
                         max: 1.0,
                         divisions: 19,
-                        onChanged: (v) => setState(() => _topP = v),
+                        onChanged: (v) => sn.setTopP(v),
                       ),
                       _buildSampleSlider(
-                        label: l.synthMinP(_minP.toStringAsFixed(2)),
+                        label: l.synthMinP(ss.sampling.minP.toStringAsFixed(2)),
                         helper: l.synthMinPHelper,
-                        value: _minP,
+                        value: ss.sampling.minP,
                         min: 0.0,
                         max: 0.5,
                         divisions: 50,
-                        onChanged: (v) => setState(() => _minP = v),
+                        onChanged: (v) => sn.setMinP(v),
                       ),
                       _buildSampleSlider(
                         label: l.synthRepetitionPenalty(
-                            _repetitionPenalty.toStringAsFixed(2)),
+                            ss.sampling.repetitionPenalty.toStringAsFixed(2)),
                         helper: l.synthRepetitionPenaltyHelper,
-                        value: _repetitionPenalty,
+                        value: ss.sampling.repetitionPenalty,
                         min: 1.0,
                         max: 2.0,
                         divisions: 20,
                         onChanged: (v) =>
-                            setState(() => _repetitionPenalty = v),
+                            sn.setRepetitionPenalty(v),
                       ),
                       _buildSampleSlider(
                         label:
-                            l.synthMaxSpeechTokens(_maxSpeechTokens),
+                            l.synthMaxSpeechTokens(ss.sampling.maxSpeechTokens),
                         helper: l.synthMaxSpeechTokensHelper,
                         // Slider is double-only; we round for state +
                         // label.
-                        value: _maxSpeechTokens.toDouble(),
+                        value: ss.sampling.maxSpeechTokens.toDouble(),
                         min: 100,
                         max: 4000,
                         divisions: 39,
                         onChanged: (v) =>
-                            setState(() => _maxSpeechTokens = v.round()),
+                            sn.setMaxSpeechTokens(v.round()),
                       ),
                       _buildSampleSlider(
-                        label: l.synthSeed(_ttsSeed),
+                        label: l.synthSeed(ss.sampling.ttsSeed),
                         helper: l.synthSeedHelper,
-                        value: _ttsSeed.toDouble(),
+                        value: ss.sampling.ttsSeed.toDouble(),
                         min: 0,
                         max: 9999,
                         divisions: 9999,
                         onChanged: (v) =>
-                            setState(() => _ttsSeed = v.round()),
+                            sn.setTtsSeed(v.round()),
                       ),
                       _buildSampleSlider(
                         label: l.synthFrequencyPenalty(
-                            _frequencyPenalty.toStringAsFixed(2)),
+                            ss.sampling.frequencyPenalty.toStringAsFixed(2)),
                         helper: l.synthFrequencyPenaltyHelper,
-                        value: _frequencyPenalty,
+                        value: ss.sampling.frequencyPenalty,
                         min: 0.0,
                         max: 2.0,
                         divisions: 40,
                         onChanged: (v) =>
-                            setState(() => _frequencyPenalty = v),
+                            sn.setFrequencyPenalty(v),
                       ),
                       const SizedBox(height: 8),
                       // §5.25.9 — Pronunciation lexicon editor.
@@ -1270,10 +1203,10 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
                                   ),
                                 ],
                               ),
-                              if (_lexicon != null &&
-                                  _lexicon!.entries.isNotEmpty) ...[
+                              if (ss.lexicon != null &&
+                                  ss.lexicon!.entries.isNotEmpty) ...[
                                 const SizedBox(height: 4),
-                                ...(_lexicon!.entries.values.map((e) => ListTile(
+                                ...(ss.lexicon!.entries.values.map((e) => ListTile(
                                       dense: true,
                                       contentPadding: EdgeInsets.zero,
                                       title: Text(
@@ -1321,18 +1254,18 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
                     children: [
                       Expanded(
                         child: FilledButton.icon(
-                          onPressed: _busy ||
-                                  _selectedModel == null ||
+                          onPressed: ss.busy ||
+                                  ss.selectedModel == null ||
                                   downloadedTtsModels.isEmpty ||
-                                  (_s2sMode && _s2sInputPath == null) ||
-                                  (!_s2sMode &&
+                                  (ss.s2sMode && ss.s2sInputPath == null) ||
+                                  (!ss.s2sMode &&
                                       modelDef?.requiresVoice == true &&
-                                      _selectedVoice == null &&
-                                      _customVoiceWavPath == null &&
-                                      _presetSpeakers.isEmpty)
+                                      ss.selectedVoice == null &&
+                                      ss.customVoiceWavPath == null &&
+                                      ss.presetSpeakers.isEmpty)
                               ? null
                               : _synthesize,
-                          icon: _busy
+                          icon: ss.busy
                               ? const SizedBox(
                                   width: 18,
                                   height: 18,
@@ -1345,16 +1278,16 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
                       ),
                       const SizedBox(width: 8),
                       OutlinedButton.icon(
-                        onPressed: _lastWav == null ? null : _shareWav,
+                        onPressed: ss.lastWav == null ? null : _shareWav,
                         icon: const Icon(Icons.ios_share),
                         label: Text(l.synthShareButton),
                       ),
                     ],
                   ),
                   if (modelDef?.requiresVoice == true &&
-                      _selectedVoice == null &&
-                      _customVoiceWavPath == null &&
-                      _presetSpeakers.isEmpty)
+                      ss.selectedVoice == null &&
+                      ss.customVoiceWavPath == null &&
+                      ss.presetSpeakers.isEmpty)
                     Padding(
                       padding: const EdgeInsets.only(top: 4),
                       child: Text(
@@ -1365,11 +1298,11 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
                       ),
                     ),
                   const SizedBox(height: 12),
-                  if (_lastWav != null) ...[
+                  if (ss.lastWav != null) ...[
                     Card(
                       child: ListTile(
                         leading: const Icon(Icons.audiotrack),
-                        title: Text(p.basename(_lastWav!.path)),
+                        title: Text(p.basename(ss.lastWav!.path)),
                         subtitle: StreamBuilder<Duration?>(
                           stream: _player.durationStream,
                           builder: (_, snap) => Text(snap.data == null

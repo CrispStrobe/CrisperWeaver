@@ -28,6 +28,7 @@ import 'package:path/path.dart' as p;
 import '../engines/transcription_engine.dart';
 import '../l10n/generated/app_localizations.dart';
 import '../main.dart' show appStateProvider;
+import '../providers/edit_audio_provider.dart';
 import '../services/audio_edit_service.dart';
 import '../services/log_service.dart';
 import '../services/settings_service.dart';
@@ -66,35 +67,13 @@ class EditAudioScreen extends ConsumerStatefulWidget {
 }
 
 class _EditAudioScreenState extends ConsumerState<EditAudioScreen> {
-  DecodedSource? _decoded;
-  WaveformBars? _bars;
-  double _waveformWidth = 0;
-  String? _decodeError;
-
   final _player = AudioPlayer();
   Duration _playerPosition = Duration.zero;
-  bool _isPlaying = false;
 
-  /// Active selection on the waveform — set by drag-out on the
-  /// painter. Used by Trim (write [start, end] to a new WAV) and
-  /// the cut-middle op (delete the selection).
-  WaveformSelection? _selection;
-  /// Split markers — single-point clicks on the waveform that
-  /// the user "drops" via the Add Split button when no
-  /// selection is active.
-  final List<WaveformCutMarker> _cutMarkers = [];
-
-  /// §5.1.5 Phase C — collapsible transcript pane state.
-  /// Initial visibility comes from
-  /// `Settings.editAudioShowTranscript`; toggling the AppBar
-  /// chip persists the new value so users who don't use the
-  /// pane don't pay UI cost on every editor open.
-  bool _showTranscript = false;
   final ScrollController _transcriptScrollController = ScrollController();
   // Per-segment key so we can scroll-to + animate-highlight the
   // currently-playing one when the playhead moves.
   final Map<int, GlobalKey> _segmentKeys = {};
-  int? _highlightedSegmentIndex;
 
   @override
   void initState() {
@@ -104,16 +83,17 @@ class _EditAudioScreenState extends ConsumerState<EditAudioScreen> {
     // long-press deep-links. Force the transcript pane open
     // when arriving from that flow so the user immediately
     // sees the segment they came in from.
+    final n = ref.read(editAudioProvider.notifier);
     if (widget.initialSelectionStartSec != null &&
         widget.initialSelectionEndSec != null &&
         widget.initialSelectionEndSec! > widget.initialSelectionStartSec!) {
-      _selection = WaveformSelection(
+      n.setSelection(WaveformSelection(
         startSec: widget.initialSelectionStartSec!,
         endSec: widget.initialSelectionEndSec!,
-      );
+      ));
     }
     if (widget.initialCutMarkSec != null) {
-      _cutMarkers.add(WaveformCutMarker(
+      n.addCutMarker(WaveformCutMarker(
         startSec: widget.initialCutMarkSec!,
         endSec: widget.initialCutMarkSec!,
       ));
@@ -126,16 +106,16 @@ class _EditAudioScreenState extends ConsumerState<EditAudioScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final s = ref.read(settingsServiceProvider);
-      setState(() => _showTranscript =
+      ref.read(editAudioProvider.notifier).setShowTranscript(
           cameFromTranscript || s.editAudioShowTranscript);
     });
     _player.positionStream.listen((p) {
       if (!mounted) return;
-      setState(() => _playerPosition = p);
+      _playerPosition = p;
       _autoHighlightCurrentSegment();
     });
     _player.playingStream.listen((playing) {
-      if (mounted) setState(() => _isPlaying = playing);
+      if (mounted) ref.read(editAudioProvider.notifier).setIsPlaying(playing);
     });
     _loadAudio();
   }
@@ -157,7 +137,7 @@ class _EditAudioScreenState extends ConsumerState<EditAudioScreen> {
       await _player.setFilePath(widget.sourcePath);
       final decoded = await decodeFuture;
       if (!mounted) return;
-      setState(() => _decoded = decoded);
+      ref.read(editAudioProvider.notifier).setDecoded(decoded);
       // §5.1.5 Phase D — if we arrived with an initial selection
       // or cut mark, park the playhead at its start so the user
       // can play-preview immediately without scrubbing.
@@ -167,7 +147,7 @@ class _EditAudioScreenState extends ConsumerState<EditAudioScreen> {
     } catch (e, st) {
       Log.instance.e('audio-edit', 'decode failed',
           fields: {'path': widget.sourcePath}, error: e, stack: st);
-      if (mounted) setState(() => _decodeError = e.toString());
+      if (mounted) ref.read(editAudioProvider.notifier).setDecodeError(e.toString());
     }
   }
 
@@ -176,20 +156,22 @@ class _EditAudioScreenState extends ConsumerState<EditAudioScreen> {
   /// resize doesn't re-traverse all samples on every frame.
   void _ensureBars(double width) {
     final w = width.floor();
-    if (w <= 0 || _decoded == null) return;
-    if (_bars != null && _waveformWidth == w.toDouble()) return;
-    setState(() {
-      _waveformWidth = w.toDouble();
-      _bars = WaveformBars.fromSamples(
-        samples: _decoded!.samples,
+    final eState = ref.read(editAudioProvider);
+    if (w <= 0 || eState.decoded == null) return;
+    if (eState.bars != null && eState.waveformWidth == w.toDouble()) return;
+    ref.read(editAudioProvider.notifier).setBarsAndWidth(
+      bars: WaveformBars.fromSamples(
+        samples: eState.decoded!.samples,
         targetWidth: w,
-      );
-    });
+      ),
+      width: w.toDouble(),
+    );
   }
 
   double _xToSec(double x, double w) {
-    if (_decoded == null || _decoded!.durationSec <= 0 || w <= 0) return 0;
-    return (x / w).clamp(0.0, 1.0) * _decoded!.durationSec;
+    final decoded = ref.read(editAudioProvider).decoded;
+    if (decoded == null || decoded.durationSec <= 0 || w <= 0) return 0;
+    return (x / w).clamp(0.0, 1.0) * decoded.durationSec;
   }
 
   void _seekTo(double sec) {
@@ -206,10 +188,8 @@ class _EditAudioScreenState extends ConsumerState<EditAudioScreen> {
   void _onPanStart(DragStartDetails d, double width) {
     _dragStart = d.localPosition;
     final sec = _xToSec(d.localPosition.dx, width);
-    setState(() => _selection = WaveformSelection(
-          startSec: sec,
-          endSec: sec,
-        ));
+    ref.read(editAudioProvider.notifier).setSelection(
+        WaveformSelection(startSec: sec, endSec: sec));
   }
 
   void _onPanUpdate(DragUpdateDetails d, double width) {
@@ -217,11 +197,10 @@ class _EditAudioScreenState extends ConsumerState<EditAudioScreen> {
     if (start == null) return;
     final secStart = _xToSec(start.dx, width);
     final secEnd = _xToSec(d.localPosition.dx, width);
-    setState(() {
-      final lo = secStart < secEnd ? secStart : secEnd;
-      final hi = secEnd > secStart ? secEnd : secStart;
-      _selection = WaveformSelection(startSec: lo, endSec: hi);
-    });
+    final lo = secStart < secEnd ? secStart : secEnd;
+    final hi = secEnd > secStart ? secEnd : secStart;
+    ref.read(editAudioProvider.notifier).setSelection(
+        WaveformSelection(startSec: lo, endSec: hi));
   }
 
   void _onTap(TapUpDetails d, double width) {
@@ -232,7 +211,7 @@ class _EditAudioScreenState extends ConsumerState<EditAudioScreen> {
   // ----- Operations -----
 
   Future<void> _trim() async {
-    final sel = _selection;
+    final sel = ref.read(editAudioProvider).selection;
     if (sel == null || sel.endSec <= sel.startSec) {
       _toast(AppLocalizations.of(context).editAudioNeedSelection);
       return;
@@ -250,7 +229,7 @@ class _EditAudioScreenState extends ConsumerState<EditAudioScreen> {
   }
 
   Future<void> _cut() async {
-    final sel = _selection;
+    final sel = ref.read(editAudioProvider).selection;
     if (sel == null || sel.endSec <= sel.startSec) {
       _toast(AppLocalizations.of(context).editAudioNeedSelection);
       return;
@@ -267,15 +246,16 @@ class _EditAudioScreenState extends ConsumerState<EditAudioScreen> {
   }
 
   Future<void> _addSplit() async {
-    if (_decoded == null) return;
-    setState(() => _cutMarkers.add(WaveformCutMarker(
+    if (ref.read(editAudioProvider).decoded == null) return;
+    ref.read(editAudioProvider.notifier).addCutMarker(WaveformCutMarker(
           startSec: _playerPosition.inMilliseconds / 1000.0,
           endSec: _playerPosition.inMilliseconds / 1000.0,
-        )));
+        ));
   }
 
   Future<void> _runSplit() async {
-    if (_cutMarkers.isEmpty) {
+    final cutMarkers = ref.read(editAudioProvider).cutMarkers;
+    if (cutMarkers.isEmpty) {
       _toast(AppLocalizations.of(context).editAudioNeedSplitMarks);
       return;
     }
@@ -285,7 +265,7 @@ class _EditAudioScreenState extends ConsumerState<EditAudioScreen> {
     try {
       final files = await svc.split(
         sourcePath: widget.sourcePath,
-        splitPoints: _cutMarkers.map((c) => c.startSec).toList(),
+        splitPoints: cutMarkers.map((c) => c.startSec).toList(),
         destinationBuilder: (i) {
           final dir = p.dirname(base);
           final stem = p.basenameWithoutExtension(base);
@@ -374,13 +354,14 @@ class _EditAudioScreenState extends ConsumerState<EditAudioScreen> {
   /// row and scroll it into view. Throttled implicitly by
   /// positionStream's ~16 Hz update rate.
   void _autoHighlightCurrentSegment() {
-    if (!_showTranscript) return;
+    final eState = ref.read(editAudioProvider);
+    if (!eState.showTranscript) return;
     final segs = _readSegments();
     if (segs.isEmpty) return;
     final sec = _playerPosition.inMilliseconds / 1000.0;
     final idx = _segmentIndexAt(sec, segs);
-    if (idx == _highlightedSegmentIndex) return;
-    setState(() => _highlightedSegmentIndex = idx);
+    if (idx == eState.highlightedSegmentIndex) return;
+    ref.read(editAudioProvider.notifier).setHighlightedSegmentIndex(idx);
     if (idx != null) _scrollSegmentIntoView(idx);
   }
 
@@ -411,7 +392,8 @@ class _EditAudioScreenState extends ConsumerState<EditAudioScreen> {
                 title: Text(l.editAudioSelectSegment),
                 onTap: () {
                   Navigator.of(ctx).pop();
-                  setState(() => _selection = WaveformSelection(
+                  ref.read(editAudioProvider.notifier).setSelection(
+                      WaveformSelection(
                         startSec: seg.startTime,
                         endSec: seg.endTime,
                       ));
@@ -426,7 +408,8 @@ class _EditAudioScreenState extends ConsumerState<EditAudioScreen> {
                 title: Text(l.editAudioTrimToSegment),
                 onTap: () {
                   Navigator.of(ctx).pop();
-                  setState(() => _selection = WaveformSelection(
+                  ref.read(editAudioProvider.notifier).setSelection(
+                      WaveformSelection(
                         startSec: seg.startTime,
                         endSec: seg.endTime,
                       ));
@@ -438,10 +421,11 @@ class _EditAudioScreenState extends ConsumerState<EditAudioScreen> {
                 title: Text(l.editAudioMarkSegmentForCut),
                 onTap: () {
                   Navigator.of(ctx).pop();
-                  setState(() => _cutMarkers.add(WaveformCutMarker(
+                  ref.read(editAudioProvider.notifier).addCutMarker(
+                      WaveformCutMarker(
                         startSec: seg.startTime,
                         endSec: seg.startTime,
-                      )));
+                      ));
                   _toast(l.editAudioSegmentMarkedForCut(
                     _formatSeconds(seg.startTime),
                   ));
@@ -456,8 +440,8 @@ class _EditAudioScreenState extends ConsumerState<EditAudioScreen> {
 
   void _togglePane() {
     final settings = ref.read(settingsServiceProvider);
-    final next = !_showTranscript;
-    setState(() => _showTranscript = next);
+    final next = !ref.read(editAudioProvider).showTranscript;
+    ref.read(editAudioProvider.notifier).setShowTranscript(next);
     settings.editAudioShowTranscript = next;
     if (next) _autoHighlightCurrentSegment();
   }
@@ -467,45 +451,50 @@ class _EditAudioScreenState extends ConsumerState<EditAudioScreen> {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
+    final eState = ref.watch(editAudioProvider);
     return Scaffold(
       appBar: AppBar(
         title: Text(l.editAudioTitle),
         actions: [
           IconButton(
-            tooltip: _showTranscript
+            tooltip: eState.showTranscript
                 ? l.editAudioToggleTranscriptHide
                 : l.editAudioToggleTranscriptShow,
-            icon: Icon(_showTranscript
+            icon: Icon(eState.showTranscript
                 ? Icons.subtitles
                 : Icons.subtitles_outlined),
             onPressed: _togglePane,
           ),
         ],
       ),
-      body: _decodeError != null
+      body: eState.decodeError != null
           ? Center(
               child: Padding(
                 padding: const EdgeInsets.all(24),
-                child: Text(l.editAudioLoadFailed(_decodeError!)),
+                child: Text(l.editAudioLoadFailed(eState.decodeError!)),
               ),
             )
-          : _decoded == null
+          : eState.decoded == null
               ? const Center(child: CircularProgressIndicator())
               : _buildEditor(l),
     );
   }
 
   Widget _buildEditor(AppLocalizations l) {
+    final eState = ref.watch(editAudioProvider);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _buildEditorCore(l),
-        if (_showTranscript) Expanded(child: _buildTranscriptPane(l)),
+        if (eState.showTranscript) Expanded(child: _buildTranscriptPane(l)),
       ],
     );
   }
 
   Widget _buildEditorCore(AppLocalizations l) {
+    final eState = ref.watch(editAudioProvider);
+    final selection = eState.selection;
+    final cutMarkers = eState.cutMarkers;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
@@ -526,12 +515,12 @@ class _EditAudioScreenState extends ConsumerState<EditAudioScreen> {
                 child: CustomPaint(
                   size: Size(constraints.maxWidth, 180),
                   painter: WaveformPainter(
-                    bars: _bars ?? WaveformBars(peaks: const []),
-                    durationSec: _decoded!.durationSec,
+                    bars: eState.bars ?? WaveformBars(peaks: const []),
+                    durationSec: eState.decoded!.durationSec,
                     playheadSec:
                         _playerPosition.inMilliseconds / 1000.0,
-                    selection: _selection,
-                    cutMarkers: _cutMarkers,
+                    selection: selection,
+                    cutMarkers: cutMarkers,
                   ),
                 ),
               );
@@ -545,10 +534,10 @@ class _EditAudioScreenState extends ConsumerState<EditAudioScreen> {
           child: Row(
             children: [
               IconButton(
-                icon: Icon(_isPlaying ? Icons.pause : Icons.play_arrow),
+                icon: Icon(eState.isPlaying ? Icons.pause : Icons.play_arrow),
                 iconSize: 32,
                 onPressed: () =>
-                    _isPlaying ? _player.pause() : _player.play(),
+                    eState.isPlaying ? _player.pause() : _player.play(),
               ),
               IconButton(
                 icon: const Icon(Icons.stop),
@@ -561,16 +550,16 @@ class _EditAudioScreenState extends ConsumerState<EditAudioScreen> {
               const SizedBox(width: 16),
               Text(
                 '${_formatDuration(_playerPosition)} / '
-                '${_formatDuration(Duration(milliseconds: ((_decoded?.durationSec ?? 0) * 1000).round()))}',
+                '${_formatDuration(Duration(milliseconds: ((eState.decoded?.durationSec ?? 0) * 1000).round()))}',
                 style: const TextStyle(
                     fontFamily: 'monospace', fontSize: 14),
               ),
               const Spacer(),
-              if (_selection != null) ...[
+              if (selection != null) ...[
                 Text(
                   l.editAudioSelectionLabel(
-                    _formatSeconds(_selection!.startSec),
-                    _formatSeconds(_selection!.endSec),
+                    _formatSeconds(selection.startSec),
+                    _formatSeconds(selection.endSec),
                   ),
                   style: TextStyle(
                       fontSize: 12, color: Colors.grey.shade700),
@@ -579,7 +568,7 @@ class _EditAudioScreenState extends ConsumerState<EditAudioScreen> {
                   icon: const Icon(Icons.clear, size: 18),
                   tooltip: l.editAudioClearSelection,
                   onPressed: () =>
-                      setState(() => _selection = null),
+                      ref.read(editAudioProvider.notifier).setSelection(null),
                 ),
               ],
             ],
@@ -597,12 +586,12 @@ class _EditAudioScreenState extends ConsumerState<EditAudioScreen> {
               FilledButton.tonalIcon(
                 icon: const Icon(Icons.content_cut, size: 18),
                 label: Text(l.editAudioTrim),
-                onPressed: _selection == null ? null : _trim,
+                onPressed: selection == null ? null : _trim,
               ),
               FilledButton.tonalIcon(
                 icon: const Icon(Icons.cut, size: 18),
                 label: Text(l.editAudioCut),
-                onPressed: _selection == null ? null : _cut,
+                onPressed: selection == null ? null : _cut,
               ),
               FilledButton.tonalIcon(
                 icon: const Icon(Icons.add_location, size: 18),
@@ -611,16 +600,16 @@ class _EditAudioScreenState extends ConsumerState<EditAudioScreen> {
               ),
               FilledButton.icon(
                 icon: const Icon(Icons.call_split, size: 18),
-                label: Text(l.editAudioRunSplit(_cutMarkers.length)),
+                label: Text(l.editAudioRunSplit(cutMarkers.length)),
                 onPressed:
-                    _cutMarkers.isEmpty ? null : _runSplit,
+                    cutMarkers.isEmpty ? null : _runSplit,
               ),
-              if (_cutMarkers.isNotEmpty)
+              if (cutMarkers.isNotEmpty)
                 TextButton.icon(
                   icon: const Icon(Icons.clear_all, size: 18),
                   label: Text(l.editAudioClearMarks),
                   onPressed: () =>
-                      setState(() => _cutMarkers.clear()),
+                      ref.read(editAudioProvider.notifier).clearCutMarkers(),
                 ),
             ],
           ),
@@ -706,7 +695,7 @@ class _EditAudioScreenState extends ConsumerState<EditAudioScreen> {
                 itemBuilder: (ctx, i) {
                   final seg = segs[i];
                   final key = _segmentKeys.putIfAbsent(i, GlobalKey.new);
-                  final isHighlighted = _highlightedSegmentIndex == i;
+                  final isHighlighted = ref.watch(editAudioProvider).highlightedSegmentIndex == i;
                   return Container(
                     key: key,
                     decoration: BoxDecoration(

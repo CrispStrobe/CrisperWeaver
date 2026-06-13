@@ -133,7 +133,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           groupValue: settings.appLocale ?? '',
           onChanged: (value) {
             if (value == null) return;
-            setState(() => settings.appLocale = value);
+            settings.appLocale = value;
             final languageCode = value.isEmpty ? null : value;
             ref.read(localeProvider.notifier).setLocale(languageCode);
             Navigator.of(context).pop();
@@ -185,7 +185,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           groupValue: settings.preferredEngine,
           onChanged: (value) async {
             if (value == null) return;
-            setState(() => settings.preferredEngine = value);
+            settings.preferredEngine = value;
             Navigator.of(context).pop();
 
             // Try to swap engines immediately
@@ -255,7 +255,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               AppLocalizations.of(context).settingsAutoDetectLanguageSubtitle),
           value: settings.autoDetectLanguage,
           onChanged: (value) {
-            setState(() => settings.autoDetectLanguage = value);
+            settings.autoDetectLanguage = value;
           },
         ),
         SwitchListTile(
@@ -264,7 +264,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               Text(AppLocalizations.of(context).settingsWordTimestampsSubtitle),
           value: settings.enableWordTimestamps,
           onChanged: (value) {
-            setState(() => settings.enableWordTimestamps = value);
+            settings.enableWordTimestamps = value;
           },
         ),
       ],
@@ -295,7 +295,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             groupValue: settings.defaultBackend,
             onChanged: (value) {
               if (value == null) return;
-              setState(() => settings.defaultBackend = value);
+              settings.defaultBackend = value;
               Navigator.of(ctx).pop();
             },
             child: Column(
@@ -340,7 +340,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     groupValue: settings.defaultModel,
                     onChanged: (value) {
                       if (value == null) return;
-                      setState(() => settings.defaultModel = value);
+                      settings.defaultModel = value;
                       Navigator.of(ctx).pop();
                     },
                     child: Column(
@@ -384,7 +384,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           groupValue: settings.defaultLanguage,
           onChanged: (value) {
             if (value == null) return;
-            setState(() => settings.defaultLanguage = value);
+            settings.defaultLanguage = value;
             Navigator.of(context).pop();
           },
           child: Column(
@@ -416,7 +416,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               Slider(
                 value: settings.audioQuality,
                 onChanged: (value) {
-                  setState(() => settings.audioQuality = value);
+                  settings.audioQuality = value;
                 },
                 divisions: 4,
                 label: '${(settings.audioQuality * 100).toInt()}%',
@@ -430,7 +430,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               Text(AppLocalizations.of(context).settingsKeepAudioFilesSubtitle),
           value: settings.keepAudioFiles,
           onChanged: (value) {
-            setState(() => settings.keepAudioFiles = value);
+            settings.keepAudioFiles = value;
           },
         ),
       ],
@@ -449,7 +449,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               .settingsEnableDiarizationByDefaultSubtitle),
           value: settings.enableDiarizationByDefault,
           onChanged: (value) {
-            setState(() => settings.enableDiarizationByDefault = value);
+            settings.enableDiarizationByDefault = value;
           },
         ),
         // §5.8.1 — On-device speaker DB (TitaNet enrolment).
@@ -536,7 +536,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             } else {
               await server.stop();
             }
-            if (mounted) setState(() {});
           },
         ),
         ListTile(
@@ -572,7 +571,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           value: enabled,
           onChanged: (v) {
             settings.watchFolderEnabled = v;
-            setState(() {});
+            
           },
         ),
         ListTile(
@@ -585,7 +584,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             );
             if (result != null) {
               settings.watchFolderPath = result;
-              setState(() {});
+              
             }
           },
         ),
@@ -611,7 +610,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               Text(AppLocalizations.of(context).settingsMirrorLogsSubtitle),
           value: settings.logToFile,
           onChanged: (value) async {
-            setState(() => settings.logToFile = value);
+            settings.logToFile = value;
             await Log.instance.enableFileSink(value);
           },
         ),
@@ -621,7 +620,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               Text(AppLocalizations.of(context).settingsSkipChecksumSubtitle),
           value: settings.skipChecksum,
           onChanged: (value) {
-            setState(() => settings.skipChecksum = value);
+            settings.skipChecksum = value;
             Log.instance.i(
                 'settings',
                 value
@@ -636,7 +635,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               .settingsGroupBatchByBackendSubtitle),
           value: settings.groupBatchByBackend,
           onChanged: (value) {
-            setState(() => settings.groupBatchByBackend = value);
+            settings.groupBatchByBackend = value;
             Log.instance.i('settings',
                 'Group batch by backend: ${value ? "ON" : "OFF"}');
           },
@@ -661,8 +660,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   divisions: cap - 1,
                   label: n.toString(),
                   onChanged: (v) {
-                    setState(() =>
-                        settings.maxConcurrentTranscriptions = v.round());
+                    settings.maxConcurrentTranscriptions = v.round();
                   },
                 ),
                 Text(AppLocalizations.of(context)
@@ -697,8 +695,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   divisions: cap - 1,
                   label: n.toString(),
                   onChanged: (v) {
-                    setState(() =>
-                        settings.maxConcurrentSessions = v.round());
+                    settings.maxConcurrentSessions = v.round();
                   },
                 ),
                 Text(l.settingsMaxConcurrentSessionsSubtitle),
@@ -962,18 +959,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               initialApiKey: settings.cloudLlmApiKey,
               initialModel: settings.cloudLlmModel,
               onCommit: (url, key, model) {
-                setState(() {
-                  settings.cloudLlmApiUrl = url;
-                  settings.cloudLlmApiKey = key;
-                  settings.cloudLlmModel = model;
-                });
+                settings.cloudLlmApiUrl = url;
+                settings.cloudLlmApiKey = key;
+                settings.cloudLlmModel = model;
               },
               onCleared: () {
-                setState(() {
-                  settings.cloudLlmApiUrl = '';
-                  settings.cloudLlmApiKey = '';
-                  settings.cloudLlmModel = 'gpt-4o-mini';
-                });
+                settings.cloudLlmApiUrl = '';
+                settings.cloudLlmApiKey = '';
+                settings.cloudLlmModel = 'gpt-4o-mini';
               },
             ),
           ),
@@ -1022,24 +1015,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 initialMaxTokens: settings.localLlmMaxTokens,
                 initialTemperature: settings.localLlmTemperature,
                 onCommit: (path, gpu, ctx2, threads, maxT, temp) {
-                  setState(() {
-                    settings.localLlmModelPath = path;
-                    settings.localLlmNGpuLayers = gpu;
-                    settings.localLlmNCtx = ctx2;
-                    settings.localLlmNThreads = threads;
-                    settings.localLlmMaxTokens = maxT;
-                    settings.localLlmTemperature = temp;
-                  });
+                  settings.localLlmModelPath = path;
+                  settings.localLlmNGpuLayers = gpu;
+                  settings.localLlmNCtx = ctx2;
+                  settings.localLlmNThreads = threads;
+                  settings.localLlmMaxTokens = maxT;
+                  settings.localLlmTemperature = temp;
                 },
                 onCleared: () {
-                  setState(() {
-                    settings.localLlmModelPath = '';
-                    settings.localLlmNGpuLayers = -1;
-                    settings.localLlmNCtx = 0;
-                    settings.localLlmNThreads = 0;
-                    settings.localLlmMaxTokens = 512;
-                    settings.localLlmTemperature = 0.0;
-                  });
+                  settings.localLlmModelPath = '';
+                  settings.localLlmNGpuLayers = -1;
+                  settings.localLlmNCtx = 0;
+                  settings.localLlmNThreads = 0;
+                  settings.localLlmMaxTokens = 512;
+                  settings.localLlmTemperature = 0.0;
                 },
               ),
             ),
@@ -1091,11 +1080,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               initialCombo: settings.hotkeyCombo,
               initialAction: settings.hotkeyAction,
               onCommit: (enabled, combo, action) {
-                setState(() {
-                  settings.hotkeyEnabled = enabled;
-                  settings.hotkeyCombo = combo;
-                  settings.hotkeyAction = action;
-                });
+                settings.hotkeyEnabled = enabled;
+                settings.hotkeyCombo = combo;
+                settings.hotkeyAction = action;
               },
             ),
           ),
@@ -1137,7 +1124,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           groupValue: settings.logLevel,
           onChanged: (v) {
             if (v == null) return;
-            setState(() => settings.logLevel = v);
+            settings.logLevel = v;
             Log.instance.setMinLevel(v);
             Navigator.of(ctx).pop();
           },
@@ -1188,7 +1175,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ),
     );
     if (action == 'reset') {
-      setState(() => settings.customModelsDir = '');
+      settings.customModelsDir = '';
       Log.instance.i('settings', 'customModelsDir cleared (back to sandbox)');
       return;
     }
@@ -1251,7 +1238,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         }
       }
     }
-    setState(() => settings.customModelsDir = picked);
+    settings.customModelsDir = picked;
     Log.instance.i('settings', 'customModelsDir set', fields: {'path': picked});
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -1292,7 +1279,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ElevatedButton(
               onPressed: () {
                 final newToken = controller.text.trim();
-                setState(() => settings.hfToken = newToken);
+                settings.hfToken = newToken;
                 ref.read(modelServiceProvider).hfToken = newToken;
                 Navigator.of(context).pop();
                 Log.instance.i(

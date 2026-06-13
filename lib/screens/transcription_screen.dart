@@ -49,6 +49,7 @@ import '../widgets/batch_queue_card.dart';
 import '../widgets/narrow_tabbed_body.dart';
 import '../widgets/presets_dialog.dart';
 import '../widgets/transcription_output_widget.dart';
+import '../providers/transcription_screen_provider.dart';
 import '../widgets/diarization_settings_widget.dart';
 
 class TranscriptionScreen extends ConsumerStatefulWidget {
@@ -61,34 +62,6 @@ class TranscriptionScreen extends ConsumerStatefulWidget {
 
 class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
   final TextEditingController _urlController = TextEditingController();
-  String? _selectedFilePath;
-  // Web-only: raw file bytes + name from the picker (no filesystem path).
-  Uint8List? _selectedFileBytes;
-  String? _selectedFileName;
-  bool _showAdvancedOptions = false;
-  late bool _enableDiarization;
-  late String _language;
-  late String _modelName;
-  bool _engineReady = false;
-  List<ModelInfo> _availableModels = [];
-  bool _loadingModels = false;
-  // Model picker filters
-  String _modelNameFilter = '';
-  String _backendFilter = ''; // '' = any
-  // Local "Transcribe button was clicked, model is loading / pool is
-  // spawning right now" flag — kept ORed with appState.isTranscribing
-  // when computing whether the button is enabled. Without it the
-  // button stays clickable for the ~10 s a whisper-base load takes
-  // on Android (issue #13). Cleared in any _startTranscription
-  // early-return so a failed load lets the user retry.
-  bool _transcribePending = false;
-  // Set when the user hits Cancel during the model-load window. The FFI
-  // ctor inside loadModel() is uninterruptible, so the load Future still
-  // completes — but we honour the cancel by giving the UI back and
-  // skipping the post-load transcription start. A later Transcribe click
-  // then runs against the already-loaded model. Reset on every
-  // _startTranscription entry.
-  bool _loadCancelled = false;
   final TextEditingController _modelFilterController = TextEditingController();
   // Memoized init future — the first `_ensureEngineReady()` call kicks it
   // off and any subsequent callers await the same future rather than
@@ -96,12 +69,26 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
   // "Transcribe" while the first-frame post-callback is still running
   // could spawn a parallel init.
   Future<bool>? _initFuture;
-  // Drop-target state — true while a compatible file is hovering over
-  // the window so we can paint a tinted overlay.
-  bool _dropHover = false;
-  /// §5.25.5 — Tag each segment with its detected language after
-  /// transcription completes. Only meaningful with multilingual models.
-  bool _tagSegmentLanguages = false;
+
+  // §8.2 — convenience getters proxying into the Riverpod provider so
+  // the 100+ callsites that used the old _field syntax keep compiling
+  // without a mechanical rename of every occurrence.
+  String? get _selectedFilePath => ref.read(transcriptionScreenProvider).selectedFilePath;
+  Uint8List? get _selectedFileBytes => ref.read(transcriptionScreenProvider).selectedFileBytes;
+  String? get _selectedFileName => ref.read(transcriptionScreenProvider).selectedFileName;
+  bool get _showAdvancedOptions => ref.read(transcriptionScreenProvider).showAdvancedOptions;
+  bool get _enableDiarization => ref.read(transcriptionScreenProvider).enableDiarization;
+  String get _language => ref.read(transcriptionScreenProvider).language;
+  String get _modelName => ref.read(transcriptionScreenProvider).modelName;
+  bool get _engineReady => ref.read(transcriptionScreenProvider).engineReady;
+  List<ModelInfo> get _availableModels => ref.read(transcriptionScreenProvider).availableModels;
+  bool get _loadingModels => ref.read(transcriptionScreenProvider).loadingModels;
+  String get _modelNameFilter => ref.read(transcriptionScreenProvider).modelNameFilter;
+  String get _backendFilter => ref.read(transcriptionScreenProvider).backendFilter;
+  bool get _transcribePending => ref.read(transcriptionScreenProvider).transcribePending;
+
+  bool get _dropHover => ref.read(transcriptionScreenProvider).dropHover;
+  bool get _tagSegmentLanguages => ref.read(transcriptionScreenProvider).tagSegmentLanguages;
 
   @override
   void initState() {
@@ -109,9 +96,10 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
 
     // Initialize state from settings
     final settings = ref.read(settingsServiceProvider);
-    _enableDiarization = settings.enableDiarizationByDefault;
-    _language = settings.defaultLanguage;
-    _modelName = settings.defaultModel;
+    final n = ref.read(transcriptionScreenProvider.notifier);
+    n.setEnableDiarization(settings.enableDiarizationByDefault);
+    n.setLanguage(settings.defaultLanguage);
+    n.setModelName(settings.defaultModel);
 
     // Kick off engine initialization after the first frame so the error
     // dialog (if it occurs) has a context to attach to.
@@ -197,7 +185,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
         final switched = whisperFirst.name;
         Log.instance.i('ui',
             'Auto-switching default model: was=$_modelName now=$switched');
-        if (mounted) setState(() => _modelName = switched);
+        if (mounted) ref.read(transcriptionScreenProvider.notifier).setModelName(switched);
         settings.defaultModel = switched;
       } else if (mounted) {
         // First-launch / nothing downloaded — the "default model X isn't
@@ -262,7 +250,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
         }
       }
     }
-    if (mounted) setState(() => _engineReady = ok);
+    if (mounted) ref.read(transcriptionScreenProvider.notifier).setEngineReady(ok);
     return ok;
   }
 
@@ -290,9 +278,10 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
   }
 
   Future<void> _loadModels() async {
-    if (_loadingModels) return;
+    final ts = ref.read(transcriptionScreenProvider);
+    if (ts.loadingModels) return;
     Log.instance.d('ui', 'Loading models for advanced options...');
-    setState(() => _loadingModels = true);
+    ref.read(transcriptionScreenProvider.notifier).setLoadingModels(true);
     try {
       List<ModelInfo> models;
       if (plat.isWeb) {
@@ -321,15 +310,14 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
       }
       Log.instance.d('ui', 'Fetched ${models.length} models');
       if (mounted) {
-        setState(() {
-          _availableModels = models;
-          _loadingModels = false;
-        });
+        final tn = ref.read(transcriptionScreenProvider.notifier);
+        tn.setAvailableModels(models);
+        tn.setLoadingModels(false);
       }
     } catch (e, st) {
       Log.instance.e('ui', 'Failed to load models', error: e, stack: st);
       if (mounted) {
-        setState(() => _loadingModels = false);
+        ref.read(transcriptionScreenProvider.notifier).setLoadingModels(false);
       }
     }
   }
@@ -365,6 +353,8 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // §8.2 — watch the provider so all getter proxies below trigger rebuilds.
+    ref.watch(transcriptionScreenProvider);
     final l = AppLocalizations.of(context);
     final locale = Localizations.localeOf(context);
     Log.instance.t('ui', 'TranscriptionScreen.build locale=$locale');
@@ -543,8 +533,8 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
               ],
       ),
       body: DropTarget(
-        onDragEntered: (_) => setState(() => _dropHover = true),
-        onDragExited: (_) => setState(() => _dropHover = false),
+        onDragEntered: (_) => ref.read(transcriptionScreenProvider.notifier).setDropHover(true),
+        onDragExited: (_) => ref.read(transcriptionScreenProvider.notifier).setDropHover(false),
         onDragDone: _onFilesDropped,
         child: Stack(
             children: [_buildBody(), if (_dropHover) _buildDropOverlay()]),
@@ -559,7 +549,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
   /// Multi-drop: first file becomes the active selection; any additional
   /// supported files go into the batch queue.
   Future<void> _onFilesDropped(DropDoneDetails details) async {
-    setState(() => _dropHover = false);
+    ref.read(transcriptionScreenProvider.notifier).setDropHover(false);
     if (details.files.isEmpty) return;
     // desktop_drop delivers the same drop to every nested DropTarget.
     // If the batch card already handled it, don't double-enqueue.
@@ -578,7 +568,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
     }
 
     // First: active single-select pick (for the inline transcribe button).
-    setState(() => _selectedFilePath = supported.first.path);
+    ref.read(transcriptionScreenProvider.notifier).setSelectedFilePath(supported.first.path);
     ref.read(selectedAudioPathProvider.notifier).state = null;
 
     // Rest: enqueue for batch processing. Snapshot
@@ -831,12 +821,9 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
                   _showAdvancedOptions ? Icons.expand_less : Icons.expand_more),
               label: Text(l.advancedOptions),
               onPressed: () {
-                setState(() {
-                  _showAdvancedOptions = !_showAdvancedOptions;
-                  if (_showAdvancedOptions) {
-                    _loadModels();
-                  }
-                });
+                final next = !ref.read(transcriptionScreenProvider).showAdvancedOptions;
+                ref.read(transcriptionScreenProvider.notifier).setShowAdvancedOptions(next);
+                if (next) _loadModels();
               },
             ),
 
@@ -858,11 +845,9 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
       children: [
         // Speaker Diarization
         DiarizationSettingsWidget(
-          enabled: _enableDiarization,
+          enabled: ref.watch(transcriptionScreenProvider).enableDiarization,
           onChanged: (enabled) {
-            setState(() {
-              _enableDiarization = enabled;
-            });
+            ref.read(transcriptionScreenProvider.notifier).setEnableDiarization(enabled);
           },
         ),
 
@@ -895,7 +880,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
             // silently transcribe with a mismatched language.
             if (_language != 'auto' && !codes.contains(_language)) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted) setState(() => _language = 'auto');
+                if (mounted) ref.read(transcriptionScreenProvider.notifier).setLanguage('auto');
               });
             }
             final options = <_LangOption>[
@@ -932,7 +917,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
                           .where((o) => o.matches(q))
                           .toList(growable: false);
                     },
-                    onSelected: (o) => setState(() => _language = o.code),
+                    onSelected: (o) => ref.read(transcriptionScreenProvider.notifier).setLanguage(o.code),
                     fieldViewBuilder:
                         (context, controller, focusNode, onSubmit) {
                       return TextField(
@@ -1017,8 +1002,8 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
         SwitchListTile(
           title: Text(AppLocalizations.of(context).advancedTagSegmentLanguages),
           subtitle: Text(AppLocalizations.of(context).advancedTagSegmentLanguagesSubtitle),
-          value: _tagSegmentLanguages,
-          onChanged: (v) => setState(() => _tagSegmentLanguages = v),
+          value: ref.watch(transcriptionScreenProvider).tagSegmentLanguages,
+          onChanged: (v) => ref.read(transcriptionScreenProvider.notifier).setTagSegmentLanguages(v),
           dense: true,
         ),
 
@@ -1078,12 +1063,12 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
                             icon: const Icon(Icons.clear, size: 18),
                             onPressed: () {
                               _modelFilterController.clear();
-                              setState(() => _modelNameFilter = '');
+                              ref.read(transcriptionScreenProvider.notifier).setModelNameFilter('');
                             },
                           ),
                   ),
                   onChanged: (v) =>
-                      setState(() => _modelNameFilter = v.toLowerCase()),
+                      ref.read(transcriptionScreenProvider.notifier).setModelNameFilter(v.toLowerCase()),
                 ),
               ),
               const SizedBox(width: 8),
@@ -1095,7 +1080,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
                   for (final b in _uniqueBackends())
                     DropdownMenuItem(value: b, child: Text(b)),
                 ],
-                onChanged: (v) => setState(() => _backendFilter = v ?? ''),
+                onChanged: (v) => ref.read(transcriptionScreenProvider.notifier).setBackendFilter(v ?? ''),
               ),
             ],
           ),
@@ -1347,8 +1332,8 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
   };
 
   Future<void> _selectModel(String value) async {
-    if (value == _modelName) return;
-    setState(() => _modelName = value);
+    if (value == ref.read(transcriptionScreenProvider).modelName) return;
+    ref.read(transcriptionScreenProvider.notifier).setModelName(value);
 
     // Save to settings
     ref.read(settingsServiceProvider).defaultModel = value;
@@ -1410,13 +1395,14 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
     // 1. Advanced options first — cheap, no I/O.
     ref.read(advancedOptionsProvider.notifier).state = p.options;
     // 2. Language.
-    if (p.language.isNotEmpty && p.language != _language) {
-      setState(() => _language = p.language);
+    final ts = ref.read(transcriptionScreenProvider);
+    if (p.language.isNotEmpty && p.language != ts.language) {
+      ref.read(transcriptionScreenProvider.notifier).setLanguage(p.language);
       ref.read(settingsServiceProvider).defaultLanguage = p.language;
     }
     // 3. Model — triggers a reload via the existing
     //    `_selectModel` path. Skip when empty or same.
-    if (p.modelId.isNotEmpty && p.modelId != _modelName) {
+    if (p.modelId.isNotEmpty && p.modelId != ts.modelName) {
       await _selectModel(p.modelId);
     }
     if (!mounted) return;
@@ -1761,10 +1747,10 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
                         // finishes loading in the background and a later
                         // Transcribe click runs against it.
                         TextButton(
-                          onPressed: _loadCancelled
+                          onPressed: ref.watch(transcriptionScreenProvider).loadCancelled
                               ? null
                               : () {
-                                  setState(() => _loadCancelled = true);
+                                  ref.read(transcriptionScreenProvider.notifier).setLoadCancelled(true);
                                   Log.instance.i('ui',
                                       'User cancelled during model load',
                                       fields: {'model': _modelName});
@@ -1864,20 +1850,18 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
     if (pick.isNotEmpty) {
       // Web: store bytes directly; native: store filesystem path.
       if (pick.hasBytesOnly) {
-        setState(() {
-          _selectedFileBytes = pick.fileBytes!.first;
-          _selectedFileName = pick.fileNames!.first;
-          _selectedFilePath = pick.fileNames!.first; // display name
-        });
+        final tn = ref.read(transcriptionScreenProvider.notifier);
+        tn.setSelectedFileBytes(pick.fileBytes!.first);
+        tn.setSelectedFileName(pick.fileNames!.first);
+        tn.setSelectedFilePath(pick.fileNames!.first); // display name
         ref.read(selectedAudioPathProvider.notifier).state = null;
         return;
       }
       final paths = pick.localPaths;
-      setState(() {
-        _selectedFilePath = paths.first;
-        _selectedFileBytes = null;
-        _selectedFileName = null;
-      });
+      final tn = ref.read(transcriptionScreenProvider.notifier);
+      tn.setSelectedFilePath(paths.first);
+      tn.setSelectedFileBytes(null);
+      tn.setSelectedFileName(null);
       ref.read(selectedAudioPathProvider.notifier).state = null;
       if (paths.length > 1) {
         final q = ref.read(batchQueueProvider.notifier);
@@ -1934,12 +1918,9 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
     // run's segments / historyEntryId until the real start, so an
     // early-return between here and the actual transcribe doesn't
     // wipe what the user was looking at.
-    setState(() {
-      _transcribePending = true;
-      _loadCancelled = false;
-    });
+    ref.read(transcriptionScreenProvider.notifier).startTranscription();
 
-    if (!_engineReady) {
+    if (!ref.read(transcriptionScreenProvider).engineReady) {
       await _ensureEngineReady();
     }
 
@@ -1947,20 +1928,21 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
     // from Model Management since this screen first opened. Without this
     // the selected model can stay "base" even after they download "tiny".
     await _loadModels();
-    final downloaded = _availableModels
+    final ts = ref.read(transcriptionScreenProvider);
+    final downloaded = ts.availableModels
         .where((m) => m.isDownloaded)
         .toList(growable: false);
-    if (_modelName.isNotEmpty &&
-        !downloaded.any((m) => m.name == _modelName) &&
+    if (ts.modelName.isNotEmpty &&
+        !downloaded.any((m) => m.name == ts.modelName) &&
         downloaded.isNotEmpty) {
       final whisperFirst = downloaded.firstWhere(
           (m) => m.backend == 'whisper',
           orElse: () => downloaded.first);
       final switched = whisperFirst.name;
       Log.instance.i('ui',
-          'Auto-switching selected model: was=$_modelName now=$switched');
+          'Auto-switching selected model: was=${ts.modelName} now=$switched');
       if (mounted) {
-        setState(() => _modelName = switched);
+        ref.read(transcriptionScreenProvider.notifier).setModelName(switched);
         ref.read(settingsServiceProvider).defaultModel = switched;
         final l = AppLocalizations.of(context);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1973,17 +1955,18 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
     }
 
     // Ensure model is loaded (if not already)
+    final modelName = ref.read(transcriptionScreenProvider).modelName;
     final currentStatus = transcriptionService.getEngineStatus();
-    if (currentStatus.currentModelId != _modelName) {
+    if (currentStatus.currentModelId != modelName) {
       try {
-        await transcriptionService.loadModel(_modelName);
+        await transcriptionService.loadModel(modelName);
       } catch (e) {
         if (mounted) {
           // Drop the pending flag so the user can fix the
           // download and click Transcribe again. Without this
           // the button stays "Transcribing…" forever on a
           // missing-model error.
-          setState(() => _transcribePending = false);
+          ref.read(transcriptionScreenProvider.notifier).setTranscribePending(false);
           final l = AppLocalizations.of(context);
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -2006,12 +1989,12 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
     // the user hit Cancel during that window, the load still finished —
     // but honour the intent: don't start transcribing. The model is now
     // resident, so a later Transcribe click starts immediately.
-    if (_loadCancelled) {
+    if (ref.read(transcriptionScreenProvider).loadCancelled) {
       Log.instance.w('ui',
           'Model load completed after user cancel — leaving model resident, '
           'skipping transcription start',
           fields: {'model': _modelName});
-      if (mounted) setState(() => _transcribePending = false);
+      if (mounted) ref.read(transcriptionScreenProvider.notifier).setTranscribePending(false);
       return;
     }
 
@@ -2022,7 +2005,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
       // ours so the button keeps showing the busy state via
       // appState.isTranscribing.
       appStateNotifier.startTranscription();
-      if (mounted) setState(() => _transcribePending = false);
+      if (mounted) ref.read(transcriptionScreenProvider.notifier).setTranscribePending(false);
 
       final started = DateTime.now();
       List<TranscriptionSegment> segments = [];
@@ -2263,8 +2246,8 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
       // hand-off earlier in this function), but clear it again here in
       // case the model-load path failed in a way that skipped that
       // line — keeps the button re-clickable for a fresh attempt.
-      if (mounted && _transcribePending) {
-        setState(() => _transcribePending = false);
+      if (mounted && ref.read(transcriptionScreenProvider).transcribePending) {
+        ref.read(transcriptionScreenProvider.notifier).setTranscribePending(false);
       }
     }
   }

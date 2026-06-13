@@ -350,34 +350,29 @@ incremental rebuilds harder.
 | `transcription_screen.dart` | 3 858 | 3 533 | `presets_dialog.dart` (237), `narrow_tabbed_body.dart` (93) |
 | `baked_models_catalog.dart` | 3 746 | — | Deferred — generated data, low risk, JSON migration is separate work |
 
-### 8.2 Reduce `setState` blast radius
+### 8.2 Reduce `setState` blast radius — ✅ done (June 2026)
 
-259 `setState` calls rebuild entire subtrees. The worst offenders:
+Migrated the 7 worst-offender screens/widgets from `setState` to
+Riverpod `Notifier` providers with immutable state classes +
+`copyWith()`. Total `setState` calls: 288 → 116 (−60%).
 
-| File | `setState` count |
-|------|----------------:|
-| `synthesize_screen.dart` | 39 |
-| `settings_screen.dart` | 30 |
-| `transcription_screen.dart` | 29 |
-| `transcription_output_widget.dart` | 21 |
-| `audio_recorder_widget.dart` | 18 |
+| Screen / Widget | Before | After | Provider file |
+|----------------|-------:|------:|---------------|
+| `synthesize_screen.dart` | 39 | 0 | `synthesize_screen_provider.dart` |
+| `settings_screen.dart` | 30 | 3 | *(uses SettingsService directly)* |
+| `transcription_screen.dart` | 28 | 0 | `transcription_screen_provider.dart` |
+| `audio_recorder_widget.dart` | 18 | 0 | `audio_recorder_provider.dart` |
+| `speaker_management_screen.dart` | 17 | 16 | `speaker_management_provider.dart` |
+| `edit_audio_screen.dart` | 16 | 0 | `edit_audio_provider.dart` |
+| `translate_screen.dart` | 14 | 3 | `translate_screen_provider.dart` |
 
-**Approach:**
+Remaining 116 `setState` calls are in smaller files not in scope
+(voice_clone_wizard, model_management, history, dialogs, etc.) and
+the `_EnrolSpeakerScreen` inner widget (kept as local dialog flow).
 
-1. **Fine-grained Riverpod providers** — move local UI state
-   (toggle flags, filter strings, pending booleans like
-   `_transcribePending` / `_loadCancelled`) into `Notifier`
-   providers. Widgets `watch()` only the slice they need.
-2. **`ValueNotifier` + `ValueListenableBuilder`** for truly
-   local state that doesn't need cross-widget sharing (e.g.
-   `_showAdvancedOptions`, `_dropHover`).
-3. **Extract `const`-constructable child widgets** — subtrees
-   that don't depend on mutable state should be separate
-   `StatelessWidget`s with `const` constructors so Flutter's
-   element tree short-circuits their rebuild.
-
-**Priority:** high — directly reduces per-frame work on the
-main screens.
+**Tests:** 7 new unit test files (143 tests total) covering all
+provider notifiers via `ProviderContainer`. Full suite: 838 pass,
+0 fail, 63 skipped (live).
 
 ### 8.3 `const` constructor coverage — ✅ already enforced
 
@@ -401,31 +396,28 @@ automatically.
 as lint rules. `dart fix --dry-run` reports 0 fixable issues. No action
 needed.
 
-### 8.4 Model catalog as data, not code
+### 8.4 Model catalog as data, not code — ✅ done (June 2026)
 
-`model_service.dart` + `baked_models_catalog.dart` together are
-~9 400 lines, mostly `static const` data (language lists, URL
-patterns, model definitions). This:
+`baked_models_catalog.dart` was 3 746 lines of compiled-in static
+`ModelDefinition` data. Migrated to a JSON asset loaded at runtime.
 
-- Inflates compile time (Dart AOT must process 9 K lines of
-  constant initializers).
-- Enlarges the app binary with data that could be a bundled asset.
-- Prevents catalog updates without a code release.
+**Changes:**
 
-**Proposed migration:**
+| Action | Files |
+|--------|-------|
+| Added `fromJson`/`toJson` to `ModelDefinition` | `lib/services/model_catalog.dart` |
+| Bake script now emits JSON | `scripts/bake_models_catalog.dart` → `assets/models/catalog.json` |
+| New async loader with caching | `lib/services/baked_catalog_loader.dart` |
+| Wired into `ModelService` + startup | `lib/services/model_service.dart`, `lib/main.dart` |
+| Deleted old compiled catalog | `lib/services/baked_models_catalog.dart` (−3 746 LOC) |
 
-1. Emit the bake script output as `assets/models/catalog.json`
-   instead of `baked_models_catalog.dart`.
-2. Add a `ModelCatalog` class that loads + caches the JSON on
-   first access (lazy, off the main isolate for large catalogs).
-3. Language-list constants stay in Dart (they're small and
-   referenced at compile time by other code).
-4. Later: fetch a remote catalog manifest with a local-cache
-   fallback, enabling OTA catalog updates.
+**Tests:** 13 unit tests in `test/baked_catalog_json_test.dart` (JSON
+round-trip, enum serde, defaults, full catalog load, key consistency,
+loader lifecycle) + 2 live tests in `test/baked_catalog_live_test.dart`
+(HF probe parity, catalog entry verification).
 
-**Priority:** medium — high payoff for binary size and release
-velocity, but requires updating every caller of the current
-static catalog API.
+Language-list constants stay in Dart (small, compile-time referenced).
+OTA catalog updates are now feasible as a future enhancement.
 
 ### 8.5 Service layer — lazy initialisation — ✅ verified (June 2026)
 
@@ -543,10 +535,9 @@ the full native rebuild (~15-30 min saved).
 
 ### Recommended execution order (remaining)
 
-1. **8.2** Reduce `setState` blast radius (large behavioral refactor)
-2. **8.4** Model catalog as data (binary size + release velocity)
-
-**Done:** 8.1 (file splits), 8.3 (const — already enforced),
-8.5 (lazy init — verified), 8.7 (test coverage — +100 tests),
-8.8 (CI caching), 8.9 (asset compression).
+**Done:** 8.1 (file splits), 8.2 (setState reduction — 288→116,
++143 tests), 8.3 (const — already enforced), 8.4 (catalog as
+JSON — −3 746 LOC, +13 tests), 8.5 (lazy init — verified),
+8.7 (test coverage — +100 tests), 8.8 (CI caching),
+8.9 (asset compression).
 **Deferred:** 8.6 (HTTP consolidation — not worth test churn).

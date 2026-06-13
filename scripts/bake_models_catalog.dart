@@ -1,7 +1,7 @@
-// Bake the HF-discovered model catalogue into a static Dart file so
-// the Models screen is fully populated at first launch without
-// waiting on the live HF probe. Run this before every release and
-// commit the regenerated `lib/services/baked_models_catalog.dart`.
+// Bake the HF-discovered model catalogue into a JSON asset so the
+// Models screen is fully populated at first launch without waiting on
+// the live HF probe. Run this before every release and commit the
+// regenerated `assets/models/catalog.json`.
 //
 // Usage (from repo root):
 //
@@ -659,9 +659,6 @@ String _formatSize(int bytes) {
   return '${(bytes / 1024 / 1024 / 1024).toStringAsFixed(2)} GB';
 }
 
-String _escape(String s) =>
-    s.replaceAll(r'\', r'\\').replaceAll(r"'", r"\'");
-
 Future<Map<String, dynamic>?> _fetch(String url) async {
   final client = HttpClient();
   try {
@@ -679,23 +676,7 @@ Future<Map<String, dynamic>?> _fetch(String url) async {
 }
 
 Future<void> main() async {
-  final buf = StringBuffer();
-  buf.writeln('// GENERATED FILE — DO NOT EDIT BY HAND.');
-  buf.writeln('// Regenerate with: dart run scripts/bake_models_catalog.dart');
-  buf.writeln('//');
-  buf.writeln('// Baked snapshot of every quant + voicepack discovered via');
-  buf.writeln('// the HF API for each `BackendRepo` in `model_service.dart`.');
-  buf.writeln('// Loaded at app boot via `getWhisperCppModels()` so the model');
-  buf.writeln('// picker is fully populated without a network probe.');
-  buf.writeln('//');
-  buf.writeln('// Sizes are real (from HF), so the existence-check in');
-  buf.writeln('// `_isModelDownloaded` is unaffected.');
-  buf.writeln();
-  buf.writeln("// ignore_for_file: lines_longer_than_80_chars");
-  buf.writeln();
-  buf.writeln("import 'model_service.dart';");
-  buf.writeln();
-  buf.writeln('const Map<String, ModelDefinition> bakedDiscoveredModels = {');
+  final entries = <Map<String, dynamic>>[];
 
   int totalEntries = 0;
   int totalRepos = 0;
@@ -734,24 +715,22 @@ Future<void> main() async {
         final voiceId = stem.substring(voicepackPrefix.length);
         final key = '${repo.voicepackBaseName}-$voiceId';
         if (emittedKeys.add(key)) {
-          buf.writeln("  '$key': ModelDefinition(");
-          buf.writeln("    name: '$key',");
-          buf.writeln(
-              "    displayName: '${_escape(repo.displayPrefix)} voice — ${_escape(voiceId)}',");
-          buf.writeln("    fileName: '$fname',");
-          buf.writeln(
-              "    url: 'https://huggingface.co/${repo.repoId}/resolve/main/$fname',");
-          buf.writeln('    sizeBytes: $sizeBytes,');
-          buf.writeln("    checksum: '',");
-          buf.writeln(
-              "    description: '${_escape(repo.displayPrefix)} voicepack — ${_formatSize(sizeBytes)}',");
-          buf.writeln("    quantization: 'f16',");
-          buf.writeln("    backend: '${repo.backend}',");
-          buf.writeln('    kind: ModelKind.voice,');
-          if (repo.license != null) {
-            buf.writeln("    license: '${_escape(repo.license!)}',");
-          }
-          buf.writeln('  ),');
+          final entry = <String, dynamic>{
+            'name': key,
+            'displayName': '${repo.displayPrefix} voice — $voiceId',
+            'fileName': fname,
+            'url':
+                'https://huggingface.co/${repo.repoId}/resolve/main/$fname',
+            'sizeBytes': sizeBytes,
+            'checksum': '',
+            'description':
+                '${repo.displayPrefix} voicepack — ${_formatSize(sizeBytes)}',
+            'quantization': 'f16',
+            'backend': repo.backend,
+            'kind': 'voice',
+          };
+          if (repo.license != null) entry['license'] = repo.license;
+          entries.add(entry);
           repoEntries++;
           totalEntries++;
         }
@@ -772,37 +751,30 @@ Future<void> main() async {
         continue;
       }
       if (!emittedKeys.add(key)) continue;
-      buf.writeln("  '$key': ModelDefinition(");
-      buf.writeln("    name: '$key',");
-      buf.writeln(
-          "    displayName: '${_escape(repo.displayPrefix)} ($quant)',");
-      buf.writeln("    fileName: '$fname',");
-      buf.writeln(
-          "    url: 'https://huggingface.co/${repo.repoId}/resolve/main/$fname',");
-      buf.writeln('    sizeBytes: $sizeBytes,');
-      buf.writeln("    checksum: '',");
-      buf.writeln(
-          "    description: '${_escape(repo.description)} — ${_formatSize(sizeBytes)}',");
-      buf.writeln("    quantization: '$quant',");
-      buf.writeln("    backend: '${repo.backend}',");
-      buf.writeln('    kind: ModelKind.${repo.kind},');
-      if (repo.license != null) {
-        buf.writeln("    license: '${_escape(repo.license!)}',");
-      }
-      if (repo.requiresVoice) {
-        buf.writeln('    requiresVoice: true,');
-      }
-      buf.writeln('  ),');
+      final entry = <String, dynamic>{
+        'name': key,
+        'displayName': '${repo.displayPrefix} ($quant)',
+        'fileName': fname,
+        'url': 'https://huggingface.co/${repo.repoId}/resolve/main/$fname',
+        'sizeBytes': sizeBytes,
+        'checksum': '',
+        'description': '${repo.description} — ${_formatSize(sizeBytes)}',
+        'quantization': quant,
+        'backend': repo.backend,
+        'kind': repo.kind,
+      };
+      if (repo.license != null) entry['license'] = repo.license;
+      if (repo.requiresVoice) entry['requiresVoice'] = true;
+      entries.add(entry);
       repoEntries++;
       totalEntries++;
     }
     stdout.writeln('$repoEntries entries');
   }
 
-  buf.writeln('};');
-
-  final out = File('lib/services/baked_models_catalog.dart');
-  await out.writeAsString(buf.toString());
+  const encoder = JsonEncoder.withIndent('  ');
+  final out = File('assets/models/catalog.json');
+  await out.writeAsString(encoder.convert(entries));
 
   stdout.writeln('---');
   stdout.writeln('Wrote ${out.path}');
