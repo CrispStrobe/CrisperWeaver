@@ -1350,8 +1350,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           onLongPress: () {
             // Copy full build info to clipboard on long-press.
-            final info = 'git:$kBuildGitHashFull built:$kBuildTimestamp';
-            Clipboard.setData(ClipboardData(text: info));
+            const info = 'git:$kBuildGitHashFull built:$kBuildTimestamp';
+            Clipboard.setData(const ClipboardData(text: info));
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                   content: Text('Build info copied to clipboard'),

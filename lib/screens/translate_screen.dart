@@ -200,7 +200,7 @@ class _TranslateScreenState extends ConsumerState<TranslateScreen> {
         .toList(growable: false);
 
     if (plat.isWeb) {
-      return _WebTranslateScreen(key: const ValueKey('web-translate'));
+      return const _WebTranslateScreen(key: ValueKey('web-translate'));
     }
 
     return Scaffold(
