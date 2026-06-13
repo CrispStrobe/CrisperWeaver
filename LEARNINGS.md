@@ -488,3 +488,25 @@ The `phonemizer.cpp` g2p dict auto-download writes to `$HOME/.cache/crispasr/`. 
 
 When packaging shared libraries (e.g. `libcrispasr.so.0.7.1`), the tarball must include SOVERSION symlinks (`libcrispasr.so.1 → libcrispasr.so.0.7.1`) because the binary links against the SOVERSION name, not the full version. Missing symlinks cause silent `dlopen` failures — the binary starts but can't find its libraries.
 
+---
+
+## Codebase optimization (June 2026)
+
+### File size thresholds for splitting
+
+**Symptom:** `model_service.dart` at 5696 lines mixed static catalog data (~4300 lines of `const` model definitions + language lists) with operational logic (download, verify, probe). Navigation was painful, IDE indexing slow, and review diffs enormous even for small logic changes.
+
+**Fix:** Extract all static data + data classes into `model_catalog.dart` via an `abstract final class ModelCatalog` (non-instantiable container). The service re-exports it (`export 'model_catalog.dart'`) so all existing `import 'model_service.dart'` sites continue to work without changes.
+
+**Rule of thumb:** when a file exceeds ~2000 lines, check whether it mixes data definitions with behavior. Data (enums, const maps, value classes) extracts cleanly; behavior (methods with side effects, I/O, state) usually can't be split without changing the API.
+
+### HTTP client consolidation isn't always worth it
+
+**Symptom:** the app depends on both `dio` (downloads with progress/resume) and `http` (simple JSON POST for LLM cleanup/summarize).
+
+**Decision:** deferred. The 3 `http` call sites have 20+ `MockClient`-based tests that would all need rewriting for `dio`'s `HttpClientAdapter` mock pattern. The dependency overlap is small (both are transitive deps of other packages anyway), and the test churn risk outweighs the binary-size savings.
+
+### optipng -o2 is the sweet spot for CI-friendly PNG compression
+
+`-o7` on a 1 MB PNG takes 5+ minutes; `-o2` takes seconds and captures ~90% of the savings (37% reduction on 1024×1024 RGBA). Uncompressed PNGs from design tools often have inefficient IDAT encoding that lossless recompression fixes trivially.
+

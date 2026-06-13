@@ -44,6 +44,34 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 **Baked catalog:** 310 entries (was 300). LFM2-Audio, Mini-Omni2, and all
 their quant variants available on cold start without HF probe.
 
+### Changed — Codebase optimization (§8)
+
+**File splits (§8.1):**
+- `model_service.dart` split: 5696 → 1396 lines. Static catalog data,
+  language lists, data classes (ModelDefinition, BackendRepo, ModelInfo,
+  ModelKind, etc.) extracted to `model_catalog.dart` (4318 lines).
+  `model_service.dart` re-exports it for backward compatibility.
+- `transcription_output_widget.dart`: `CleanupDialog` and `SummarizeDialog`
+  extracted to own files (2372 → 1770 lines).
+- `transcription_screen.dart`: `PresetsDialog` and `NarrowTabbedBody`
+  extracted to own files (3858 → 3533 lines).
+
+**Asset optimization (§8.9):**
+- `app_logo.png` losslessly compressed: 1.4 MB → 883 KB (37% reduction).
+- `AppLogo.png` losslessly compressed: 1.8 MB → 1.2 MB (31% reduction).
+
+**CI build caching (§8.8):**
+- CrispASR native build cached between CI runs via `actions/cache@v4`,
+  keyed on the sibling repo's commit hash. Saves ~15-30 min on cache hit.
+
+**Test coverage (§8.7):**
+- 100 new tests in 8 files: model lookup, A/B testing, speaker vocab,
+  segment tags, watch folder, log service, audio utils, file utils.
+  Total: 595 → 695 tests (+17%).
+
+**Analyzer:**
+- 0 issues across `lib/` and `test/` (2 info-level lint hits fixed).
+
 ### Fixed — Pre-existing CI analyze errors
 - `crispembed_web.dart`: `dynamic` → `int` cast for WASM ctxPtr/dim.
 - `translate_screen.dart`: deprecated `value:` → `initialValue:`.
