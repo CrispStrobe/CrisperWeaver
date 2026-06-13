@@ -115,18 +115,20 @@ jobs:
           channel: stable
           cache: true
 
-      # Use the same end-to-end macOS build script we run locally.
-      # The earlier hand-rolled `cmake -B build … --target crispasr-lib`
-      # diverged from `scripts/build_macos.sh` in a few load-bearing
-      # ways: it didn't disable CRISPASR_BUILD_TESTS / EXAMPLES /
-      # SERVER (so cmake configure pulled in unrelated source trees
-      # and tripped on the OBJCXX language requirement that comes in
-      # via the CoreML wrappers when CRISPASR_COREML defaults to AUTO);
-      # and it only built the `crispasr` target without first building
-      # the 30 per-backend STATIC archives, so the resulting
-      # libwhisper.dylib was missing every backend except whisper.
-      # Driving the same script we use locally keeps both paths
-      # validated together and avoids future "works on my machine" gaps.
+      # Cache the CrispASR native build keyed on the sibling commit hash.
+      # The cmake/ninja build is the most expensive CI step (~15-30 min);
+      # skipping it when the engine hasn't changed saves significant time.
+      - name: Get CrispASR commit hash
+        id: crispasr-hash
+        run: echo "hash=$(git -C repos/CrispASR rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache CrispASR build
+        id: cache-crispasr
+        uses: actions/cache@v4
+        with:
+          path: repos/CrispASR/build
+          key: crispasr-macos-${{ steps.crispasr-hash.outputs.hash }}
+
       - name: Build CrispASR + Flutter macOS app (one shot via script)
         working-directory: repos/CrisperWeaver
         env:
@@ -186,13 +188,17 @@ jobs:
       - name: Enable linux desktop
         run: flutter config --enable-linux-desktop
 
-      # Same shape as the macOS job above — drive the local
-      # `scripts/build_linux.sh` so the per-backend STATIC build
-      # pattern (parakeet, canary, voxtral, kokoro, …) matches what
-      # devs run on their machines. The earlier hand-rolled cmake
-      # invocation only built `crispasr` and skipped every per-
-      # backend static, which left the runtime missing every
-      # backend except whisper at app launch.
+      - name: Get CrispASR commit hash
+        id: crispasr-hash
+        run: echo "hash=$(git -C repos/CrispASR rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache CrispASR build
+        id: cache-crispasr
+        uses: actions/cache@v4
+        with:
+          path: repos/CrispASR/build
+          key: crispasr-linux-${{ steps.crispasr-hash.outputs.hash }}
+
       - name: Build CrispASR + Flutter Linux desktop (one shot via script)
         working-directory: repos/CrisperWeaver
         env:
