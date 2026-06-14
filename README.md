@@ -187,15 +187,17 @@ Roadmap and blockers: see [`PLAN.md`](PLAN.md).
 - CMake + a C++ toolchain to build `libwhisper` from CrispASR
 - Optional: Metal (macOS), CUDA / Vulkan (Linux/Windows), Core ML (iOS), NNAPI (Android)
 
-### Clone the two repos side-by-side
+### Clone the repos side-by-side
 
 ```bash
 mkdir crisperweaver && cd crisperweaver
 git clone https://github.com/CrispStrobe/CrispASR.git
+git clone https://github.com/CrispStrobe/CrispEmbed.git
 git clone https://github.com/CrispStrobe/CrisperWeaver.git
 ```
 
-`pubspec.yaml` refers to the Dart FFI package via `path: ../CrispASR/flutter/crispasr`.
+`pubspec.yaml` refers to the Dart FFI packages via `path: ../CrispASR/flutter/crispasr`
+and `path: ../CrispEmbed/flutter/crispembed`.
 
 ### Desktop one-shot (recommended)
 

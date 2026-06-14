@@ -61,6 +61,13 @@ if [[ ! -d "$CRISPASR_DIR" ]]; then
   exit 1
 fi
 
+CRISPEMBED_DIR="${CRISPEMBED_DIR:-$(cd "$REPO_ROOT/.." && pwd)/CrispEmbed}"
+if [[ ! -d "$CRISPEMBED_DIR" ]]; then
+  echo "error: sibling CrispEmbed repo not at $CRISPEMBED_DIR" >&2
+  echo "       Clone it: git clone https://github.com/CrispStrobe/CrispEmbed \"$CRISPEMBED_DIR\"" >&2
+  exit 1
+fi
+
 cd "$CRISPASR_DIR"
 
 if [[ "$CLEAN" == "1" ]]; then
