@@ -505,10 +505,16 @@ class _CrisperWeaverAppState extends ConsumerState<CrisperWeaverApp> {
       themeMode: ThemeMode.system,
       routerConfig: _router,
       locale: locale,
-      // i18n: English (fallback) + German. Flutter picks the closest match
-      // to the system locale automatically.
+      // i18n: English (fallback) + German.
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
+      // Fall back to English when the system locale matches neither en nor de.
+      localeResolutionCallback: (deviceLocale, supportedLocales) {
+        for (final loc in supportedLocales) {
+          if (loc.languageCode == deviceLocale?.languageCode) return loc;
+        }
+        return const Locale('en');
+      },
       // Make the title locale-aware too.
       onGenerateTitle: (ctx) {
         final l = AppLocalizations.of(ctx);
