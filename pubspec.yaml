@@ -44,6 +44,10 @@ dependencies:
   file_picker: ">=11.0.2 <13.0.0"
   path: ^1.8.3
 
+  # CLI (bin/crisperweaver.dart) command parsing — already transitive,
+  # declared direct because the CLI imports it.
+  args: ^2.4.0
+
   # Network and downloads
   http: ^1.1.2
   dio: ^5.4.0
