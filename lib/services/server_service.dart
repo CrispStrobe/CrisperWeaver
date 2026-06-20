@@ -12,10 +12,13 @@ import 'package:shelf_router/shelf_router.dart';
 import '../engines/transcription_engine.dart';
 import '../main.dart' show transcriptionServiceProvider;
 import 'audio_service.dart';
+import 'lid_service.dart';
 import 'log_service.dart';
+import 'punc_service.dart';
 import 'text_translation_service.dart';
 import 'transcription_service.dart';
 import 'tts_service.dart';
+import 'vad_service.dart';
 
 /// Local HTTP server exposing CrisperWeaver's services through an
 /// OpenAI-compatible surface. Three endpoints:
@@ -112,7 +115,11 @@ class ServerService {
       ..get('/health', _handleHealth)
       ..post('/v1/audio/transcriptions', _handleTranscriptions)
       ..post('/v1/audio/speech', _handleSpeech)
-      ..post('/v1/translations', _handleTranslations);
+      ..post('/v1/translations', _handleTranslations)
+      // Capability parity with the CLI (PLAN §9.4 / docs/PARITY.md):
+      ..post('/v1/audio/vad', _handleVad)
+      ..post('/v1/audio/language', _handleLanguage)
+      ..post('/v1/text/punctuate', _handlePunctuate);
     return router;
   }
 
@@ -391,6 +398,100 @@ class ServerService {
     } on TextTranslationException catch (e) {
       return Response.internalServerError(body: e.message);
     }
+  }
+
+  /// Decode the `file` part of a multipart upload into 16 kHz mono PCM
+  /// via the same AudioService path the GUI uses. Throws [FormatException]
+  /// on a malformed request (the caller maps that to 400).
+  Future<AudioData> _decodeUpload(Request request) async {
+    final contentType = request.headers['content-type'] ?? '';
+    if (!contentType.startsWith('multipart/form-data')) {
+      throw FormatException('expected multipart/form-data; got $contentType');
+    }
+    final boundary = _parseBoundary(contentType);
+    if (boundary == null) {
+      throw const FormatException('missing boundary in content-type');
+    }
+    final fields = await _parseMultipart(request.read(), boundary);
+    final filePart = fields['file'];
+    if (filePart == null || filePart.bytes == null) {
+      throw const FormatException('missing required field "file"');
+    }
+    final tempDir = await getTemporaryDirectory();
+    final ext = p.extension(filePart.filename ?? 'audio.wav');
+    final tempFile = File(p.join(tempDir.path,
+        'crispasr-server-${DateTime.now().millisecondsSinceEpoch}$ext'));
+    await tempFile.writeAsBytes(filePart.bytes!);
+    try {
+      return await ref.read(audioServiceProvider).loadAudioFile(tempFile);
+    } finally {
+      try {
+        await tempFile.delete();
+      } catch (_) {/* best-effort cleanup */}
+    }
+  }
+
+  /// VAD: multipart `file` → `{spans: [{start, end}]}` (seconds).
+  Future<Response> _handleVad(Request request) async {
+    AudioData audio;
+    try {
+      audio = await _decodeUpload(request);
+    } on FormatException catch (e) {
+      return Response.badRequest(body: e.message);
+    } catch (e) {
+      return Response.badRequest(body: 'audio decode failed: $e');
+    }
+    final spans =
+        await ref.read(vadServiceProvider).detectSpeechSpans(audio.samples);
+    return Response.ok(
+      jsonEncode({
+        'spans': [
+          for (final s in spans) {'start': s.start, 'end': s.end}
+        ]
+      }),
+      headers: const {'content-type': 'application/json'},
+    );
+  }
+
+  /// Language ID: multipart `file` → `{language}` or 500 when no model.
+  Future<Response> _handleLanguage(Request request) async {
+    AudioData audio;
+    try {
+      audio = await _decodeUpload(request);
+    } on FormatException catch (e) {
+      return Response.badRequest(body: e.message);
+    } catch (e) {
+      return Response.badRequest(body: 'audio decode failed: $e');
+    }
+    final code =
+        await ref.read(lidServiceProvider).detectIfModelAvailable(audio.samples);
+    if (code == null) {
+      return Response.internalServerError(
+          body: 'no LID model available — download a multilingual ASR or '
+              'LID model first');
+    }
+    return Response.ok(jsonEncode({'language': code}),
+        headers: const {'content-type': 'application/json'});
+  }
+
+  /// Punctuation restoration: JSON `{text}` → `{text}`.
+  Future<Response> _handlePunctuate(Request request) async {
+    Map<String, dynamic> args;
+    try {
+      args = jsonDecode(await request.readAsString()) as Map<String, dynamic>;
+    } catch (e) {
+      return Response.badRequest(body: 'invalid JSON: $e');
+    }
+    final text = args['text'] as String?;
+    if (text == null || text.trim().isEmpty) {
+      return Response.badRequest(body: 'missing required field: text');
+    }
+    final restored = await ref.read(puncServiceProvider).restore(
+        [TranscriptionSegment(text: text, startTime: 0, endTime: 0)]);
+    return Response.ok(
+      jsonEncode({'text': restored.isEmpty ? text : restored.first.text}),
+      headers: const {'content-type': 'application/json'},
+    );
   }
 
   // Minimal multipart parsing — shelf doesn't ship one. We slurp the
