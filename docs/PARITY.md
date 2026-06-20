@@ -31,6 +31,20 @@ Legend: ✅ reached · ➖ partial · ❌ not yet · — n/a.
 | Watermark **detect** | ❌→test | ✅ `watermark --detect` | ✅ `/v1/audio/watermark` | was orphaned (§9.5); CLI + server + live test cover it |
 | RNNoise denoise | ✅ | ❌ | ❌ | CLI TODO |
 
+## Orphan audit — resolved (§9.5)
+
+The initial reachability sweep flagged several "orphaned" capabilities;
+verification showed they are reachable:
+
+- **Speech-to-speech** — fully GUI-wired: `synthesize_screen.dart` has an
+  `s2sMode` toggle + audio input and calls `tts.speechToSpeech()`. Also CLI `s2s`.
+- **Forced alignment** — triggered by the engine when the **word-timestamps**
+  setting is on (`settings_screen.dart`) and the backend emits no word timing;
+  `crispasr_engine.dart` runs `AlignerService.addWordTimestamps`. Also CLI `align`.
+- **Watermark detect** — no GUI button, but reachable via CLI
+  (`watermark --detect`) and server (`/v1/audio/watermark`); the only genuine
+  gap is a GUI "verify watermark" action (minor UX, tracked).
+
 ## GUI-only by design (orchestration, not engine capabilities)
 
 These wrap higher-level app state (history, files, network keys, Riverpod) and

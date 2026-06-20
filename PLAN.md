@@ -669,11 +669,16 @@ Reachability audit flagged these as reachable from no surface; grep
 showed several were false positives (hotwords, system-audio-capture,
 text-LID, S2S, aligner are referenced). Confirm each and either wire
 it or document it as intentionally internal:
-- [ ] Watermark **detect** — embed is wired; detect has no caller.
-- [ ] Speech-to-speech — `synthesize_screen.dart` reference looks
-      partial; confirm it's reachable end-to-end.
-- [ ] Aligner — only invoked inside `crispasr_engine.dart`; confirm a
-      UI/CLI path actually triggers word-timestamp backfill.
+- [x] Watermark **detect** — resolved: reachable via CLI
+      (`watermark --detect`) + server (`/v1/audio/watermark`) + live test.
+      Only remaining gap is an optional GUI "verify" button (minor UX).
+- [x] Speech-to-speech — verified reachable: `synthesize_screen.dart`
+      has an `s2sMode` toggle + audio input and calls
+      `tts.speechToSpeech()`. Plus CLI `s2s`. Not orphaned.
+- [x] Aligner — verified reachable: the Settings **word-timestamps**
+      toggle (`settings_screen.dart`) drives `enableWordTimestamps`, and
+      `crispasr_engine.dart` runs `AlignerService.addWordTimestamps` when
+      the backend emits no word timing. Plus CLI `align`. Not orphaned.
 - [x] **VadService silent no-op — FIXED (2026-06-20).** Now calls
       `vadSlicesNative` (new `lib/native/vad_native.dart`, conditional
       web stub) → the free `crispasr_vad_slices` dispatcher, with no
@@ -694,7 +699,9 @@ it or document it as intentionally internal:
          model only to `vadSlices(modelPath:)`.
       Confirm both against the app's actually-bundled dylib before
       shipping a fix (the in-app lib may predate this behaviour).
-- [ ] Final orphan list recorded in `docs/PARITY.md`.
+- [x] Final orphan list recorded in `docs/PARITY.md` (§9.5 "Orphan audit
+      — resolved"). Net result: no true orphans; only an optional GUI
+      watermark-verify button remains as minor UX.
 
 ### 9.6 New CrispASR capabilities to consider surfacing
 From CrispASR HISTORY (May–Jun 2026), not yet in CrisperWeaver:
