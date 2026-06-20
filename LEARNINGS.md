@@ -52,6 +52,18 @@ final buf = calloc<Uint8>(16).cast<Utf8>();
 
 If your library may or may not expose a symbol (e.g. new helpers added in CrispASR 0.4.x), always `providesSymbol('foo')` before `lookupFunction`. Otherwise any older copy of the dylib crashes the app on startup.
 
+### `CrispASR(modelPath)` loads the path as a *whisper* context — don't feed it auxiliary models
+
+The `crispasr.CrispASR(modelPath)` constructor calls `whisper_init_from_file` on `modelPath`. Some instance methods (`vad`, `vadSlices`) take a *separate* `modelPath:` argument and never touch `_ctx` — so it's tempting to do `CrispASR(vadModel)` just to reach them. Don't: a VAD/LID/punc model loaded as a whisper context is a degenerate `_ctx`, and `dispose()` → `whisper_free()` over it **SIGABRTs the whole isolate**. (`VadService` did exactly this and was a silent no-op — §9.5.) Either open the context on a real ASR model and pass the aux model only as a method arg, or — better for VAD — call the *free* C function `crispasr_vad_slices` directly (no context). See `lib/native/vad_native.dart`.
+
+### Verify which entrypoint actually works — the obvious one can fail silently
+
+`crispasr_vad_segments` (the binding's `vad()`) uses whisper's *native* VAD loader and returns `-2` ("model init failed") for the Silero asset and the whisper-vad GGUF. The working call is the unified dispatcher `crispasr_vad_slices` (`vadSlices()`). When a binding exposes two similar entrypoints, check the C source's return codes against the model type you're actually passing before wiring a service to one — a swallowed `-2` looks identical to "no speech".
+
+### A `dart run` CLI can't use the Flutter service layer
+
+`bin/crisperweaver.dart` runs under plain `dart run`, which has no `WidgetsFlutterBinding`, `path_provider`, `rootBundle`, or Riverpod container — so the app's `services/` (which depend on all of those) are unreachable. Wrap `package:crispasr` (pure-Dart FFI) directly instead. The CLI therefore reaches *engine* capabilities at parity with the GUI, but not GUI orchestration (history, presets, cleanup); that split is documented in `docs/PARITY.md`.
+
 ## Dylib bundling
 
 ### `libcrispasr` is a compatibility alias, not a separate library
