@@ -646,18 +646,18 @@ CrispEmbed to a clean commit before the full `flutter test` suite and
 release build will pass.
 
 ### 9.4 CLI + server parity (owner chose: build BOTH)
-- [~] `bin/crisperweaver.dart` — first-class CLI over `package:crispasr`
-      (no Flutter coupling; runs via `dart run`). DONE commands, all
-      smoke-tested live: `backends`, `transcribe` (+`--srt`), `vad`,
-      `lid` (audio+`--text`), `punctuate`, `translate`, `synthesize`
-      (+`--voice`), `watermark` (embed/`--detect`). Verified e.g.
-      `lid jfk.wav → en 0.977`, `punctuate` capitalizes+punctuates.
-      TODO: `diarize`, `align`, `speaker`, `stream`, `s2s`.
+- [x] `bin/crisperweaver.dart` — first-class CLI over `package:crispasr`
+      (no Flutter coupling; runs via `dart run`). COMPLETE, smoke-tested
+      live: `backends`, `transcribe` (+`--srt`), `stream`, `vad`, `lid`
+      (audio+`--text`), `diarize`, `align`, `speaker` (enroll/match),
+      `punctuate`, `translate`, `synthesize` (+`--voice`), `s2s`,
+      `watermark` (embed/`--detect`). Verified e.g. `align` word timings,
+      `speaker match → jfk 1.000`, `stream` full JFK quote.
 - [~] Expand `lib/services/server_service.dart` beyond the 4 original
       endpoints. ADDED + tested (`test/server_service_test.dart`):
-      `POST /v1/audio/vad`, `POST /v1/audio/language` (LID),
-      `POST /v1/text/punctuate`. TODO: text-LID, diarize, speaker,
-      watermark, s2s.
+      `POST /v1/audio/vad`, `/v1/audio/language` (LID), `/v1/text/punctuate`,
+      `/v1/audio/diarize`, `/v1/audio/watermark`. Remaining: text-LID,
+      speaker (stateful device DB), align, streaming, s2s.
 - [x] Unit/smoke test for the CLI — `test/cli_test.dart` (help lists all
       commands, usage-error exit codes). Per-capability behaviour is
       covered by the `*_live_test.dart` files (same binding the CLI wraps).

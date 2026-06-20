@@ -15,20 +15,20 @@ Legend: ✅ reached · ➖ partial · ❌ not yet · — n/a.
 |---|---|---|---|---|
 | List backends | ✅ (implicit) | ✅ `backends` | ➖ `/health` shows engine | |
 | File ASR (transcribe) | ✅ | ✅ `transcribe` (+`--srt`) | ✅ `/v1/audio/transcriptions` | |
-| Live / streaming ASR | ✅ | ❌ | ❌ | CLI/server streaming TODO |
+| Live / streaming ASR | ✅ | ✅ `stream` | ❌ | server streaming TODO |
 | VAD | ✅ | ✅ `vad` | ✅ `/v1/audio/vad` | |
 | Language ID (audio+text) | ✅ | ✅ `lid` (`--text`) | ➖ `/v1/audio/language` | server: audio only |
-| Diarization | ✅ | ❌ | ❌ | CLI/server TODO |
-| Speaker enroll / match | ✅ | ❌ | ❌ | CLI/server TODO |
-| Forced alignment | ✅ (engine) | ❌ | ❌ | CLI/server TODO |
+| Diarization | ✅ | ✅ `diarize` | ✅ `/v1/audio/diarize` | |
+| Speaker enroll / match | ✅ | ✅ `speaker` | ❌ | server: stateful device DB — deferred |
+| Forced alignment | ✅ (engine) | ✅ `align` | ❌ | server TODO |
 | Punctuation / PCS / truecase | ✅ | ✅ `punctuate` | ✅ `/v1/text/punctuate` | |
 | TTS synthesis | ✅ | ✅ `synthesize` | ✅ `/v1/audio/speech` | |
 | Voice cloning | ✅ | ➖ `synthesize --voice` | ❌ | |
 | Voice baking | ✅ | ❌ | ❌ | desktop Python subprocess; GUI-only |
 | Text translation | ✅ | ✅ `translate` | ✅ `/v1/translations` | |
-| Speech-to-speech | ➖ | ❌ | ❌ | partial in GUI; verify (§9.5) |
+| Speech-to-speech | ➖ | ✅ `s2s` | ❌ | server TODO; verify GUI reach (§9.5) |
 | Watermark embed | ✅ | ✅ `watermark` | ❌ | |
-| Watermark **detect** | ❌→test | ✅ `watermark --detect` | ❌ | was orphaned (§9.5); CLI + live test now cover it |
+| Watermark **detect** | ❌→test | ✅ `watermark --detect` | ✅ `/v1/audio/watermark` | was orphaned (§9.5); CLI + server + live test cover it |
 | RNNoise denoise | ✅ | ❌ | ❌ | CLI TODO |
 
 ## GUI-only by design (orchestration, not engine capabilities)
@@ -42,8 +42,10 @@ are intentionally **not** mirrored to the CLI/server:
 
 ## Remaining parity work (PLAN §9.4)
 
-- **CLI**: add `diarize`, `align`, `speaker` (enroll/match), `stream`, `s2s`.
-- **Server**: `vad`, `lid` (audio), `punctuate` added. Still TODO: text-LID,
-  `diarize`, `speaker`, `watermark`, `s2s`.
+- **CLI**: complete — `transcribe`, `stream`, `vad`, `lid`, `diarize`, `align`,
+  `speaker`, `punctuate`, `translate`, `synthesize`, `s2s`, `watermark`,
+  `backends`.
+- **Server**: added `vad`, `lid` (audio), `punctuate`, `diarize`, `watermark`.
+  Still TODO: text-LID, `speaker` (stateful device DB), `align`, streaming, `s2s`.
 - Keep this file honest with a test that fails when a capability lands on one
   surface but not the matrix.
