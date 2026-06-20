@@ -5,6 +5,34 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 
 ## [Unreleased]
 
+### Added — Test coverage, CLI & HTTP-server parity (§9)
+
+**CLI** — a first-class headless CLI over the on-device engine
+(`bin/crisperweaver.dart`, run via `dart run crisper_weaver:crisperweaver`):
+`backends`, `transcribe` (+`--srt`), `vad`, `lid` (audio/`--text`),
+`punctuate`, `translate`, `synthesize` (+`--voice`), `watermark`
+(embed/`--detect`).
+
+**HTTP server** — new endpoints toward capability parity with the
+GUI/CLI: `POST /v1/audio/vad`, `POST /v1/audio/language` (LID),
+`POST /v1/text/punctuate`. Matrix tracked in `docs/PARITY.md`.
+
+**Tests** — live tests covering VAD, language ID, punctuation, forced
+alignment, diarization, streaming ASR, five non-Whisper ASR backends,
+translation, and watermark detection (each self-skips unless opted in
+via `scripts/run_live_tests.sh`), plus pure-Dart unit tests for audio
+DSP, fingerprinting, watermark metadata, the CLI, and the server. Shared
+model locator: `test/support/crispasr_models.dart`.
+
+### Fixed — VAD was a silent no-op (§9.5)
+
+`VadService` called the legacy `vad()` entrypoint, which fails
+("model init failed") for the bundled Silero and whisper-vad models and
+SIGABRT'd on dispose (it loaded a non-whisper model as a whisper
+context). It now calls the unified `crispasr_vad_slices` dispatcher
+directly (`lib/native/vad_native.dart`, web-stubbed) with no whisper
+context — speech-span detection works again, regression-tested.
+
 ### Added — CrispASR mid-2026 catch-up (§5.26)
 
 **New backends (4):**

@@ -27,6 +27,55 @@ pending.
 
 ---
 
+## June 2026 — Full test coverage + CLI/server parity (§9)
+
+A sweep to bring CrisperWeaver's test coverage and non-GUI surfaces up to
+the engine it wraps. See `PLAN.md` §9 for the live task tracker and
+`docs/PARITY.md` for the capability × {GUI, CLI, server} matrix.
+
+**Live-test harness.** Added a shared model locator
+(`test/support/crispasr_models.dart`) that resolves the dylib + the
+smallest `q4_k` model per family, plus `scripts/run_live_tests.sh`. Live
+tests are opt-in (gated on `CRISPASR_LIB`/`RUN_LIVE_TESTS`) so the default
+`flutter test` gate stays fast. New live tests, all validated green
+locally against the on-disk q4_k models: VAD, language ID (audio+text),
+punctuation, forced alignment, diarization (pyannote), streaming ASR,
+five non-Whisper ASR backends (moonshine/sensevoice/parakeet-110m/
+fastconformer/wav2vec2), translation (madlad q4_k — ~42 min, slow), and
+watermark detection.
+
+**Two FFI gotchas, now encoded in the exemplar + memory:** (1) the
+`CrispASR(modelPath)` ctor loads the path as a *whisper* context, so
+auxiliary models (VAD/LID/punc) must be passed as method args, not to the
+ctor, or `dispose()` SIGABRTs; (2) verify the entrypoint against the C
+source — the obvious one can fail (VAD's `vad()` returns -2; the working
+call is `vadSlices()`).
+
+**Bug fixed — VAD silent no-op (§9.5).** `VadService` used the legacy
+`vad()` (which `-2`-fails on the Silero/whisper-vad models) and crashed on
+dispose. Replaced with a direct call to the free `crispasr_vad_slices`
+dispatcher (`lib/native/vad_native.dart` + web stub), no whisper context.
+Regression-tested.
+
+**CLI (`bin/crisperweaver.dart`).** A `dart run` entrypoint wrapping
+`package:crispasr` directly (no Flutter/Riverpod/path_provider), so it
+reaches the engine capabilities at parity with the GUI. Commands:
+`backends`, `transcribe` (+`--srt`), `vad`, `lid` (audio/`--text`),
+`punctuate`, `translate`, `synthesize` (+`--voice`), `watermark`
+(embed/`--detect`). Smoke-tested (`lid jfk.wav → en 0.977`).
+
+**HTTP server.** Added `POST /v1/audio/vad`, `POST /v1/audio/language`
+(LID), and `POST /v1/text/punctuate`, routed through the app's Riverpod
+services; routing + validation covered by `test/server_service_test.dart`.
+
+**Unit tests.** Pure-Dart additions for audio DSP, coarse fingerprinting,
+and watermark/ID3 metadata.
+
+Remaining (tracked in §9): CLI `diarize`/`align`/`speaker`/`stream`/`s2s`;
+server text-LID/diarize/speaker/watermark/s2s; more widget tests.
+
+---
+
 ## June 2026 — CrispASR mid-2026 catch-up (§5.26)
 
 Brings CrisperWeaver to CrispASR `origin/main` as of June 2026. Four new

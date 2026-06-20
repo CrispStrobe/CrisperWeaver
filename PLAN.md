@@ -541,3 +541,166 @@ JSON — −3 746 LOC, +13 tests), 8.5 (lazy init — verified),
 8.7 (test coverage — +100 tests), 8.8 (CI caching),
 8.9 (asset compression).
 **Deferred:** 8.6 (HTTP consolidation — not worth test churn).
+
+## 9. CrispASR parity + full test coverage + CLI/server parity (June 2026)
+
+Goal (from owner): match CrispASR's capabilities where feasible;
+**unit + live tests for every feature**; achieve **CLI + HTTP-server
+feature parity with the GUI**; and **map/resolve code paths reachable
+from neither surface** (orphans). Live tests must use only `q4_k`
+models already on disk under `/Volumes/backups/ai/crispasr/` — never
+download anything >500 MB. This section is the canonical task tracker:
+if work breaks, resume from the unchecked boxes.
+
+**Ground truth established (2026-06-20):** the live-test chain works on
+this machine — `crispasr_live_test` passes against the locally-built
+`../CrispASR/build/src/libcrispasr.dylib` (v0.7.1) + on-disk
+`ggml-tiny.bin`. So every gap below is fillable now with existing
+models; no downloads needed.
+
+### 9.1 Foundation — shared live-test infra
+- [x] `test/support/crispasr_models.dart` — single locator: resolves
+      the dylib (`CRISPASR_LIB` → `../CrispASR/build*/src/lib*.dylib`)
+      and the smallest `q4_k` model per family from
+      `CRISPASR_MODELS_DIR` (default `/Volumes/backups/ai/crispasr`),
+      with `CRISPASR_TEST_<X>_MODEL` overrides. Returns null → tests
+      self-skip. Replaces the per-file `_resolveLibPath` copies.
+- [x] `scripts/run_live_tests.sh` — exports `CRISPASR_LIB` +
+      `CRISPASR_MODELS_DIR` and runs `flutter test --tags slow`
+      (TMPDIR on the external volume per disk policy).
+- [x] Exemplar live test `test/vad_live_test.dart` — **green** (3/3:
+      decode, Silero dispatcher, whisper-vad q4_k). Pattern locked.
+      Two gotchas surfaced & encoded for all live tests:
+      1. The `CrispASR(modelPath)` ctor loads `modelPath` as a *whisper
+         ASR context*. Open the ctx on a real ASR model (tiny); pass
+         auxiliary models (VAD/LID/punc) only as method args, else
+         `dispose()` SIGABRTs.
+      2. Verify the *entrypoint* against the C source — `vad()` (legacy
+         `crispasr_vad_segments`) fails -2 on Silero/whisper-vad; the
+         working call is `vadSlices()` (`crispasr_vad_slices`).
+
+### 9.2 Live-test gaps (parallel agents, one new file each)
+Each uses the 9.1 locator + smallest q4_k on disk; self-skips when
+absent. Validate with `flutter analyze` + skip-mode run; the heavy
+live decode pass is run serially afterward (no concurrent GPU thrash).
+- [x] LID live — `test/lid_live_test.dart` (audio LID → 'en' via
+      whisper tiny ctx; text LID → English via GlotLID/CLD3). Green.
+- [x] VAD live — `test/vad_live_test.dart` (Silero asset + whisper-vad
+      q4_k via `vadSlices`). Green.
+- [x] Diarization live — `test/diarization_live_test.dart` (pyannote-seg
+      labels tiny-ASR segments). Green after fixing a `lib: null` bug
+      (diarizeSegments is a top-level fn taking a `DynamicLibrary`, not a
+      libPath string — must pass `DynamicLibrary.open(lib)`).
+- [x] Aligner live — `test/aligner_live_test.dart` (canary-ctc-aligner
+      q4_k; forced word timings, monotonic, in-bounds). Green.
+- [x] Punctuation / PCS / truecase live — `test/punc_live_test.dart`
+      (fireredpunc q4_k; truecase/PCS self-skip — models not on disk).
+      Green.
+- [x] Streaming ASR live — `test/streaming_asr_live_test.dart`
+      (`crispasr_stream_*` 1 s chunks → committed transcript w/ JFK
+      keyword). Green (dropped a brittle window-time upper bound — the
+      rolling-buffer t1 isn't bounded by clip duration).
+- [x] Alt-ASR-backend roundtrips — `test/alt_asr_backends_live_test.dart`
+      (moonshine-tiny, sensevoice, parakeet-tdt_ctc-110m, fastconformer-
+      ctc, wav2vec2-xlsr — all 5 transcribe jfk.wav). Green (6/6).
+- [x] Translation live — `test/translation_live_test.dart` (madlad q4_k
+      EN→DE + EN→FR). Green — but **~42 min wall-clock** (madlad 3B q4_k
+      beam-decode is very heavy; didn't OOM, just slow). Impractical for
+      routine CI; consider the lighter m2m100 q8 (502 MB) as the default
+      and keep madlad as an opt-in — owner call (m2m100 is q8, which
+      bends the "q4_k-only" rule, but there's no small q4_k MT on disk).
+- [x] Watermark *detect* live — `test/watermark_live_test.dart` (pure
+      DSP, no model: embed→detect margin + threshold). Green. Covers the
+      §9.5 orphaned watermark-detect capability.
+- [ ] Local-LLM cleanup/summarize live — `gemma4-e2b-it-q4_k` (2.6 G,
+      heavy; lower priority)
+- [ ] Speech-to-speech live — needs lfm2-audio / mini-omni2 (large;
+      lower priority)
+
+### 9.3 Unit-test gaps
+- [~] Audit each `lib/services/*.dart` for pure-Dart logic lacking a
+      unit test; add tests (no model) for the untested ones.
+      Done so far: `audio_watermark_format_test.dart` (12),
+      `audio_utils_dsp_test.dart` (16), `audio_fingerprint_coarse_test`
+      (10) — 38 new leaf-level tests, all green.
+      **BLOCKED for the rest:** see §9.7 — the broken CrispEmbed path
+      dep makes any test that imports the engine graph fail to compile
+      (multilingual grouping, file_utils generators, server SRT/VTT,
+      note_export, etc. are written-able but not runnable until fixed).
+- [ ] Widget tests for the two flagged screens (§8.7): transcription,
+      synthesize.
+
+### 9.7 BLOCKER — broken CrispEmbed path dependency (found 2026-06-20)
+`/Users/christianstrobele/code/CrispEmbed` (a `path:` dep of this app,
+`pubspec.yaml:68`) is in a parallel worker's broken mid-edit state
+(`main` is ahead 25 / behind 23). `flutter/crispembed/lib/src/
+crispembed.dart` has an **unterminated class** (`CrispSwinirSr` body
+never closed ~L3003; its ctor leaks into `CrispScunet`). Because
+CrisperWeaver path-depends on it, **any test whose import graph reaches
+crispembed fails to compile**, and the app itself won't build. The
+`package:crispasr`-only live tests (§9.1–9.2) are unaffected — they
+don't import the engine graph — which is why they run green.
+**Not fixable from here:** it's another repo and another worker's
+uncommitted WIP (git rule: don't disturb). Owner must reset/sync
+CrispEmbed to a clean commit before the full `flutter test` suite and
+release build will pass.
+
+### 9.4 CLI + server parity (owner chose: build BOTH)
+- [~] `bin/crisperweaver.dart` — first-class CLI over `package:crispasr`
+      (no Flutter coupling; runs via `dart run`). DONE commands, all
+      smoke-tested live: `backends`, `transcribe` (+`--srt`), `vad`,
+      `lid` (audio+`--text`), `punctuate`, `translate`, `synthesize`
+      (+`--voice`), `watermark` (embed/`--detect`). Verified e.g.
+      `lid jfk.wav → en 0.977`, `punctuate` capitalizes+punctuates.
+      TODO: `diarize`, `align`, `speaker`, `stream`, `s2s`.
+- [~] Expand `lib/services/server_service.dart` beyond the 4 original
+      endpoints. ADDED + tested (`test/server_service_test.dart`):
+      `POST /v1/audio/vad`, `POST /v1/audio/language` (LID),
+      `POST /v1/text/punctuate`. TODO: text-LID, diarize, speaker,
+      watermark, s2s.
+- [x] Unit/smoke test for the CLI — `test/cli_test.dart` (help lists all
+      commands, usage-error exit codes). Per-capability behaviour is
+      covered by the `*_live_test.dart` files (same binding the CLI wraps).
+- [x] `docs/PARITY.md` — capability × {GUI, CLI, server} matrix +
+      orphan notes + remaining-work list.
+
+### 9.5 Orphan / under-wired paths — verify & resolve
+Reachability audit flagged these as reachable from no surface; grep
+showed several were false positives (hotwords, system-audio-capture,
+text-LID, S2S, aligner are referenced). Confirm each and either wire
+it or document it as intentionally internal:
+- [ ] Watermark **detect** — embed is wired; detect has no caller.
+- [ ] Speech-to-speech — `synthesize_screen.dart` reference looks
+      partial; confirm it's reachable end-to-end.
+- [ ] Aligner — only invoked inside `crispasr_engine.dart`; confirm a
+      UI/CLI path actually triggers word-timestamp backfill.
+- [x] **VadService silent no-op — FIXED (2026-06-20).** Now calls
+      `vadSlicesNative` (new `lib/native/vad_native.dart`, conditional
+      web stub) → the free `crispasr_vad_slices` dispatcher, with no
+      whisper context at all. Regression-tested in `vad_live_test.dart`
+      ("vadSlicesNative … without a ctx"). Original two defects were:
+      1. **Wrong entrypoint** — it calls `CrispASR.vad()` =
+         `crispasr_vad_segments` (whisper's *native* VAD loader), which
+         returns **-2 "model init failed"** for the bundled Silero
+         v6.2.0 asset AND the whisper-vad q4_k model. The exception is
+         caught and `const []` returned → no spans, ever. The working
+         path is `CrispASR.vadSlices()` = `crispasr_vad_slices` (the
+         unified dispatcher that handles Silero/FireRed/MarbleNet/
+         whisper-vad). **Fix: switch VadService to vadSlices().**
+      2. **Unsafe dispose** — it does `CrispASR(vadModelPath)` then
+         `.dispose()`; the ctor loads `modelPath` as a *whisper ctx*, so
+         `whisper_free` over a non-whisper ctx SIGABRTs (reproduced in
+         flutter_tester). Open the ctx on the ASR model and pass the VAD
+         model only to `vadSlices(modelPath:)`.
+      Confirm both against the app's actually-bundled dylib before
+      shipping a fix (the in-app lib may predate this behaviour).
+- [ ] Final orphan list recorded in `docs/PARITY.md`.
+
+### 9.6 New CrispASR capabilities to consider surfacing
+From CrispASR HISTORY (May–Jun 2026), not yet in CrisperWeaver:
+- [ ] Streaming token callbacks for LLM-based ASR backends (#157)
+- [ ] Wyoming protocol server (Home Assistant) (#172)
+- [ ] Local TTS speaker playback (#173)
+- [ ] Global-scope diarization (pyannote/sherpa) (#110)
+- [ ] Newer ASR backends: Paraformer-zh, SenseVoice (native LID/emotion)
+(Surface + test only if owner prioritises; otherwise leave tracked.)
