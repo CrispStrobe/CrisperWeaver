@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
@@ -10,8 +11,10 @@ import 'package:shelf/shelf_io.dart' as shelf_io;
 import 'package:shelf_router/shelf_router.dart';
 
 import '../engines/transcription_engine.dart';
-import '../main.dart' show transcriptionServiceProvider;
+import '../main.dart' show transcriptionServiceProvider, modelServiceProvider;
 import 'audio_service.dart';
+import 'audio_watermark_service.dart';
+import 'diarization_service.dart';
 import 'lid_service.dart';
 import 'log_service.dart';
 import 'punc_service.dart';
@@ -19,6 +22,7 @@ import 'text_translation_service.dart';
 import 'transcription_service.dart';
 import 'tts_service.dart';
 import 'vad_service.dart';
+import '../native/crispasr_import.dart' as crispasr;
 
 /// Local HTTP server exposing CrisperWeaver's services through an
 /// OpenAI-compatible surface. Three endpoints:
@@ -119,7 +123,9 @@ class ServerService {
       // Capability parity with the CLI (PLAN §9.4 / docs/PARITY.md):
       ..post('/v1/audio/vad', _handleVad)
       ..post('/v1/audio/language', _handleLanguage)
-      ..post('/v1/text/punctuate', _handlePunctuate);
+      ..post('/v1/text/punctuate', _handlePunctuate)
+      ..post('/v1/audio/diarize', _handleDiarize)
+      ..post('/v1/audio/watermark', _handleWatermark);
     return router;
   }
 
@@ -490,6 +496,100 @@ class ServerService {
         [TranscriptionSegment(text: text, startTime: 0, endTime: 0)]);
     return Response.ok(
       jsonEncode({'text': restored.isEmpty ? text : restored.first.text}),
+      headers: const {'content-type': 'application/json'},
+    );
+  }
+
+  /// Pull the raw `file` part bytes from a multipart upload (no decode).
+  /// Throws [FormatException] on a malformed request.
+  Future<_MultipartField> _uploadFilePart(Request request) async {
+    final contentType = request.headers['content-type'] ?? '';
+    if (!contentType.startsWith('multipart/form-data')) {
+      throw FormatException('expected multipart/form-data; got $contentType');
+    }
+    final boundary = _parseBoundary(contentType);
+    if (boundary == null) {
+      throw const FormatException('missing boundary in content-type');
+    }
+    final fields = await _parseMultipart(request.read(), boundary);
+    final filePart = fields['file'];
+    if (filePart == null || filePart.bytes == null) {
+      throw const FormatException('missing required field "file"');
+    }
+    return filePart;
+  }
+
+  /// Diarization: multipart `file` → transcribe (current engine) + label
+  /// speakers via pyannote → `{segments: [{start, end, speaker, text}]}`.
+  Future<Response> _handleDiarize(Request request) async {
+    _MultipartField part;
+    try {
+      part = await _uploadFilePart(request);
+    } on FormatException catch (e) {
+      return Response.badRequest(body: e.message);
+    }
+    final tx = ref.read(transcriptionServiceProvider);
+    if (tx.currentEngine == null) {
+      return Response.internalServerError(
+          body: 'no transcription engine loaded — pick a model in the app first');
+    }
+    final tempDir = await getTemporaryDirectory();
+    final ext = p.extension(part.filename ?? 'audio.wav');
+    final tempFile = File(p.join(tempDir.path,
+        'crispasr-server-diar-${DateTime.now().millisecondsSinceEpoch}$ext'));
+    await tempFile.writeAsBytes(part.bytes!);
+    try {
+      final audio = await ref.read(audioServiceProvider).loadAudioFile(tempFile);
+      final segments = await tx.transcribeFile(tempFile);
+      final diar = DiarizationService(
+          modelService: ref.read(modelServiceProvider));
+      final labelled = await diar.diarizeSegments(
+        audio,
+        segments,
+        method: crispasr.DiarizeMethod.pyannote,
+      );
+      return Response.ok(
+        jsonEncode({
+          'segments': [
+            for (final s in labelled)
+              {
+                'start': s.startTime,
+                'end': s.endTime,
+                'speaker': s.speaker,
+                'text': s.text,
+              }
+          ]
+        }),
+        headers: const {'content-type': 'application/json'},
+      );
+    } catch (e, st) {
+      Log.instance.e('server', 'diarize failed', error: e, stack: st);
+      return Response.internalServerError(body: 'diarize failed: $e');
+    } finally {
+      try {
+        await tempFile.delete();
+      } catch (_) {/* best-effort */}
+    }
+  }
+
+  /// Watermark detection: multipart `file` (a WAV) → `{watermarked,
+  /// synthetic, timestamp}` for CrisperWeaver's provenance watermark.
+  Future<Response> _handleWatermark(Request request) async {
+    _MultipartField part;
+    try {
+      part = await _uploadFilePart(request);
+    } on FormatException catch (e) {
+      return Response.badRequest(body: e.message);
+    }
+    final info = AudioWatermarkService.detectWatermark(
+        Uint8List.fromList(part.bytes!));
+    return Response.ok(
+      jsonEncode({
+        'watermarked': info != null,
+        if (info != null) 'synthetic': info.synthetic,
+        if (info != null)
+          'timestamp': info.timestamp.toUtc().toIso8601String(),
+      }),
       headers: const {'content-type': 'application/json'},
     );
   }

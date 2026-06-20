@@ -57,6 +57,30 @@ void main() {
       expect(r.body.toLowerCase(), contains('multipart'));
     });
 
+    test('diarize rejects a non-multipart request (400)', () async {
+      final r = await http.post(Uri.parse('$base/v1/audio/diarize'),
+          headers: {'content-type': 'application/json'}, body: '{}');
+      expect(r.statusCode, 400);
+      expect(r.body.toLowerCase(), contains('multipart'));
+    });
+
+    test('watermark rejects a non-multipart request (400)', () async {
+      final r = await http.post(Uri.parse('$base/v1/audio/watermark'),
+          headers: {'content-type': 'application/json'}, body: '{}');
+      expect(r.statusCode, 400);
+    });
+
+    test('watermark on a plain WAV reports watermarked:false (no model)',
+        () async {
+      final req =
+          http.MultipartRequest('POST', Uri.parse('$base/v1/audio/watermark'))
+            ..files
+                .add(await http.MultipartFile.fromPath('file', 'test/jfk.wav'));
+      final r = await http.Response.fromStream(await req.send());
+      expect(r.statusCode, 200);
+      expect(jsonDecode(r.body)['watermarked'], isFalse);
+    });
+
     test('an unknown route is 404', () async {
       final r = await http.get(Uri.parse('$base/v1/nope'));
       expect(r.statusCode, 404);
