@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import '../native/crispasr_import.dart' as crispasr;
+import '../native/vad_native_import.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
@@ -146,18 +147,18 @@ class VadService {
     final modelPath = await ensureModel(backend: backend);
     if (modelPath == null) return const [];
     try {
-      final model = crispasr.CrispASR(modelPath);
-      try {
-        return model.vad(
-          pcm,
-          modelPath: modelPath,
-          threshold: threshold,
-          minSpeechMs: minSpeechMs,
-          minSilenceMs: minSilenceMs,
-        );
-      } finally {
-        model.dispose();
-      }
+      // Call the unified VAD dispatcher (crispasr_vad_slices) directly — see
+      // vad_native.dart. The previous path constructed a CrispASR session on
+      // the VAD model, which (a) hit the legacy vad() entrypoint that returns
+      // -2 for Silero/whisper-vad and (b) SIGABRT'd on dispose because the
+      // ctor loaded a non-whisper model as a whisper context. (PLAN §9.5)
+      return vadSlicesNative(
+        modelPath,
+        pcm,
+        threshold: threshold,
+        minSpeechMs: minSpeechMs,
+        minSilenceMs: minSilenceMs,
+      );
     } catch (e, st) {
       Log.instance.w('vad', 'detectSpeechSpans failed', error: e, stack: st);
       return const [];
