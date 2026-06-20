@@ -64,6 +64,15 @@ abstract class _Base extends Command<int> {
     argParser.addOption('lib', help: 'Path to libcrispasr dylib/so.');
   }
   String? get lib => _resolveLib(argResults?['lib'] as String?);
+
+  /// A DynamicLibrary handle for the APIs that take one (TitaNet, SpeakerDB,
+  /// alignWords, diarizeSegments). null → the binding's default loader.
+  DynamicLibrary? get dylib {
+    final p = lib;
+    return p == null ? null : DynamicLibrary.open(p);
+  }
+
+  String _abs(String path) => File(path).absolute.path;
 }
 
 class _BackendsCmd extends _Base {
@@ -322,17 +331,230 @@ class _WatermarkCmd extends _Base {
   }
 }
 
+class _StreamCmd extends _Base {
+  _StreamCmd() {
+    argParser
+      ..addOption('model', abbr: 'm', help: 'ASR model.', mandatory: true)
+      ..addOption('language', abbr: 'l', help: 'Language hint.')
+      ..addOption('chunk-ms', help: 'Feed chunk size (ms).', defaultsTo: '1000');
+  }
+  @override
+  String get name => 'stream';
+  @override
+  String get description => 'Streaming transcription (rolling-window decode).';
+  @override
+  int run() {
+    final modelPath = _abs(argResults!['model'] as String);
+    final rest = argResults!.rest;
+    if (rest.isEmpty) usageException('Pass an audio file path.');
+    final audio = crispasr.decodeAudioFile(_abs(rest.first), libPath: lib);
+    final cr = crispasr.CrispASR(modelPath, libPath: lib);
+    try {
+      final session =
+          cr.openStream(language: argResults!['language'] as String?);
+      try {
+        final chunk =
+            int.parse(argResults!['chunk-ms'] as String) * 16; // 16 smp/ms @16k
+        final buf = StringBuffer();
+        for (var off = 0; off < audio.samples.length; off += chunk) {
+          final end = (off + chunk) < audio.samples.length
+              ? off + chunk
+              : audio.samples.length;
+          final u = session.feed(Float32List.sublistView(audio.samples, off, end));
+          if (u != null && u.text.trim().isNotEmpty) buf.write('${u.text.trim()} ');
+        }
+        final f = session.flush();
+        if (f != null && f.text.trim().isNotEmpty) buf.write(f.text.trim());
+        stdout.writeln(buf.toString().trim());
+      } finally {
+        session.close();
+      }
+    } finally {
+      cr.dispose();
+    }
+    return 0;
+  }
+}
+
+class _AlignCmd extends _Base {
+  _AlignCmd() {
+    argParser
+      ..addOption('model', abbr: 'm', help: 'Aligner GGUF (canary-ctc/wav2vec2).', mandatory: true)
+      ..addOption('text', help: 'Reference transcript to align.', mandatory: true);
+  }
+  @override
+  String get name => 'align';
+  @override
+  String get description => 'Forced-align a transcript to audio → per-word timings.';
+  @override
+  int run() {
+    final model = _abs(argResults!['model'] as String);
+    final text = argResults!['text'] as String;
+    final rest = argResults!.rest;
+    if (rest.isEmpty) usageException('Pass an audio file path.');
+    final audio = crispasr.decodeAudioFile(_abs(rest.first), libPath: lib);
+    final words = crispasr.alignWords(
+        alignerModel: model, transcript: text, pcm: audio.samples, lib: dylib);
+    for (final w in words) {
+      stdout.writeln(
+          '${w.start.toStringAsFixed(3)}\t${w.end.toStringAsFixed(3)}\t${w.text}');
+    }
+    return 0;
+  }
+}
+
+class _DiarizeCmd extends _Base {
+  _DiarizeCmd() {
+    argParser
+      ..addOption('model', abbr: 'm', help: 'ASR model (produces segments).', mandatory: true)
+      ..addOption('pyannote', help: 'pyannote-seg GGUF.', mandatory: true)
+      ..addOption('language', abbr: 'l', help: 'Language hint.');
+  }
+  @override
+  String get name => 'diarize';
+  @override
+  String get description => 'Transcribe + label speakers (pyannote).';
+  @override
+  int run() {
+    final asr = _abs(argResults!['model'] as String);
+    final pyannote = _abs(argResults!['pyannote'] as String);
+    final rest = argResults!.rest;
+    if (rest.isEmpty) usageException('Pass an audio file path.');
+    final audio = crispasr.decodeAudioFile(_abs(rest.first), libPath: lib);
+    final cr = crispasr.CrispASR(asr, libPath: lib);
+    try {
+      final segs = cr.transcribePcm(audio.samples,
+          options: crispasr.TranscribeOptions(
+              language: argResults!['language'] as String?, silent: true));
+      final dseg = segs
+          .map((s) => crispasr.DiarizeSegment(t0: s.start, t1: s.end))
+          .toList();
+      final ok = crispasr.diarizeSegments(
+        segs: dseg,
+        left: audio.samples,
+        isStereo: false,
+        method: crispasr.DiarizeMethod.pyannote,
+        pyannoteModelPath: pyannote,
+        lib: dylib,
+      );
+      if (!ok) {
+        stderr.writeln('diarization failed (pyannote model failed to load?)');
+        return 1;
+      }
+      for (var i = 0; i < segs.length; i++) {
+        final sp = dseg[i].speaker;
+        stdout.writeln('${dseg[i].t0.toStringAsFixed(3)}\t'
+            '${dseg[i].t1.toStringAsFixed(3)}\t'
+            'spk${sp >= 0 ? sp : '?'}\t${segs[i].text.trim()}');
+      }
+    } finally {
+      cr.dispose();
+    }
+    return 0;
+  }
+}
+
+class _SpeakerCmd extends _Base {
+  _SpeakerCmd() {
+    argParser
+      ..addOption('titanet', help: 'TitaNet speaker-embedding GGUF.', mandatory: true)
+      ..addOption('db', help: 'Speaker DB directory.', mandatory: true)
+      ..addOption('name', help: 'Speaker name (enroll mode).')
+      ..addOption('threshold', help: 'Match threshold.', defaultsTo: '0.7');
+  }
+  @override
+  String get name => 'speaker';
+  @override
+  String get description => 'Enroll/match a speaker: speaker <enroll|match> <audio>.';
+  @override
+  int run() {
+    final rest = argResults!.rest;
+    if (rest.length < 2) usageException('Usage: speaker <enroll|match> <audio>');
+    final action = rest[0];
+    if (action != 'enroll' && action != 'match') {
+      usageException('action must be "enroll" or "match"');
+    }
+    final dl = dylib;
+    if (dl == null) {
+      stderr.writeln('libcrispasr dylib not resolvable (pass --lib).');
+      return 1;
+    }
+    final audio = crispasr.decodeAudioFile(_abs(rest[1]), libPath: lib);
+    final titanet =
+        crispasr.CrispasrTitaNet(dl, _abs(argResults!['titanet'] as String));
+    try {
+      final emb = titanet.embed(audio.samples);
+      final db = crispasr.CrispasrSpeakerDB(dl, _abs(argResults!['db'] as String));
+      try {
+        if (action == 'enroll') {
+          final nm = argResults!['name'] as String?;
+          if (nm == null) usageException('--name required for enroll.');
+          final ok = db.enroll(nm, emb);
+          stdout.writeln(ok ? 'enrolled $nm' : 'enroll failed');
+          return ok ? 0 : 1;
+        }
+        final (matchName, score) = db.match(emb,
+            threshold: double.parse(argResults!['threshold'] as String));
+        stdout.writeln('${matchName ?? "(no match)"}\t${score.toStringAsFixed(3)}');
+        return 0;
+      } finally {
+        db.close();
+      }
+    } finally {
+      titanet.close();
+    }
+  }
+}
+
+class _S2sCmd extends _Base {
+  _S2sCmd() {
+    argParser
+      ..addOption('model', abbr: 'm', help: 'S2S model (lfm2-audio/mini-omni2).', mandatory: true)
+      ..addOption('backend', abbr: 'b', help: 'Backend name.')
+      ..addOption('out', abbr: 'o', help: 'Output WAV path.', mandatory: true)
+      ..addOption('rate', help: 'Output sample rate.', defaultsTo: '24000');
+  }
+  @override
+  String get name => 's2s';
+  @override
+  String get description => 'Speech-to-speech: audio in → audio out.';
+  @override
+  int run() {
+    final model = _abs(argResults!['model'] as String);
+    final rest = argResults!.rest;
+    if (rest.isEmpty) usageException('Pass an input audio file path.');
+    final audio = crispasr.decodeAudioFile(_abs(rest.first), libPath: lib);
+    final session = crispasr.CrispasrSession.open(model,
+        backend: argResults!['backend'] as String?, libPath: lib);
+    try {
+      final result = session.speechToSpeech(audio.samples);
+      File(argResults!['out'] as String).writeAsBytesSync(
+          _wav(result.pcm, int.parse(argResults!['rate'] as String)));
+      stdout.writeln('transcript: ${result.transcript}');
+      stdout.writeln('wrote ${result.pcm.length} samples -> ${argResults!['out']}');
+    } finally {
+      session.close();
+    }
+    return 0;
+  }
+}
+
 Future<void> main(List<String> args) async {
   final runner = CommandRunner<int>(
       'crisperweaver', 'Headless on-device speech engine (ASR/TTS/translate/'
-          'VAD/LID/punctuation/watermark).')
+          'VAD/LID/diarize/align/speaker/streaming/s2s/punctuation/watermark).')
     ..addCommand(_BackendsCmd())
     ..addCommand(_TranscribeCmd())
+    ..addCommand(_StreamCmd())
     ..addCommand(_VadCmd())
     ..addCommand(_LidCmd())
+    ..addCommand(_DiarizeCmd())
+    ..addCommand(_AlignCmd())
+    ..addCommand(_SpeakerCmd())
     ..addCommand(_PunctuateCmd())
     ..addCommand(_TranslateCmd())
     ..addCommand(_SynthesizeCmd())
+    ..addCommand(_S2sCmd())
     ..addCommand(_WatermarkCmd());
   try {
     final code = await runner.run(args) ?? 0;

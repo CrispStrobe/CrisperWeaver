@@ -25,11 +25,16 @@ void main() {
       for (final cmd in [
         'backends',
         'transcribe',
+        'stream',
         'vad',
         'lid',
+        'diarize',
+        'align',
+        'speaker',
         'punctuate',
         'translate',
         'synthesize',
+        's2s',
         'watermark',
       ]) {
         expect(out, contains(cmd), reason: 'help should list "$cmd"');
