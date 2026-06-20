@@ -278,7 +278,9 @@ void main() {
       //                consumes, not a standalone ASR model
       //   omniasr    — the bare prefix the dispatcher matches; the concrete
       //                omniasr-llm / -unlimited variants are catalogued
-      const engineOnly = {'whisper', 'canary-ctc', 'omniasr'};
+      //   omniasr-300m — engine dispatch alias for the omniasr-ctc-300m
+      //                model (catalogued under backend `omniasr`)
+      const engineOnly = {'whisper', 'canary-ctc', 'omniasr', 'omniasr-300m'};
 
       final catalogued = <String>{
         for (final m in ModelCatalog.crispasrBackendModels.values)

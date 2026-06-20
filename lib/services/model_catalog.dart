@@ -1018,6 +1018,20 @@ abstract final class ModelCatalog {
       quantization: 'q4_k',
       backend: 'omniasr-llm',
     ),
+    // Nemotron 3.5 — NVIDIA streaming ASR (cache-aware, 4 presets).
+    'nemotron-3.5-asr-streaming-0.6b-q4_k': ModelDefinition(
+      name: 'nemotron-3.5-asr-streaming-0.6b-q4_k',
+      displayName: 'Nemotron 3.5 ASR Streaming 0.6B (q4_k)',
+      fileName: 'nemotron-3.5-asr-streaming-0.6b-q4_k.gguf',
+      url:
+          'https://huggingface.co/cstr/nemotron-3.5-asr-streaming-0.6b-GGUF/resolve/main/nemotron-3.5-asr-streaming-0.6b-q4_k.gguf',
+      sizeBytes: 458 * 1024 * 1024,
+      checksum: '',
+      description: 'Nemotron 3.5 streaming ASR — ~458 MB',
+      quantization: 'q4_k',
+      backend: 'nemotron',
+      languages: langsAll,
+    ),
     // FunASR — Alibaba's compact ASR (Chinese + English). cstr/funasr-nano-GGUF
     // ships f16 + q4_k + q8_0; the BackendRepo below makes the HF probe
     // auto-discover any future iq2_xs sibling.
@@ -1309,6 +1323,53 @@ abstract final class ModelCatalog {
       backend: 'vibevoice-tts',
       kind: ModelKind.tts,
       companions: ['vibevoice-voice-emma'],
+    ),
+    // VibeVoice 1.5B — the larger TTS variant (distinct backend string
+    // from the realtime 0.5B `vibevoice-tts` above). Needs a voicepack.
+    'vibevoice-1.5b-tts-q4_k': ModelDefinition(
+      name: 'vibevoice-1.5b-tts-q4_k',
+      displayName: 'VibeVoice 1.5B TTS (q4_k)',
+      fileName: 'vibevoice-1.5b-tts-q4_k.gguf',
+      url:
+          'https://huggingface.co/cstr/vibevoice-1.5b-GGUF/resolve/main/vibevoice-1.5b-tts-q4_k.gguf',
+      sizeBytes: 1638 * 1024 * 1024,
+      checksum: '',
+      description: 'VibeVoice 1.5B TTS — needs a vibevoice-voice-*.gguf voicepack',
+      quantization: 'q4_k',
+      backend: 'vibevoice-1.5b',
+      kind: ModelKind.tts,
+      languages: langsVibevoiceTts10,
+      companions: ['vibevoice-voice-emma'],
+    ),
+    // TADA-3B-ML (HumeAI) — Llama-3.2-3B + flow matching + TADA codec.
+    // Heavy (f16 only): ~6.6 GB main + ~1 GB codec companion.
+    'tada-tts-3b-ml-f16': ModelDefinition(
+      name: 'tada-tts-3b-ml-f16',
+      displayName: 'TADA TTS 3B ML (f16)',
+      fileName: 'tada-tts-3b-ml-f16.gguf',
+      url:
+          'https://huggingface.co/cstr/tada-tts-3b-ml-GGUF/resolve/main/tada-tts-3b-ml-f16.gguf',
+      sizeBytes: 6758 * 1024 * 1024,
+      checksum: '',
+      description: 'TADA 3B multilingual TTS — needs the tada-codec-f16 codec',
+      quantization: 'f16',
+      backend: 'tada',
+      kind: ModelKind.tts,
+      languages: langsAll,
+      companions: ['tada-codec-f16'],
+    ),
+    'tada-codec-f16': ModelDefinition(
+      name: 'tada-codec-f16',
+      displayName: 'TADA codec (f16)',
+      fileName: 'tada-codec-f16.gguf',
+      url:
+          'https://huggingface.co/cstr/tada-tts-3b-ml-GGUF/resolve/main/tada-codec-f16.gguf',
+      sizeBytes: 1024 * 1024 * 1024,
+      checksum: '',
+      description: 'TADA TTS codec (load via setCodecPath)',
+      quantization: 'f16',
+      backend: 'tada',
+      kind: ModelKind.codec,
     ),
     'qwen3-tts-12hz-0.6b-base-q8_0': ModelDefinition(
       name: 'qwen3-tts-12hz-0.6b-base-q8_0',
@@ -2708,6 +2769,9 @@ abstract final class ModelCatalog {
       checksum: '',
       description: 'OmniASR CTC 300M — 1600+ languages, ~194 MB',
       quantization: 'q4_k',
+      // Backend stays `omniasr` (matches the omniasr-ctc BackendRepo). The
+      // engine also advertises a dispatch alias `omniasr-300m` for this
+      // model — that alias sits on the parity test's engineOnly set.
       backend: 'omniasr',
       kind: ModelKind.asr,
       languages: langsAll,
