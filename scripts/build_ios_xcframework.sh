@@ -384,17 +384,52 @@ combine() {
   rm -rf "$temp_dir"
   mkdir -p "$temp_dir"
 
-  # Combine all static libs into one archive using Apple's libtool,
-  # which handles duplicate .o basenames correctly (renames them
-  # internally). The previous ar-based dedup dropped same-named .o
-  # files from different libraries (e.g. nemotron.o from libnemotron.a
-  # vs nemotron.o from libcrispasr-llama-core.a), causing undefined
-  # symbols at the final link.
-  local lib_args=()
+  # Extract .o files from each static lib into per-lib subdirs, then
+  # dedup. Two constraints:
+  #  1. Same-named .o from DIFFERENT libs (e.g. nemotron.o from
+  #     libnemotron.a vs libcrispasr-llama-core.a) must BOTH be kept
+  #     — they define different symbols.
+  #  2. Same-named .o from libs that re-export the SAME symbols (e.g.
+  #     ggml symbols appearing in libggml.a and libggml-base.a) must
+  #     be deduped to avoid duplicate-symbol link errors.
+  #
+  # Strategy: extract into per-lib dirs (prefix avoids cross-lib
+  # collision), then dedup by file content hash so only truly identical
+  # .o files collapse. Different .o files with the same basename from
+  # different libs survive.
+  local extract_dir="${temp_dir}/extract"
+  mkdir -p "$extract_dir"
+  local i=0
   for lib in "${libs[@]}"; do
-    [[ -f "$lib" ]] && lib_args+=("$lib")
+    [[ -f "$lib" ]] || continue
+    local sub="$extract_dir/$(printf '%03d' $i)_$(basename "$lib" .a)"
+    mkdir -p "$sub"
+    (cd "$sub" && ar -x "$lib") 2>/dev/null
+    i=$((i+1))
   done
-  xcrun libtool -static -o "${temp_dir}/combined.a" "${lib_args[@]}" 2>/dev/null
+
+  local dedup_dir="${temp_dir}/dedup"
+  mkdir -p "$dedup_dir"
+  # Dedup by content hash: rename each .o to <lib-prefix>__<basename>
+  # so cross-lib files never collide, then skip files whose md5
+  # matches one already copied (catches ggml duplicates that appear
+  # in multiple archives with the same content).
+  local seen_file="${temp_dir}/seen_hashes.txt"
+  : > "$seen_file"
+  while IFS= read -r obj; do
+    local subdir_name
+    subdir_name="$(basename "$(dirname "$obj")")"
+    local prefixed="${subdir_name}__$(basename "$obj")"
+    local hash
+    hash="$(md5 -q "$obj" 2>/dev/null || md5sum "$obj" 2>/dev/null | cut -d' ' -f1)" || hash="$prefixed"
+    if ! grep -qxF "$hash" "$seen_file" 2>/dev/null; then
+      echo "$hash" >> "$seen_file"
+      cp "$obj" "$dedup_dir/$prefixed"
+    fi
+  done < <(find "$extract_dir" -name "*.o" -print | sort)
+
+  ar -rcs "${temp_dir}/combined.a" "$dedup_dir"/*.o 2>/dev/null
+  rm -rf "$extract_dir" "$dedup_dir"
 
   local arch_flags=""
   for a in $archs; do arch_flags+=" -arch $a"; done
