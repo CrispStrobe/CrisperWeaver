@@ -354,9 +354,17 @@ combine() {
     "${plat_dir}/ggml/src/ggml-metal/${release_dir}/libggml-metal.a"
     "${plat_dir}/ggml/src/ggml-blas/${release_dir}/libggml-blas.a"
   )
+  # Recurse into src/ so nested targets (nemotron, truecaser_lstm, etc.)
+  # are picked up regardless of whether the Xcode generator places them
+  # at maxdepth 1 or in a subdirectory.
   while IFS= read -r -d '' lib; do
     libs+=("$lib")
-  done < <(find "${plat_dir}/src/${release_dir}" -maxdepth 1 -name 'lib*.a' -print0)
+  done < <(find "${plat_dir}/src/${release_dir}" -name 'lib*.a' -print0 2>/dev/null)
+  # Xcode sometimes places targets under Build/Products/ at the project
+  # root rather than under src/. Catch those too.
+  while IFS= read -r -d '' lib; do
+    libs+=("$lib")
+  done < <(find "${plat_dir}/Build/Products/${release_dir}" -name 'lib*.a' -print0 2>/dev/null)
   # crisp_audio is its own subdir (not under src/). qwen3_asr +
   # voxtral both call into it via crisp_audio_compute_mel etc.
   if [[ -f "${plat_dir}/crisp_audio/${release_dir}/libcrisp_audio.a" ]]; then
@@ -369,7 +377,7 @@ combine() {
   for subdir in crisp_punc crisp_lid; do
     while IFS= read -r -d '' lib; do
       libs+=("$lib")
-    done < <(find "${plat_dir}/${subdir}/${release_dir}" -maxdepth 1 -name 'lib*.a' -print0 2>/dev/null)
+    done < <(find "${plat_dir}/${subdir}" -name 'lib*.a' -print0 2>/dev/null)
   done
   # espeak-ng + ucd (when ESPEAK_NG=1): kokoro.a was compiled with
   # CRISPASR_HAVE_ESPEAK_NG=1 and now references espeak_* / ucd_* symbols.
