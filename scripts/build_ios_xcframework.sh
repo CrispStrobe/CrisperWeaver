@@ -384,38 +384,17 @@ combine() {
   rm -rf "$temp_dir"
   mkdir -p "$temp_dir"
 
-  # Dedup .o objects across libs. moonshine + moonshine_streaming
-  # both ship their own copy of moonshine-tokenizer.o; libtool's plain
-  # `-static -o combined.a lib*.a` would let both through and the
-  # subsequent `clang++ -dynamiclib -force_load combined.a` errors out
-  # with "duplicate symbol". We extract .o files into per-lib subdirs
-  # to keep names like crispasr_c_api.o (which appear in libcrispasr
-  # AND libcrispasr-core) unique by directory, then dedup by basename
-  # taking the FIRST occurrence (libs earlier in the list win — order
-  # matters: libcrispasr.a before per-backend libs so the C-ABI's
-  # crispasr_session_open dispatch wins over duplicates).
-  local extract_dir="${temp_dir}/extract"
-  mkdir -p "$extract_dir"
-  local i=0
+  # Combine all static libs into one archive using Apple's libtool,
+  # which handles duplicate .o basenames correctly (renames them
+  # internally). The previous ar-based dedup dropped same-named .o
+  # files from different libraries (e.g. nemotron.o from libnemotron.a
+  # vs nemotron.o from libcrispasr-llama-core.a), causing undefined
+  # symbols at the final link.
+  local lib_args=()
   for lib in "${libs[@]}"; do
-    [[ -f "$lib" ]] || continue
-    local sub="$extract_dir/$(printf '%03d' $i)_$(basename "$lib" .a)"
-    mkdir -p "$sub"
-    (cd "$sub" && ar -x "$lib")
-    i=$((i+1))
+    [[ -f "$lib" ]] && lib_args+=("$lib")
   done
-
-  local dedup_dir="${temp_dir}/dedup"
-  mkdir -p "$dedup_dir"
-  # Iterate in lexical order on the per-lib subdirs (000_, 001_, …) so
-  # the FIRST library's copy of any given .o wins.
-  find "$extract_dir" -name "*.o" -print | sort | while read obj; do
-    base=$(basename "$obj")
-    [[ -f "$dedup_dir/$base" ]] || cp "$obj" "$dedup_dir/$base"
-  done
-
-  ar -rcs "${temp_dir}/combined.a" "$dedup_dir"/*.o 2>/dev/null
-  rm -rf "$extract_dir" "$dedup_dir"
+  xcrun libtool -static -o "${temp_dir}/combined.a" "${lib_args[@]}" 2>/dev/null
 
   local arch_flags=""
   for a in $archs; do arch_flags+=" -arch $a"; done
