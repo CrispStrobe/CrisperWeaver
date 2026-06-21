@@ -354,31 +354,23 @@ combine() {
     "${plat_dir}/ggml/src/ggml-metal/${release_dir}/libggml-metal.a"
     "${plat_dir}/ggml/src/ggml-blas/${release_dir}/libggml-blas.a"
   )
-  # Recurse into src/ so nested targets (nemotron, truecaser_lstm, etc.)
-  # are picked up regardless of whether the Xcode generator places them
-  # at maxdepth 1 or in a subdirectory.
+  # Recurse into the entire build tree to find ALL static libs. The Xcode
+  # generator (-G Xcode) places per-target .a files in deep nested paths
+  # like src/crispasr.build/Release-iphoneos/<target>.build/... rather
+  # than flat under src/Release-iphoneos/. A broad find catches everything
+  # regardless of generator layout.
+  echo "    scanning ${plat_dir} for lib*.a ..."
   while IFS= read -r -d '' lib; do
     libs+=("$lib")
-  done < <(find "${plat_dir}/src/${release_dir}" -name 'lib*.a' -print0 2>/dev/null)
-  # Xcode sometimes places targets under Build/Products/ at the project
-  # root rather than under src/. Catch those too.
-  while IFS= read -r -d '' lib; do
-    libs+=("$lib")
-  done < <(find "${plat_dir}/Build/Products/${release_dir}" -name 'lib*.a' -print0 2>/dev/null)
+  done < <(find "${plat_dir}" -name 'lib*.a' -not -path '*/temp/*' -not -path '*/dedup/*' -print0 2>/dev/null)
+  echo "    found ${#libs[@]} static libraries"
   # crisp_audio is its own subdir (not under src/). qwen3_asr +
   # voxtral both call into it via crisp_audio_compute_mel etc.
   if [[ -f "${plat_dir}/crisp_audio/${release_dir}/libcrisp_audio.a" ]]; then
     libs+=("${plat_dir}/crisp_audio/${release_dir}/libcrisp_audio.a")
   fi
-  # crisp_punc (fireredpunc, pcs, truecaser variants) and crisp_lid
-  # (text_lid) are their own cmake subdirectories. Without these the
-  # framework link fails with undefined fireredpunc_*/pcs_*/text_lid_*
-  # symbols. Glob both so new targets get picked up automatically.
-  for subdir in crisp_punc crisp_lid; do
-    while IFS= read -r -d '' lib; do
-      libs+=("$lib")
-    done < <(find "${plat_dir}/${subdir}" -name 'lib*.a' -print0 2>/dev/null)
-  done
+  # The broad find above already covers crisp_punc/, crisp_lid/, and
+  # any other cmake subdirectories.
   # espeak-ng + ucd (when ESPEAK_NG=1): kokoro.a was compiled with
   # CRISPASR_HAVE_ESPEAK_NG=1 and now references espeak_* / ucd_* symbols.
   # Force-load both so they resolve in the framework. Built for the slice
