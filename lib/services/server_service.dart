@@ -12,6 +12,7 @@ import 'package:shelf_router/shelf_router.dart';
 
 import '../engines/transcription_engine.dart';
 import '../main.dart' show transcriptionServiceProvider, modelServiceProvider;
+import 'aligner_service.dart';
 import 'audio_service.dart';
 import 'audio_watermark_service.dart';
 import 'diarization_service.dart';
@@ -74,10 +75,39 @@ class ServerService {
         .addMiddleware(_logRequests())
         .addHandler(router.call);
     try {
-      _server = await shelf_io.serve(handler, host, port);
-      _boundUrl = 'http://${_server!.address.host}:${_server!.port}';
+      // Bind the raw HttpServer ourselves so we can intercept WebSocket
+      // upgrade requests before shelf sees them. Shelf doesn't natively
+      // support WebSocket upgrades, so we handle /v1/audio/stream here
+      // and forward everything else to the shelf handler.
+      final rawServer = await HttpServer.bind(host, port);
+      _server = rawServer;
+      _boundUrl = 'http://${rawServer.address.host}:${rawServer.port}';
+
+      rawServer.listen((HttpRequest request) async {
+        final path = request.uri.path;
+        // WebSocket streaming endpoint — intercept before shelf.
+        if (path == '/v1/audio/stream' &&
+            WebSocketTransformer.isUpgradeRequest(request)) {
+          try {
+            final ws = await WebSocketTransformer.upgrade(request);
+            _handleWebSocketStream(ws);
+          } catch (e, st) {
+            Log.instance.e('server', 'WebSocket upgrade failed',
+                error: e, stack: st);
+            request.response
+              ..statusCode = 500
+              ..write('WebSocket upgrade failed: $e')
+              ..close();
+          }
+          return;
+        }
+        // Everything else → shelf handler.
+        shelf_io.handleRequest(request, handler);
+      });
+
       Log.instance.i('server', 'started', fields: {
         'url': _boundUrl,
+        'ws': '${_boundUrl!.replaceFirst('http', 'ws')}/v1/audio/stream',
       });
       return _boundUrl!;
     } catch (e, st) {
@@ -117,6 +147,7 @@ class ServerService {
   Router _buildRouter() {
     final router = Router()
       ..get('/health', _handleHealth)
+      ..get('/backends', _handleBackends)
       ..post('/v1/audio/transcriptions', _handleTranscriptions)
       ..post('/v1/audio/speech', _handleSpeech)
       ..post('/v1/translations', _handleTranslations)
@@ -125,7 +156,11 @@ class ServerService {
       ..post('/v1/audio/language', _handleLanguage)
       ..post('/v1/text/punctuate', _handlePunctuate)
       ..post('/v1/audio/diarize', _handleDiarize)
-      ..post('/v1/audio/watermark', _handleWatermark);
+      ..post('/v1/audio/watermark', _handleWatermark)
+      ..post('/v1/audio/align', _handleAlign)
+      ..post('/v1/text/language', _handleTextLanguage)
+      ..post('/v1/audio/denoise', _handleDenoise)
+      ..post('/v1/audio/s2s', _handleS2s);
     return router;
   }
 
@@ -140,6 +175,14 @@ class ServerService {
             .currentEngine
             ?.currentModelId,
       }),
+      headers: const {'content-type': 'application/json'},
+    );
+  }
+
+  Response _handleBackends(Request _) {
+    final backends = crispasr.CrispasrSession.availableBackends();
+    return Response.ok(
+      jsonEncode({'backends': backends}),
       headers: const {'content-type': 'application/json'},
     );
   }
@@ -191,6 +234,25 @@ class ServerService {
 
     final language = fields['language']?.value;
     final responseFormat = fields['response_format']?.value ?? 'json';
+    final alignerModel = fields['aligner']?.value;
+    final wordTimestamps =
+        fields['word_timestamps']?.value?.toLowerCase() == 'true';
+    final temperature =
+        double.tryParse(fields['temperature']?.value ?? '') ?? 0.0;
+    final bestOf =
+        int.tryParse(fields['best_of']?.value ?? '') ?? 1;
+    final initialPrompt = fields['prompt']?.value ?? fields['initial_prompt']?.value;
+    final hotwords = fields['hotwords']?.value ?? '';
+    final hotwordsBoost =
+        double.tryParse(fields['hotwords_boost']?.value ?? '') ?? 1.5;
+    final translate =
+        fields['translate']?.value?.toLowerCase() == 'true';
+    final vad = fields['vad']?.value?.toLowerCase() == 'true';
+    final diarize = fields['diarize']?.value?.toLowerCase() == 'true';
+    final restorePunctuation =
+        fields['punctuation']?.value?.toLowerCase() == 'true';
+    final askPrompt = fields['ask']?.value ?? fields['ask_prompt']?.value;
+    final targetLanguage = fields['target_language']?.value;
 
     final tx = ref.read(transcriptionServiceProvider);
     if (tx.currentEngine == null) {
@@ -203,6 +265,21 @@ class ServerService {
       segments = await tx.transcribeFile(
         tempFile,
         language: language,
+        enableWordTimestamps: wordTimestamps,
+        enableDiarization: diarize,
+        translate: translate,
+        initialPrompt: initialPrompt,
+        vad: vad,
+        restorePunctuation: restorePunctuation,
+        temperature: temperature,
+        bestOf: bestOf,
+        askPrompt: askPrompt,
+        targetLanguage: targetLanguage,
+        advanced: AdvancedTranscribeOptions(
+          alignerModel: alignerModel,
+          hotwords: hotwords,
+          hotwordsBoost: hotwordsBoost,
+        ),
       );
     } catch (e, st) {
       Log.instance
@@ -299,24 +376,70 @@ class ServerService {
 
   String _vttTime(double t) => _srtTime(t).replaceFirst(',', '.');
 
-  /// OpenAI-compatible TTS endpoint. JSON body — `{model, input,
-  /// voice, response_format, speed}`. Returns audio bytes (WAV today;
-  /// `response_format` only routes content-type, the underlying PCM
-  /// is always 24 kHz mono float32 from CrispASR).
+  /// OpenAI-compatible TTS endpoint.
+  ///
+  /// Accepts **either** a JSON body `{model, input, voice, speed}` or a
+  /// **multipart/form-data** upload with the same fields plus an optional
+  /// `voice_file` part (a WAV/FLAC/MP3 reference for voice cloning).
+  /// When `voice_file` is present it's saved to a temp path and passed
+  /// to `tts.prepare(voiceName: tempPath)`.
+  ///
+  /// Returns audio bytes (WAV); `response_format` only routes content-
+  /// type — the underlying PCM is always 24 kHz mono float32 from
+  /// CrispASR.
   Future<Response> _handleSpeech(Request request) async {
-    final body = await request.readAsString();
-    Map<String, dynamic> args;
-    try {
-      args = jsonDecode(body) as Map<String, dynamic>;
-    } catch (e) {
-      return Response.badRequest(body: 'invalid JSON: $e');
+    final contentType = request.headers['content-type'] ?? '';
+
+    String? input;
+    String? voice;
+    String? modelName;
+    bool spokenDisclaimer = true;
+    double speed = 1.0;
+    File? voiceTempFile;
+
+    if (contentType.startsWith('multipart/form-data')) {
+      // Multipart: supports voice-clone file upload.
+      final boundary = _parseBoundary(contentType);
+      if (boundary == null) {
+        return Response.badRequest(body: 'missing boundary in content-type');
+      }
+      final fields = await _parseMultipart(request.read(), boundary);
+      input = fields['input']?.value;
+      voice = fields['voice']?.value;
+      modelName = fields['model']?.value;
+      spokenDisclaimer =
+          fields['spoken_disclaimer']?.value?.toLowerCase() != 'false';
+      speed = (double.tryParse(fields['speed']?.value ?? '') ?? 1.0)
+          .clamp(0.25, 4.0)
+          .toDouble();
+      // Voice-clone reference file.
+      final voicePart = fields['voice_file'];
+      if (voicePart != null && voicePart.bytes != null) {
+        final tempDir = await getTemporaryDirectory();
+        final ext = p.extension(voicePart.filename ?? 'voice.wav');
+        voiceTempFile = File(p.join(tempDir.path,
+            'crispasr-server-voice-${DateTime.now().millisecondsSinceEpoch}$ext'));
+        await voiceTempFile.writeAsBytes(voicePart.bytes!);
+        // Use the temp file path as the voice reference.
+        voice = voiceTempFile.path;
+      }
+    } else {
+      // JSON body (original path).
+      final body = await request.readAsString();
+      Map<String, dynamic> args;
+      try {
+        args = jsonDecode(body) as Map<String, dynamic>;
+      } catch (e) {
+        return Response.badRequest(body: 'invalid JSON: $e');
+      }
+      input = args['input'] as String?;
+      voice = args['voice'] as String?;
+      modelName = args['model'] as String?;
+      spokenDisclaimer = args['spoken_disclaimer'] as bool? ?? true;
+      speed = ((args['speed'] as num?)?.toDouble() ?? 1.0)
+          .clamp(0.25, 4.0)
+          .toDouble();
     }
-    final input = args['input'] as String?;
-    final voice = args['voice'] as String?;
-    final modelName = args['model'] as String?;
-    final spokenDisclaimer = args['spoken_disclaimer'] as bool? ?? true;
-    final speed =
-        ((args['speed'] as num?)?.toDouble() ?? 1.0).clamp(0.25, 4.0).toDouble();
     Log.instance.i('server', 'tts request', fields: {
       'model': modelName ?? '',
       'voice': voice ?? '',
@@ -324,6 +447,9 @@ class ServerService {
       'speed': speed,
     });
     if (input == null || input.trim().isEmpty || modelName == null) {
+      if (voiceTempFile != null) {
+        try { await voiceTempFile.delete(); } catch (_) {}
+      }
       return Response.badRequest(
         body: 'missing required fields: model + input',
       );
@@ -334,30 +460,39 @@ class ServerService {
       voiceName: voice,
     );
     if (!status.ready) {
+      if (voiceTempFile != null) {
+        try { await voiceTempFile.delete(); } catch (_) {}
+      }
       return Response.internalServerError(
         body: 'tts.prepare failed: '
             '${status.errorMessage ?? status.missingModelName ?? status.missingVoiceName ?? "unknown"}',
       );
     }
-    SynthesizedAudio? audio;
     try {
-      audio = await tts.synthesize(input, speed: speed);
-    } catch (e) {
-      return Response.internalServerError(body: 'synthesize failed: $e');
+      SynthesizedAudio? audio;
+      try {
+        audio = await tts.synthesize(input, speed: speed);
+      } catch (e) {
+        return Response.internalServerError(body: 'synthesize failed: $e');
+      }
+      if (audio == null) {
+        return Response.internalServerError(body: 'synthesize returned null');
+      }
+      final wav = await tts.writeWav(
+        audio,
+        voiceRefPath: voice,
+        spokenDisclaimer: spokenDisclaimer,
+      );
+      final bytes = await wav.readAsBytes();
+      return Response.ok(bytes, headers: const {
+        'content-type': 'audio/wav',
+        'x-content-ai-generated': 'true',
+      });
+    } finally {
+      if (voiceTempFile != null) {
+        try { await voiceTempFile.delete(); } catch (_) {}
+      }
     }
-    if (audio == null) {
-      return Response.internalServerError(body: 'synthesize returned null');
-    }
-    final wav = await tts.writeWav(
-      audio,
-      voiceRefPath: voice,
-      spokenDisclaimer: spokenDisclaimer,
-    );
-    final bytes = await wav.readAsBytes();
-    return Response.ok(bytes, headers: const {
-      'content-type': 'audio/wav',
-      'x-content-ai-generated': 'true',
-    });
   }
 
   /// Text-to-text translation. JSON `{model, text, src, tgt, max_tokens}`.
@@ -572,17 +707,55 @@ class ServerService {
     }
   }
 
-  /// Watermark detection: multipart `file` (a WAV) → `{watermarked,
-  /// synthetic, timestamp}` for CrisperWeaver's provenance watermark.
+  /// Watermark detect or embed: multipart `file` (a WAV) + optional
+  /// `mode` field (`detect` [default] or `embed`).
+  ///
+  /// Detect → `{watermarked, synthetic, timestamp}` JSON.
+  /// Embed → watermarked WAV binary response.
   Future<Response> _handleWatermark(Request request) async {
-    _MultipartField part;
-    try {
-      part = await _uploadFilePart(request);
-    } on FormatException catch (e) {
-      return Response.badRequest(body: e.message);
+    final contentType = request.headers['content-type'] ?? '';
+    if (!contentType.startsWith('multipart/form-data')) {
+      return Response.badRequest(
+          body: 'expected multipart/form-data; got $contentType');
     }
+    final boundary = _parseBoundary(contentType);
+    if (boundary == null) {
+      return Response.badRequest(body: 'missing boundary in content-type');
+    }
+    final fields = await _parseMultipart(request.read(), boundary);
+    final filePart = fields['file'];
+    if (filePart == null || filePart.bytes == null) {
+      return Response.badRequest(body: 'missing required field "file"');
+    }
+    final mode = fields['mode']?.value ?? 'detect';
+
+    if (mode == 'embed') {
+      // Decode audio to get PCM + sample rate.
+      final tempDir = await getTemporaryDirectory();
+      final ext = p.extension(filePart.filename ?? 'audio.wav');
+      final tempFile = File(p.join(tempDir.path,
+          'crispasr-server-wm-${DateTime.now().millisecondsSinceEpoch}$ext'));
+      await tempFile.writeAsBytes(filePart.bytes!);
+      AudioData audio;
+      try {
+        audio =
+            await ref.read(audioServiceProvider).loadAudioFile(tempFile);
+      } catch (e) {
+        return Response.badRequest(body: 'audio decode failed: $e');
+      } finally {
+        try { await tempFile.delete(); } catch (_) {}
+      }
+      final wm = crispasr.CrispasrWatermark.embed(
+          audio.samples, alpha: 0.1);
+      return Response.ok(_wavBytes(wm, audio.sampleRate), headers: const {
+        'content-type': 'audio/wav',
+        'x-content-ai-generated': 'true',
+      });
+    }
+
+    // Default: detect mode.
     final info = AudioWatermarkService.detectWatermark(
-        Uint8List.fromList(part.bytes!));
+        Uint8List.fromList(filePart.bytes!));
     return Response.ok(
       jsonEncode({
         'watermarked': info != null,
@@ -592,6 +765,356 @@ class ServerService {
       }),
       headers: const {'content-type': 'application/json'},
     );
+  }
+
+  /// Forced alignment: multipart `file` (audio) + `text` (transcript) →
+  /// `{words: [{word, start, end}]}`. Optional `language` field picks a
+  /// language-matched wav2vec2 aligner; optional `model` overrides.
+  Future<Response> _handleAlign(Request request) async {
+    final contentType = request.headers['content-type'] ?? '';
+    if (!contentType.startsWith('multipart/form-data')) {
+      return Response.badRequest(
+          body: 'expected multipart/form-data; got $contentType');
+    }
+    final boundary = _parseBoundary(contentType);
+    if (boundary == null) {
+      return Response.badRequest(body: 'missing boundary in content-type');
+    }
+    final fields = await _parseMultipart(request.read(), boundary);
+    final filePart = fields['file'];
+    if (filePart == null || filePart.bytes == null) {
+      return Response.badRequest(body: 'missing required field "file"');
+    }
+    final text = fields['text']?.value;
+    if (text == null || text.trim().isEmpty) {
+      return Response.badRequest(body: 'missing required field "text"');
+    }
+    final language = fields['language']?.value;
+    final modelOverride = fields['model']?.value;
+
+    // Decode to 16 kHz mono PCM.
+    final tempDir = await getTemporaryDirectory();
+    final ext = p.extension(filePart.filename ?? 'audio.wav');
+    final tempFile = File(p.join(tempDir.path,
+        'crispasr-server-align-${DateTime.now().millisecondsSinceEpoch}$ext'));
+    await tempFile.writeAsBytes(filePart.bytes!);
+    Float32List pcm;
+    try {
+      final audio =
+          await ref.read(audioServiceProvider).loadAudioFile(tempFile);
+      pcm = audio.samples;
+    } catch (e) {
+      return Response.badRequest(body: 'audio decode failed: $e');
+    } finally {
+      try {
+        await tempFile.delete();
+      } catch (_) {}
+    }
+
+    // Find aligner.
+    final aligner = ref.read(alignerServiceProvider);
+    final alignerPath = await aligner.findAligner(
+        language: language, explicit: modelOverride);
+    if (alignerPath == null) {
+      return Response.internalServerError(
+          body: 'no aligner model available — download canary-ctc-aligner '
+              'or a wav2vec2 aligner via Model Management');
+    }
+
+    List<crispasr.AlignedWord> words;
+    try {
+      words = crispasr.alignWords(
+          alignerModel: alignerPath, transcript: text, pcm: pcm);
+    } catch (e) {
+      return Response.internalServerError(body: 'alignment failed: $e');
+    }
+    return Response.ok(
+      jsonEncode({
+        'words': words
+            .map((w) => {
+                  'word': w.text,
+                  'start': w.start,
+                  'end': w.end,
+                })
+            .toList(),
+      }),
+      headers: const {'content-type': 'application/json'},
+    );
+  }
+
+  /// Text language identification: JSON `{text, model?}` → `{language}`.
+  /// Uses the text-LID dispatcher (CLD3/GlotLID/FastText-176).
+  Future<Response> _handleTextLanguage(Request request) async {
+    Map<String, dynamic> args;
+    try {
+      args = jsonDecode(await request.readAsString()) as Map<String, dynamic>;
+    } catch (e) {
+      return Response.badRequest(body: 'invalid JSON: $e');
+    }
+    final text = args['text'] as String?;
+    if (text == null || text.trim().isEmpty) {
+      return Response.badRequest(body: 'missing required field: text');
+    }
+    final modelPath = args['model'] as String?;
+
+    // Try to find a text-LID model (CLD3 / GlotLID / FastText-176).
+    final ms = ref.read(modelServiceProvider);
+    await ms.initialize();
+    final modelsDir = ms.whisperCppDir();
+
+    // Scan for text-LID GGUFs in priority order.
+    String? lidModel = modelPath;
+    if (lidModel == null) {
+      const candidates = [
+        'cld3-f16.gguf',
+        'cld3-f32.gguf',
+        'glotlid-f16.gguf',
+        'fasttext-lid176-f16.gguf',
+      ];
+      for (final c in candidates) {
+        final f = File(p.join(modelsDir, c));
+        if (f.existsSync()) {
+          lidModel = f.path;
+          break;
+        }
+      }
+    }
+    if (lidModel == null) {
+      return Response.internalServerError(
+          body: 'no text-LID model available — download CLD3, GlotLID, '
+              'or FastText-176 via Model Management');
+    }
+
+    crispasr.TextLanguage? result;
+    try {
+      result = crispasr.detectTextLanguage(text, lidModel);
+    } catch (e) {
+      return Response.internalServerError(
+          body: 'text language detection failed: $e');
+    }
+    if (result == null) {
+      return Response.internalServerError(
+          body: 'text-LID returned no result');
+    }
+    return Response.ok(
+        jsonEncode({
+          'language': result.code,
+          'confidence': result.confidence,
+        }),
+        headers: const {'content-type': 'application/json'});
+  }
+
+  /// Denoise: multipart `file` → denoised WAV via RNNoise.
+  Future<Response> _handleDenoise(Request request) async {
+    AudioData audio;
+    try {
+      audio = await _decodeUpload(request);
+    } on FormatException catch (e) {
+      return Response.badRequest(body: e.message);
+    } catch (e) {
+      return Response.badRequest(body: 'audio decode failed: $e');
+    }
+    Float32List enhanced;
+    try {
+      enhanced = crispasr.enhanceAudioRnnoise(audio.samples);
+    } catch (e) {
+      return Response.internalServerError(body: 'denoise failed: $e');
+    }
+    return Response.ok(_wavBytes(enhanced, audio.sampleRate), headers: const {
+      'content-type': 'audio/wav',
+    });
+  }
+
+  /// Speech-to-speech: multipart `file` (input audio) + optional
+  /// `model` (TTS backend) → synthesised WAV response.
+  Future<Response> _handleS2s(Request request) async {
+    final contentType = request.headers['content-type'] ?? '';
+    if (!contentType.startsWith('multipart/form-data')) {
+      return Response.badRequest(
+          body: 'expected multipart/form-data; got $contentType');
+    }
+    final boundary = _parseBoundary(contentType);
+    if (boundary == null) {
+      return Response.badRequest(body: 'missing boundary in content-type');
+    }
+    final fields = await _parseMultipart(request.read(), boundary);
+    final filePart = fields['file'];
+    if (filePart == null || filePart.bytes == null) {
+      return Response.badRequest(body: 'missing required field "file"');
+    }
+    final modelName = fields['model']?.value;
+
+    // Decode input audio to 16 kHz mono PCM.
+    final tempDir = await getTemporaryDirectory();
+    final ext = p.extension(filePart.filename ?? 'audio.wav');
+    final tempFile = File(p.join(tempDir.path,
+        'crispasr-server-s2s-${DateTime.now().millisecondsSinceEpoch}$ext'));
+    await tempFile.writeAsBytes(filePart.bytes!);
+    Float32List pcm;
+    try {
+      final audio =
+          await ref.read(audioServiceProvider).loadAudioFile(tempFile);
+      pcm = audio.samples;
+    } catch (e) {
+      return Response.badRequest(body: 'audio decode failed: $e');
+    } finally {
+      try {
+        await tempFile.delete();
+      } catch (_) {}
+    }
+
+    final tts = ref.read(ttsServiceProvider);
+    if (modelName != null) {
+      final status = await tts.prepare(modelName: modelName);
+      if (!status.ready) {
+        return Response.internalServerError(
+            body: 'tts.prepare failed for s2s: '
+                '${status.errorMessage ?? "unknown"}');
+      }
+    }
+    SynthesizedAudio? result;
+    try {
+      result = await tts.speechToSpeech(pcm);
+    } catch (e) {
+      return Response.internalServerError(
+          body: 'speech-to-speech failed: $e');
+    }
+    if (result == null) {
+      return Response.internalServerError(
+          body: 'speech-to-speech returned null — no S2S-capable model '
+              'loaded (requires lfm2-audio or mini-omni2)');
+    }
+    final wav = await tts.writeWav(result);
+    final bytes = await wav.readAsBytes();
+    return Response.ok(bytes, headers: const {
+      'content-type': 'audio/wav',
+      'x-content-ai-generated': 'true',
+    });
+  }
+
+  /// WebSocket streaming transcription handler.
+  ///
+  /// Protocol (mirrors CrispASR's `/ws` surface):
+  ///  1. Client sends a JSON config message: `{"language":"en", ...}`.
+  ///  2. Client sends binary PCM frames (16-bit LE mono 16 kHz).
+  ///  3. Server pushes JSON `{"text":"...", "start":0.0, "end":1.5}`
+  ///     for each committed segment.
+  ///  4. Client closes the socket; server flushes and sends a final
+  ///     `{"text":"...", "final":true}` before closing its end.
+  void _handleWebSocketStream(WebSocket ws) {
+    Log.instance.i('server', 'WebSocket stream opened');
+    final tx = ref.read(transcriptionServiceProvider);
+    if (tx.currentEngine == null) {
+      ws.add(jsonEncode({'error': 'no transcription engine loaded'}));
+      ws.close();
+      return;
+    }
+
+    // The streaming session is opened lazily after the first config or
+    // binary frame arrives. We accumulate audio in a StreamController
+    // and pipe it through the engine's transcribeStream.
+    StreamController<Float32List>? audioController;
+    StreamSubscription<TranscriptionSegment>? transcriptSub;
+    String? language;
+    bool sessionStarted = false;
+
+    void startSession() {
+      if (sessionStarted) return;
+      sessionStarted = true;
+      audioController = StreamController<Float32List>();
+      final stream = tx.transcribeStream(
+        audioController!.stream,
+        language: language,
+      );
+      if (stream == null) {
+        ws.add(jsonEncode({'error': 'streaming not supported by current model'}));
+        ws.close();
+        return;
+      }
+      transcriptSub = stream.listen(
+        (seg) {
+          ws.add(jsonEncode({
+            'text': seg.text,
+            'start': seg.startTime,
+            'end': seg.endTime,
+            if (seg.metadata.containsKey('final'))
+              'final': seg.metadata['final'],
+          }));
+        },
+        onError: (Object e) {
+          ws.add(jsonEncode({'error': e.toString()}));
+        },
+        onDone: () {
+          ws.add(jsonEncode({'done': true}));
+        },
+      );
+    }
+
+    ws.listen(
+      (data) {
+        if (data is String) {
+          // JSON config message.
+          try {
+            final config = jsonDecode(data) as Map<String, dynamic>;
+            language = config['language'] as String?;
+            // Start the session on config if not already started.
+            if (!sessionStarted) startSession();
+          } catch (e) {
+            ws.add(jsonEncode({'error': 'invalid config JSON: $e'}));
+          }
+        } else if (data is List<int>) {
+          // Binary PCM frame — 16-bit LE mono 16 kHz.
+          if (!sessionStarted) startSession();
+          // Convert 16-bit LE PCM to Float32List.
+          final bytes = Uint8List.fromList(data);
+          final bd = ByteData.view(bytes.buffer);
+          final nSamples = bytes.length ~/ 2;
+          final pcm = Float32List(nSamples);
+          for (var i = 0; i < nSamples; i++) {
+            pcm[i] = bd.getInt16(i * 2, Endian.little) / 32768.0;
+          }
+          audioController?.add(pcm);
+        }
+      },
+      onDone: () {
+        Log.instance.i('server', 'WebSocket stream closed by client');
+        audioController?.close();
+        transcriptSub?.cancel();
+      },
+      onError: (Object e) {
+        Log.instance.w('server', 'WebSocket error', fields: {'err': '$e'});
+        audioController?.close();
+        transcriptSub?.cancel();
+      },
+    );
+  }
+
+  /// Encode Float32List PCM to a minimal 16-bit mono WAV in memory.
+  Uint8List _wavBytes(Float32List pcm, int sampleRate) {
+    final dataLen = pcm.length * 2;
+    final fileLen = 36 + dataLen;
+    final buf = ByteData(44 + pcm.length * 2);
+    // RIFF header
+    buf.setUint32(0, 0x52494646, Endian.big); // 'RIFF'
+    buf.setUint32(4, fileLen, Endian.little);
+    buf.setUint32(8, 0x57415645, Endian.big); // 'WAVE'
+    // fmt chunk
+    buf.setUint32(12, 0x666d7420, Endian.big); // 'fmt '
+    buf.setUint32(16, 16, Endian.little); // chunk size
+    buf.setUint16(20, 1, Endian.little); // PCM
+    buf.setUint16(22, 1, Endian.little); // mono
+    buf.setUint32(24, sampleRate, Endian.little);
+    buf.setUint32(28, sampleRate * 2, Endian.little); // byte rate
+    buf.setUint16(32, 2, Endian.little); // block align
+    buf.setUint16(34, 16, Endian.little); // bits per sample
+    // data chunk
+    buf.setUint32(36, 0x64617461, Endian.big); // 'data'
+    buf.setUint32(40, dataLen, Endian.little);
+    for (var i = 0; i < pcm.length; i++) {
+      final s = (pcm[i].clamp(-1.0, 1.0) * 32767).round();
+      buf.setInt16(44 + i * 2, s, Endian.little);
+    }
+    return buf.buffer.asUint8List();
   }
 
   // Minimal multipart parsing — shelf doesn't ship one. We slurp the

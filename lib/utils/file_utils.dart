@@ -271,7 +271,7 @@ class FileUtils {
     final audioDir = await getAudioDirectory();
     return await listFilesInDirectory(
       audioDir.path,
-      extensions: ['.wav', '.mp3', '.m4a', '.aac', '.ogg', '.flac'],
+      extensions: ['.wav', '.mp3', '.m4a', '.aac', '.ogg', '.flac', '.opus', '.webm'],
     );
   }
 

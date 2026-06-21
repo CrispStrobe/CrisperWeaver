@@ -178,6 +178,12 @@ class AdvancedTranscribeOptions {
   /// [hotwords] is non-empty and the backend is CTC/TDT.
   final double hotwordsBoost;
 
+  /// §10 — Explicit aligner model path or null for auto-discovery.
+  /// When set, AlignerService uses this GGUF for forced alignment
+  /// instead of auto-finding one on disk. Allows users to pick
+  /// between canary-ctc-aligner and wav2vec2-aligner-<lang> variants.
+  final String? alignerModel;
+
   const AdvancedTranscribeOptions({
     this.vadBackend = VadBackend.silero,
     this.vadThreshold = 0.5,
@@ -215,6 +221,7 @@ class AdvancedTranscribeOptions {
     this.altN = 0,
     this.hotwords = '',
     this.hotwordsBoost = 1.5,
+    this.alignerModel,
   });
 }
 

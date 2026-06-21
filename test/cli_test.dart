@@ -36,6 +36,7 @@ void main() {
         'synthesize',
         's2s',
         'watermark',
+        'denoise',
       ]) {
         expect(out, contains(cmd), reason: 'help should list "$cmd"');
       }

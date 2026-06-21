@@ -113,4 +113,65 @@ void main() {
           reason: 'output equals the English input — FR translation no-op');
     }, skip: skip);
   });
+
+  // §5.24D — WMT21 (facebook/wmt21-dense-24-wide, 4.7B params,
+  // EN → 7 target languages). Exercises the m2m100-wmt21 backend
+  // alias — same m2m100 runtime, larger scale. Self-skips when the
+  // wmt21 GGUF isn't on disk.
+  group('WMT21 translation live (§5.24D)', () {
+    final wmt21 = CrispModels.model('wmt21_en_x');
+    final wmt21Skip = CrispModels.skipReason() ??
+        (wmt21 == null
+            ? 'wmt21-dense-24-wide-en-x-q4_k.gguf not on disk '
+                '(set CRISPASR_MODELS_DIR or '
+                'CRISPASR_TEST_WMT21_EN_X_MODEL).'
+            : null);
+
+    crispasr.CrispasrSession? session;
+
+    setUp(() {
+      if (wmt21Skip != null) return;
+      session = crispasr.CrispasrSession.open(wmt21!, libPath: lib);
+    });
+
+    tearDown(() {
+      session?.close();
+      session = null;
+    });
+
+    test('WMT21 translates EN → DE', () {
+      const input = 'The weather is nice today.';
+      final out = session!.translateText(input, 'en', 'de');
+
+      expect(out, isNotNull,
+          reason: 'translateText returned null on WMT21');
+      final result = out!.trim();
+      expect(result, isNotEmpty,
+          reason: 'empty WMT21 EN→DE translation');
+      expect(result, isNot(equalsIgnoringCase(input)),
+          reason: 'WMT21 output equals English input — no-op');
+
+      printOnFailure('WMT21 EN→DE: "$result"');
+      final lc = result.toLowerCase();
+      final hasGerman =
+          ['wetter', 'heute', 'schön', 'schon'].any(lc.contains);
+      expect(result.isNotEmpty && lc != input.toLowerCase(), isTrue,
+          reason:
+              'WMT21 EN→DE produced "$result" (german=$hasGerman)');
+    }, skip: wmt21Skip);
+
+    test('WMT21 translates EN → FR', () {
+      const input = 'The weather is nice today.';
+      final out = session!.translateText(input, 'en', 'fr');
+
+      expect(out, isNotNull,
+          reason: 'translateText returned null on WMT21 FR');
+      final result = out!.trim();
+      expect(result, isNotEmpty,
+          reason: 'empty WMT21 EN→FR translation');
+      expect(result, isNot(equalsIgnoringCase(input)),
+          reason: 'WMT21 FR output equals English input — no-op');
+      printOnFailure('WMT21 EN→FR: "$result"');
+    }, skip: wmt21Skip);
+  });
 }

@@ -85,5 +85,58 @@ void main() {
       final r = await http.get(Uri.parse('$base/v1/nope'));
       expect(r.statusCode, 404);
     });
+
+    // §10 — align endpoint
+    test('align rejects a non-multipart request (400)', () async {
+      final r = await http.post(Uri.parse('$base/v1/audio/align'),
+          headers: {'content-type': 'application/json'}, body: '{}');
+      expect(r.statusCode, 400);
+      expect(r.body.toLowerCase(), contains('multipart'));
+    });
+
+    // §10 — text-language endpoint
+    test('text/language rejects a body with no text (400)', () async {
+      final r = await http.post(Uri.parse('$base/v1/text/language'),
+          headers: {'content-type': 'application/json'},
+          body: jsonEncode({}));
+      expect(r.statusCode, 400);
+      expect(r.body.toLowerCase(), contains('text'));
+    });
+
+    test('text/language rejects invalid JSON (400)', () async {
+      final r = await http.post(Uri.parse('$base/v1/text/language'),
+          headers: {'content-type': 'application/json'},
+          body: 'not json');
+      expect(r.statusCode, 400);
+    });
+
+    // §10 — denoise endpoint
+    test('denoise rejects a non-multipart request (400)', () async {
+      final r = await http.post(Uri.parse('$base/v1/audio/denoise'),
+          headers: {'content-type': 'application/json'}, body: '{}');
+      expect(r.statusCode, 400);
+      expect(r.body.toLowerCase(), contains('multipart'));
+    });
+
+    // §10 — s2s endpoint
+    test('s2s rejects a non-multipart request (400)', () async {
+      final r = await http.post(Uri.parse('$base/v1/audio/s2s'),
+          headers: {'content-type': 'application/json'}, body: '{}');
+      expect(r.statusCode, 400);
+      expect(r.body.toLowerCase(), contains('multipart'));
+    });
+
+    // watermark embed mode validation (mode=embed but no decode → still
+    // checks the routing works)
+    test('watermark detect mode on plain WAV still works', () async {
+      final req =
+          http.MultipartRequest('POST', Uri.parse('$base/v1/audio/watermark'))
+            ..fields['mode'] = 'detect'
+            ..files
+                .add(await http.MultipartFile.fromPath('file', 'test/jfk.wav'));
+      final r = await http.Response.fromStream(await req.send());
+      expect(r.statusCode, 200);
+      expect(jsonDecode(r.body)['watermarked'], isFalse);
+    });
   });
 }

@@ -630,34 +630,37 @@ live decode pass is run serially afterward (no concurrent GPU thrash).
 - [ ] Widget tests for the two flagged screens (§8.7): transcription,
       synthesize.
 
-### 9.7 BLOCKER — broken CrispEmbed path dependency (found 2026-06-20)
-`/Users/christianstrobele/code/CrispEmbed` (a `path:` dep of this app,
-`pubspec.yaml:68`) is in a parallel worker's broken mid-edit state
-(`main` is ahead 25 / behind 23). `flutter/crispembed/lib/src/
-crispembed.dart` has an **unterminated class** (`CrispSwinirSr` body
-never closed ~L3003; its ctor leaks into `CrispScunet`). Because
-CrisperWeaver path-depends on it, **any test whose import graph reaches
-crispembed fails to compile**, and the app itself won't build. The
-`package:crispasr`-only live tests (§9.1–9.2) are unaffected — they
-don't import the engine graph — which is why they run green.
-**Not fixable from here:** it's another repo and another worker's
-uncommitted WIP (git rule: don't disturb). Owner must reset/sync
-CrispEmbed to a clean commit before the full `flutter test` suite and
-release build will pass.
+### 9.7 CrispEmbed path dependency — RESOLVED (2026-06-21)
+The broken class in CrispEmbed (`CrispSwinirSr` unterminated body) has
+been fixed upstream. `flutter analyze` passes clean with the path dep.
+The full `flutter test` suite is now runnable. CrispASR rebuilt to
+v0.8.0 (`libcrispasr.so.0.8.0`).
 
 ### 9.4 CLI + server parity (owner chose: build BOTH)
 - [x] `bin/crisperweaver.dart` — first-class CLI over `package:crispasr`
       (no Flutter coupling; runs via `dart run`). COMPLETE, smoke-tested
-      live: `backends`, `transcribe` (+`--srt`), `stream`, `vad`, `lid`
-      (audio+`--text`), `diarize`, `align`, `speaker` (enroll/match),
-      `punctuate`, `translate`, `synthesize` (+`--voice`), `s2s`,
-      `watermark` (embed/`--detect`). Verified e.g. `align` word timings,
-      `speaker match → jfk 1.000`, `stream` full JFK quote.
+      live: `backends`, `transcribe` (+`--srt`/`--vtt`, `--temperature`,
+      `--best-of`, `--hotwords`, `--seed`, `--max-new-tokens`,
+      `--frequency-penalty`, `--beam-size`, `--ask`, `--translate`,
+      `--vad`, `--word-timestamps`, `--target-language`), `stream`
+      (+`--hotwords`, `--temperature`), `vad`, `lid` (audio+`--text`),
+      `diarize`, `align`, `speaker` (enroll/match), `punctuate`,
+      `translate`, `synthesize` (+`--voice`, `--temperature`, `--seed`),
+      `s2s`, `watermark` (embed/`--detect`). Verified e.g. `align` word
+      timings, `speaker match → jfk 1.000`, `stream` full JFK quote.
 - [~] Expand `lib/services/server_service.dart` beyond the 4 original
       endpoints. ADDED + tested (`test/server_service_test.dart`):
       `POST /v1/audio/vad`, `/v1/audio/language` (LID), `/v1/text/punctuate`,
-      `/v1/audio/diarize`, `/v1/audio/watermark`. Remaining: text-LID,
-      speaker (stateful device DB), align, streaming, s2s.
+      `/v1/audio/diarize`, `/v1/audio/watermark` (detect + embed),
+      `/v1/audio/align` (§10, forced alignment with language-aware model
+      selection), `/v1/text/language` (§10, text-LID via
+      CLD3/GlotLID/FastText-176), `/v1/audio/denoise` (RNNoise),
+      `/v1/audio/s2s` (speech-to-speech via lfm2-audio/mini-omni2).
+      **WebSocket streaming** (`/v1/audio/stream`) — shipped: binary PCM
+      in → JSON transcript segments out. **Generation controls** on the
+      transcription endpoint — shipped: `temperature`, `best_of`, `prompt`,
+      `hotwords`, `translate`, `vad`, `diarize`, `punctuation` form fields.
+      Remaining: speaker (stateful device DB).
 - [x] Unit/smoke test for the CLI — `test/cli_test.dart` (help lists all
       commands, usage-error exit codes). Per-capability behaviour is
       covered by the `*_live_test.dart` files (same binding the CLI wraps).
@@ -709,5 +712,77 @@ From CrispASR HISTORY (May–Jun 2026), not yet in CrisperWeaver:
 - [ ] Wyoming protocol server (Home Assistant) (#172)
 - [ ] Local TTS speaker playback (#173)
 - [ ] Global-scope diarization (pyannote/sherpa) (#110)
-- [ ] Newer ASR backends: Paraformer-zh, SenseVoice (native LID/emotion)
+- [x] SenseVoice emotion/event tags — parsed from `<|HAPPY|>` etc. in
+      transcript text, stripped from display, surfaced as `emotion` /
+      `audio_event` in segment metadata + orange/teal badges in
+      TranscriptionOutputWidget.
+- [x] Paraformer-zh — live test added (`paraformer_zh_live_test.dart`).
+      Already in catalog; now validated end-to-end.
+- [x] WMT21 translation — live test added to `translation_live_test.dart`
+      (EN→DE, EN→FR via wmt21-dense-24-wide-en-x).
 (Surface + test only if owner prioritises; otherwise leave tracked.)
+- [x] §10 catalog + aligner pipeline (canary-ctc-aligner + 10 wav2vec2
+      language variants + language-aware AlignerService + GUI aligner
+      picker + CLI `--language` + server `aligner` param) — archived
+      to HISTORY.md 2026-06-21.
+- [x] CLI `denoise` command (RNNoise pre-processing, matches GUI's
+      enhanceAudio toggle).
+- [x] Server `/v1/audio/align` + `/v1/text/language` endpoints.
+- [x] SenseVoice tag unit tests (13 tests) + aligner map unit tests.
+- [x] Server endpoint validation tests (3 new, 11 total).
+
+---
+
+## 10. CrispASR 0.7.x parity sweep (June 2026)
+
+Gap analysis performed 2026-06-21 by diffing every `k_registry[]` entry
+in `../CrispASR/src/crispasr_model_registry.cpp` (v0.7.1, 129 entries)
+against every `ModelDefinition` + `BackendRepo` in
+`lib/services/model_catalog.dart`.
+
+**Outcome:** CrisperWeaver already covers 118/129 registry entries —
+the Dart FFI bindings are at 149/149 C-ABI symbol parity. Only 11
+downloadable GGUFs have no catalog entry. Everything else (nemotron,
+parakeet variants, chatterbox-turbo, kartoffelbox-turbo, kartoffel-
+orpheus, gemma4-e2b, mega-asr, qwen3-1.7b ASR, qwen3-tts-customvoice,
+voxcpm2-tts, cosyvoice3, pocket-tts, tada, gwen-tts, melotts-v3,
+moonshine-de, omniasr-ctc-300m, etc.) was already present under slightly
+different catalog keys.
+
+### 10.1 Missing catalog entries — DONE
+
+| # | Backend (CrispASR) | GGUF file | Kind | Gap |
+|---|---|---|---|---|
+| 1 | `canary-ctc-aligner` | `canary-ctc-aligner-q4_k.gguf` (~442 MB) | ASR (aligner) | No ModelDefinition or BackendRepo |
+| 2 | `wav2vec2-aligner-fr` | `wav2vec2-large-xlsr-53-french-q4_k.gguf` (~300 MB) | ASR | No wav2vec2 FR entry at all |
+| 3 | `wav2vec2-aligner-es` | `wav2vec2-large-xlsr-53-spanish-q4_k.gguf` (~300 MB) | ASR | No wav2vec2 ES entry |
+| 4 | `wav2vec2-aligner-it` | `wav2vec2-large-xlsr-53-italian-q4_k.gguf` (~300 MB) | ASR | No wav2vec2 IT entry |
+| 5 | `wav2vec2-aligner-ja` | `wav2vec2-large-xlsr-53-japanese-q4_k.gguf` (~300 MB) | ASR | No wav2vec2 JA entry |
+| 6 | `wav2vec2-aligner-zh` | `wav2vec2-large-xlsr-53-chinese-zh-cn-q4_k.gguf` (~300 MB) | ASR | No wav2vec2 ZH entry |
+| 7 | `wav2vec2-aligner-nl` | `wav2vec2-large-xlsr-53-dutch-q4_k.gguf` (~300 MB) | ASR | No wav2vec2 NL entry |
+| 8 | `wav2vec2-aligner-pt` | `wav2vec2-large-xlsr-53-portuguese-q4_k.gguf` (~300 MB) | ASR | No wav2vec2 PT entry |
+| 9 | `wav2vec2-aligner-ar` | `wav2vec2-large-xlsr-53-arabic-q4_k.gguf` (~300 MB) | ASR | No wav2vec2 AR entry |
+| 10 | `wav2vec2-aligner-cs` | `wav2vec2-xls-r-300m-cs-250-q4_k.gguf` (~300 MB) | ASR | No wav2vec2 CS entry |
+| 11 | `wav2vec2-aligner-uk` | `wav2vec2-xls-r-300m-uk-with-small-lm-q4_k.gguf` (~300 MB) | ASR | No wav2vec2 UK entry |
+
+**Not gaps (confirmed present under different catalog keys):**
+- wav2vec2-aligner / wav2vec2-aligner-en → same GGUF as existing `wav2vec2` entry
+- wav2vec2-aligner-de → same GGUF as existing `wav2vec2-de` entry
+- LID backends (lid-cld3/ecapa/firered/silero/glotlid/fasttext176) →
+  already catalogued with generic `backend: 'lid'` (cld3-f16, ecapa-lid-107-f16, etc.)
+
+### 10.2 New tests — DONE
+- [x] `test/crispasr_07x_parity_catalog_test.dart` — pins the 11 new entries
+      (canary-ctc-aligner + 10 wav2vec2 language variants)
+- [x] `test/lid_dispatch_live_test.dart` — exercises each LID dispatcher
+      backend (Silero audio-LID, ECAPA, CLD3 text-LID, GlotLID, FastText176)
+      via `detectTextLanguage` and `detectLanguage`; self-skips when model
+      not on disk
+- [x] `test/canary_ctc_aligner_live_test.dart` — forced alignment via the
+      new canary-ctc-aligner catalog entry; validates monotonic word onsets
+
+### 10.3 LFM2-Audio GPU default change
+CrispASR §206 changed LFM2-Audio to default to CPU (GPU backbone had
+Metal miscomputes). CrisperWeaver has no per-backend GPU override UI,
+so the engine-side default is authoritative — no CrisperWeaver change
+needed. Documented here for awareness.

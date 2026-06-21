@@ -301,6 +301,13 @@ class AdvancedOptions {
   /// level but not yet in the session C API — tracked upstream.
   final String hotwords;
 
+  /// §10 — Preferred aligner model. Empty string means "auto" (the
+  /// AlignerService picks the best available: language-matched wav2vec2
+  /// first, then canary-ctc-aligner fallback). Non-empty values are
+  /// catalog keys like 'canary-ctc-aligner-q4_k' or
+  /// 'wav2vec2-xlsr-fr-q4_k' that resolve to an on-disk model path.
+  final String alignerModel;
+
   /// §5.1.2 — Custom-vocabulary boost list. Persistent across runs;
   /// the user manages it in Advanced Options as removable chips
   /// (brand names, acronyms, technical jargon, people's names).
@@ -370,6 +377,7 @@ class AdvancedOptions {
     this.transcribeWindowDurationSec = 0.0,
     this.altN = 0,
     this.hotwords = '',
+    this.alignerModel = '',
   });
 
   AdvancedOptions copyWith({
@@ -419,6 +427,7 @@ class AdvancedOptions {
     double? transcribeWindowDurationSec,
     int? altN,
     String? hotwords,
+    String? alignerModel,
   }) =>
       AdvancedOptions(
         translate: translate ?? this.translate,
@@ -473,6 +482,7 @@ class AdvancedOptions {
             transcribeWindowDurationSec ?? this.transcribeWindowDurationSec,
         altN: altN ?? this.altN,
         hotwords: hotwords ?? this.hotwords,
+        alignerModel: alignerModel ?? this.alignerModel,
       );
 
   /// Backends that accept a target-language hint different from the
@@ -865,6 +875,9 @@ class _AdvancedDecodingSectionState
         // Token-level timestamps (whisper DTW). Useful when subtitle
         // tooling consumes per-token timing instead of segments.
         _buildTokenTimestampsRow(context, opts),
+        // §10 — Forced-aligner model picker. Auto selects a language-
+        // matched wav2vec2 or canary-ctc-aligner; users can override.
+        _buildAlignerModelRow(context, opts),
         // §5.1.11 — Top-N alternative-candidate capture (Whisper only).
         // Powers the transcript editor's tap-to-pick popover on
         // ambiguous words. Hidden on non-whisper backends.
@@ -1999,6 +2012,60 @@ class _AdvancedDecodingSectionState
         enabled: supported,
         onChanged: (v) => ref.read(advancedOptionsProvider.notifier).state =
             opts.copyWith(hotwords: v),
+      ),
+    );
+  }
+
+  /// §10 — Forced-aligner model picker. Shows a dropdown with:
+  ///   * Auto (language-matched wav2vec2 > canary-ctc fallback)
+  ///   * Canary CTC Aligner
+  ///   * Wav2Vec2 per-language variants (FR, ES, IT, JA, ZH, etc.)
+  /// Only takes effect when word timestamps are enabled and the
+  /// active ASR backend doesn't emit them natively.
+  Widget _buildAlignerModelRow(BuildContext context, AdvancedOptions opts) {
+    const items = <String, String>{
+      '': 'Auto (best available)',
+      'canary-ctc-aligner-q4_k': 'Canary CTC Aligner',
+      'wav2vec2-xlsr-fr-q4_k': 'Wav2Vec2 FR (French)',
+      'wav2vec2-xlsr-es-q4_k': 'Wav2Vec2 ES (Spanish)',
+      'wav2vec2-xlsr-it-q4_k': 'Wav2Vec2 IT (Italian)',
+      'wav2vec2-xlsr-ja-q4_k': 'Wav2Vec2 JA (Japanese)',
+      'wav2vec2-xlsr-zh-q4_k': 'Wav2Vec2 ZH (Chinese)',
+      'wav2vec2-xlsr-nl-q4_k': 'Wav2Vec2 NL (Dutch)',
+      'wav2vec2-xlsr-pt-q4_k': 'Wav2Vec2 PT (Portuguese)',
+      'wav2vec2-xlsr-ar-q4_k': 'Wav2Vec2 AR (Arabic)',
+      'wav2vec2-xlsr-cs-q4_k': 'Wav2Vec2 CS (Czech)',
+      'wav2vec2-xlsr-uk-q4_k': 'Wav2Vec2 UK (Ukrainian)',
+    };
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          const SizedBox(
+            width: 120,
+            child: Text('Aligner', style: TextStyle(fontSize: 13)),
+          ),
+          Expanded(
+            child: DropdownButtonFormField<String>(
+              initialValue: items.containsKey(opts.alignerModel)
+                  ? opts.alignerModel
+                  : '',
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                isDense: true,
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              ),
+              items: items.entries
+                  .map((e) => DropdownMenuItem(
+                      value: e.key, child: Text(e.value, style: const TextStyle(fontSize: 13))))
+                  .toList(),
+              onChanged: (v) => ref
+                  .read(advancedOptionsProvider.notifier)
+                  .state = opts.copyWith(alignerModel: v ?? ''),
+            ),
+          ),
+        ],
       ),
     );
   }

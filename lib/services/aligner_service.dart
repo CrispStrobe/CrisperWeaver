@@ -35,6 +35,24 @@ class AlignerService {
     'qwen3-forced-aligner-0.6b-q4_k.gguf',
   ];
 
+  /// Wav2Vec2 XLSR / XLS-R aligner filenames indexed by ISO 639-1 code.
+  /// These are CTC models that double as forced aligners — the CrispASR
+  /// engine accepts them via the `wav2vec2-aligner-<lang>` dispatch alias.
+  static const Map<String, String> _wav2vec2AlignerByLang = {
+    'en': 'wav2vec2-xlsr-en',
+    'de': 'wav2vec2-large-xlsr-53-german',
+    'fr': 'wav2vec2-large-xlsr-53-french',
+    'es': 'wav2vec2-large-xlsr-53-spanish',
+    'it': 'wav2vec2-large-xlsr-53-italian',
+    'ja': 'wav2vec2-large-xlsr-53-japanese',
+    'zh': 'wav2vec2-large-xlsr-53-chinese-zh-cn',
+    'nl': 'wav2vec2-large-xlsr-53-dutch',
+    'pt': 'wav2vec2-large-xlsr-53-portuguese',
+    'ar': 'wav2vec2-large-xlsr-53-arabic',
+    'cs': 'wav2vec2-xls-r-300m-cs-250',
+    'uk': 'wav2vec2-xls-r-300m-uk-with-small-lm',
+  };
+
   /// Optional ModelService injection. When present we honour the
   /// custom-models-dir setting; when null we fall back to the legacy
   /// `<app-docs>/models/whisper_cpp` sandbox path so the service still
@@ -43,23 +61,69 @@ class AlignerService {
   AlignerService({this.modelService});
 
   String? _cachedPath;
+  String? _cachedLang;
   bool _searched = false;
 
-  /// Return the path to a downloaded aligner GGUF, or null if none found.
-  /// Re-checks on every call when no ModelService is wired (no caching
-  /// without one because the directory could change underneath us).
-  Future<String?> _findAligner() async {
-    if (_searched) return _cachedPath;
-    _searched = true;
+  /// Resolve a language-specific wav2vec2 aligner from the models dir,
+  /// or null if none downloaded. Checks all quants for the language's
+  /// base name.
+  Future<String?> _findWav2vec2Aligner(
+      String langCode, Directory modelsDir) async {
+    final baseName = _wav2vec2AlignerByLang[langCode.toLowerCase()];
+    if (baseName == null) return null;
     try {
-      // Prefer the ModelService-resolved path so the user's
-      // customModelsDir override is honoured automatically.
+      await for (final e in modelsDir.list()) {
+        if (e is! File) continue;
+        final base = p.basename(e.path);
+        if (base.startsWith(baseName) && base.endsWith('.gguf')) {
+          return e.path;
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  /// Return the path to a downloaded aligner GGUF, or null if none found.
+  ///
+  /// When [language] is provided, prefers a language-specific wav2vec2
+  /// aligner (e.g., wav2vec2-large-xlsr-53-french for 'fr') before
+  /// falling back to the generic canary-ctc-aligner. When [explicit] is
+  /// provided (e.g., from a user setting or CLI flag), that path is
+  /// returned directly.
+  Future<String?> findAligner({String? language, String? explicit}) async {
+    // Explicit path from user — use as-is.
+    if (explicit != null && explicit.isNotEmpty) {
+      if (File(explicit).existsSync()) return explicit;
+      Log.instance.w('aligner', 'explicit aligner path not found',
+          fields: {'path': explicit});
+    }
+
+    // Cache hit — reuse if the language hasn't changed.
+    if (_searched && language == _cachedLang) return _cachedPath;
+    _searched = true;
+    _cachedLang = language;
+    _cachedPath = null;
+
+    try {
       await modelService?.initialize();
-      final dirPath = modelService?.whisperCppDir() ??
-          await _legacyDefaultModelsDir();
+      final dirPath =
+          modelService?.whisperCppDir() ?? await _legacyDefaultModelsDir();
       final modelsDir = Directory(dirPath);
       if (!await modelsDir.exists()) return null;
 
+      // 1) Language-specific wav2vec2 aligner (best match).
+      if (language != null && language.isNotEmpty) {
+        final langPath =
+            await _findWav2vec2Aligner(language, modelsDir);
+        if (langPath != null) {
+          _cachedPath = langPath;
+          Log.instance.d('aligner', 'found language-matched aligner',
+              fields: {'lang': language, 'path': langPath});
+          return _cachedPath;
+        }
+      }
+
+      // 2) Generic aligner (canary-ctc / qwen3-forced).
       final entries = await modelsDir.list().toList();
       for (final e in entries) {
         if (e is! File) continue;
@@ -81,6 +145,7 @@ class AlignerService {
     }
   }
 
+
   /// Attach word-level timestamps to each of `segments` by forced-
   /// aligning the full transcript against `pcm`. Returns the input list
   /// unchanged if no aligner model is available or the alignment fails.
@@ -91,10 +156,13 @@ class AlignerService {
   /// after good ASR) are dropped.
   Future<List<TranscriptionSegment>> addWordTimestamps(
     List<TranscriptionSegment> segments,
-    Float32List pcm,
-  ) async {
+    Float32List pcm, {
+    String? language,
+    String? alignerModel,
+  }) async {
     if (segments.isEmpty || pcm.isEmpty) return segments;
-    final alignerPath = await _findAligner();
+    final alignerPath =
+        await findAligner(language: language, explicit: alignerModel);
     if (alignerPath == null) {
       Log.instance.d('aligner',
           'no CTC/forced aligner model available — skipping word-timestamp post-step');

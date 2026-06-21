@@ -29,6 +29,18 @@ import '../utils/responsive.dart';
 import 'cleanup_dialog.dart';
 import 'summarize_dialog.dart';
 
+/// §10 — Human-readable emotion label from SenseVoice tag.
+String _emotionLabel(String tag) => switch (tag.toUpperCase()) {
+      'HAPPY' => 'happy',
+      'SAD' => 'sad',
+      'ANGRY' => 'angry',
+      'NEUTRAL' => 'neutral',
+      'SURPRISED' => 'surprised',
+      'FEARFUL' => 'fearful',
+      'DISGUSTED' => 'disgusted',
+      _ => tag.toLowerCase(),
+    };
+
 /// Pre-filled name for the "enroll speaker" dialog: the segment's chip
 /// label, unless it's a bare diarisation cluster id (`0`, `Speaker 1`)
 /// which isn't a real name — those seed an empty field so the user types
@@ -358,6 +370,49 @@ class _TranscriptionOutputWidgetState
                           fontSize: 10,
                           color: Colors.purple.shade800,
                           fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                  ],
+
+                  // §10 — SenseVoice emotion badge.
+                  if (segment.metadata['emotion'] case final String emo
+                      when emo.isNotEmpty) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.shade100,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        _emotionLabel(emo),
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Colors.orange.shade800,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                  ],
+
+                  // §10 — SenseVoice audio-event badge.
+                  if (segment.metadata['audio_event'] case final String evt
+                      when evt.isNotEmpty) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.teal.shade100,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        evt.toLowerCase(),
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Colors.teal.shade800,
                         ),
                       ),
                     ),

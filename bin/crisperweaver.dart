@@ -98,7 +98,23 @@ class _TranscribeCmd extends _Base {
       ..addOption('model', abbr: 'm', help: 'ASR model (GGUF/bin).', mandatory: true)
       ..addOption('backend', abbr: 'b', help: 'Backend name (auto if omitted).')
       ..addOption('language', abbr: 'l', help: 'Language hint, e.g. en.')
-      ..addFlag('srt', help: 'Emit SRT instead of plain text.');
+      ..addOption('target-language', help: 'Target language for translation backends.')
+      ..addFlag('srt', help: 'Emit SRT instead of plain text.')
+      ..addFlag('vtt', help: 'Emit WebVTT instead of plain text.')
+      ..addFlag('translate', help: 'Translate to English (whisper).')
+      ..addFlag('word-timestamps', help: 'Include per-word timings.')
+      ..addOption('temperature', help: 'Decoder temperature (0.0 = greedy).', defaultsTo: '0.0')
+      ..addOption('best-of', help: 'Best-of-N decoding.', defaultsTo: '1')
+      ..addOption('initial-prompt', help: 'Initial prompt / vocabulary hint.')
+      ..addOption('hotwords', help: 'Comma-separated hotwords for contextual biasing.')
+      ..addOption('hotwords-boost', help: 'Hotword boost factor (CTC/TDT).', defaultsTo: '1.5')
+      ..addOption('seed', help: 'RNG seed for reproducible sampling.', defaultsTo: '-1')
+      ..addOption('max-new-tokens', help: 'Cap on generated tokens (LLM backends).', defaultsTo: '4096')
+      ..addOption('frequency-penalty', help: 'Frequency penalty (LLM backends).', defaultsTo: '0.0')
+      ..addOption('beam-size', help: 'Beam search width (0 = greedy).', defaultsTo: '0')
+      ..addFlag('vad', help: 'Enable Silero VAD pre-filtering.')
+      ..addOption('vad-model', help: 'Path to VAD GGUF (auto-detected if omitted).')
+      ..addOption('ask', help: 'Audio Q&A prompt (instruct LLM backends).');
   }
   @override
   String get name => 'transcribe';
@@ -119,14 +135,68 @@ class _TranscribeCmd extends _Base {
       libPath: lib,
     );
     try {
-      final segs = session.transcribe(audio.samples,
-          language: argResults!['language'] as String?);
+      // Apply generation controls before transcription.
+      final temp = double.parse(argResults!['temperature'] as String);
+      final bestOf = int.parse(argResults!['best-of'] as String);
+      final hotwords = argResults!['hotwords'] as String?;
+      final hotwordsBoost = double.parse(argResults!['hotwords-boost'] as String);
+      final seed = int.parse(argResults!['seed'] as String);
+      final maxNewTokens = int.parse(argResults!['max-new-tokens'] as String);
+      final freqPenalty = double.parse(argResults!['frequency-penalty'] as String);
+      final beamSize = int.parse(argResults!['beam-size'] as String);
+      final ask = argResults!['ask'] as String?;
+      final targetLang = argResults!['target-language'] as String?;
+      final lang = argResults!['language'] as String?;
+
+      try { session.setTemperature(temp, seed: seed >= 0 ? seed : 0); } catch (_) {}
+      try { session.setBestOf(bestOf); } catch (_) {}
+      if (hotwords != null && hotwords.isNotEmpty) {
+        try { session.setHotwords(hotwords, boost: hotwordsBoost); } catch (_) {}
+      }
+      try { session.setMaxNewTokens(maxNewTokens); } catch (_) {}
+      if (freqPenalty != 0.0) {
+        try { session.setFrequencyPenalty(freqPenalty); } catch (_) {}
+      }
+      if (beamSize > 0) {
+        try { session.setBeamSize(beamSize); } catch (_) {}
+      }
+      if (ask != null && ask.isNotEmpty) {
+        try { session.setAsk(ask); } catch (_) {}
+      }
+      if (lang != null && lang.isNotEmpty && lang != 'auto') {
+        try { session.setSourceLanguage(lang); } catch (_) {}
+      }
+      if (targetLang != null && targetLang.isNotEmpty) {
+        try { session.setTargetLanguage(targetLang); } catch (_) {}
+      }
+      if (argResults!['translate'] as bool) {
+        try { session.setTargetLanguage('en'); } catch (_) {}
+      }
+      try { session.setPunctuation(true); } catch (_) {}
+
+      final segs = session.transcribe(audio.samples, language: lang);
       if (argResults!['srt'] as bool) {
         var i = 1;
         for (final s in segs) {
           stdout.writeln(i++);
           stdout.writeln('${_ts(s.start)} --> ${_ts(s.end)}');
           stdout.writeln('${s.text.trim()}\n');
+        }
+      } else if (argResults!['vtt'] as bool) {
+        stdout.writeln('WEBVTT\n');
+        for (final s in segs) {
+          stdout.writeln('${_vts(s.start)} --> ${_vts(s.end)}');
+          stdout.writeln('${s.text.trim()}\n');
+        }
+      } else if (argResults!['word-timestamps'] as bool) {
+        for (final s in segs) {
+          if (s.words.isNotEmpty) {
+            for (final w in s.words) {
+              stdout.writeln('${w.start.toStringAsFixed(3)}\t${w.end.toStringAsFixed(3)}\t${w.text}');
+            }
+          } else {
+            stdout.writeln('${s.start.toStringAsFixed(3)}\t${s.end.toStringAsFixed(3)}\t${s.text.trim()}');
+          }
         }
       } else {
         stdout.writeln(segs.map((s) => s.text.trim()).join(' ').trim());
@@ -144,6 +214,8 @@ class _TranscribeCmd extends _Base {
     String p(int v, int w) => v.toString().padLeft(w, '0');
     return '${p(h, 2)}:${p(m, 2)}:${p(s, 2)},${p(mm, 3)}';
   }
+
+  String _vts(double sec) => _ts(sec).replaceFirst(',', '.');
 }
 
 class _VadCmd extends _Base {
@@ -271,7 +343,9 @@ class _SynthesizeCmd extends _Base {
       ..addOption('model', abbr: 'm', help: 'TTS GGUF.', mandatory: true)
       ..addOption('out', abbr: 'o', help: 'Output WAV path.', mandatory: true)
       ..addOption('voice', help: 'Reference voice WAV/GGUF (cloning).')
-      ..addOption('rate', help: 'Output sample rate.', defaultsTo: '24000');
+      ..addOption('rate', help: 'Output sample rate.', defaultsTo: '24000')
+      ..addOption('temperature', help: 'Sampling temperature.', defaultsTo: '0.7')
+      ..addOption('seed', help: 'RNG seed (-1 = random).', defaultsTo: '-1');
   }
   @override
   String get name => 'synthesize';
@@ -286,6 +360,9 @@ class _SynthesizeCmd extends _Base {
     try {
       final voice = argResults!['voice'] as String?;
       if (voice != null) session.setVoice(File(voice).absolute.path);
+      final ttsTemp = double.parse(argResults!['temperature'] as String);
+      final ttsSeed = int.parse(argResults!['seed'] as String);
+      try { session.setTemperature(ttsTemp, seed: ttsSeed >= 0 ? ttsSeed : 0); } catch (_) {}
       final pcm = session.synthesize(text);
       final rate = int.parse(argResults!['rate'] as String);
       File(argResults!['out'] as String).writeAsBytesSync(_wav(pcm, rate));
@@ -331,12 +408,39 @@ class _WatermarkCmd extends _Base {
   }
 }
 
+class _DenoiseCmd extends _Base {
+  _DenoiseCmd() {
+    argParser
+      ..addOption('out', abbr: 'o', help: 'Output WAV path.', mandatory: true)
+      ..addOption('rate', help: 'Sample rate for output WAV.', defaultsTo: '16000');
+  }
+  @override
+  String get name => 'denoise';
+  @override
+  String get description => 'Denoise audio via RNNoise (16 kHz mono).';
+  @override
+  int run() {
+    final rest = argResults!.rest;
+    if (rest.isEmpty) usageException('Pass an audio file path.');
+    final audio = crispasr.decodeAudioFile(_abs(rest.first), libPath: lib);
+    final enhanced = crispasr.enhanceAudioRnnoise(audio.samples, lib: dylib);
+    final out = argResults!['out'] as String;
+    File(out).writeAsBytesSync(
+        _wav(enhanced, int.parse(argResults!['rate'] as String)));
+    stdout.writeln('denoised ${audio.samples.length} samples -> $out');
+    return 0;
+  }
+}
+
 class _StreamCmd extends _Base {
   _StreamCmd() {
     argParser
       ..addOption('model', abbr: 'm', help: 'ASR model.', mandatory: true)
       ..addOption('language', abbr: 'l', help: 'Language hint.')
-      ..addOption('chunk-ms', help: 'Feed chunk size (ms).', defaultsTo: '1000');
+      ..addOption('chunk-ms', help: 'Feed chunk size (ms).', defaultsTo: '1000')
+      ..addOption('hotwords', help: 'Comma-separated hotwords for contextual biasing.')
+      ..addOption('hotwords-boost', help: 'Hotword boost factor.', defaultsTo: '1.5')
+      ..addOption('temperature', help: 'Decoder temperature.', defaultsTo: '0.0');
   }
   @override
   String get name => 'stream';
@@ -350,6 +454,10 @@ class _StreamCmd extends _Base {
     final audio = crispasr.decodeAudioFile(_abs(rest.first), libPath: lib);
     final cr = crispasr.CrispASR(modelPath, libPath: lib);
     try {
+      // Note: hotwords + temperature from CLI args are not applied to
+      // the streaming session because StreamingSession doesn't expose
+      // those setters. They are accepted by the parser for forward-
+      // compatibility when the C ABI adds stream-level overrides.
       final session =
           cr.openStream(language: argResults!['language'] as String?);
       try {
@@ -379,7 +487,10 @@ class _StreamCmd extends _Base {
 class _AlignCmd extends _Base {
   _AlignCmd() {
     argParser
-      ..addOption('model', abbr: 'm', help: 'Aligner GGUF (canary-ctc/wav2vec2).', mandatory: true)
+      ..addOption('model', abbr: 'm', help: 'Aligner GGUF path. When omitted, auto-discovers '
+          'a language-matched wav2vec2 or canary-ctc-aligner in the models dir.')
+      ..addOption('language', abbr: 'l', help: 'ISO 639-1 language code (e.g. fr, de, ja). '
+          'Auto-selects the matching wav2vec2 aligner when --model is omitted.')
       ..addOption('text', help: 'Reference transcript to align.', mandatory: true);
   }
   @override
@@ -388,10 +499,65 @@ class _AlignCmd extends _Base {
   String get description => 'Forced-align a transcript to audio → per-word timings.';
   @override
   int run() {
-    final model = _abs(argResults!['model'] as String);
+    final modelArg = argResults!['model'] as String?;
+    final language = argResults!['language'] as String?;
     final text = argResults!['text'] as String;
     final rest = argResults!.rest;
     if (rest.isEmpty) usageException('Pass an audio file path.');
+
+    // Resolve aligner model: explicit > language-matched wav2vec2 > any on disk.
+    String? model = modelArg != null ? _abs(modelArg) : null;
+    if (model == null) {
+      // Try language-specific wav2vec2 first, then canary-ctc-aligner.
+      final modelsDir = Platform.environment['CRISPASR_MODELS_DIR'] ??
+          '/Volumes/backups/ai/crispasr';
+      final dir = Directory(modelsDir);
+      if (dir.existsSync()) {
+        // Language-matched wav2vec2 variant.
+        if (language != null) {
+          const langPrefixes = {
+            'en': 'wav2vec2-xlsr-en',
+            'de': 'wav2vec2-large-xlsr-53-german',
+            'fr': 'wav2vec2-large-xlsr-53-french',
+            'es': 'wav2vec2-large-xlsr-53-spanish',
+            'it': 'wav2vec2-large-xlsr-53-italian',
+            'ja': 'wav2vec2-large-xlsr-53-japanese',
+            'zh': 'wav2vec2-large-xlsr-53-chinese-zh-cn',
+            'nl': 'wav2vec2-large-xlsr-53-dutch',
+            'pt': 'wav2vec2-large-xlsr-53-portuguese',
+            'ar': 'wav2vec2-large-xlsr-53-arabic',
+            'cs': 'wav2vec2-xls-r-300m-cs-250',
+            'uk': 'wav2vec2-xls-r-300m-uk-with-small-lm',
+          };
+          final prefix = langPrefixes[language.toLowerCase()];
+          if (prefix != null) {
+            for (final f in dir.listSync()) {
+              if (f is File && f.path.contains(prefix) && f.path.endsWith('.gguf')) {
+                model = f.path;
+                break;
+              }
+            }
+          }
+        }
+        // Fallback: canary-ctc-aligner.
+        if (model == null) {
+          for (final f in dir.listSync()) {
+            if (f is File) {
+              final base = f.uri.pathSegments.last;
+              if (base.contains('ctc-aligner') || base.contains('forced-aligner')) {
+                model = f.path;
+                break;
+              }
+            }
+          }
+        }
+      }
+    }
+    if (model == null) {
+      usageException('No aligner model found. Pass --model or download '
+          'canary-ctc-aligner / wav2vec2-aligner-<lang> via Model Management.');
+    }
+
     final audio = crispasr.decodeAudioFile(_abs(rest.first), libPath: lib);
     final words = crispasr.alignWords(
         alignerModel: model, transcript: text, pcm: audio.samples, lib: dylib);
@@ -555,7 +721,8 @@ Future<void> main(List<String> args) async {
     ..addCommand(_TranslateCmd())
     ..addCommand(_SynthesizeCmd())
     ..addCommand(_S2sCmd())
-    ..addCommand(_WatermarkCmd());
+    ..addCommand(_WatermarkCmd())
+    ..addCommand(_DenoiseCmd());
   try {
     final code = await runner.run(args) ?? 0;
     exit(code);

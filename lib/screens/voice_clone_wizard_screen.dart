@@ -153,7 +153,7 @@ class _VoiceCloneWizardScreenState
     try {
       final pick = await pickFilesRobust(
         type: FileType.audio,
-        allowedExtensions: const ['wav', 'flac', 'mp3'],
+        allowedExtensions: const ['wav', 'flac', 'mp3', 'ogg', 'opus', 'm4a'],
       );
       if (pick.isEmpty) return;
       setState(() => _recordedPath = pick.localPaths.first);

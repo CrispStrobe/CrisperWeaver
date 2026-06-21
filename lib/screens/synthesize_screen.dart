@@ -589,7 +589,7 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
     try {
       final pick = await pickFilesRobust(
         type: FileType.audio,
-        allowedExtensions: const ['wav', 'flac', 'mp3'],
+        allowedExtensions: const ['wav', 'flac', 'mp3', 'ogg', 'opus', 'm4a'],
       );
       if (pick.isEmpty) return;
       final path = pick.localPaths.first;

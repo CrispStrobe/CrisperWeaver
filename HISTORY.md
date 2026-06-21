@@ -27,6 +27,129 @@ pending.
 
 ---
 
+## CrispASR feature parity + CLI/server generation controls (2026-06-21)
+
+Brought CrisperWeaver to full three-surface parity with CrispASR's
+latest capabilities:
+
+**CLI (`bin/crisperweaver.dart`):**
+- `transcribe` gained 13 new flags: `--temperature`, `--best-of`,
+  `--hotwords`, `--hotwords-boost`, `--seed`, `--max-new-tokens`,
+  `--frequency-penalty`, `--beam-size`, `--ask`, `--translate`, `--vad`,
+  `--word-timestamps`, `--vtt`, `--target-language`, `--initial-prompt`.
+- `stream` gained `--hotwords`, `--hotwords-boost`, `--temperature`.
+- `synthesize` gained `--temperature`, `--seed`.
+
+**Server (`lib/services/server_service.dart`):**
+- `/v1/audio/transcriptions` now accepts: `temperature`, `best_of`,
+  `prompt`/`initial_prompt`, `hotwords`, `hotwords_boost`, `translate`,
+  `vad`, `diarize`, `punctuation` form fields.
+- New WebSocket streaming endpoint: `ws://host:port/v1/audio/stream` —
+  accepts a JSON config message then binary 16-bit LE mono 16 kHz PCM
+  frames, pushes JSON `{text, start, end}` segments in real time.
+
+**File format support (GitHub issue #26):**
+- All file pickers now accept `.opus`, `.webm`, `.m4a` alongside
+  `.wav`/`.mp3`/`.flac`/`.ogg`. CrispASR's miniaudio backend decodes
+  all of these natively.
+
+**Model selector UX (GitHub issue #27):**
+- The transcription screen's model picker `ExpansionTile` now starts
+  expanded when no model is loaded, so first-time users discover it
+  immediately.
+
+**Server continued:**
+- `GET /backends` endpoint — lists all CrispASR backends linked into the
+  dylib (`{"backends": ["whisper", "parakeet", ...]}`).
+- `/v1/audio/transcriptions` gained `ask`/`ask_prompt` and
+  `target_language` form fields for audio Q&A and speech translation.
+- `/v1/audio/speech` now accepts **multipart/form-data** with a
+  `voice_file` part (WAV/FLAC/MP3 reference) for voice cloning,
+  alongside the existing JSON body path.
+
+**Test fixes:**
+- `test/canary_ctc_aligner_live_test.dart` — fixed `lib:` → `libPath:`,
+  `.word` → `.text`, `DecodedAudio` handling.
+- `test/lid_dispatch_live_test.dart` — fixed `lib:` → `libPath:`,
+  `DecodedAudio` → `.samples`, `TextLanguage` → `.code`, removed
+  unnecessary `!` operators.
+- 3 remaining untracked tests (`crispasr_07x_parity_catalog_test`,
+  `paraformer_zh_live_test`, `sensevoice_tag_parsing_test`) verified
+  clean — no fixes needed.
+
+**Docs:** `PARITY.md` and `PLAN.md` updated to reflect the above.
+
+---
+
+## June 2026 — CrispASR 0.7.x parity sweep (§10)
+
+Gap analysis (2026-06-21) diffed every `k_registry[]` entry in
+`../CrispASR/src/crispasr_model_registry.cpp` (v0.7.1, 129 entries)
+against CrisperWeaver's catalog. Result: 118/129 already present;
+11 missing GGUFs added.
+
+**Catalog.** Added `canary-ctc-aligner-q4_k` (CTC forced aligner,
+~442 MB) + 10 wav2vec2 XLSR language variants (FR/ES/IT/JA/ZH/NL/PT/
+AR/CS/UK, ~300 MB each) — ModelDefinition + BackendRepo + recommended-
+default for each. Existing 118 entries (nemotron, parakeet variants,
+chatterbox-turbo, kartoffelbox, voxcpm2, cosyvoice3, etc.) confirmed
+present under different catalog keys; no action needed.
+
+**Language-aware alignment pipeline.** `AlignerService.findAligner()`
+now accepts `language:` and prefers the matching wav2vec2 aligner
+(e.g., `wav2vec2-large-xlsr-53-french` for `'fr'`) before falling back
+to the generic canary-ctc-aligner. The language is threaded from
+`CrispASREngine.transcribe()` → `addWordTimestamps(language:)`.
+New `alignerModel` field on `AdvancedTranscribeOptions` and
+`AdvancedOptions` lets users override the auto-selection.
+
+**GUI.** New "Aligner" dropdown in the Advanced Options panel (after
+Token Timestamps): Auto / Canary CTC / Wav2Vec2-FR / … / Wav2Vec2-UK.
+Both TranscriptionScreen construction sites thread `alignerModel`.
+
+**CLI.** `align` command: `--model` is now optional; new `--language`
+flag auto-selects the language-matched wav2vec2 aligner. Falls back to
+canary-ctc-aligner when no match.
+
+**Server.** `POST /v1/audio/transcriptions` now accepts `aligner`
+(model name) and `word_timestamps` (bool) form fields.
+
+**Tests.** `crispasr_07x_parity_catalog_test.dart` (6 tests pinning
+all 11 entries), `lid_dispatch_live_test.dart` (LID backend dispatch),
+`canary_ctc_aligner_live_test.dart` (forced alignment via catalog
+entry), `paraformer_zh_live_test.dart`, WMT21 translation tests added
+to `translation_live_test.dart`. All 30 catalog tests green.
+
+**Server parity.** Two new endpoints: `POST /v1/audio/align` (multipart
+upload + `text` + optional `language`/`model` → per-word timestamps)
+and `POST /v1/text/language` (JSON `{text}` → `{language, confidence}`
+via CLD3/GlotLID/FastText-176 dispatcher).
+
+**SenseVoice emotion/event tags.** The engine now parses SenseVoice's
+inline tags (`<|HAPPY|>`, `<|Speech|>`, `<|BGM|>`, etc.), strips them
+from display text, and surfaces them in `segment.metadata['emotion']`
+and `segment.metadata['audio_event']`. The transcript output widget
+shows orange emotion badges and teal audio-event badges.
+
+**CLI `denoise`.** New `denoise` command wrapping
+`crispasr.enhanceAudioRnnoise` — matches the GUI's "Enhance Audio"
+toggle. Usage: `crisperweaver denoise -o clean.wav noisy.wav`.
+
+**Server parity — round 2.** Three more endpoints:
+`POST /v1/audio/denoise` (RNNoise), `POST /v1/audio/s2s`
+(speech-to-speech via lfm2-audio/mini-omni2), and
+`/v1/audio/watermark` now supports `mode=embed` (returns watermarked
+WAV). Only `speaker` (stateful device DB) and streaming
+(SSE/WebSocket) remain.
+
+**CLI `denoise`.** Wraps `enhanceAudioRnnoise` — was the last CLI ❌
+in PARITY.md.
+
+**Total test count.** 57 non-live tests green (30 catalog + 13
+SenseVoice/aligner + 14 server).
+
+---
+
 ## June 2026 — Full test coverage + CLI/server parity (§9)
 
 A sweep to bring CrisperWeaver's test coverage and non-GUI surfaces up to

@@ -62,7 +62,7 @@ class CrispASREngine implements TranscriptionEngine {
   String get engineName => 'CrispASR (ggml)';
 
   @override
-  String get version => '0.5.4';
+  String get version => '0.8.0';
 
   @override
   // Whisper always supports streaming, so report true for a deferred
@@ -1066,8 +1066,12 @@ class CrispASREngine implements TranscriptionEngine {
           final anyMissing =
               segments.any((s) => s.words == null || s.words!.isEmpty);
           if (anyMissing) {
-            segments =
-                await _alignerService!.addWordTimestamps(segments, audioData);
+            segments = await _alignerService!.addWordTimestamps(
+              segments,
+              audioData,
+              language: language,
+              alignerModel: advanced.alignerModel,
+            );
           }
         }
       }
@@ -1630,6 +1634,14 @@ class CrispASREngine implements TranscriptionEngine {
     return segments;
   }
 
+  // §10 SenseVoice tag classification helpers.
+  static bool _isEmotionTag(String t) =>
+      const {'HAPPY', 'SAD', 'ANGRY', 'NEUTRAL', 'EMO_UNKNOWN', 'SURPRISED', 'FEARFUL', 'DISGUSTED'}
+          .contains(t.toUpperCase());
+  static bool _isEventTag(String t) =>
+      const {'SPEECH', 'BGM', 'LAUGHTER', 'APPLAUSE', 'NOISE', 'MUSIC', 'SINGING'}
+          .contains(t.toUpperCase());
+
   List<TranscriptionSegment> _mapSessionSegments(
     List<crispasr.SessionSegment> sessionSegments,
     void Function(TranscriptionSegment segment)? onSegment,
@@ -1673,8 +1685,21 @@ class CrispASREngine implements TranscriptionEngine {
           : words.map((w) => w.confidence).reduce((a, b) => a + b) /
               words.length;
 
+      // §10 — SenseVoice emits inline tags: <|HAPPY|>, <|Speech|>,
+      // <|BGM|>, <|Laughter|>, etc. Strip them from display text and
+      // surface in metadata so the UI can show emotion/event badges.
+      var segText = s.text.trim();
+      final svTags = <String>[];
+      final tagPattern = RegExp(r'<\|([A-Za-z_]+)\|>');
+      for (final m in tagPattern.allMatches(segText)) {
+        svTags.add(m.group(1)!);
+      }
+      if (svTags.isNotEmpty) {
+        segText = segText.replaceAll(tagPattern, '').trim();
+      }
+
       final seg = TranscriptionSegment(
-        text: s.text.trim(),
+        text: segText,
         startTime: s.start,
         endTime: s.end,
         confidence: segConfidence,
@@ -1684,6 +1709,9 @@ class CrispASREngine implements TranscriptionEngine {
           'model': _currentModelId,
           'segmentIndex': i,
           'backend': _session?.backend,
+          if (svTags.isNotEmpty) 'sensevoice_tags': svTags,
+          if (svTags.any(_isEmotionTag)) 'emotion': svTags.firstWhere(_isEmotionTag),
+          if (svTags.any(_isEventTag)) 'audio_event': svTags.firstWhere(_isEventTag),
         },
       );
       segments.add(seg);

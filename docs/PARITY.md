@@ -13,23 +13,27 @@ Legend: ✅ reached · ➖ partial · ❌ not yet · — n/a.
 
 | Capability | GUI | CLI | Server | Notes |
 |---|---|---|---|---|
-| List backends | ✅ (implicit) | ✅ `backends` | ➖ `/health` shows engine | |
-| File ASR (transcribe) | ✅ | ✅ `transcribe` (+`--srt`) | ✅ `/v1/audio/transcriptions` | |
-| Live / streaming ASR | ✅ | ✅ `stream` | ❌ | server streaming TODO |
+| List backends | ✅ (implicit) | ✅ `backends` | ✅ `GET /backends` | |
+| File ASR (transcribe) | ✅ | ✅ `transcribe` (+`--srt`/`--vtt`) | ✅ `/v1/audio/transcriptions` | |
+| Live / streaming ASR | ✅ | ✅ `stream` | ✅ WebSocket `/v1/audio/stream` | binary PCM → JSON segments |
 | VAD | ✅ | ✅ `vad` | ✅ `/v1/audio/vad` | |
-| Language ID (audio+text) | ✅ | ✅ `lid` (`--text`) | ➖ `/v1/audio/language` | server: audio only |
+| Language ID (audio+text) | ✅ | ✅ `lid` (`--text`) | ✅ `/v1/audio/language` + `/v1/text/language` | |
 | Diarization | ✅ | ✅ `diarize` | ✅ `/v1/audio/diarize` | |
 | Speaker enroll / match | ✅ | ✅ `speaker` | ❌ | server: stateful device DB — deferred |
-| Forced alignment | ✅ (engine) | ✅ `align` | ❌ | server TODO |
+| Forced alignment | ✅ (engine) | ✅ `align` (`--language`) | ✅ `/v1/audio/align` | language-aware wav2vec2 selection |
 | Punctuation / PCS / truecase | ✅ | ✅ `punctuate` | ✅ `/v1/text/punctuate` | |
 | TTS synthesis | ✅ | ✅ `synthesize` | ✅ `/v1/audio/speech` | |
-| Voice cloning | ✅ | ➖ `synthesize --voice` | ❌ | |
+| Voice cloning | ✅ | ✅ `synthesize --voice` | ✅ `/v1/audio/speech` multipart `voice_file` | |
 | Voice baking | ✅ | ❌ | ❌ | desktop Python subprocess; GUI-only |
 | Text translation | ✅ | ✅ `translate` | ✅ `/v1/translations` | |
-| Speech-to-speech | ➖ | ✅ `s2s` | ❌ | server TODO; verify GUI reach (§9.5) |
-| Watermark embed | ✅ | ✅ `watermark` | ❌ | |
-| Watermark **detect** | ❌→test | ✅ `watermark --detect` | ✅ `/v1/audio/watermark` | was orphaned (§9.5); CLI + server + live test cover it |
-| RNNoise denoise | ✅ | ❌ | ❌ | CLI TODO |
+| Speech-to-speech | ➖ | ✅ `s2s` | ✅ `/v1/audio/s2s` | needs lfm2-audio / mini-omni2 |
+| Watermark embed | ✅ | ✅ `watermark` | ✅ `/v1/audio/watermark` (`mode=embed`) | |
+| Watermark **detect** | ✅ Verify Watermark button | ✅ `watermark --detect` | ✅ `/v1/audio/watermark` | GUI + CLI + server |
+| RNNoise denoise | ✅ | ✅ `denoise` | ✅ `/v1/audio/denoise` | |
+| Hotwords / contextual biasing | ✅ | ✅ `transcribe --hotwords` | ✅ `hotwords` form field | CTC trie + LLM prompt injection |
+| Generation controls | ✅ | ✅ `--temperature/--best-of/--seed/…` | ✅ form fields | temperature, best-of, seed, beam-size, frequency-penalty, max-new-tokens |
+| Audio Q&A (ask prompt) | ✅ | ✅ `transcribe --ask` | ✅ `ask` form field | instruct LLM backends |
+| .opus / .webm / .m4a input | ✅ | ✅ (via CrispASR) | ✅ | CrispASR miniaudio decodes all |
 
 ## Orphan audit — resolved (§9.5)
 
@@ -56,10 +60,18 @@ are intentionally **not** mirrored to the CLI/server:
 
 ## Remaining parity work (PLAN §9.4)
 
-- **CLI**: complete — `transcribe`, `stream`, `vad`, `lid`, `diarize`, `align`,
-  `speaker`, `punctuate`, `translate`, `synthesize`, `s2s`, `watermark`,
-  `backends`.
-- **Server**: added `vad`, `lid` (audio), `punctuate`, `diarize`, `watermark`.
-  Still TODO: text-LID, `speaker` (stateful device DB), `align`, streaming, `s2s`.
+- **CLI**: complete — `transcribe` (with `--temperature`, `--best-of`,
+  `--hotwords`, `--seed`, `--max-new-tokens`, `--frequency-penalty`,
+  `--beam-size`, `--ask`, `--translate`, `--vad`, `--word-timestamps`,
+  `--vtt`), `stream` (with `--hotwords`, `--temperature`), `vad`, `lid`,
+  `diarize`, `align`, `speaker`, `punctuate`, `translate`, `synthesize`
+  (with `--temperature`, `--seed`), `s2s`, `watermark`, `denoise`, `backends`.
+- **Server**: complete — all REST endpoints + WebSocket streaming
+  (`/v1/audio/stream`). `GET /backends` lists available backends.
+  The transcriptions endpoint now accepts `temperature`, `best_of`,
+  `prompt`, `hotwords`, `translate`, `vad`, `diarize`, `punctuation`,
+  `ask`, `target_language` form fields. TTS endpoint accepts multipart
+  with `voice_file` for voice cloning.
+  Still TODO: `speaker` (stateful device DB).
 - Keep this file honest with a test that fails when a capability lands on one
   surface but not the matrix.

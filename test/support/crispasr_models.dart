@@ -31,6 +31,7 @@ const Map<String, String> _modelFiles = {
   'parakeet_110m': 'parakeet-tdt_ctc-110m-q4_k.gguf',
   'fastconformer_ctc': 'stt-en-fastconformer-ctc-large-q4_k.gguf',
   'wav2vec2': 'wav2vec2-xlsr-en-q4_k.gguf',
+  'paraformer_zh': 'paraformer-zh-q4_k.gguf',
   // Language ID
   'glotlid': 'lid-glotlid-q4_k.gguf',
   'cld3': 'cld3-f32.gguf',
@@ -50,6 +51,7 @@ const Map<String, String> _modelFiles = {
   // (already on disk, not downloaded); m2m100 is a lighter q8_0 fallback.
   'madlad': 'madlad400-3b-mt-q4_k.gguf',
   'm2m100': 'm2m100-418m-q8_0.gguf',
+  'wmt21_en_x': 'wmt21-dense-24-wide-en-x-q4_k.gguf',
   // TTS (chatterbox turbo: both parts are q4_k and <500 MB)
   'chatterbox_t3': 'chatterbox-t3-q4_k-regen.gguf',
   'chatterbox_s3gen': 'chatterbox-turbo-s3gen-q4_k-regen.gguf',
