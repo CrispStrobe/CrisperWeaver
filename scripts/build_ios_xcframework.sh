@@ -362,6 +362,15 @@ combine() {
   if [[ -f "${plat_dir}/crisp_audio/${release_dir}/libcrisp_audio.a" ]]; then
     libs+=("${plat_dir}/crisp_audio/${release_dir}/libcrisp_audio.a")
   fi
+  # crisp_punc (fireredpunc, pcs, truecaser variants) and crisp_lid
+  # (text_lid) are their own cmake subdirectories. Without these the
+  # framework link fails with undefined fireredpunc_*/pcs_*/text_lid_*
+  # symbols. Glob both so new targets get picked up automatically.
+  for subdir in crisp_punc crisp_lid; do
+    while IFS= read -r -d '' lib; do
+      libs+=("$lib")
+    done < <(find "${plat_dir}/${subdir}/${release_dir}" -maxdepth 1 -name 'lib*.a' -print0 2>/dev/null)
+  done
   # espeak-ng + ucd (when ESPEAK_NG=1): kokoro.a was compiled with
   # CRISPASR_HAVE_ESPEAK_NG=1 and now references espeak_* / ucd_* symbols.
   # Force-load both so they resolve in the framework. Built for the slice
