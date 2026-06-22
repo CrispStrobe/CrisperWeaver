@@ -77,6 +77,24 @@ latest capabilities:
   `paraformer_zh_live_test`, `sensevoice_tag_parsing_test`) verified
   clean — no fixes needed.
 
+**EU AI Act Article 50 compliance (2026-06-22):**
+- Export disclosure: `syntheticDisclosure` wired through `saveTranscription`
+  to SRT/VTT/JSON/Markdown exports. Enabled by default.
+- Synthesize screen: compliance indicator card shows embedded provenance
+  markers (watermark, WAV metadata, beep disclaimer, MP3 ID3v2 tags).
+- Enriched metadata: WAV LIST INFO gains voice identity (`IGNR` field).
+  MP3 ID3v2 gains `AI_MODEL`, `AI_VOICE`, `AI_TIMESTAMP` TXXX frames.
+- C2PA provenance manifest: JSON-LD `c2pa.created` assertion embedded as
+  a RIFF `c2pa` chunk in WAV files. Includes `trainedAlgorithmicMedia`
+  digital source type + training-mining restriction.
+- Heuristic AI detection: spectral analysis (digital silence ratio, ZCR
+  uniformity, energy uniformity) → 0.0–1.0 confidence score. Integrated
+  into Verify Watermark dialog alongside watermark + C2PA.
+- Windows CI fix: suppress MSVC `<experimental/coroutine>` deprecation
+  in `windows/CMakeLists.txt`.
+- iOS CI fix: content-hash dedup for xcframework static lib combining
+  (nemotron.o cross-library collision).
+
 **Docs:** `PARITY.md` and `PLAN.md` updated to reflect the above.
 
 ---
