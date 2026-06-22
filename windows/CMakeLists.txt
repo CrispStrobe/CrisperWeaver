@@ -10,6 +10,11 @@ set(BINARY_NAME "crisper_weaver")
 # versions of CMake.
 cmake_policy(VERSION 3.14...3.25)
 
+# Suppress MSVC 14.51+ deprecation of <experimental/coroutine> used by
+# permission_handler_windows 0.2.1. The plugin hasn't migrated to C++20
+# <coroutine> yet; this define silences the static_assert until it does.
+add_compile_definitions(_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS)
+
 # Define build configuration option.
 get_property(IS_MULTICONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
 if(IS_MULTICONFIG)
