@@ -30,6 +30,7 @@ import '../services/memory_estimator.dart';
 import '../services/preset_service.dart';
 import '../services/audio_watermark_service.dart';
 import '../services/content_provenance_service.dart';
+import '../services/spread_spectrum_watermark.dart';
 import '../services/transcription_service.dart';
 import '../constants/app_constants.dart';
 import '../services/model_service.dart';
@@ -1396,14 +1397,16 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
       final bytes = await File(filePath).readAsBytes();
       final info = AudioWatermarkService.detectWatermark(bytes);
 
-      // Also run heuristic AI-audio detection on the PCM.
+      // Run spread-spectrum watermark detection + heuristic AI detection.
+      double? ssScore;
       AiDetectionResult? heuristic;
       try {
         final audio = await ref.read(audioServiceProvider).loadAudioFile(
             File(filePath));
+        ssScore = SpreadSpectrumWatermark.detect(audio.samples);
         heuristic = AudioWatermarkService.detectAiAudio(audio.samples,
             sampleRate: audio.sampleRate);
-      } catch (_) {/* non-WAV or decode failure — skip heuristic */}
+      } catch (_) {/* non-WAV or decode failure — skip */}
 
       // Check for C2PA provenance manifest.
       final c2pa = ContentProvenanceService.extractFromWav(bytes);
@@ -1445,6 +1448,24 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
                   ),
                 ],
               ),
+              const SizedBox(height: 6),
+              // Spread-spectrum watermark (CrispASR/CrispTTS cross-compat)
+              if (ssScore != null) ...[
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    Icon(ssScore > 0.65 ? Icons.check_circle : Icons.cancel,
+                        size: 16,
+                        color: ssScore > 0.65 ? Colors.green : Colors.grey),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(ssScore > 0.65
+                          ? 'Spread-spectrum watermark: ${(ssScore * 100).toStringAsFixed(0)}% confidence'
+                          : 'No spread-spectrum watermark (${(ssScore * 100).toStringAsFixed(0)}%)'),
+                    ),
+                  ],
+                ),
+              ],
               const SizedBox(height: 6),
               // C2PA manifest result
               Row(

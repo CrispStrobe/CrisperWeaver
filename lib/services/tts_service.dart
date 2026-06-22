@@ -13,6 +13,7 @@ import '../models/pronunciation_lexicon.dart';
 import 'audio_watermark_service.dart';
 import 'content_provenance_service.dart';
 import 'log_service.dart';
+import 'spread_spectrum_watermark.dart';
 import 'model_service.dart';
 
 /// Synthesised audio plus the sample rate the backend declares (kokoro:
@@ -640,8 +641,9 @@ class TtsService {
     // Watermark: crispasr_session_synthesize() now auto-embeds the
     // spread-spectrum / AudioSeal watermark at the C API level, so the
     // PCM arriving here is already watermarked. We only fall back to
-    // the pure-Dart LSB watermark when the native watermark symbols are
-    // unavailable (e.g. web builds or very old dylibs).
+    // the pure-Dart spread-spectrum watermark when the native symbols are
+    // unavailable (e.g. web builds or very old dylibs). The spread-spectrum
+    // watermark is cross-compatible with CrispASR/CrispTTS detectors.
     bool nativeWatermarked = false;
     if (AppConstants.enableAudioWatermark) {
       try {
@@ -660,12 +662,25 @@ class TtsService {
           : null,
     );
     if (AppConstants.enableAudioWatermark && !nativeWatermarked) {
+      // Apply spread-spectrum watermark to the PCM before WAV encoding.
+      // This is cross-compatible with CrispASR's and CrispTTS's detectors.
+      final watermarkedPcm = SpreadSpectrumWatermark.embed(samples);
+      // Re-encode the watermarked PCM as WAV (replacing the earlier bytes).
+      bytes = _floatPcmToWavBytes(
+        watermarkedPcm,
+        audio.sampleRate,
+        modelName: _backend,
+        voiceId: voiceRefPath != null
+            ? p.basenameWithoutExtension(voiceRefPath)
+            : null,
+      );
+      // Also apply LSB watermark for backward compat with older detectors.
       bytes = AudioWatermarkService.embedWatermark(
         bytes,
         timestamp: now,
         synthetic: true,
       );
-      Log.instance.d('tts', 'dart LSB watermark applied (fallback)');
+      Log.instance.d('tts', 'dart spread-spectrum + LSB watermark applied (fallback)');
     }
     // Post-embed watermark verification: detect immediately after
     // embedding to catch silent failures (corrupted WAV, truncation).
