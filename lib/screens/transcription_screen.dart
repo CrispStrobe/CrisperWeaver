@@ -29,6 +29,7 @@ import '../services/log_service.dart';
 import '../services/memory_estimator.dart';
 import '../services/preset_service.dart';
 import '../services/audio_watermark_service.dart';
+import '../services/content_provenance_service.dart';
 import '../services/transcription_service.dart';
 import '../constants/app_constants.dart';
 import '../services/model_service.dart';
@@ -1391,39 +1392,105 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
         allowedExtensions: const ['wav'],
       );
       if (pick.isEmpty || !mounted) return;
-      final path = pick.localPaths.first;
-      final bytes = await File(path).readAsBytes();
+      final filePath = pick.localPaths.first;
+      final bytes = await File(filePath).readAsBytes();
       final info = AudioWatermarkService.detectWatermark(bytes);
+
+      // Also run heuristic AI-audio detection on the PCM.
+      AiDetectionResult? heuristic;
+      try {
+        final audio = await ref.read(audioServiceProvider).loadAudioFile(
+            File(filePath));
+        heuristic = AudioWatermarkService.detectAiAudio(audio.samples,
+            sampleRate: audio.sampleRate);
+      } catch (_) {/* non-WAV or decode failure — skip heuristic */}
+
+      // Check for C2PA provenance manifest.
+      final c2pa = ContentProvenanceService.extractFromWav(bytes);
+
       if (!mounted) return;
       showDialog<void>(
         context: context,
         builder: (ctx) => AlertDialog(
           icon: Icon(
-            info != null ? Icons.verified : Icons.cancel_outlined,
-            color: info != null ? Colors.green : Colors.red,
+            info != null ? Icons.verified : Icons.help_outline,
+            color: info != null
+                ? Colors.green
+                : (heuristic != null && heuristic.score > 0.7
+                    ? Colors.orange
+                    : Colors.grey),
             size: 48,
           ),
-          title: Text(info != null ? 'Watermark Detected' : 'No Watermark'),
-          content: info != null
-              ? Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          title: Text(info != null
+              ? 'Watermark Detected'
+              : (heuristic != null && heuristic.score > 0.7
+                  ? 'Possibly AI-Generated'
+                  : 'No AI Markers Found')),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // CrisperWeaver watermark result
+              Row(
+                children: [
+                  Icon(info != null ? Icons.check_circle : Icons.cancel,
+                      size: 16,
+                      color: info != null ? Colors.green : Colors.grey),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(info != null
+                        ? 'CrisperWeaver watermark: ${info.synthetic ? "synthetic" : "not synthetic"}, '
+                            '${info.timestamp.toLocal()}'
+                        : 'No CrisperWeaver watermark'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              // C2PA manifest result
+              Row(
+                children: [
+                  Icon(c2pa != null ? Icons.check_circle : Icons.cancel,
+                      size: 16,
+                      color: c2pa != null ? Colors.green : Colors.grey),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(c2pa != null
+                        ? 'C2PA manifest: ${c2pa['claim_generator'] ?? 'present'}'
+                        : 'No C2PA manifest'),
+                  ),
+                ],
+              ),
+              // Heuristic AI detection result
+              if (heuristic != null) ...[
+                const SizedBox(height: 6),
+                Row(
                   children: [
-                    Text('AI-generated: ${info.synthetic ? "Yes" : "No"}'),
-                    const SizedBox(height: 4),
-                    Text('Timestamp: ${info.timestamp.toLocal()}'),
-                    const SizedBox(height: 8),
-                    Text(
-                      p.basename(path),
-                      style: Theme.of(ctx).textTheme.bodySmall,
+                    Icon(
+                      heuristic.score > 0.7
+                          ? Icons.warning_amber
+                          : Icons.check_circle,
+                      size: 16,
+                      color: heuristic.score > 0.7
+                          ? Colors.orange
+                          : Colors.green,
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Heuristic: ${(heuristic.score * 100).toStringAsFixed(0)}% AI likelihood'
+                        '${heuristic.reason.isNotEmpty ? " (${heuristic.reason})" : ""}',
+                      ),
                     ),
                   ],
-                )
-              : Text(
-                  'No CrisperWeaver watermark found in ${p.basename(path)}.\n\n'
-                  'This file was either not generated by CrisperWeaver, '
-                  'or the watermark was removed by re-encoding.',
                 ),
+              ],
+              const SizedBox(height: 10),
+              Text(
+                p.basename(filePath),
+                style: Theme.of(ctx).textTheme.bodySmall,
+              ),
+            ],
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
@@ -3165,6 +3232,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
         baseName,
         format: format,
         segments: state.segments,
+        syntheticDisclosure: AppConstants.enableSyntheticDisclosure,
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

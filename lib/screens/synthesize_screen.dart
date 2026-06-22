@@ -777,6 +777,31 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
                       ),
                     )
                   else ...[
+                    // EU AI Act Art. 50 compliance indicator.
+                    Card(
+                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 8),
+                        child: Row(
+                          children: [
+                            Icon(Icons.verified_user,
+                                size: 16,
+                                color: Theme.of(context).colorScheme.primary),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'AI provenance: watermark + WAV metadata + '
+                                '${ss.selectedVoice != null ? "beep disclaimer + " : ""}'
+                                'MP3 ID3v2 tags embedded automatically',
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
                     DropdownButtonFormField<String>(
                       decoration: InputDecoration(labelText: l.synthModelLabel),
                       initialValue: ss.selectedModel,

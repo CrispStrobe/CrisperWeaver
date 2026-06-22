@@ -45,7 +45,7 @@ void main() {
       }
     });
 
-    test('contains the three AI-provenance TXXX frames with expected values',
+    test('contains the AI-provenance TXXX frames with expected values',
         () {
       final out = AudioWatermarkService.injectMp3Metadata(
         Uint8List.fromList(List.filled(16, 0)),
@@ -53,13 +53,16 @@ void main() {
       final asString = String.fromCharCodes(out);
 
       // Each TXXX frame begins with the 4-char frame id "TXXX".
-      expect('TXXX'.allMatches(asString).length, 3);
+      // 4 mandatory frames: AI_GENERATED, GENERATOR, AI_CONTENT_NOTICE,
+      // AI_TIMESTAMP. Optional frames (AI_MODEL, AI_VOICE) add more.
+      expect('TXXX'.allMatches(asString).length, greaterThanOrEqualTo(4));
       expect(asString, contains('AI_GENERATED'));
       expect(asString, contains('true'));
       expect(asString, contains('GENERATOR'));
       expect(asString, contains('CrisperWeaver'));
       expect(asString, contains('AI_CONTENT_NOTICE'));
       expect(asString, contains('synthesized by an AI text-to-speech model'));
+      expect(asString, contains('AI_TIMESTAMP'));
     });
 
     test('a single TXXX frame declares the correct big-endian payload size',

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../constants/app_constants.dart';
 import '../main.dart';
 import '../l10n/generated/app_localizations.dart';
 import '../models/segment_tag.dart';
@@ -556,6 +557,7 @@ class _HistoryTile extends StatelessWidget {
         entry.title,
         format: fmt,
         segments: entry.segments,
+        syntheticDisclosure: AppConstants.enableSyntheticDisclosure,
       );
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

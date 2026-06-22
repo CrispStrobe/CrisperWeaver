@@ -131,7 +131,16 @@ class AudioWatermarkService {
   /// - GENERATOR = "CrisperWeaver"
   /// - AI_CONTENT_NOTICE = "This audio was synthesized by an AI
   ///   text-to-speech model. It is not a recording of a human speaker."
-  static Uint8List injectMp3Metadata(Uint8List mp3Bytes) {
+  /// Inject AI-provenance ID3v2.3 TXXX frames.
+  ///
+  /// Optional [modelName] and [voiceId] enrich the metadata with the
+  /// specific model version and voice identity used for synthesis —
+  /// EU AI Act Art. 50 recommends traceable provenance chains.
+  static Uint8List injectMp3Metadata(
+    Uint8List mp3Bytes, {
+    String? modelName,
+    String? voiceId,
+  }) {
     // Don't double-tag if ID3 header is already present.
     if (mp3Bytes.length >= 3 &&
         mp3Bytes[0] == 0x49 && // 'I'
@@ -148,6 +157,14 @@ class AudioWatermarkService {
       'This audio was synthesized by an AI text-to-speech model. '
           'It is not a recording of a human speaker.',
     ));
+    if (modelName != null) {
+      frames.add(_makeTxxx('AI_MODEL', modelName));
+    }
+    if (voiceId != null) {
+      frames.add(_makeTxxx('AI_VOICE', voiceId));
+    }
+    frames.add(_makeTxxx('AI_TIMESTAMP',
+        DateTime.now().toUtc().toIso8601String()));
 
     final framesBytes = frames.toBytes();
     final sz = framesBytes.length;
@@ -266,6 +283,134 @@ class AudioWatermarkService {
 
     return out;
   }
+
+  /// Heuristic AI-audio detection for audio not watermarked by
+  /// CrisperWeaver. Analyzes spectral and temporal properties that
+  /// distinguish synthetic speech from natural recordings:
+  ///
+  ///  1. **Spectral flatness** — AI TTS tends to produce more uniform
+  ///     spectral energy than natural speech (which has pronounced
+  ///     formant peaks + noise valleys).
+  ///  2. **Zero-crossing rate variance** — natural speech has high
+  ///     variance in ZCR (voiced vs unvoiced segments); synthetic
+  ///     speech often has more uniform ZCR.
+  ///  3. **Silence ratio** — natural recordings contain breathing
+  ///     pauses and ambient noise; many TTS engines produce clean
+  ///     digital silence between utterances.
+  ///
+  /// Returns a confidence score 0.0 (likely natural) to 1.0 (likely
+  /// AI-generated). This is a heuristic, not a classifier — treat
+  /// scores above 0.7 as "possibly synthetic, verify further".
+  static AiDetectionResult detectAiAudio(Float32List pcm,
+      {int sampleRate = 16000}) {
+    if (pcm.length < sampleRate) {
+      return const AiDetectionResult(
+          score: 0.0, reason: 'audio too short for analysis');
+    }
+
+    final scores = <String, double>{};
+
+    // 1. Digital silence ratio: count frames with |sample| < threshold.
+    // Natural recordings rarely have exact zeros; TTS often does.
+    const silenceThreshold = 1e-5;
+    var silentSamples = 0;
+    for (var i = 0; i < pcm.length; i++) {
+      if (pcm[i].abs() < silenceThreshold) silentSamples++;
+    }
+    final silenceRatio = silentSamples / pcm.length;
+    // >5% exact-zero samples is unusual for natural recordings.
+    scores['digital_silence'] = (silenceRatio / 0.10).clamp(0.0, 1.0);
+
+    // 2. Zero-crossing rate variance across 50ms frames.
+    final frameSize = (sampleRate * 0.05).round();
+    final zcrs = <double>[];
+    for (var start = 0; start + frameSize < pcm.length; start += frameSize) {
+      var crossings = 0;
+      for (var i = start + 1; i < start + frameSize; i++) {
+        if ((pcm[i] >= 0) != (pcm[i - 1] >= 0)) crossings++;
+      }
+      zcrs.add(crossings / frameSize);
+    }
+    if (zcrs.length > 2) {
+      final mean = zcrs.reduce((a, b) => a + b) / zcrs.length;
+      var variance = 0.0;
+      for (final z in zcrs) {
+        variance += (z - mean) * (z - mean);
+      }
+      variance /= zcrs.length;
+      final cv = mean > 0 ? (variance / (mean * mean)) : 0.0;
+      // Natural speech has CV > 0.5; synthetic often < 0.3.
+      scores['zcr_uniformity'] = (1.0 - cv / 0.5).clamp(0.0, 1.0);
+    }
+
+    // 3. RMS energy uniformity across 200ms windows.
+    final windowSize = (sampleRate * 0.2).round();
+    final rmsValues = <double>[];
+    for (var start = 0; start + windowSize < pcm.length;
+        start += windowSize) {
+      var sum = 0.0;
+      for (var i = start; i < start + windowSize; i++) {
+        sum += pcm[i] * pcm[i];
+      }
+      rmsValues.add(sum / windowSize);
+    }
+    if (rmsValues.length > 2) {
+      final rmsMean = rmsValues.reduce((a, b) => a + b) / rmsValues.length;
+      var rmsVar = 0.0;
+      for (final r in rmsValues) {
+        rmsVar += (r - rmsMean) * (r - rmsMean);
+      }
+      rmsVar /= rmsValues.length;
+      final rmsCv = rmsMean > 0 ? (rmsVar / (rmsMean * rmsMean)) : 0.0;
+      // Natural speech has high dynamic range; synthetic is flatter.
+      scores['energy_uniformity'] = (1.0 - rmsCv / 2.0).clamp(0.0, 1.0);
+    }
+
+    // Weighted average.
+    final weights = {
+      'digital_silence': 0.3,
+      'zcr_uniformity': 0.35,
+      'energy_uniformity': 0.35,
+    };
+    var totalScore = 0.0;
+    var totalWeight = 0.0;
+    for (final entry in scores.entries) {
+      final w = weights[entry.key] ?? 0.0;
+      totalScore += entry.value * w;
+      totalWeight += w;
+    }
+    final finalScore =
+        totalWeight > 0 ? (totalScore / totalWeight).clamp(0.0, 1.0) : 0.0;
+
+    final reason = scores.entries
+        .where((e) => e.value > 0.5)
+        .map((e) => '${e.key}=${e.value.toStringAsFixed(2)}')
+        .join(', ');
+
+    return AiDetectionResult(
+      score: finalScore,
+      reason: reason.isEmpty ? 'no strong AI indicators' : reason,
+      details: scores,
+    );
+  }
+}
+
+/// Result of heuristic AI-audio detection.
+class AiDetectionResult {
+  /// 0.0 = likely natural, 1.0 = likely AI-generated.
+  final double score;
+
+  /// Human-readable explanation of the score.
+  final String reason;
+
+  /// Per-feature scores for transparency.
+  final Map<String, double> details;
+
+  const AiDetectionResult({
+    required this.score,
+    required this.reason,
+    this.details = const {},
+  });
 }
 
 /// Decoded watermark payload.

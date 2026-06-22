@@ -85,11 +85,18 @@ class FileUtils {
   }
 
   /// Save transcription to file
+  /// Save transcription to file.
+  ///
+  /// When [syntheticDisclosure] is true, formats that support it
+  /// (SRT, VTT, JSON, Markdown) prepend an AI-generated content
+  /// notice — required by EU AI Act Article 50 when the transcript
+  /// originates from synthetic speech.
   static Future<File> saveTranscription(
     String text,
     String fileName, {
     TranscriptFormat format = TranscriptFormat.txt,
     List<TranscriptionSegment>? segments,
+    bool syntheticDisclosure = false,
   }) async {
     final transcriptionsDir = await getTranscriptionsDirectory();
     final extension = _getExtensionForFormat(format);
@@ -105,13 +112,16 @@ class FileUtils {
         content = text;
         break;
       case TranscriptFormat.srt:
-        content = generateSrtContent(segments ?? []);
+        content = generateSrtContent(segments ?? [],
+            syntheticDisclosure: syntheticDisclosure);
         break;
       case TranscriptFormat.vtt:
-        content = generateVttContent(segments ?? []);
+        content = generateVttContent(segments ?? [],
+            syntheticDisclosure: syntheticDisclosure);
         break;
       case TranscriptFormat.json:
-        content = generateJsonContent(segments ?? []);
+        content = generateJsonContent(segments ?? [],
+            syntheticDisclosure: syntheticDisclosure);
         break;
       case TranscriptFormat.csv:
         content = generateCsvContent(segments ?? []);
@@ -123,7 +133,8 @@ class FileUtils {
         content = generateWtsContent(segments ?? []);
         break;
       case TranscriptFormat.md:
-        content = generateMarkdownContent(segments ?? [], plainText: text);
+        content = generateMarkdownContent(segments ?? [],
+            plainText: text, syntheticDisclosure: syntheticDisclosure);
         break;
     }
 

@@ -11,6 +11,7 @@ import '../constants/app_constants.dart';
 import '../main.dart' show modelServiceProvider;
 import '../models/pronunciation_lexicon.dart';
 import 'audio_watermark_service.dart';
+import 'content_provenance_service.dart';
 import 'log_service.dart';
 import 'model_service.dart';
 
@@ -654,6 +655,9 @@ class TtsService {
       samples,
       audio.sampleRate,
       modelName: _backend,
+      voiceId: voiceRefPath != null
+          ? p.basenameWithoutExtension(voiceRefPath)
+          : null,
     );
     if (AppConstants.enableAudioWatermark && !nativeWatermarked) {
       bytes = AudioWatermarkService.embedWatermark(
@@ -676,6 +680,19 @@ class TtsService {
             fields: {'synthetic': verified.synthetic});
       }
     }
+    // C2PA provenance manifest — append a machine-readable JSON-LD
+    // assertion chunk to the WAV so C2PA-aware tools can discover
+    // the AI origin without needing our watermark decoder.
+    bytes = ContentProvenanceService.injectIntoWav(
+      bytes,
+      generator: 'CrisperWeaver',
+      generatorVersion: AppConstants.appVersion,
+      modelName: _backend,
+      voiceId: voiceRefPath != null
+          ? p.basenameWithoutExtension(voiceRefPath)
+          : null,
+      timestamp: now,
+    );
     await out.writeAsBytes(bytes, flush: true);
     return out;
   }
@@ -739,15 +756,20 @@ class TtsService {
     Float32List samples,
     int sampleRate, {
     String? modelName,
+    String? voiceId,
   }) {
     final dataBytes = samples.length * 2; // int16 mono
 
     // --- Build LIST INFO chunk payload --------------------------------
+    // EU AI Act Art. 50 — machine-readable provenance metadata. Encodes
+    // the generator, model, voice identity, and creation timestamp so
+    // downstream tools can verify the content's origin.
     final infoFields = <String, String>{
       'ISFT': 'CrisperWeaver ${AppConstants.appVersion}',
       'ICMT': 'AI-generated synthetic speech',
       'IART': '${modelName ?? "unknown"} TTS',
       'ICRD': DateTime.now().toUtc().toIso8601String(),
+      if (voiceId != null) 'IGNR': 'voice:$voiceId',
     };
     // Each INFO sub-chunk: 4-byte ID + 4-byte size + null-terminated
     // string (padded to even length).
