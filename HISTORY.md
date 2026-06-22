@@ -77,7 +77,7 @@ latest capabilities:
   `paraformer_zh_live_test`, `sensevoice_tag_parsing_test`) verified
   clean — no fixes needed.
 
-**EU AI Act Article 50 compliance (2026-06-22):**
+**Synthetic content provenance + compliance (2026-06-22):**
 - Export disclosure: `syntheticDisclosure` wired through `saveTranscription`
   to SRT/VTT/JSON/Markdown exports. Enabled by default.
 - Synthesize screen: compliance indicator card shows embedded provenance

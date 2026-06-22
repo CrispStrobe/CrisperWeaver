@@ -777,7 +777,7 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
                       ),
                     )
                   else ...[
-                    // EU AI Act Art. 50 compliance indicator.
+                    // Synthetic content compliance indicator.
                     Card(
                       color: Theme.of(context).colorScheme.surfaceContainerHighest,
                       child: Padding(

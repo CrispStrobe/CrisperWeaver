@@ -584,8 +584,8 @@ class TtsService {
   /// dialog.
   ///
   /// When [voiceRefPath] is non-null, the output uses a cloned voice and
-  /// a beep-based AI disclaimer marker is prepended to the PCM (EU AI Act
-  /// Art. 50(4)) unless [spokenDisclaimer] is false. A consent attestation
+  /// a beep-based AI disclaimer marker is prepended to the PCM unless
+  /// [spokenDisclaimer] is false. A consent attestation
   /// is also logged for audit purposes.
   ///
   /// Note: the spread-spectrum watermark is now auto-applied by
@@ -611,7 +611,7 @@ class TtsService {
     final stamp = now.millisecondsSinceEpoch;
     final name = basename ?? 'crisperweaver-synth-$stamp.wav';
     final out = File(p.join(dir.path, name));
-    // Voice-clone disclaimer + consent audit logging (EU AI Act Art. 50(4)).
+    // Voice-clone disclaimer + consent audit logging .
     var samples = audio.samples;
     final bool isVoiceClone = voiceRefPath != null && voiceRefPath.isNotEmpty;
     if (isVoiceClone) {
@@ -761,7 +761,7 @@ class TtsService {
     final dataBytes = samples.length * 2; // int16 mono
 
     // --- Build LIST INFO chunk payload --------------------------------
-    // EU AI Act Art. 50 — machine-readable provenance metadata. Encodes
+    // Machine-readable provenance metadata. Encodes
     // the generator, model, voice identity, and creation timestamp so
     // downstream tools can verify the content's origin.
     final infoFields = <String, String>{

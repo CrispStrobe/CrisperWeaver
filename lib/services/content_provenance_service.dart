@@ -16,9 +16,8 @@ import 'dart:typed_data';
 /// Full C2PA signing can be layered on top when a Dart COSE library
 /// ships.
 ///
-/// EU AI Act Article 50(2): "Providers of AI systems ... shall ensure
-/// that the outputs of the AI system are marked in a machine-readable
-/// format and detectable as artificially generated or manipulated."
+/// Embeds provenance metadata so outputs are machine-detectable
+/// as artificially generated.
 class ContentProvenanceService {
   ContentProvenanceService._();
 

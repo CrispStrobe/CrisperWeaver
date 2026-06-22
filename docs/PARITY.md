@@ -34,7 +34,7 @@ Legend: ✅ reached · ➖ partial · ❌ not yet · — n/a.
 | Generation controls | ✅ | ✅ `--temperature/--best-of/--seed/…` | ✅ form fields | temperature, best-of, seed, beam-size, frequency-penalty, max-new-tokens |
 | Audio Q&A (ask prompt) | ✅ | ✅ `transcribe --ask` | ✅ `ask` form field | instruct LLM backends |
 | .opus / .webm / .m4a input | ✅ | ✅ (via CrispASR) | ✅ | CrispASR miniaudio decodes all |
-| EU AI Act Art. 50 provenance | ✅ | ✅ | ✅ | Watermark + C2PA + WAV/MP3 metadata + export disclosure + heuristic AI detection |
+| Synthetic content provenance | ✅ | ✅ | ✅ | Watermark + C2PA + WAV/MP3 metadata + export disclosure + heuristic AI detection |
 
 ## Orphan audit — resolved (§9.5)
 

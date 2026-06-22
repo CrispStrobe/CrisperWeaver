@@ -311,6 +311,45 @@ class AudioService {
           });
     }
 
+    // FFmpeg fallback for formats miniaudio doesn't handle (opus,
+    // webm, m4a/aac). Convert to 16 kHz mono WAV via pipe. Falls
+    // through to the Dart WAV parser when ffmpeg isn't installed.
+    final ext = path.extension(audioFile.path).toLowerCase();
+    if (const {'.opus', '.webm', '.m4a', '.aac', '.mp4', '.wma'}
+        .contains(ext)) {
+      try {
+        final result = await Process.run('ffmpeg', [
+          '-y', '-i', audioFile.path,
+          '-f', 'wav', '-ac', '1', '-ar', '16000',
+          '-acodec', 'pcm_s16le',
+          '${audioFile.path}.tmp.wav',
+        ]);
+        if (result.exitCode == 0) {
+          final tmpWav = File('${audioFile.path}.tmp.wav');
+          try {
+            final decoded = crispasr.decodeAudioFile(tmpWav.path);
+            done(extra: {
+              'via': 'ffmpeg+ffi',
+              'samples': decoded.samples.length,
+              'sr': decoded.sampleRate,
+              'format': ext,
+            });
+            return WavData(
+              samples: decoded.samples,
+              sampleRate: decoded.sampleRate,
+              channels: 1,
+            );
+          } finally {
+            try { await tmpWav.delete(); } catch (_) {}
+          }
+        }
+        Log.instance.w('audio', 'ffmpeg conversion failed',
+            fields: {'exit': result.exitCode, 'stderr': '${result.stderr}'.substring(0, 200.clamp(0, '${result.stderr}'.length))});
+      } catch (e) {
+        Log.instance.d('audio', 'ffmpeg not available', fields: {'err': '$e'});
+      }
+    }
+
     final wav = await _basicWavProcessing(audioFile);
     Log.instance.i('audio', 'decoded via Dart WAV parser', fields: {
       'file': path.basename(audioFile.path),
@@ -341,9 +380,9 @@ class AudioService {
       // tried to load an MP4 / M4A / AAC.
       throw const AudioProcessingException(
         'Unsupported audio format. CrisperWeaver decodes WAV, MP3, '
-        'FLAC, and OGG natively. For M4A / AAC / MP4 / WMA, convert '
-        'to one of those first (Voice Memos exports as M4A — re-export '
-        'or use a converter).',
+        'FLAC, and OGG natively. Opus, WebM, M4A, and AAC are '
+        'supported when ffmpeg is installed. Install ffmpeg or '
+        'convert to WAV/MP3/FLAC first.',
       );
     }
 

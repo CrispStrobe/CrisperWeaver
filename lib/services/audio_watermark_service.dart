@@ -119,23 +119,14 @@ class AudioWatermarkService {
   }
 
   // ---------------------------------------------------------------
-  // MP3 ID3v2 AI-provenance tags (EU AI Act Art. 50)
+  // MP3 ID3v2 AI-provenance tags
   // ---------------------------------------------------------------
 
-  /// Prepend an ID3v2.3 tag with AI-provenance TXXX frames to [mp3Bytes].
-  /// If the bytes already start with an ID3 header, they are returned
-  /// unchanged to avoid double-tagging.
-  ///
-  /// Injected TXXX frames:
-  /// - AI_GENERATED = "true"
-  /// - GENERATOR = "CrisperWeaver"
-  /// - AI_CONTENT_NOTICE = "This audio was synthesized by an AI
-  ///   text-to-speech model. It is not a recording of a human speaker."
-  /// Inject AI-provenance ID3v2.3 TXXX frames.
+  /// Inject AI-provenance ID3v2.3 TXXX frames into [mp3Bytes].
+  /// Returns unchanged if an ID3 header is already present.
   ///
   /// Optional [modelName] and [voiceId] enrich the metadata with the
-  /// specific model version and voice identity used for synthesis —
-  /// EU AI Act Art. 50 recommends traceable provenance chains.
+  /// specific model and voice identity used for synthesis.
   static Uint8List injectMp3Metadata(
     Uint8List mp3Bytes, {
     String? modelName,
@@ -224,7 +215,7 @@ class AudioWatermarkService {
   }
 
   // ---------------------------------------------------------------
-  // Beep-based AI disclaimer marker (EU AI Act Art. 50(4))
+  // Beep-based AI disclaimer marker
   // ---------------------------------------------------------------
 
   /// Generate a beep-based disclaimer marker for voice-cloned TTS output.

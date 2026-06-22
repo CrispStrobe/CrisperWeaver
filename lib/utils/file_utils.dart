@@ -84,12 +84,11 @@ class FileUtils {
         .trim();
   }
 
-  /// Save transcription to file
   /// Save transcription to file.
   ///
   /// When [syntheticDisclosure] is true, formats that support it
   /// (SRT, VTT, JSON, Markdown) prepend an AI-generated content
-  /// notice — required by EU AI Act Article 50 when the transcript
+  /// notice — required for compliance when the transcript
   /// originates from synthetic speech.
   static Future<File> saveTranscription(
     String text,
