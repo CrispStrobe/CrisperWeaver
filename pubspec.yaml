@@ -3,7 +3,7 @@ description: A cross-platform Flutter app for fully-offline audio transcription 
 
 publish_to: 'none'
 
-version: 0.8.2+63
+version: 0.8.3+64
 
 environment:
   sdk: '>=3.5.0 <4.0.0'
@@ -39,6 +39,10 @@ dependencies:
   record: ^6.2.0
   path_provider: ^2.1.1
   permission_handler: ^12.0.3
+
+  # 64-bit integer arithmetic that works on both native and dart2js.
+  # Already a transitive dep; promoted to direct for spread_spectrum_watermark.dart.
+  fixnum: ^1.1.0
 
   # File handling
   file_picker: ">=11.0.2 <13.0.0"
