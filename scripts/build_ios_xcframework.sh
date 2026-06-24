@@ -297,6 +297,7 @@ framework module crispasr {
     link framework "Accelerate"
     link framework "Metal"
     link framework "Foundation"
+    link framework "AudioToolbox"
 
     export *
 }
@@ -434,7 +435,7 @@ combine() {
   local arch_flags=""
   for a in $archs; do arch_flags+=" -arch $a"; done
 
-  local frameworks="-framework Foundation -framework Metal -framework Accelerate"
+  local frameworks="-framework Foundation -framework Metal -framework Accelerate -framework AudioToolbox"
   if [[ "$EFFECTIVE_COREML" == "ON" ]]; then
     frameworks+=" -framework CoreML"
   fi
