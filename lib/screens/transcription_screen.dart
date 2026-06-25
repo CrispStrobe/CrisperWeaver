@@ -1393,20 +1393,28 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
         allowedExtensions: const ['wav'],
       );
       if (pick.isEmpty || !mounted) return;
-      final filePath = pick.localPaths.first;
-      final bytes = await File(filePath).readAsBytes();
+
+      final filePath = pick.localPaths.isNotEmpty ? pick.localPaths.first : null;
+      final displayName = filePath != null
+          ? p.basename(filePath)
+          : (pick.fileNames?.firstOrNull ?? 'Selected audio');
+      final bytes = filePath != null
+          ? await File(filePath).readAsBytes()
+          : pick.fileBytes!.first;
       final info = AudioWatermarkService.detectWatermark(bytes);
 
       // Run spread-spectrum watermark detection + heuristic AI detection.
       double? ssScore;
       AiDetectionResult? heuristic;
-      try {
-        final audio = await ref.read(audioServiceProvider).loadAudioFile(
-            File(filePath));
-        ssScore = SpreadSpectrumWatermark.detect(audio.samples);
-        heuristic = AudioWatermarkService.detectAiAudio(audio.samples,
-            sampleRate: audio.sampleRate);
-      } catch (_) {/* non-WAV or decode failure — skip */}
+      if (filePath != null) {
+        try {
+          final audio = await ref.read(audioServiceProvider).loadAudioFile(
+              File(filePath));
+          ssScore = SpreadSpectrumWatermark.detect(audio.samples);
+          heuristic = AudioWatermarkService.detectAiAudio(audio.samples,
+              sampleRate: audio.sampleRate);
+        } catch (_) {/* non-WAV or decode failure — skip */}
+      }
 
       // Check for C2PA provenance manifest.
       final c2pa = ContentProvenanceService.extractFromWav(bytes);
@@ -1507,7 +1515,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
               ],
               const SizedBox(height: 10),
               Text(
-                p.basename(filePath),
+                displayName,
                 style: Theme.of(ctx).textTheme.bodySmall,
               ),
             ],
