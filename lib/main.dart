@@ -505,10 +505,10 @@ class _CrisperWeaverAppState extends ConsumerState<CrisperWeaverApp> {
       themeMode: ThemeMode.system,
       routerConfig: _router,
       locale: locale,
-      // i18n: English (fallback) + German.
+      // i18n: English (fallback) plus generated app locales.
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
-      // Fall back to English when the system locale matches neither en nor de.
+      // Fall back to English when the system locale matches no generated locale.
       localeResolutionCallback: (deviceLocale, supportedLocales) {
         for (final loc in supportedLocales) {
           if (loc.languageCode == deviceLocale?.languageCode) return loc;

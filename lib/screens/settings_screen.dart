@@ -53,6 +53,9 @@ bool looksLikeAndroidSharedStoragePath(String path) {
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
+  @visibleForTesting
+  static const supportedAppLocaleCodes = ['', 'en', 'de', 'zh'];
+
   @override
   ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
 }
@@ -117,11 +120,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   void _showAppLocaleSelector(SettingsService settings) {
-    final l = AppLocalizations.of(context);
     final locales = {
-      '': l.settingsSystemDefault,
-      'en': 'English',
-      'de': 'Deutsch',
+      for (final code in SettingsScreen.supportedAppLocaleCodes)
+        code: _getAppLocaleDisplayName(code),
     };
 
     showDialog<void>(
@@ -155,6 +156,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   String _getAppLocaleDisplayName(String code) {
     if (code == 'en') return 'English';
     if (code == 'de') return 'Deutsch';
+    if (code == 'zh') return '中文';
     return AppLocalizations.of(context).settingsSystemDefault;
   }
 
