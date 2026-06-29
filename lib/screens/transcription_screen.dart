@@ -2143,18 +2143,30 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
           // missing-model error.
           ref.read(transcriptionScreenProvider.notifier).setTranscribePending(false);
           final l = AppLocalizations.of(context);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(l.defaultModelNotDownloaded(_modelName)),
-              action: SnackBarAction(
-                label: l.openModels,
-                onPressed: () {
-                  if (mounted) context.push('/models');
-                },
+          final isNotDownloaded =
+              e.toString().contains('is not downloaded');
+          if (isNotDownloaded) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(l.defaultModelNotDownloaded(_modelName)),
+                action: SnackBarAction(
+                  label: l.openModels,
+                  onPressed: () {
+                    if (mounted) context.push('/models');
+                  },
+                ),
+                duration: const Duration(seconds: 8),
               ),
-              duration: const Duration(seconds: 8),
-            ),
-          );
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(l.transcriptionLoadFailed(e.toString())),
+                duration: const Duration(seconds: 8),
+                showCloseIcon: true,
+              ),
+            );
+          }
         }
         return;
       }

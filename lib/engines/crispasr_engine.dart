@@ -3,6 +3,8 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'package:path/path.dart' as path;
+
 import '../native/crispasr_import.dart' as crispasr;
 
 import 'transcription_engine.dart';
@@ -340,7 +342,7 @@ class CrispASREngine implements TranscriptionEngine {
       // disk" apart from "wrong fileName vs what was actually downloaded".
       final dir = _modelService!.whisperCppDir();
       final expectedFile = def.fileName;
-      final expectedPath = '$dir/$expectedFile';
+      final expectedPath = path.join(dir, expectedFile);
       final exists = await File(expectedPath).exists();
       Log.instance.w(
           'crispasr',
