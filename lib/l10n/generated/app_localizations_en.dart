@@ -1195,6 +1195,24 @@ class AppLocalizationsEn extends AppLocalizations {
       'Slower, usually more accurate. Default is greedy.';
 
   @override
+  String advancedBeamSize(int n) {
+    return 'Beam width: $n';
+  }
+
+  @override
+  String get advancedBeamSizeHelper =>
+      'Number of beams for beam search. 0 = backend default (typically 5).';
+
+  @override
+  String advancedHotwordsBoost(String value) {
+    return 'Hotwords boost: $value';
+  }
+
+  @override
+  String get advancedHotwordsBoostHelper =>
+      'Boost factor for CTC/TDT hotword biasing (granite, parakeet). 0 = off.';
+
+  @override
   String get advancedInitialPrompt => 'Initial prompt (vocabulary / context)';
 
   @override
@@ -2630,6 +2648,47 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get synthFrequencyPenaltyHelper =>
       'Penalises repeated tokens in autoregressive backends. 0 = off; raise to reduce loop-stuttering artefacts.';
+
+  @override
+  String synthTopK(int n) {
+    return 'Top-K: $n';
+  }
+
+  @override
+  String get synthTopKHelper =>
+      'Top-K sampling width (qwen3-tts, chatterbox, orpheus, dots-tts, tada). 0 = disabled.';
+
+  @override
+  String get synthDoSample => 'Stochastic sampling';
+
+  @override
+  String get synthDoSampleHelper =>
+      'Enable stochastic sampling instead of greedy decoding.';
+
+  @override
+  String synthNumCandidates(int n) {
+    return 'Acoustic candidates: $n';
+  }
+
+  @override
+  String get synthNumCandidatesHelper =>
+      'Number of acoustic candidates for ranking (tada, chatterbox, kokoro). 0 = backend default.';
+
+  @override
+  String synthNoiseTemp(String value) {
+    return 'Noise temperature: $value';
+  }
+
+  @override
+  String get synthNoiseTempHelper =>
+      'Noise temperature for stochastic generation (kokoro, vibevoice). 0 = backend default.';
+
+  @override
+  String get synthG2pDict => 'G2P dictionary';
+
+  @override
+  String get synthG2pDictHelper =>
+      'Grapheme-to-phoneme dictionary path (kokoro, vibevoice, speecht5).';
 
   @override
   String get synthClearPhonemeCache => 'Clear phoneme cache';

@@ -302,6 +302,20 @@ class TtsService {
     /// Frequency penalty for AR token repetition (autoregressive
     /// backends). Null = backend default.
     double? frequencyPenalty,
+    /// Top-k sampling (qwen3-tts, chatterbox, orpheus, dots-tts,
+    /// tada). Null = backend default.
+    int? topK,
+    /// Stochastic sampling toggle (TTS backends). Null = backend default.
+    bool? doSample,
+    /// Number of acoustic candidates for ranking (tada, chatterbox,
+    /// kokoro). Null = backend default.
+    int? ttsNumCandidates,
+    /// Grapheme-to-phoneme dictionary source path (kokoro, vibevoice,
+    /// speecht5). Null = no dictionary.
+    String? g2pDict,
+    /// Noise temperature for stochastic generation (kokoro, vibevoice).
+    /// Null = backend default.
+    double? noiseTemp,
   }) async {
     if (_session == null || text.trim().isEmpty) return null;
     final modelPath = _modelPath;
@@ -389,6 +403,21 @@ class TtsService {
           }
           if (frequencyPenalty != null) {
             try { s.setFrequencyPenalty(frequencyPenalty); } catch (_) {}
+          }
+          if (topK != null) {
+            try { s.setTopK(topK); } catch (_) {}
+          }
+          if (doSample != null) {
+            try { s.setDoSample(doSample); } catch (_) {}
+          }
+          if (ttsNumCandidates != null) {
+            try { s.setTtsNumCandidates(ttsNumCandidates); } catch (_) {}
+          }
+          if (g2pDict != null && g2pDict.isNotEmpty) {
+            try { s.setG2pDict(g2pDict); } catch (_) {}
+          }
+          if (noiseTemp != null) {
+            try { s.setTtsNoiseTemp(noiseTemp); } catch (_) {}
           }
           return s.synthesize(synthText);
         } finally {

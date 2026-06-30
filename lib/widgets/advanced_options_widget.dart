@@ -301,6 +301,14 @@ class AdvancedOptions {
   /// level but not yet in the session C API — tracked upstream.
   final String hotwords;
 
+  /// §11.2 — Hotwords boost factor for CTC/TDT backends. 0.0–5.0.
+  /// Only effective when [hotwords] is non-empty.
+  final double hotwordsBoost;
+
+  /// §11.2 — Beam search width. Only effective when [beamSearch] is
+  /// true. 0 = backend default (typically 5).
+  final int beamSize;
+
   /// §10 — Preferred aligner model. Empty string means "auto" (the
   /// AlignerService picks the best available: language-matched wav2vec2
   /// first, then canary-ctc-aligner fallback). Non-empty values are
@@ -377,6 +385,8 @@ class AdvancedOptions {
     this.transcribeWindowDurationSec = 0.0,
     this.altN = 0,
     this.hotwords = '',
+    this.hotwordsBoost = 1.5,
+    this.beamSize = 0,
     this.alignerModel = '',
   });
 
@@ -427,6 +437,8 @@ class AdvancedOptions {
     double? transcribeWindowDurationSec,
     int? altN,
     String? hotwords,
+    double? hotwordsBoost,
+    int? beamSize,
     String? alignerModel,
   }) =>
       AdvancedOptions(
@@ -482,6 +494,8 @@ class AdvancedOptions {
             transcribeWindowDurationSec ?? this.transcribeWindowDurationSec,
         altN: altN ?? this.altN,
         hotwords: hotwords ?? this.hotwords,
+        hotwordsBoost: hotwordsBoost ?? this.hotwordsBoost,
+        beamSize: beamSize ?? this.beamSize,
         alignerModel: alignerModel ?? this.alignerModel,
       );
 
@@ -795,6 +809,31 @@ class _AdvancedDecodingSectionState
           onChanged: (v) => ref.read(advancedOptionsProvider.notifier).state =
               opts.copyWith(beamSearch: v),
         ),
+        if (opts.beamSearch)
+          ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            title: Text(l.advancedBeamSize(opts.beamSize)),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(l.advancedBeamSizeHelper,
+                    style: const TextStyle(fontSize: 11)),
+                Slider(
+                  value: opts.beamSize.toDouble(),
+                  min: 0,
+                  max: 20,
+                  divisions: 20,
+                  label: opts.beamSize == 0
+                      ? 'default'
+                      : opts.beamSize.toString(),
+                  onChanged: (v) =>
+                      ref.read(advancedOptionsProvider.notifier).state =
+                          opts.copyWith(beamSize: v.round()),
+                ),
+              ],
+            ),
+          ),
         SwitchListTile(
           dense: true,
           contentPadding: EdgeInsets.zero,
@@ -855,6 +894,7 @@ class _AdvancedDecodingSectionState
         _buildVocabularyRow(context, opts),
         // §5.26.2 — Hotwords for contextual biasing.
         _buildHotwordsRow(context, opts),
+        _buildHotwordsBoostRow(context, opts),
         // LID method picker — visible only when the global language
         // dropdown is "auto" + active backend lacks native LID. We
         // can't see those preconditions here, so always show it; the
@@ -2012,6 +2052,34 @@ class _AdvancedDecodingSectionState
         enabled: supported,
         onChanged: (v) => ref.read(advancedOptionsProvider.notifier).state =
             opts.copyWith(hotwords: v),
+      ),
+    );
+  }
+
+  Widget _buildHotwordsBoostRow(BuildContext context, AdvancedOptions opts) {
+    if (opts.hotwords.isEmpty) return const SizedBox.shrink();
+    final l = AppLocalizations.of(context);
+    return ListTile(
+      dense: true,
+      contentPadding: EdgeInsets.zero,
+      title: Text(l.advancedHotwordsBoost(
+          opts.hotwordsBoost.toStringAsFixed(1))),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(l.advancedHotwordsBoostHelper,
+              style: const TextStyle(fontSize: 11)),
+          Slider(
+            value: opts.hotwordsBoost,
+            min: 0.0,
+            max: 5.0,
+            divisions: 50,
+            label: opts.hotwordsBoost.toStringAsFixed(1),
+            onChanged: (v) =>
+                ref.read(advancedOptionsProvider.notifier).state =
+                    opts.copyWith(hotwordsBoost: v),
+          ),
+        ],
       ),
     );
   }

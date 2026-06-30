@@ -310,6 +310,28 @@ class ServerService {
       case 'vtt':
         return Response.ok(_renderVtt(segments),
             headers: const {'content-type': 'text/vtt; charset=utf-8'});
+      case 'diarized_json':
+        // §11.4 — Groups segments by speaker, matching CrispASR CLI's
+        // --output-format diarized_json (#206).
+        final speakers = <String, List<Map<String, Object?>>>{};
+        for (var i = 0; i < segments.length; i++) {
+          final spk = segments[i].speaker ?? 'unknown';
+          (speakers[spk] ??= []).add({
+            'id': i,
+            'start': segments[i].startTime,
+            'end': segments[i].endTime,
+            'text': segments[i].text,
+          });
+        }
+        final diarBody = jsonEncode({
+          'task': 'transcribe',
+          'duration': segments.isEmpty
+              ? 0.0
+              : segments.last.endTime - segments.first.startTime,
+          'speakers': speakers,
+        });
+        return Response.ok(diarBody,
+            headers: const {'content-type': 'application/json'});
       case 'verbose_json':
       case 'json':
       default:

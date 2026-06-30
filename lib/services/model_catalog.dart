@@ -1819,6 +1819,152 @@ abstract final class ModelCatalog {
       backend: 'moss-audio',
     ),
     // ============================================================
+    // CrispASR 0.8.x parity (June 2026) — PLAN §11.1
+    // ============================================================
+    //
+    // MOSS-Transcribe-preview-2B — Qwen3-Omni audio encoder + GatedMLP
+    // adapter + Qwen3-1.7B decoder. ASR-only (distinct from moss-audio).
+    // Native punctuation, beam search, streaming. ~1.6 GB Q4_K.
+    'moss-transcribe-preview-2b-q4_k': ModelDefinition(
+      name: 'moss-transcribe-preview-2b-q4_k',
+      displayName: 'MOSS-Transcribe 2B (q4_k)',
+      fileName: 'moss-transcribe-preview-2b-q4_k.gguf',
+      url:
+          'https://huggingface.co/cstr/MOSS-Transcribe-preview-2B-GGUF/resolve/main/moss-transcribe-preview-2b-q4_k.gguf',
+      sizeBytes: 1600 * 1024 * 1024,
+      checksum: '',
+      description:
+          'MOSS-Transcribe 2B — ASR with native punctuation + streaming (Qwen3-Omni enc + Qwen3 dec), ~1.6 GB',
+      quantization: 'q4_k',
+      backend: 'moss-transcribe',
+    ),
+    // Higgs-Audio-v3-STT — bosonai Whisper-large-v3 encoder + Qwen3-1.7B
+    // decoder. Internal chunking, beam search, --ask prompt. ~2.3 GB Q4_K.
+    'higgs-stt-q4_k': ModelDefinition(
+      name: 'higgs-stt-q4_k',
+      displayName: 'Higgs-STT (q4_k)',
+      fileName: 'higgs-stt-q4_k.gguf',
+      url:
+          'https://huggingface.co/cstr/higgs-audio-v3-stt-GGUF/resolve/main/higgs-stt-q4_k.gguf',
+      sizeBytes: 2300 * 1024 * 1024,
+      checksum: '',
+      description:
+          'Higgs-Audio-v3-STT — Whisper-v3 enc + Qwen3-1.7B dec, internal chunking + beam search, ~2.3 GB',
+      quantization: 'q4_k',
+      backend: 'higgs-stt',
+      languages: langsAll,
+    ),
+    // ARK-ASR-3B — AutoArk-AI Whisper-RoPE encoder + Qwen2.5-3B decoder.
+    // 19 languages, cross-chunk language conditioning. ~2.2 GB Q4_K.
+    // NB: registry notes HF URL as placeholder — may need update.
+    'ark-asr-3b-q4_k': ModelDefinition(
+      name: 'ark-asr-3b-q4_k',
+      displayName: 'ARK-ASR 3B (q4_k)',
+      fileName: 'ark-asr-3b-q4_k.gguf',
+      url:
+          'https://huggingface.co/cstr/ark-asr-3b-GGUF/resolve/main/ark-asr-3b-q4_k.gguf',
+      sizeBytes: 2200 * 1024 * 1024,
+      checksum: '',
+      description:
+          'ARK-ASR 3B — Whisper-RoPE enc + Qwen2.5-3B dec, 19 languages, ~2.2 GB',
+      quantization: 'q4_k',
+      backend: 'ark-asr',
+      languages: langsAll,
+    ),
+    // Gemma4-E4B — larger decoder variant (42L×2560) of the Gemma4 ASR
+    // family. Same architecture and backend as E2B, just bigger. ~4.1 GB.
+    'gemma4-e4b-q4_k': ModelDefinition(
+      name: 'gemma4-e4b-q4_k',
+      displayName: 'Gemma4-E4B-it (q4_k)',
+      fileName: 'gemma4-e4b-it-q4_k.gguf',
+      url:
+          'https://huggingface.co/cstr/gemma4-e4b-it-GGUF/resolve/main/gemma4-e4b-it-q4_k.gguf',
+      sizeBytes: 4100 * 1024 * 1024,
+      checksum: '',
+      description:
+          'Gemma4-E4B 4B — larger decoder variant of Gemma4 ASR (140+ langs), ~4.1 GB',
+      quantization: 'q4_k',
+      backend: 'gemma4-e2b',
+      languages: langsAll,
+    ),
+    // ReazonSpeech NeMo v2 — Japanese FastConformer-RNNT (619M params).
+    // Reuses parakeet backend. Q8_0 (quant-sensitive for Japanese). ~704 MB.
+    'reazonspeech-nemo-v2-q8_0': ModelDefinition(
+      name: 'reazonspeech-nemo-v2-q8_0',
+      displayName: 'ReazonSpeech NeMo v2 (q8_0)',
+      fileName: 'reazonspeech-nemo-v2-q8_0.gguf',
+      url:
+          'https://huggingface.co/cstr/reazonspeech-nemo-v2-GGUF/resolve/main/reazonspeech-nemo-v2-q8_0.gguf',
+      sizeBytes: 704 * 1024 * 1024,
+      checksum: '',
+      description:
+          'ReazonSpeech NeMo v2 — Japanese RNNT ASR (619M params), ~704 MB',
+      quantization: 'q8_0',
+      backend: 'parakeet',
+      languages: langsJa,
+    ),
+    // Parakeet-CTC 1.1B Japanese — FastConformer-CTC 42L, fine-tuned on
+    // Japanese data (GAL checkpoint). Reuses parakeet backend. Q8_0. ~1.2 GB.
+    'parakeet-ctc-1.1b-ja-q8_0': ModelDefinition(
+      name: 'parakeet-ctc-1.1b-ja-q8_0',
+      displayName: 'Parakeet-CTC 1.1B JA (q8_0)',
+      fileName: 'parakeet-ctc-1.1b-ja-q8_0.gguf',
+      url:
+          'https://huggingface.co/cstr/parakeet-ctc-1.1b-ja-GGUF/resolve/main/parakeet-ctc-1.1b-ja-q8_0.gguf',
+      sizeBytes: 1200 * 1024 * 1024,
+      checksum: '',
+      description:
+          'Parakeet-CTC 1.1B Japanese — FastConformer-CTC, ~1.2 GB',
+      quantization: 'q8_0',
+      backend: 'parakeet',
+      languages: langsJa,
+    ),
+    // DoTs-TTS — rednote-hilab 2B continuous AR + DiT flow-matching +
+    // BigVGAN vocoder. 48 kHz. CAM++ voice cloning via --voice ref.wav.
+    // Three GGUFs: core (~4.4 GB), vocoder (~345 MB), spk encoder (~15 MB).
+    'dots-tts-soar-f16': ModelDefinition(
+      name: 'dots-tts-soar-f16',
+      displayName: 'DoTs-TTS SOAR (f16)',
+      fileName: 'dots-tts-soar-f16.gguf',
+      url:
+          'https://huggingface.co/cstr/dots-tts-soar-GGUF/resolve/main/dots-tts-soar-f16.gguf',
+      sizeBytes: 4400 * 1024 * 1024,
+      checksum: '',
+      description:
+          'DoTs-TTS 2B — continuous AR + flow-matching + BigVGAN, 48 kHz, voice cloning, ~4.4 GB',
+      quantization: 'f16',
+      backend: 'dots-tts',
+      kind: ModelKind.tts,
+      languages: langsEnZh,
+      companions: ['dots-tts-soar-vocoder-f16', 'dots-tts-soar-spk-f16'],
+    ),
+    'dots-tts-soar-vocoder-f16': ModelDefinition(
+      name: 'dots-tts-soar-vocoder-f16',
+      displayName: 'DoTs-TTS vocoder (f16)',
+      fileName: 'dots-tts-soar-vocoder-f16.gguf',
+      url:
+          'https://huggingface.co/cstr/dots-tts-soar-GGUF/resolve/main/dots-tts-soar-vocoder-f16.gguf',
+      sizeBytes: 345 * 1024 * 1024,
+      checksum: '',
+      description: 'DoTs-TTS BigVGAN vocoder (load via setCodecPath)',
+      quantization: 'f16',
+      backend: 'dots-tts',
+      kind: ModelKind.codec,
+    ),
+    'dots-tts-soar-spk-f16': ModelDefinition(
+      name: 'dots-tts-soar-spk-f16',
+      displayName: 'DoTs-TTS speaker encoder (f16)',
+      fileName: 'dots-tts-soar-spk-f16.gguf',
+      url:
+          'https://huggingface.co/cstr/dots-tts-soar-GGUF/resolve/main/dots-tts-soar-spk-f16.gguf',
+      sizeBytes: 15 * 1024 * 1024,
+      checksum: '',
+      description: 'DoTs-TTS CAM++ speaker encoder for voice cloning',
+      quantization: 'f16',
+      backend: 'dots-tts',
+      kind: ModelKind.codec,
+    ),
+    // ============================================================
     // CrispASR mid-2026 catch-up (June 2026) — PLAN §5.26
     // ============================================================
     //
@@ -3352,9 +3498,17 @@ abstract final class ModelCatalog {
     'gemma4-e2b': 'gemma4-e2b-q4_k',
     'canary-ctc-aligner': 'canary-ctc-aligner-q4_k',
     'moss-audio': 'moss-audio-4b-instruct-q4_k',
+    'moss-transcribe': 'moss-transcribe-preview-2b-q4_k',
+    'higgs-stt': 'higgs-stt-q4_k',
+    'ark-asr': 'ark-asr-3b-q4_k',
+    // gemma4-e4b, reazonspeech, parakeet-ctc-1.1b-ja share backends
+    // (gemma4-e2b, parakeet) that already have entries above — not
+    // listed here to keep the one-default-per-backend invariant.
+    // Users discover these variants via BackendRepo HF probe.
     'lfm2-audio': 'lfm2-audio-1.5b-q5_k',
     'mini-omni2': 'mini-omni2-q4_k',
     // TTS
+    'dots-tts': 'dots-tts-soar-f16',
     'kokoro': 'kokoro-82m-q8_0',
     'vibevoice-tts': 'vibevoice-realtime-0.5b-tts-f16',
     'qwen3-tts': 'qwen3-tts-12hz-0.6b-base-q8_0',
@@ -4012,6 +4166,72 @@ abstract final class ModelCatalog {
       description: 'Granite Speech 4.1 NAR (en/fr/de/es/pt)',
       defaultLanguages: langsGranite5,
     ),
+    // ----- CrispASR 0.8.x parity (PLAN §11.1) -----
+    // MOSS-Transcribe — Qwen3-Omni enc + Qwen3-1.7B dec. ASR only.
+    'moss-transcribe': BackendRepo(
+      backend: 'moss-transcribe',
+      repoId: 'cstr/MOSS-Transcribe-preview-2B-GGUF',
+      baseName: 'moss-transcribe-preview-2b',
+      displayPrefix: 'MOSS-Transcribe 2B',
+      description: 'ASR with native punctuation + streaming (Qwen3-Omni)',
+      defaultLanguages: langsAll,
+    ),
+    // Higgs-Audio-v3-STT — Whisper-v3 enc + Qwen3-1.7B dec.
+    'higgs-stt': BackendRepo(
+      backend: 'higgs-stt',
+      repoId: 'cstr/higgs-audio-v3-stt-GGUF',
+      baseName: 'higgs-stt',
+      displayPrefix: 'Higgs-STT',
+      description: 'Whisper-v3 + Qwen3-1.7B decoder, internal chunking + beam search',
+      defaultLanguages: langsAll,
+    ),
+    // ARK-ASR-3B — Whisper-RoPE enc + Qwen2.5-3B dec, 19 languages.
+    'ark-asr': BackendRepo(
+      backend: 'ark-asr',
+      repoId: 'cstr/ark-asr-3b-GGUF',
+      baseName: 'ark-asr-3b',
+      displayPrefix: 'ARK-ASR 3B',
+      description: 'Whisper-RoPE + Qwen2.5-3B decoder, 19 languages',
+      defaultLanguages: langsAll,
+    ),
+    // Gemma4-E4B — larger variant, shares gemma4-e2b backend.
+    'gemma4-e4b': BackendRepo(
+      backend: 'gemma4-e2b',
+      repoId: 'cstr/gemma4-e4b-it-GGUF',
+      baseName: 'gemma4-e4b-it',
+      displayPrefix: 'Gemma4-E4B-it',
+      description: 'Gemma4 4B decoder variant (140+ languages)',
+      defaultLanguages: langsAll,
+    ),
+    // ReazonSpeech — Japanese RNNT, shares parakeet backend.
+    'reazonspeech': BackendRepo(
+      backend: 'parakeet',
+      repoId: 'cstr/reazonspeech-nemo-v2-GGUF',
+      baseName: 'reazonspeech-nemo-v2',
+      displayPrefix: 'ReazonSpeech NeMo v2',
+      description: 'Japanese RNNT ASR (619M params)',
+      defaultLanguages: langsJa,
+    ),
+    // Parakeet-CTC 1.1B Japanese — shares parakeet backend.
+    'parakeet-ctc-1.1b-ja': BackendRepo(
+      backend: 'parakeet',
+      repoId: 'cstr/parakeet-ctc-1.1b-ja-GGUF',
+      baseName: 'parakeet-ctc-1.1b-ja',
+      displayPrefix: 'Parakeet-CTC 1.1B JA',
+      description: 'Japanese FastConformer-CTC 1.1B',
+      defaultLanguages: langsJa,
+    ),
+    // DoTs-TTS — 2B continuous AR + flow-matching + BigVGAN, voice cloning.
+    'dots-tts': BackendRepo(
+      backend: 'dots-tts',
+      repoId: 'cstr/dots-tts-soar-GGUF',
+      baseName: 'dots-tts-soar',
+      displayPrefix: 'DoTs-TTS SOAR',
+      description: 'Continuous AR + flow-matching TTS, 48 kHz, voice cloning',
+      kind: ModelKind.tts,
+      defaultCompanions: ['dots-tts-soar-vocoder-f16', 'dots-tts-soar-spk-f16'],
+      defaultLanguages: langsEnZh,
+    ),
     // Chatterbox — repo holds two file families: chatterbox-t3-*.gguf
     // (AR transformer) + chatterbox-s3gen-*.gguf (flow-matching
     // vocoder). The probe walks against the T3 baseName; the S3Gen
@@ -4658,6 +4878,7 @@ abstract final class ModelCatalog {
       'chatterbox',
       'indextts',
       'f5-tts',
+      'dots-tts',
     };
     const punc = {'firered-punc', 'fullstop-punc'};
     const diarize = {'pyannote'};

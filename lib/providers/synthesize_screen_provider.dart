@@ -22,6 +22,11 @@ class TtsSamplingParams {
   final int maxSpeechTokens;
   final int ttsSeed;
   final double frequencyPenalty;
+  final int topK;
+  final bool doSample;
+  final int ttsNumCandidates;
+  final String g2pDict;
+  final double noiseTemp;
 
   const TtsSamplingParams({
     this.temperature = 0.8,
@@ -34,6 +39,11 @@ class TtsSamplingParams {
     this.maxSpeechTokens = 1000,
     this.ttsSeed = 0,
     this.frequencyPenalty = 0.0,
+    this.topK = 0,
+    this.doSample = false,
+    this.ttsNumCandidates = 0,
+    this.g2pDict = '',
+    this.noiseTemp = 0.0,
   });
 
   TtsSamplingParams copyWith({
@@ -47,6 +57,11 @@ class TtsSamplingParams {
     int? maxSpeechTokens,
     int? ttsSeed,
     double? frequencyPenalty,
+    int? topK,
+    bool? doSample,
+    int? ttsNumCandidates,
+    String? g2pDict,
+    double? noiseTemp,
   }) =>
       TtsSamplingParams(
         temperature: temperature ?? this.temperature,
@@ -59,6 +74,11 @@ class TtsSamplingParams {
         maxSpeechTokens: maxSpeechTokens ?? this.maxSpeechTokens,
         ttsSeed: ttsSeed ?? this.ttsSeed,
         frequencyPenalty: frequencyPenalty ?? this.frequencyPenalty,
+        topK: topK ?? this.topK,
+        doSample: doSample ?? this.doSample,
+        ttsNumCandidates: ttsNumCandidates ?? this.ttsNumCandidates,
+        g2pDict: g2pDict ?? this.g2pDict,
+        noiseTemp: noiseTemp ?? this.noiseTemp,
       );
 }
 
@@ -238,6 +258,16 @@ class SynthesizeScreenNotifier
       state = state.copyWith(sampling: state.sampling.copyWith(ttsSeed: v));
   void setFrequencyPenalty(double v) => state = state.copyWith(
       sampling: state.sampling.copyWith(frequencyPenalty: v));
+  void setTopK(int v) =>
+      state = state.copyWith(sampling: state.sampling.copyWith(topK: v));
+  void setDoSample(bool v) =>
+      state = state.copyWith(sampling: state.sampling.copyWith(doSample: v));
+  void setTtsNumCandidates(int v) => state = state.copyWith(
+      sampling: state.sampling.copyWith(ttsNumCandidates: v));
+  void setG2pDict(String v) =>
+      state = state.copyWith(sampling: state.sampling.copyWith(g2pDict: v));
+  void setNoiseTemp(double v) =>
+      state = state.copyWith(sampling: state.sampling.copyWith(noiseTemp: v));
 
   /// Reset speaker-related fields when model changes.
   void resetSpeakerState() {

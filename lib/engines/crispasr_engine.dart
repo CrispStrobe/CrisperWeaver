@@ -1546,6 +1546,7 @@ class CrispASREngine implements TranscriptionEngine {
       translate: translate,
       askPrompt: prompt,
       bestOf: bestOf,
+      beamSize: advanced.beamSize > 0 ? advanced.beamSize : 1,
       vadModelPath: useVad ? vadModelPath : null,
       vadThreshold: useVad ? advanced.vadThreshold : null,
       vadMinSpeechMs: useVad ? advanced.vadMinSpeechMs : null,

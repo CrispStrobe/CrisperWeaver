@@ -178,6 +178,9 @@ class AdvancedTranscribeOptions {
   /// [hotwords] is non-empty and the backend is CTC/TDT.
   final double hotwordsBoost;
 
+  /// §11.2 — Beam search width. 0 = backend default (typically 5).
+  final int beamSize;
+
   /// §10 — Explicit aligner model path or null for auto-discovery.
   /// When set, AlignerService uses this GGUF for forced alignment
   /// instead of auto-finding one on disk. Allows users to pick
@@ -221,6 +224,7 @@ class AdvancedTranscribeOptions {
     this.altN = 0,
     this.hotwords = '',
     this.hotwordsBoost = 1.5,
+    this.beamSize = 0,
     this.alignerModel,
   });
 }

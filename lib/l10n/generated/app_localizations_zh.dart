@@ -1161,6 +1161,23 @@ class AppLocalizationsZh extends AppLocalizations {
   String get advancedBeamSearchSubtitle => '速度较慢，通常更准确。默认使用贪婪解码。';
 
   @override
+  String advancedBeamSize(int n) {
+    return 'Beam 宽度：$n';
+  }
+
+  @override
+  String get advancedBeamSizeHelper => 'Beam 搜索的 beam 数量。0 = 后端默认值（通常为 5）。';
+
+  @override
+  String advancedHotwordsBoost(String value) {
+    return '热词增强：$value';
+  }
+
+  @override
+  String get advancedHotwordsBoostHelper =>
+      'CTC/TDT 热词偏置增强因子（granite、parakeet）。0 = 关闭。';
+
+  @override
   String get advancedInitialPrompt => '初始提示（词汇/上下文）';
 
   @override
@@ -2540,6 +2557,44 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get synthFrequencyPenaltyHelper =>
       '对自回归后端中重复词元进行惩罚。0 = 关闭；调高可减少循环卡顿瑕疵。';
+
+  @override
+  String synthTopK(int n) {
+    return 'Top-K：$n';
+  }
+
+  @override
+  String get synthTopKHelper =>
+      'Top-K 采样宽度（qwen3-tts、chatterbox、orpheus、dots-tts、tada）。0 = 禁用。';
+
+  @override
+  String get synthDoSample => '随机采样';
+
+  @override
+  String get synthDoSampleHelper => '启用随机采样代替贪心解码。';
+
+  @override
+  String synthNumCandidates(int n) {
+    return '声学候选数：$n';
+  }
+
+  @override
+  String get synthNumCandidatesHelper =>
+      '用于排序的声学候选数（tada、chatterbox、kokoro）。0 = 默认值。';
+
+  @override
+  String synthNoiseTemp(String value) {
+    return '噪声温度：$value';
+  }
+
+  @override
+  String get synthNoiseTempHelper => '随机生成的噪声温度（kokoro、vibevoice）。0 = 默认值。';
+
+  @override
+  String get synthG2pDict => 'G2P 字典';
+
+  @override
+  String get synthG2pDictHelper => '字形到音素字典路径（kokoro、vibevoice、speecht5）。';
 
   @override
   String get synthClearPhonemeCache => '清除音素缓存';

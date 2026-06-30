@@ -2122,6 +2122,30 @@ abstract class AppLocalizations {
   /// **'Slower, usually more accurate. Default is greedy.'**
   String get advancedBeamSearchSubtitle;
 
+  /// No description provided for @advancedBeamSize.
+  ///
+  /// In en, this message translates to:
+  /// **'Beam width: {n}'**
+  String advancedBeamSize(int n);
+
+  /// No description provided for @advancedBeamSizeHelper.
+  ///
+  /// In en, this message translates to:
+  /// **'Number of beams for beam search. 0 = backend default (typically 5).'**
+  String get advancedBeamSizeHelper;
+
+  /// No description provided for @advancedHotwordsBoost.
+  ///
+  /// In en, this message translates to:
+  /// **'Hotwords boost: {value}'**
+  String advancedHotwordsBoost(String value);
+
+  /// No description provided for @advancedHotwordsBoostHelper.
+  ///
+  /// In en, this message translates to:
+  /// **'Boost factor for CTC/TDT hotword biasing (granite, parakeet). 0 = off.'**
+  String get advancedHotwordsBoostHelper;
+
   /// No description provided for @advancedInitialPrompt.
   ///
   /// In en, this message translates to:
@@ -4467,6 +4491,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Penalises repeated tokens in autoregressive backends. 0 = off; raise to reduce loop-stuttering artefacts.'**
   String get synthFrequencyPenaltyHelper;
+
+  /// No description provided for @synthTopK.
+  ///
+  /// In en, this message translates to:
+  /// **'Top-K: {n}'**
+  String synthTopK(int n);
+
+  /// No description provided for @synthTopKHelper.
+  ///
+  /// In en, this message translates to:
+  /// **'Top-K sampling width (qwen3-tts, chatterbox, orpheus, dots-tts, tada). 0 = disabled.'**
+  String get synthTopKHelper;
+
+  /// No description provided for @synthDoSample.
+  ///
+  /// In en, this message translates to:
+  /// **'Stochastic sampling'**
+  String get synthDoSample;
+
+  /// No description provided for @synthDoSampleHelper.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable stochastic sampling instead of greedy decoding.'**
+  String get synthDoSampleHelper;
+
+  /// No description provided for @synthNumCandidates.
+  ///
+  /// In en, this message translates to:
+  /// **'Acoustic candidates: {n}'**
+  String synthNumCandidates(int n);
+
+  /// No description provided for @synthNumCandidatesHelper.
+  ///
+  /// In en, this message translates to:
+  /// **'Number of acoustic candidates for ranking (tada, chatterbox, kokoro). 0 = backend default.'**
+  String get synthNumCandidatesHelper;
+
+  /// No description provided for @synthNoiseTemp.
+  ///
+  /// In en, this message translates to:
+  /// **'Noise temperature: {value}'**
+  String synthNoiseTemp(String value);
+
+  /// No description provided for @synthNoiseTempHelper.
+  ///
+  /// In en, this message translates to:
+  /// **'Noise temperature for stochastic generation (kokoro, vibevoice). 0 = backend default.'**
+  String get synthNoiseTempHelper;
+
+  /// No description provided for @synthG2pDict.
+  ///
+  /// In en, this message translates to:
+  /// **'G2P dictionary'**
+  String get synthG2pDict;
+
+  /// No description provided for @synthG2pDictHelper.
+  ///
+  /// In en, this message translates to:
+  /// **'Grapheme-to-phoneme dictionary path (kokoro, vibevoice, speecht5).'**
+  String get synthG2pDictHelper;
 
   /// No description provided for @synthClearPhonemeCache.
   ///

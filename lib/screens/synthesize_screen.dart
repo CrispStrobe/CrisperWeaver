@@ -511,6 +511,11 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
         seed: samp.ttsSeed != 0 ? samp.ttsSeed : null,
         frequencyPenalty:
             samp.frequencyPenalty.abs() < 1e-3 ? null : samp.frequencyPenalty,
+        topK: samp.topK > 0 ? samp.topK : null,
+        doSample: samp.doSample ? samp.doSample : null,
+        ttsNumCandidates: samp.ttsNumCandidates > 0 ? samp.ttsNumCandidates : null,
+        g2pDict: samp.g2pDict.isNotEmpty ? samp.g2pDict : null,
+        noiseTemp: samp.noiseTemp.abs() > 1e-3 ? samp.noiseTemp : null,
       );
       // #22 — surface a visible error when synthesis produces no audio
       // instead of silently returning. The previous `if (audio == null)
@@ -1198,6 +1203,43 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
                         divisions: 40,
                         onChanged: (v) =>
                             sn.setFrequencyPenalty(v),
+                      ),
+                      _buildSampleSlider(
+                        label: l.synthTopK(ss.sampling.topK),
+                        helper: l.synthTopKHelper,
+                        value: ss.sampling.topK.toDouble(),
+                        min: 0,
+                        max: 100,
+                        divisions: 100,
+                        onChanged: (v) => sn.setTopK(v.round()),
+                      ),
+                      _buildSampleSlider(
+                        label: l.synthNumCandidates(
+                            ss.sampling.ttsNumCandidates),
+                        helper: l.synthNumCandidatesHelper,
+                        value: ss.sampling.ttsNumCandidates.toDouble(),
+                        min: 0,
+                        max: 10,
+                        divisions: 10,
+                        onChanged: (v) =>
+                            sn.setTtsNumCandidates(v.round()),
+                      ),
+                      _buildSampleSlider(
+                        label: l.synthNoiseTemp(
+                            ss.sampling.noiseTemp.toStringAsFixed(2)),
+                        helper: l.synthNoiseTempHelper,
+                        value: ss.sampling.noiseTemp,
+                        min: 0.0,
+                        max: 2.0,
+                        divisions: 40,
+                        onChanged: (v) => sn.setNoiseTemp(v),
+                      ),
+                      SwitchListTile(
+                        title: Text(l.synthDoSample),
+                        subtitle: Text(l.synthDoSampleHelper,
+                            style: Theme.of(context).textTheme.bodySmall),
+                        value: ss.sampling.doSample,
+                        onChanged: (v) => sn.setDoSample(v),
                       ),
                       const SizedBox(height: 8),
                       // §5.25.9 — Pronunciation lexicon editor.

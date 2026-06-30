@@ -91,6 +91,13 @@ All 10 CrispASR backends are runtime-ready through `CrispasrSession`. The bundle
 | LFM2-Audio 1.5B      | ✅       | ✅ via `CrispasrSession`          | ASR + TTS + S2S (English + Japanese)        |
 | Mini-Omni2           | ✅       | ✅ via `CrispasrSession`          | ASR + TTS + S2S (Whisper + Qwen2)           |
 | Parakeet-RNNT        | ✅       | ✅ via `CrispasrSession`          | RNN-Transducer variants (0.6B/1.1B)        |
+| Higgs-STT            | ✅       | ✅ via `CrispasrSession`          | Whisper-v3 enc + Qwen3-1.7B dec             |
+| ARK-ASR 3B           | ✅       | ✅ via `CrispasrSession`          | Whisper-RoPE + Qwen2.5-3B, 19 langs        |
+| MOSS-Transcribe 2B   | ✅       | ✅ via `CrispasrSession`          | Qwen3-Omni enc + Qwen3 dec, streaming       |
+| Gemma4-E4B           | ✅       | ✅ via `CrispasrSession`          | Larger Gemma4 variant (4B dec)               |
+| ReazonSpeech v2      | ✅       | ✅ via `CrispasrSession`          | Japanese RNNT (619M, parakeet backend)       |
+| Parakeet-CTC JA      | ✅       | ✅ via `CrispasrSession`          | Japanese CTC 1.1B (parakeet backend)         |
+| DoTs-TTS             | ✅       | ✅ via `CrispasrSession`          | 2B AR + flow-matching TTS, voice cloning     |
 
 The same unified dispatcher is shared with the Python (`crispasr.Session`) and Rust (`crispasr::Session`) wrappers — one C-ABI, three languages.
 
@@ -786,3 +793,105 @@ CrispASR §206 changed LFM2-Audio to default to CPU (GPU backbone had
 Metal miscomputes). CrisperWeaver has no per-backend GPU override UI,
 so the engine-side default is authoritative — no CrisperWeaver change
 needed. Documented here for awareness.
+
+---
+
+## 11. CrispASR 0.8.x parity sweep (June 2026)
+
+Gap analysis performed 2026-06-30 by diffing the full 246-commit history
+between CrispASR v0.8.0 (2026-06-22) and HEAD (8fd9db8f). CrisperWeaver
+v0.8.4 shipped against CrispASR 0.8.0; since then CrispASR has added 4
+entirely new backends, 3 new model variants for existing backends, and
+~15 new capabilities/API surfaces not yet wired through the Dart layer.
+
+### 11.1 New model catalog entries
+
+Seven backends/variants exist in CrispASR but have no `ModelDefinition`
+or `BackendRepo` in `lib/services/model_catalog.dart`:
+
+| # | Backend | Type | GGUF | HF repo | Size | Companions | Notes |
+|---|---------|------|------|---------|------|------------|-------|
+| 1 | `dots-tts` | TTS | `dots-tts-soar-f16.gguf` | `cstr/dots-tts-soar-GGUF` | ~4.4 GB | vocoder `dots-tts-soar-vocoder-f16.gguf` (~345 MB), spk encoder `dots-tts-soar-spk-f16.gguf` (~15 MB) | CAM++ voice cloning, 48 kHz, Metal GPU |
+| 2 | `higgs-stt` | ASR | `higgs-stt-q4_k.gguf` | `cstr/higgs-audio-v3-stt-GGUF` | ~2.3 GB | none | Whisper-v3 enc + Qwen3-1.7B dec, internal chunking, beam search, `--ask` |
+| 3 | `ark-asr` | ASR | `ark-asr-3b-q4_k.gguf` | `cstr/ark-asr-3b-GGUF` | ~2.2 GB | none | Whisper-RoPE enc + Qwen2.5-3B dec, 19 langs, cross-chunk lang conditioning. **NB: registry says placeholder URL** |
+| 4 | `moss-transcribe` | ASR | `moss-transcribe-preview-2b-q4_k.gguf` | `cstr/MOSS-Transcribe-preview-2B-GGUF` | ~1.6 GB | none | Qwen3-Omni enc + Qwen3-1.7B dec, native punctuation, beam search, streaming |
+| 5 | `gemma4-e4b` | ASR | `gemma4-e4b-it-q4_k.gguf` | `cstr/gemma4-e4b-it-GGUF` | ~4.1 GB | none | Larger Gemma4 decoder (42L×2560), reuses `gemma4-e2b` backend |
+| 6 | `reazonspeech` | ASR | `reazonspeech-nemo-v2-q8_0.gguf` | `cstr/reazonspeech-nemo-v2-GGUF` | ~704 MB | none | Japanese RNNT (619M), reuses `parakeet` backend, Q8_0 (quant-sensitive) |
+| 7 | `parakeet-ctc-1.1b-ja` | ASR | `parakeet-ctc-1.1b-ja-q8_0.gguf` | `cstr/parakeet-ctc-1.1b-ja-GGUF` | ~1.2 GB | none | Japanese FastConformer-CTC 1.1B, reuses `parakeet` backend, Q8_0 |
+
+Each needs: `ModelDefinition` entry, `BackendRepo` entry (if new backend),
+`kCanonicalModel` entry, language list, and a catalog unit test.
+
+- [x] dots-tts (ModelDefinition + vocoder + spk-encoder companions + BackendRepo)
+- [x] higgs-stt
+- [x] ark-asr
+- [x] moss-transcribe
+- [x] gemma4-e4b (shares gemma4-e2b BackendRepo — add variant ModelDefinition only)
+- [x] reazonspeech (shares parakeet BackendRepo — add variant ModelDefinition only)
+- [x] parakeet-ctc-1.1b-ja (shares parakeet BackendRepo — add variant ModelDefinition only)
+- [x] Unit test: `test/crispasr_08x_parity_catalog_test.dart`
+
+### 11.2 New capability wiring — ASR engine
+
+Capabilities added to CrispASR backends since 0.8.0 that need Dart-side
+FFI stubs + engine/UI wiring:
+
+| # | Capability | Backends | FFI stub? | Engine call? | UI? | Work needed |
+|---|-----------|----------|-----------|-------------|-----|-------------|
+| 1 | `setBeamSize(n)` (beam width int) | whisper, canary, cohere, higgs-stt, ark-asr, moss-transcribe | ✅ stub exists | ✅ transcription_worker calls it | ❌ no UI slider | Add beam-width slider in advanced options, gated on `beamSearch == true` |
+| 2 | `diarized_json` response format | server endpoint (`POST /v1/audio/transcriptions`) | N/A (server) | N/A | ❌ | Add `response_format=diarized_json` option to server_service |
+| 3 | `--diarize-speakers` / consent-gated speaker DB | diarize | N/A | N/A | ❌ | Wire `--diarize-speakers` alias in CLI; consider consent UI for speaker DB |
+| 4 | Granite KWB (keyword biasing) | granite-plus | ✅ via existing `setHotwords` | ✅ | ❌ boost slider missing | Add hotwords boost slider in advanced options (0.0–5.0) |
+| 5 | Granite `prefix_text` (incremental decode) | granite-plus | ❌ no C API setter yet | ❌ | ❌ | Blocked on CrispASR adding a `crispasr_session_set_prefix_text` C ABI. Track only. |
+
+- [x] Beam-size slider in advanced options
+- [x] Hotwords-boost slider in advanced options
+- [x] `diarized_json` server response format
+- [x] Unit tests for all
+
+### 11.3 New capability wiring — TTS engine
+
+| # | Capability | Backends | FFI stub? | TTS service call? | UI? | Work needed |
+|---|-----------|----------|-----------|-------------------|-----|-------------|
+| 1 | `setTopK(int)` | qwen3-tts, chatterbox, orpheus, dots-tts | ❌ | ❌ | ❌ | Add FFI stub + TTS service call + synthesize screen slider |
+| 2 | `setDoSample(bool)` | all TTS | ❌ | ❌ | ❌ | Add FFI stub + TTS service call + synthesize screen toggle |
+| 3 | `setTtsNumCandidates(int)` | chatterbox, kokoro, tada | ❌ | ❌ | ❌ | Add FFI stub + TTS service call + synthesize screen slider |
+| 4 | `setSpeakerId(int)` | melotts, piper, fastpitch | ❌ | ❌ | ❌ | Add FFI stub + TTS service call + adapt speaker picker for int IDs |
+| 5 | `setG2pDict(String)` | kokoro, vibevoice, speecht5 | ❌ | ❌ | ❌ | Add FFI stub + TTS service call + file picker in synthesize screen |
+| 6 | `setTtsNoiseTemp(double)` | kokoro, vibevoice | ❌ | ❌ | ❌ | Add FFI stub + TTS service call + synthesize screen slider |
+| 7 | TADA per-request voice switch | tada | ✅ `setVoice` exists | ✅ | ✅ already wired | Verify works without session restart (CrispASR #201 fix) |
+| 8 | TADA flow-matching knobs (top_k, do_sample, num_candidates) | tada | covered by items 1-3 above | — | — | Same FFI stubs as items 1-3 |
+| 9 | TADA `--make-ref` (C++ voice ref creation) | tada | ❌ no C API | ❌ | ❌ | Blocked on C ABI for make-ref. Track only. |
+| 10 | TADA auto-download language voice refs on `-l <lang>` | tada | ✅ auto-download is C-side | ✅ automatic | N/A | No Dart work — C-side handles it |
+| 11 | TADA GPU runtime (Metal, quantized FM fallback) | tada | ✅ uses existing GPU toggle | ✅ automatic | N/A | No Dart work — C-side handles it |
+| 12 | CosyVoice3 GPU + lazy-load cloning | cosyvoice3-tts | ✅ C-side | ✅ automatic | N/A | No Dart work |
+
+- [x] `setTopK` FFI stub + TTS service + UI
+- [x] `setDoSample` FFI stub + TTS service + UI
+- [x] `setTtsNumCandidates` FFI stub + TTS service + UI
+- [x] `setSpeakerId` FFI stub + TTS service + UI
+- [x] `setG2pDict` FFI stub + TTS service + UI
+- [x] `setTtsNoiseTemp` FFI stub + TTS service + UI
+- [x] Unit tests for all new FFI stubs + TTS service calls
+
+### 11.4 Server + CLI parity
+
+| # | Feature | Status | Work needed |
+|---|---------|--------|-------------|
+| 1 | `diarized_json` response format (#206) | ❌ | Add to server_service transcription endpoint |
+| 2 | `--diarize-speakers` CLI alias | ❌ | Add to CLI diarize command |
+| 3 | New backends in CLI `backends` list | ✅ automatic | Dynamic from `availableBackends()` |
+
+- [x] `diarized_json` server support
+- [x] `--diarize-speakers` CLI alias
+- [x] Unit tests
+
+### 11.5 Execution order
+
+1. Model catalog entries (11.1) — pure data, no FFI changes
+2. TTS FFI stubs (11.3) — add all 6 missing setters to `crispasr_stub.dart`
+3. TTS service wiring — call new setters from `tts_service.dart`
+4. Synthesize screen UI — expose new TTS controls
+5. ASR advanced options UI (11.2) — beam-size slider, hotwords-boost slider
+6. Server + CLI (11.4) — `diarized_json`, `--diarize-speakers`
+7. Unit tests for everything

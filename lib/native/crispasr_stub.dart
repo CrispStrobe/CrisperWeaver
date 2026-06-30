@@ -526,6 +526,12 @@ class CrispasrSession {
   void setMaxSpeechTokens(int n) {}
   void setLengthScale(double scale) {}
   void setTtsSeed(int seed) {}
+  void setTopK(int topK) {}
+  void setDoSample(bool enable) {}
+  void setTtsNumCandidates(int n) {}
+  void setSpeakerId(int id) {}
+  void setG2pDict(String source) {}
+  void setTtsNoiseTemp(double noiseTemp) {}
   void setMaxNewTokens(int n) {}
   void setFrequencyPenalty(double penalty) {}
 

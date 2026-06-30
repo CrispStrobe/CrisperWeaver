@@ -2240,6 +2240,8 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
         transcribeWindowDurationSec: adv.transcribeWindowDurationSec,
         altN: adv.altN,
         hotwords: adv.hotwords,
+        hotwordsBoost: adv.hotwordsBoost,
+        beamSize: adv.beamSize,
         alignerModel: adv.alignerModel.isEmpty ? null : adv.alignerModel,
       );
 
@@ -2491,6 +2493,8 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
       transcribeWindowDurationSec: adv.transcribeWindowDurationSec,
       altN: adv.altN,
       hotwords: adv.hotwords,
+      hotwordsBoost: adv.hotwordsBoost,
+      beamSize: adv.beamSize,
       alignerModel: adv.alignerModel.isEmpty ? null : adv.alignerModel,
     );
 

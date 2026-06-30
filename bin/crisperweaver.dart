@@ -579,6 +579,8 @@ class _DiarizeCmd extends _Base {
   @override
   String get name => 'diarize';
   @override
+  List<String> get aliases => const ['diarize-speakers'];
+  @override
   String get description => 'Transcribe + label speakers (pyannote).';
   @override
   int run() {

@@ -1205,6 +1205,24 @@ class AppLocalizationsDe extends AppLocalizations {
       'Langsamer, meist genauer. Standard ist greedy.';
 
   @override
+  String advancedBeamSize(int n) {
+    return 'Beam-Breite: $n';
+  }
+
+  @override
+  String get advancedBeamSizeHelper =>
+      'Anzahl der Beams für Beam-Suche. 0 = Backend-Standard (typisch 5).';
+
+  @override
+  String advancedHotwordsBoost(String value) {
+    return 'Hotwords-Boost: $value';
+  }
+
+  @override
+  String get advancedHotwordsBoostHelper =>
+      'Boost-Faktor für CTC/TDT-Hotword-Biasing (granite, parakeet). 0 = aus.';
+
+  @override
   String get advancedInitialPrompt => 'Initial-Prompt (Vokabular / Kontext)';
 
   @override
@@ -2644,6 +2662,47 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get synthFrequencyPenaltyHelper =>
       'Bestraft wiederholte Tokens in autoregressiven Backends. 0 = aus; erhöhen, um Schleifen-Stotter-Artefakte zu reduzieren.';
+
+  @override
+  String synthTopK(int n) {
+    return 'Top-K: $n';
+  }
+
+  @override
+  String get synthTopKHelper =>
+      'Top-K Sampling-Breite (qwen3-tts, chatterbox, orpheus, dots-tts, tada). 0 = deaktiviert.';
+
+  @override
+  String get synthDoSample => 'Stochastisches Sampling';
+
+  @override
+  String get synthDoSampleHelper =>
+      'Stochastisches Sampling statt Greedy-Dekodierung aktivieren.';
+
+  @override
+  String synthNumCandidates(int n) {
+    return 'Akustische Kandidaten: $n';
+  }
+
+  @override
+  String get synthNumCandidatesHelper =>
+      'Anzahl akustischer Kandidaten für Ranking (tada, chatterbox, kokoro). 0 = Standard.';
+
+  @override
+  String synthNoiseTemp(String value) {
+    return 'Rauschtemperatur: $value';
+  }
+
+  @override
+  String get synthNoiseTempHelper =>
+      'Rauschtemperatur für stochastische Erzeugung (kokoro, vibevoice). 0 = Standard.';
+
+  @override
+  String get synthG2pDict => 'G2P-Wörterbuch';
+
+  @override
+  String get synthG2pDictHelper =>
+      'Graphem-zu-Phonem-Wörterbuch-Pfad (kokoro, vibevoice, speecht5).';
 
   @override
   String get synthClearPhonemeCache => 'Phonem-Cache leeren';
