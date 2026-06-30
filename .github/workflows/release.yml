@@ -504,7 +504,7 @@ jobs:
             -Wl,--no-whole-archive \
             "$ESPEAK_NG_ANDROID_ROOT"/lib*/libespeak-ng.a \
             "$UCD_LIB" \
-            -lm -llog
+            -lm -llog -lmediandk
           ln -sf libcrispasr.so src/libwhisper.so
           ls -lh src/libcrispasr.so
           # Fail fast if any OpenMP runtime symbol is still UND — silent
@@ -559,7 +559,7 @@ jobs:
           echo "libcrispasr.so NEEDS: $NEEDED"
           for n in $NEEDED; do
             case "$n" in
-              libm.so|libc.so|libdl.so|liblog.so) ;;  # provided by Android
+              libm.so|libc.so|libdl.so|liblog.so|libmediandk.so) ;;  # provided by Android
               *) [ -f "$DEST/$n" ] || { echo "::error::missing NEEDED dep $n" >&2; exit 1; } ;;
             esac
           done
