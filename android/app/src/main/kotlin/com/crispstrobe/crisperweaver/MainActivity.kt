@@ -3,6 +3,9 @@ package com.crispstrobe.crisperweaver
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.media.MediaCodec
+import android.media.MediaExtractor
+import android.media.MediaFormat
 import android.media.projection.MediaProjectionManager
 import android.os.Build
 import androidx.core.content.ContextCompat
@@ -10,8 +13,10 @@ import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
+import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import kotlin.concurrent.thread
 
 class MainActivity : FlutterActivity() {
 
@@ -57,6 +62,32 @@ class MainActivity : FlutterActivity() {
                 "stop" -> {
                     stopSystemAudioCapture()
                     result.success(null)
+                }
+                else -> result.notImplemented()
+            }
+        }
+
+        // Audio decode channel — transcode opus/m4a/aac/webm to 16 kHz
+        // mono PCM WAV via Android's MediaExtractor + MediaCodec.
+        val audioDecode = MethodChannel(messenger, "crisperweaver/audio_decode")
+        audioDecode.setMethodCallHandler { call, result ->
+            when (call.method) {
+                "decodeToWav" -> {
+                    val filePath = call.argument<String>("path")
+                    if (filePath == null) {
+                        result.error("bad_args", "missing 'path'", null)
+                        return@setMethodCallHandler
+                    }
+                    thread {
+                        try {
+                            val wav = decodeToMonoWav(filePath, 16000)
+                            runOnUiThread { result.success(wav) }
+                        } catch (e: Exception) {
+                            runOnUiThread {
+                                result.error("decode_failed", e.message, null)
+                            }
+                        }
+                    }
                 }
                 else -> result.notImplemented()
             }
@@ -181,5 +212,143 @@ class MainActivity : FlutterActivity() {
                 null
             )
         }
+    }
+
+    /// Decode any audio file Android can handle (opus, m4a, aac, webm,
+    /// mp4, wma…) to a 16 kHz mono 16-bit PCM WAV byte array using
+    /// MediaExtractor + MediaCodec. Runs on a background thread.
+    private fun decodeToMonoWav(filePath: String, targetSr: Int): ByteArray {
+        val extractor = MediaExtractor()
+        extractor.setDataSource(filePath)
+
+        // Find the first audio track.
+        var trackIndex = -1
+        var format: MediaFormat? = null
+        for (i in 0 until extractor.trackCount) {
+            val tf = extractor.getTrackFormat(i)
+            if (tf.getString(MediaFormat.KEY_MIME)?.startsWith("audio/") == true) {
+                trackIndex = i
+                format = tf
+                break
+            }
+        }
+        if (trackIndex < 0 || format == null) {
+            extractor.release()
+            throw IllegalArgumentException("No audio track found in $filePath")
+        }
+        extractor.selectTrack(trackIndex)
+
+        val srcSr = format.getInteger(MediaFormat.KEY_SAMPLE_RATE)
+        val srcCh = format.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
+
+        val codec = MediaCodec.createDecoderByType(
+            format.getString(MediaFormat.KEY_MIME)!!
+        )
+        codec.configure(format, null, null, 0)
+        codec.start()
+
+        val pcmOut = ByteArrayOutputStream()
+        val info = MediaCodec.BufferInfo()
+        var eos = false
+
+        while (!eos) {
+            // Feed input buffers.
+            val inIdx = codec.dequeueInputBuffer(10_000)
+            if (inIdx >= 0) {
+                val inBuf = codec.getInputBuffer(inIdx)!!
+                val read = extractor.readSampleData(inBuf, 0)
+                if (read < 0) {
+                    codec.queueInputBuffer(
+                        inIdx, 0, 0, 0,
+                        MediaCodec.BUFFER_FLAG_END_OF_STREAM
+                    )
+                } else {
+                    codec.queueInputBuffer(
+                        inIdx, 0, read,
+                        extractor.sampleTime, 0
+                    )
+                    extractor.advance()
+                }
+            }
+
+            // Drain output buffers.
+            var outIdx = codec.dequeueOutputBuffer(info, 10_000)
+            while (outIdx >= 0) {
+                if (info.size > 0) {
+                    val outBuf = codec.getOutputBuffer(outIdx)!!
+                    val chunk = ByteArray(info.size)
+                    outBuf.get(chunk)
+                    pcmOut.write(chunk)
+                }
+                val endOfStream =
+                    (info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0
+                codec.releaseOutputBuffer(outIdx, false)
+                if (endOfStream) {
+                    eos = true
+                    break
+                }
+                outIdx = codec.dequeueOutputBuffer(info, 0)
+            }
+        }
+
+        codec.stop()
+        codec.release()
+        extractor.release()
+
+        // MediaCodec outputs 16-bit PCM. Down-mix to mono and resample
+        // to targetSr if needed.
+        val rawPcm = pcmOut.toByteArray()
+        val srcSamples = ShortArray(rawPcm.size / 2)
+        ByteBuffer.wrap(rawPcm).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer()
+            .get(srcSamples)
+
+        // Down-mix to mono.
+        val mono: ShortArray = if (srcCh > 1) {
+            val frames = srcSamples.size / srcCh
+            ShortArray(frames) { i ->
+                var sum = 0L
+                for (c in 0 until srcCh) sum += srcSamples[i * srcCh + c]
+                (sum / srcCh).toInt().toShort()
+            }
+        } else {
+            srcSamples
+        }
+
+        // Simple linear resample to targetSr.
+        val resampled: ShortArray = if (srcSr != targetSr) {
+            val ratio = srcSr.toDouble() / targetSr
+            val outLen = (mono.size / ratio).toInt()
+            ShortArray(outLen) { i ->
+                val srcPos = i * ratio
+                val idx = srcPos.toInt().coerceAtMost(mono.size - 1)
+                mono[idx]
+            }
+        } else {
+            mono
+        }
+
+        // Build a WAV in memory.
+        val dataSize = resampled.size * 2
+        val wav = ByteBuffer.allocate(44 + dataSize)
+            .order(ByteOrder.LITTLE_ENDIAN)
+        // RIFF header
+        wav.put("RIFF".toByteArray())
+        wav.putInt(36 + dataSize)
+        wav.put("WAVE".toByteArray())
+        // fmt chunk
+        wav.put("fmt ".toByteArray())
+        wav.putInt(16)               // chunk size
+        wav.putShort(1)              // PCM
+        wav.putShort(1)              // mono
+        wav.putInt(targetSr)
+        wav.putInt(targetSr * 2)     // byte rate
+        wav.putShort(2)              // block align
+        wav.putShort(16)             // bits per sample
+        // data chunk
+        wav.put("data".toByteArray())
+        wav.putInt(dataSize)
+        for (s in resampled) wav.putShort(s)
+
+        return wav.array()
     }
 }

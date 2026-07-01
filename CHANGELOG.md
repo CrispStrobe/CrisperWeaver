@@ -5,6 +5,16 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 
 ## [Unreleased]
 
+### Fixed — .opus file support on Android (#26)
+
+WhatsApp `.opus` audio files (and `.webm` with Opus audio) now decode
+natively on Android. The CrispASR Android build was missing
+`-DCRISPASR_OPUS_FETCH=ON`, so libopus/opusfile were silently disabled
+and the ffmpeg fallback doesn't exist on Android. Fixed in both the
+standalone `build-android.sh` and the CI release workflow. Added an
+Android `MediaCodec` platform-channel fallback as belt-and-suspenders
+for older builds.
+
 ### Added — Test coverage, CLI & HTTP-server parity (§9)
 
 **CLI** — a first-class headless CLI over the on-device engine

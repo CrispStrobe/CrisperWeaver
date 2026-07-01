@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:flutter/services.dart';
 import '../native/crispasr_import.dart' as crispasr;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
@@ -313,7 +314,8 @@ class AudioService {
 
     // FFmpeg fallback for formats miniaudio doesn't handle (opus,
     // webm, m4a/aac). Convert to 16 kHz mono WAV via pipe. Falls
-    // through to the Dart WAV parser when ffmpeg isn't installed.
+    // through to the Android MediaCodec fallback (on Android) or
+    // the Dart WAV parser when ffmpeg isn't installed.
     final ext = path.extension(audioFile.path).toLowerCase();
     if (const {'.opus', '.webm', '.m4a', '.aac', '.mp4', '.wma'}
         .contains(ext)) {
@@ -350,6 +352,41 @@ class AudioService {
       }
     }
 
+    // Android MediaCodec fallback — Android can decode opus/m4a/aac/webm
+    // natively via MediaExtractor + MediaCodec. This covers the case where
+    // the CrispASR .so was built without CRISPASR_HAVE_OPUS and ffmpeg is
+    // unavailable (i.e. every stock Android device).
+    if (Platform.isAndroid &&
+        const {'.opus', '.webm', '.m4a', '.aac', '.mp4', '.wma'}
+            .contains(ext)) {
+      try {
+        final wavBytes = await _decodeViaMediaCodec(audioFile.path);
+        if (wavBytes != null) {
+          final tmpWav = File('${audioFile.path}.mc.wav');
+          try {
+            await tmpWav.writeAsBytes(wavBytes);
+            final decoded = crispasr.decodeAudioFile(tmpWav.path);
+            done(extra: {
+              'via': 'mediacodec+ffi',
+              'samples': decoded.samples.length,
+              'sr': decoded.sampleRate,
+              'format': ext,
+            });
+            return WavData(
+              samples: decoded.samples,
+              sampleRate: decoded.sampleRate,
+              channels: 1,
+            );
+          } finally {
+            try { await tmpWav.delete(); } catch (_) {}
+          }
+        }
+      } catch (e) {
+        Log.instance.w('audio', 'MediaCodec fallback failed',
+            fields: {'err': '$e', 'format': ext});
+      }
+    }
+
     final wav = await _basicWavProcessing(audioFile);
     Log.instance.i('audio', 'decoded via Dart WAV parser', fields: {
       'file': path.basename(audioFile.path),
@@ -358,6 +395,20 @@ class AudioService {
       'channels': wav.channels,
     });
     return wav;
+  }
+
+  /// Decode an audio file to 16 kHz mono PCM WAV bytes using Android's
+  /// MediaExtractor + MediaCodec via a platform channel.  Returns null
+  /// if the platform side reports failure (unsupported format, I/O error).
+  static const _audioDecodeChannel =
+      MethodChannel('crisperweaver/audio_decode');
+
+  Future<Uint8List?> _decodeViaMediaCodec(String filePath) async {
+    final result = await _audioDecodeChannel.invokeMethod<Uint8List>(
+      'decodeToWav',
+      {'path': filePath},
+    );
+    return result;
   }
 
   /// Basic WAV file processing fallback
@@ -378,11 +429,10 @@ class AudioService {
       // what's actually supported instead of "not a valid WAV file" —
       // the latter is technically true but unhelpful for someone who
       // tried to load an MP4 / M4A / AAC.
-      throw const AudioProcessingException(
+      throw AudioProcessingException(
         'Unsupported audio format. CrisperWeaver decodes WAV, MP3, '
-        'FLAC, and OGG natively. Opus, WebM, M4A, and AAC are '
-        'supported when ffmpeg is installed. Install ffmpeg or '
-        'convert to WAV/MP3/FLAC first.',
+        'FLAC, and OGG natively. '
+        '${Platform.isAndroid ? 'Opus and other formats should be handled automatically — please report this as a bug.' : 'Opus, WebM, M4A, and AAC are supported when ffmpeg is installed. Install ffmpeg or convert to WAV/MP3/FLAC first.'}',
       );
     }
 

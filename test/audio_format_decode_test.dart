@@ -130,29 +130,45 @@ void main() {
       expect(audio.sampleRate, 16000);
     }, skip: skip);
 
-    test('.opus decodes via ffmpeg fallback', () async {
+    test('.opus decodes natively (CRISPASR_HAVE_OPUS)', () async {
       final opusPath =
           await _convertTo(wavPath, 'opus', extraArgs: ['-c:a', 'libopus', '-b:a', '32k']);
       if (opusPath == null) {
         markTestSkipped('ffmpeg opus encoding unavailable');
         return;
       }
-      final audio = await _decodeWithFfmpegFallback(opusPath, lib!);
-      expect(audio.samples.length, greaterThan(10000),
-          reason: 'opus decode should produce samples');
-      printOnFailure('opus: ${audio.samples.length} samples @ ${audio.sampleRate} Hz');
+      // Try native decode first — works when libcrispasr was built with
+      // CRISPASR_OPUS_FETCH=ON. Falls back to ffmpeg if not.
+      try {
+        final audio = crispasr.decodeAudioFile(opusPath, libPath: lib);
+        expect(audio.samples.length, greaterThan(10000),
+            reason: 'opus native decode should produce samples');
+        printOnFailure('opus (native): ${audio.samples.length} samples @ ${audio.sampleRate} Hz');
+      } catch (_) {
+        // Native decode not available — fall back to ffmpeg path.
+        final audio = await _decodeWithFfmpegFallback(opusPath, lib!);
+        expect(audio.samples.length, greaterThan(10000),
+            reason: 'opus ffmpeg fallback should produce samples');
+        printOnFailure('opus (ffmpeg fallback): ${audio.samples.length} samples @ ${audio.sampleRate} Hz');
+      }
     }, skip: skip);
 
-    test('.webm (opus) decodes via ffmpeg fallback', () async {
+    test('.webm (opus) decodes natively (CRISPASR_HAVE_OPUS)', () async {
       final webmPath =
           await _convertTo(wavPath, 'webm', extraArgs: ['-c:a', 'libopus', '-b:a', '32k']);
       if (webmPath == null) {
         markTestSkipped('ffmpeg webm encoding unavailable');
         return;
       }
-      final audio = await _decodeWithFfmpegFallback(webmPath, lib!);
-      expect(audio.samples.length, greaterThan(10000),
-          reason: 'webm decode should produce samples');
+      try {
+        final audio = crispasr.decodeAudioFile(webmPath, libPath: lib);
+        expect(audio.samples.length, greaterThan(10000),
+            reason: 'webm native decode should produce samples');
+      } catch (_) {
+        final audio = await _decodeWithFfmpegFallback(webmPath, lib!);
+        expect(audio.samples.length, greaterThan(10000),
+            reason: 'webm ffmpeg fallback should produce samples');
+      }
     }, skip: skip);
 
     test('.m4a (AAC) decodes via ffmpeg fallback', () async {
