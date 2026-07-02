@@ -87,7 +87,8 @@ jobs:
         working-directory: repos/CrispASR
         run: |
           cmake -B build -DCMAKE_BUILD_TYPE=Release \
-            -DBUILD_SHARED_LIBS=ON -DWHISPER_METAL=ON
+            -DBUILD_SHARED_LIBS=ON -DWHISPER_METAL=ON \
+            -DCRISPASR_OPUS_FETCH=ON
           # --parallel 2 (not unbounded): caps peak RAM so the heavier
           # CrispASR build doesn't get OOM-killed on the 7 GB M1 runner.
           cmake --build build --config Release --parallel 2 --target crispasr-lib
@@ -192,7 +193,8 @@ jobs:
           cmake -B build -DCMAKE_BUILD_TYPE=Release \
             -DBUILD_SHARED_LIBS=OFF \
             -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
-            -DCRISPASR_BUILD_EXAMPLES=OFF -DCRISPASR_BUILD_TESTS=OFF
+            -DCRISPASR_BUILD_EXAMPLES=OFF -DCRISPASR_BUILD_TESTS=OFF \
+            -DCRISPASR_OPUS_FETCH=ON
           cmake --build build --config Release --parallel --target crispasr-lib
           cd build
           # -Wl,-rpath,$ORIGIN so libcrispasr.so finds its sibling
@@ -212,6 +214,15 @@ jobs:
           ln -sf libcrispasr.so src/libwhisper.so
           ls -lh src/libcrispasr.so
           nm -D src/libcrispasr.so | grep -c "T " | xargs printf "  %d exported symbols\n"
+          # Verify opus decode symbols (#26)
+          SYMS=$(nm -D src/libcrispasr.so)
+          for sym in opus_decode_float opus_decoder_create op_open_file crispasr_audio_load whisper_full; do
+            if ! echo "$SYMS" | grep -q "$sym"; then
+              echo "::error::libcrispasr.so missing symbol: $sym" >&2
+              exit 1
+            fi
+          done
+          echo "  ✓ opus + core symbols verified"
 
       - name: Enable Linux desktop + pub get
         working-directory: repos/CrisperWeaver
@@ -530,6 +541,29 @@ jobs:
               | awk '$5=="UND"' | grep -E "\\bucd_" >&2
             exit 1
           fi
+          # Opus decode capability guard (#26) — libopus/opusfile must be
+          # statically linked so .opus files decode natively on Android
+          # (no ffmpeg on device). Without these symbols, opus decode
+          # silently falls through to the "unsupported format" error.
+          SYMS=$("$NDKRE" --dyn-symbols src/libcrispasr.so)
+          OPUS_OK=true
+          for sym in opus_decode_float opus_decoder_create op_open_file ma_libopus_init_file; do
+            if ! echo "$SYMS" | grep -q "$sym"; then
+              echo "::error::libcrispasr.so missing opus symbol: $sym (CRISPASR_OPUS_FETCH=ON not effective?)" >&2
+              OPUS_OK=false
+            fi
+          done
+          if [ "$OPUS_OK" = false ]; then exit 1; fi
+          echo "✓ opus symbols present"
+          # Core C API sanity — verify the public entry points exist.
+          # Catches link-order bugs where --whole-archive missed a TU.
+          for sym in crispasr_audio_load whisper_full whisper_init_from_file_with_params; do
+            if ! echo "$SYMS" | grep -q "$sym"; then
+              echo "::error::libcrispasr.so missing core symbol: $sym" >&2
+              exit 1
+            fi
+          done
+          echo "✓ core API symbols present"
 
       - name: Copy native lib into jniLibs/
         working-directory: repos/CrisperWeaver
@@ -900,6 +934,7 @@ jobs:
             -DGGML_AVX512=OFF `
             -DWHISPER_BUILD_EXAMPLES=OFF `
             -DWHISPER_BUILD_TESTS=OFF `
+            -DCRISPASR_OPUS_FETCH=ON `
             -DESPEAK_NG_INCLUDE_DIR="$espeakInc" `
             -DESPEAK_NG_LIBRARY="$espeakLib"
           cmake --build build --config Release --parallel --target crispasr-lib

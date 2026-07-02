@@ -73,7 +73,8 @@ if [[ $REBUILD_CMAKE == 1 || ! -f "$BUILDDIR/CMakeCache.txt" ]]; then
     -DCRISPASR_COREML_ALLOW_FALLBACK=ON \
     -DCRISPASR_BUILD_TESTS=OFF \
     -DCRISPASR_BUILD_EXAMPLES=OFF \
-    -DCRISPASR_BUILD_SERVER=OFF
+    -DCRISPASR_BUILD_SERVER=OFF \
+    -DCRISPASR_OPUS_FETCH=ON
 fi
 # CRISPASR_COREML=ON wires Apple's CoreML encoder into libwhisper. When
 # whisper opens a ggml-MODEL.bin file, it probes for a sibling
@@ -137,6 +138,25 @@ LIBPATH="$BUILDDIR/src/libwhisper.dylib"
 if [[ ! -f "$LIBPATH" && ! -L "$LIBPATH" ]]; then
   echo "error: libwhisper.dylib not produced at $LIBPATH" >&2
   exit 4
+fi
+
+# ---------------------------------------------------------------------------
+# Step 2b: verify native library capabilities
+# ---------------------------------------------------------------------------
+echo "==> verify libwhisper capabilities"
+_verify_sym() {
+  if ! nm -gU "$LIBPATH" 2>/dev/null | grep -q "$1"; then
+    echo "WARNING: $LIBPATH missing symbol: $1" >&2
+    return 1
+  fi
+}
+_verify_sym _crispasr_audio_load || true
+_verify_sym _whisper_full || true
+# Opus decode — if missing, .opus files won't decode natively.
+if _verify_sym _opus_decode_float && _verify_sym _op_open_file; then
+  echo "  ✓ opus decode symbols present"
+else
+  echo "  ⚠ opus decode symbols missing (CRISPASR_OPUS_FETCH=ON may not have worked)"
 fi
 
 # ---------------------------------------------------------------------------

@@ -69,7 +69,8 @@ if ($RebuildCmake -or -not (Test-Path $cacheFile)) {
         -DBUILD_SHARED_LIBS=ON `
         -DCRISPASR_BUILD_TESTS=OFF `
         -DCRISPASR_BUILD_EXAMPLES=OFF `
-        -DCRISPASR_BUILD_SERVER=OFF
+        -DCRISPASR_BUILD_SERVER=OFF `
+        -DCRISPASR_OPUS_FETCH=ON
     if ($LASTEXITCODE -ne 0) { throw "cmake configure failed (exit $LASTEXITCODE)" }
 }
 

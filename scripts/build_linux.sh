@@ -70,7 +70,8 @@ if [[ $REBUILD_CMAKE == 1 || ! -f "$BUILDDIR/CMakeCache.txt" ]]; then
     -DBUILD_SHARED_LIBS=ON \
     -DCRISPASR_BUILD_TESTS=OFF \
     -DCRISPASR_BUILD_EXAMPLES=OFF \
-    -DCRISPASR_BUILD_SERVER=OFF
+    -DCRISPASR_BUILD_SERVER=OFF \
+    -DCRISPASR_OPUS_FETCH=ON
 fi
 
 # ---------------------------------------------------------------------------
@@ -118,6 +119,25 @@ if [[ ! -f "$LIBPATH" && ! -L "$LIBPATH" ]]; then
     echo "error: libwhisper.so / libcrispasr.so not produced under $BUILDDIR/src" >&2
     exit 4
   fi
+fi
+
+# ---------------------------------------------------------------------------
+# Step 2b: verify native library capabilities
+# ---------------------------------------------------------------------------
+echo "==> verify libcrispasr capabilities"
+_verify_sym() {
+  if ! nm -D "$LIBPATH" 2>/dev/null | grep -q "$1"; then
+    echo "WARNING: $LIBPATH missing symbol: $1" >&2
+    return 1
+  fi
+}
+_verify_sym crispasr_audio_load || true
+_verify_sym whisper_full || true
+# Opus decode — if missing, .opus files won't decode natively.
+if _verify_sym opus_decode_float && _verify_sym op_open_file; then
+  echo "  ✓ opus decode symbols present"
+else
+  echo "  ⚠ opus decode symbols missing (CRISPASR_OPUS_FETCH=ON may not have worked)"
 fi
 
 # ---------------------------------------------------------------------------
