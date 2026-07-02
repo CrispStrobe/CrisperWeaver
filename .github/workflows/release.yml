@@ -130,7 +130,7 @@ jobs:
           shasum -a 256 crisper_weaver-macos.zip | tee crisper_weaver-macos.zip.sha256
 
       - name: Upload to GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ inputs.tag || github.ref_name }}
           files: |
@@ -294,7 +294,7 @@ jobs:
           sha256sum crisper_weaver-linux-x64.tar.gz | tee crisper_weaver-linux-x64.tar.gz.sha256
 
       - name: Upload to GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ inputs.tag || github.ref_name }}
           files: |
@@ -331,13 +331,13 @@ jobs:
           path: repos/CrispEmbed
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
 
       - name: Set up Android SDK + NDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
 
       - name: Install NDK 26
         run: |
@@ -672,7 +672,7 @@ jobs:
           sha256sum crisper_weaver-android-arm64.apk | tee crisper_weaver-android-arm64.apk.sha256
 
       - name: Upload APK
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ inputs.tag || github.ref_name }}
           files: |
@@ -779,7 +779,7 @@ jobs:
           ls -lh crisper_weaver-ios-unsigned.ipa
 
       - name: Upload IPA
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ inputs.tag || github.ref_name }}
           files: |
@@ -1000,7 +1000,7 @@ jobs:
           (Get-FileHash crisper_weaver-windows-x64.zip -Algorithm SHA256).Hash | Tee-Object -FilePath crisper_weaver-windows-x64.zip.sha256
 
       - name: Upload Windows zip + MSIX
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ inputs.tag || github.ref_name }}
           files: |

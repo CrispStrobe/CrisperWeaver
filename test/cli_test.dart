@@ -7,14 +7,35 @@
 // `flutter test` fast.
 
 @Tags(['slow'])
+@Timeout(Duration(minutes: 3))
 library;
 
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
+/// Resolve the `dart` executable from the Flutter SDK. Inside
+/// `flutter test`, `Platform.resolvedExecutable` returns `flutter_tester`
+/// (the test harness), not the Dart VM. Walk up from the resolved path
+/// to find `dart-sdk/bin/dart` in the Flutter cache.
+final _dart = () {
+  final resolved = Platform.resolvedExecutable;
+  // flutter_tester lives in cache/artifacts/engine/<platform>/
+  // dart is in cache/dart-sdk/bin/dart — walk up to cache/.
+  final cacheDir = resolved.contains('artifacts')
+      ? resolved.substring(0, resolved.indexOf('artifacts'))
+      : resolved.substring(0, resolved.lastIndexOf(Platform.pathSeparator));
+  final dartBin = '$cacheDir${Platform.pathSeparator}dart-sdk'
+      '${Platform.pathSeparator}bin${Platform.pathSeparator}dart';
+  if (File(dartBin).existsSync()) return dartBin;
+  // Fallback: try system PATH.
+  return 'dart';
+}();
+
+/// Run the CLI entrypoint directly (not via `dart run`) to avoid build
+/// hook lock contention when spawned from within `flutter test`.
 Future<ProcessResult> _cli(List<String> args) =>
-    Process.run('dart', ['run', 'bin/crisperweaver.dart', ...args]);
+    Process.run(_dart, ['bin/crisperweaver.dart', ...args]);
 
 void main() {
   group('crisperweaver CLI', () {

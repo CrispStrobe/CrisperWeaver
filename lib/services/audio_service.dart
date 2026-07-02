@@ -424,15 +424,15 @@ class AudioService {
     final wave = String.fromCharCodes(bytes.sublist(8, 12));
 
     if (riff != 'RIFF' || wave != 'WAVE') {
-      // We only reach this fallback when the FFI decoder rejected the
-      // file (miniaudio handles WAV / MP3 / FLAC / OGG). Tell the user
-      // what's actually supported instead of "not a valid WAV file" —
-      // the latter is technically true but unhelpful for someone who
-      // tried to load an MP4 / M4A / AAC.
-      throw AudioProcessingException(
+      // We only reach this fallback when both the FFI decoder and all
+      // platform fallbacks rejected the file. Since v0.8.7 the FFI
+      // decoder handles WAV/MP3/FLAC/OGG/Opus/WebM natively; on Android
+      // the MediaCodec fallback covers additional formats. If we're
+      // still here, the format is genuinely unsupported.
+      throw const AudioProcessingException(
         'Unsupported audio format. CrisperWeaver decodes WAV, MP3, '
-        'FLAC, and OGG natively. '
-        '${Platform.isAndroid ? 'Opus and other formats should be handled automatically — please report this as a bug.' : 'Opus, WebM, M4A, and AAC are supported when ffmpeg is installed. Install ffmpeg or convert to WAV/MP3/FLAC first.'}',
+        'FLAC, OGG, Opus, and WebM natively. For M4A/AAC/WMA, '
+        'convert to WAV or MP3 first.',
       );
     }
 

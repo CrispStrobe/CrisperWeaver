@@ -86,9 +86,17 @@ void main() {
   group('§5.26.2 — Hotwords', () {
     test('setHotwords + transcribe includes hotword term (whisper)',
         () {
-      final pcm = _loadJfkPcm(libPath);
+      // Use the full 11 s JFK clip — the 2 s clip only contains "And so
+      // my fellow Americans" and never reaches "country".
+      Float32List? pcm;
+      try {
+        pcm = crispasr.decodeAudioFile('test/jfk.wav',
+            libPath: libPath).samples;
+      } catch (_) {
+        pcm = null;
+      }
       if (pcm == null) {
-        markTestSkipped('could not load test/jfk-2s.wav');
+        markTestSkipped('could not load test/jfk.wav');
         return;
       }
       final session = crispasr.CrispasrSession.open(
@@ -102,8 +110,8 @@ void main() {
         expect(result, isNotEmpty,
             reason: 'should produce at least one segment');
         final text = result.map((s) => s.text).join(' ').toLowerCase();
-        // JFK speech should contain "country" — the hotword biases
-        // the decoder toward recognizing it even on tiny.en.
+        // Full JFK speech contains "ask not what your country can do
+        // for you" — the hotword biases the decoder toward it.
         expect(text, contains('country'),
             reason: 'hotword "country" should appear in JFK transcript');
       } finally {
