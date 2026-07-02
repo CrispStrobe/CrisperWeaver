@@ -2581,6 +2581,39 @@ abstract final class ModelCatalog {
       backend: 'dia',
       kind: ModelKind.codec,
     ),
+    // BananaMind-TTS V2.1 — Tacotron-lite + HiFi-GAN, 13M params, 22 kHz.
+    // Character-level encoder, no phonemizer needed. Fixed voice per locale.
+    // Apache-2.0. ~38 MB Q8_0 per locale.
+    'bananamind-tts-en-q8_0': ModelDefinition(
+      name: 'bananamind-tts-en-q8_0',
+      displayName: 'BananaMind TTS EN (q8_0)',
+      fileName: 'bananamind-tts-en-q8_0.gguf',
+      url:
+          'https://huggingface.co/cstr/bananamind-tts-GGUF/resolve/main/bananamind-tts-en-q8_0.gguf',
+      sizeBytes: 40110656,
+      checksum: '',
+      description:
+          'BananaMind-TTS V2.1 — Tacotron-lite + HiFi-GAN (English, 13M params), ~38 MB',
+      quantization: 'q8_0',
+      backend: 'bananamind-tts',
+      kind: ModelKind.tts,
+      languages: langsEn,
+    ),
+    'bananamind-tts-de-q8_0': ModelDefinition(
+      name: 'bananamind-tts-de-q8_0',
+      displayName: 'BananaMind TTS DE (q8_0)',
+      fileName: 'bananamind-tts-de-q8_0.gguf',
+      url:
+          'https://huggingface.co/cstr/bananamind-tts-GGUF/resolve/main/bananamind-tts-de-q8_0.gguf',
+      sizeBytes: 40111776,
+      checksum: '',
+      description:
+          'BananaMind-TTS V2.1 — Tacotron-lite + HiFi-GAN (German, 13M params), ~38 MB',
+      quantization: 'q8_0',
+      backend: 'bananamind-tts',
+      kind: ModelKind.tts,
+      languages: langsDe,
+    ),
     // FastPitch — NVIDIA non-autoregressive parallel TTS. Deterministic,
     // single EN speaker, 22 kHz. ~120 MB.
     'fastpitch-en-q8_0': ModelDefinition(
@@ -3519,6 +3552,7 @@ abstract final class ModelCatalog {
     'chatterbox': 'chatterbox-en-q8_0',
     'indextts': 'indextts-q8_0',
     'f5-tts': 'f5-tts-v1-base-f16',
+    'bananamind-tts': 'bananamind-tts-en-q8_0',
     'bark': 'bark-small-q8_0',
     'csm': 'csm-1b-q4_k',
     'dia': 'dia-1.6b-f16',
@@ -4426,6 +4460,16 @@ abstract final class ModelCatalog {
       kind: ModelKind.tts,
       defaultCompanions: ['dac-44khz'],
       defaultLanguages: langsEn,
+    ),
+    'bananamind-tts': BackendRepo(
+      backend: 'bananamind-tts',
+      repoId: 'cstr/bananamind-tts-GGUF',
+      baseName: 'bananamind-tts',
+      displayPrefix: 'BananaMind TTS',
+      description:
+          'BananaMind-TTS V2.1 — Tacotron-lite + HiFi-GAN (English, German)',
+      kind: ModelKind.tts,
+      defaultLanguages: [...langsEn, ...langsDe],
     ),
     'fastpitch': BackendRepo(
       backend: 'fastpitch',
