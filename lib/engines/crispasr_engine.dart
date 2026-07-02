@@ -1500,7 +1500,7 @@ class CrispASREngine implements TranscriptionEngine {
         ),
       );
     }
-    return _session!.transcribe(pcm, language: langHint);
+    return _session!.transcribeChunked(pcm, language: langHint);
   }
 
   /// §9 — session-backend transcription dispatched through the

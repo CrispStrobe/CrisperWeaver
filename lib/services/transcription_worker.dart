@@ -308,7 +308,7 @@ Future<void> transcriptionWorkerEntry(TranscriptionWorkerArgs args) async {
           ),
         );
       } else {
-        segs = session.transcribe(samples, language: language);
+        segs = session.transcribeChunked(samples, language: language);
       }
       // Stream segments first (UI gets them as they arrive), then
       // signal done with the full list (drain loop uses it for
