@@ -800,6 +800,12 @@ int getTranscriptionProgress({String? libPath}) => -1;
 
 void resetTranscriptionProgress({String? libPath}) {}
 
+int getStreamedSegmentCount({String? libPath}) => 0;
+
+List<SessionSegment> drainStreamedSegments({String? libPath}) => const [];
+
+void resetStreamedSegments({String? libPath}) {}
+
 List<int> crispasrAgglomerativeCluster(dynamic lib, Float32List embeddings,
     {required int n,
     required int dim,

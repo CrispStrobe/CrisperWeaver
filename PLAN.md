@@ -1108,7 +1108,9 @@ match the real binding's API surface.
       exposes CrispASR as a Wyoming STT provider over TCP. Niche.
       Files: new `lib/services/wyoming_service.dart`
 
-- [ ] **i. Streaming token callbacks for LLM-ASR.** BLOCKED: no per-token C-ABI. Live partial results
+- [x] **i. Streaming segment callbacks for LLM-ASR.** C-ABI added to CrispASR
+      (`crispasr_segment_callback` + polling via `drain_streamed_segments`).
+      CrisperWeaver engine polls during transcription and fires `onSegment`. Live partial results
       from Qwen3/ARK/MOSS backends during decode. Needs UI for
       progressive text display.
       Files: `lib/engines/crispasr_engine.dart`

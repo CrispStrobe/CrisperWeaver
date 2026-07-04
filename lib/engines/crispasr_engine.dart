@@ -937,17 +937,31 @@ class CrispASREngine implements TranscriptionEngine {
               advanced.maxLen > 0 ||
               advanced.splitOnWord;
           if (_sessionPool != null && !whisperOnlyOpts) {
-            // C1 — poll CrispASR's atomic progress while the worker
-            // isolate runs the FFI call. Timer fires on the main
-            // isolate because the pool dispatches work off-thread.
+            // C1 — poll CrispASR's atomic progress + streamed segments
+            // while the worker isolate runs the FFI call. Timer fires
+            // on the main isolate because the pool dispatches off-thread.
             crispasr.resetTranscriptionProgress();
+            crispasr.resetStreamedSegments();
             Timer? progressTimer;
-            if (onProgress != null) {
+            if (onProgress != null || onSegment != null) {
               progressTimer = Timer.periodic(
                 const Duration(milliseconds: 250),
                 (_) {
-                  final p = crispasr.getTranscriptionProgress();
-                  if (p >= 0) onProgress(p / 100.0);
+                  if (onProgress != null) {
+                    final p = crispasr.getTranscriptionProgress();
+                    if (p >= 0) onProgress(p / 100.0);
+                  }
+                  // §12.8i — Poll streamed segments for real-time display.
+                  if (onSegment != null) {
+                    final streamed = crispasr.drainStreamedSegments();
+                    for (final ss in streamed) {
+                      onSegment(TranscriptionSegment(
+                        text: ss.text,
+                        startTime: ss.start,
+                        endTime: ss.end,
+                      ));
+                    }
+                  }
                 },
               );
             }
