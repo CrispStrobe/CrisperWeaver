@@ -229,6 +229,22 @@ class AlignerService {
     return out;
   }
 
+  /// §12.5 — Standalone re-alignment: takes existing segments + raw
+  /// audio and runs CTC forced alignment without doing a full ASR pass.
+  /// Returns segments with updated word-level timestamps, or the
+  /// originals unchanged if no aligner is available.
+  ///
+  /// This is the same as [addWordTimestamps] but exposed under a more
+  /// discoverable name for the "Re-align timestamps" UI action.
+  Future<List<TranscriptionSegment>> realignTimestamps(
+    List<TranscriptionSegment> segments,
+    Float32List pcm, {
+    String? language,
+    String? alignerModel,
+  }) =>
+      addWordTimestamps(segments, pcm,
+          language: language, alignerModel: alignerModel);
+
   /// Legacy fallback path when no ModelService is wired (test
   /// fixtures, standalone use). Returns a temp-dir path so the
   /// directory-not-found check above fires gracefully — production

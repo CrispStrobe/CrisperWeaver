@@ -85,6 +85,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     // When a CrispEmbed model is available, use real vector embeddings;
     // otherwise fall back to TF-IDF.
     final embedder = ref.read(crispEmbedProvider).value;
+    final reranker = ref.read(rerankerProvider).value;
     final scored = <(HistoryEntry, double)>[];
     for (final entry in result) {
       final results = SemanticSearchService.search(
@@ -92,6 +93,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         segments: entry.segments,
         maxResults: 1,
         embedder: embedder,
+        reranker: reranker,
         historyEntry: entry,
       );
       if (results.isNotEmpty) {

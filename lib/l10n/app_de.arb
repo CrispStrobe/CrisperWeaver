@@ -617,6 +617,8 @@
   },
   "presetsDeleteTooltip": "Löschen",
   "outputSummarize": "Zusammenfassen…",
+  "outputOcrImage": "Bild-OCR…",
+  "outputRealignTimestamps": "Zeitstempel neu ausrichten",
   "outputDetectLanguage": "Sprache erkennen",
   "outputSummarizeTitle": "Transkript zusammenfassen",
   "outputSummarizeHelp": "Sendet das Transkript an {model} und fordert eine strukturierte Zusammenfassung an. Ausgabe als Markdown-Aufzählungslisten.",

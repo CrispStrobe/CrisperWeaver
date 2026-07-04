@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:crisper_weaver/providers/synthesize_screen_provider.dart';
+import 'package:crisper_weaver/screens/synthesize_screen.dart';
 
 void main() {
   late ProviderContainer container;
@@ -232,5 +233,85 @@ void main() {
     expect(params.maxSpeechTokens, 1000);
     expect(params.ttsSeed, 0);
     expect(params.frequencyPenalty, 0.0);
+  });
+
+  // --- Chatterbox emotion tags (§12.1c) ---
+
+  group('chatterboxEmotionTags', () {
+    test('defines laugh, whispering, and angry tags', () {
+      expect(chatterboxEmotionTags.length, 3);
+      expect(chatterboxEmotionTags.map((t) => t.tag),
+          containsAll(['[laugh]', '[whispering]', '[angry]']));
+    });
+
+    test('all tags have non-empty labels', () {
+      for (final tag in chatterboxEmotionTags) {
+        expect(tag.label, isNotEmpty);
+      }
+    });
+  });
+
+  group('insertEmotionTag', () {
+    test('inserts at cursor in middle of text', () {
+      // Cursor after "Hello" (pos 5), before " world":
+      // before="Hello" (needs space before), after=" world" (starts with space, no extra)
+      // insert = " [laugh]", result = "Hello [laugh] world"
+      final (text, pos) =
+          SynthesizeScreen.insertEmotionTag('Hello world', 5, '[laugh]');
+      expect(text, 'Hello [laugh] world');
+      expect(pos, 13); // 5 + " [laugh]".length = 5 + 8 = 13
+    });
+
+    test('inserts at end of text', () {
+      final (text, pos) =
+          SynthesizeScreen.insertEmotionTag('Hello', 5, '[laugh]');
+      expect(text, 'Hello [laugh]');
+      expect(pos, 13);
+    });
+
+    test('inserts at start of text', () {
+      final (text, pos) =
+          SynthesizeScreen.insertEmotionTag('Hello', 0, '[angry]');
+      expect(text, '[angry] Hello');
+      expect(pos, 8); // after '[angry] '
+    });
+
+    test('inserts into empty text', () {
+      final (text, pos) =
+          SynthesizeScreen.insertEmotionTag('', 0, '[whispering]');
+      expect(text, '[whispering]');
+      expect(pos, 12);
+    });
+
+    test('does not double-space when cursor is after space', () {
+      final (text, _) =
+          SynthesizeScreen.insertEmotionTag('Hello ', 6, '[laugh]');
+      expect(text, 'Hello [laugh]');
+      // No double space before the tag
+      expect(text.contains('  '), isFalse);
+    });
+
+    test('does not double-space when cursor is before space', () {
+      final (text, _) =
+          SynthesizeScreen.insertEmotionTag(' world', 0, '[laugh]');
+      expect(text, '[laugh] world');
+      expect(text.contains('  '), isFalse);
+    });
+
+    test('handles newline boundaries', () {
+      // Cursor after "Line1" (pos 5), before "\nLine2":
+      // before="Line1" (needs space before), after="\nLine2" (starts with \n, no extra)
+      final (text, _) =
+          SynthesizeScreen.insertEmotionTag('Line1\nLine2', 5, '[laugh]');
+      expect(text, 'Line1 [laugh]\nLine2');
+    });
+
+    test('no space after newline before tag', () {
+      // Cursor after newline (pos 6), before "Line2":
+      // before="Line1\n" (ends with \n, no space before), after="Line2"
+      final (text, _) =
+          SynthesizeScreen.insertEmotionTag('Line1\nLine2', 6, '[laugh]');
+      expect(text, 'Line1\n[laugh] Line2');
+    });
   });
 }

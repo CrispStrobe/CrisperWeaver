@@ -647,6 +647,30 @@ const _repos = <RepoSpec>[
     displayPrefix: 'VibeVoice 1.5B', description: 'VibeVoice 1.5B TTS', kind: 'tts'),
   RepoSpec(backend: 'tada', repoId: 'cstr/tada-tts-3b-ml-GGUF', baseName: 'tada-tts-3b-ml',
     displayPrefix: 'TADA 3B-ML', description: 'HumeAI TADA-3B-ML — Llama-3.2-3B + flow matching + TADA codec companion', kind: 'tts'),
+  // §12 — Qwen3-JA anime ASR variant
+  RepoSpec(backend: 'qwen3', repoId: 'cstr/qwen3-asr-1.7b-ja-anime-GGUF', baseName: 'qwen3-asr-1.7b-ja-anime',
+    displayPrefix: 'Qwen3-ASR 1.7B JA Anime', description: 'Japanese anime/galgame speech fine-tune'),
+  // §12 — Reranker repos
+  RepoSpec(backend: 'reranker', repoId: 'cstr/ms-marco-MiniLM-L-6-v2-GGUF', baseName: 'ms-marco-MiniLM-L-6-v2',
+    displayPrefix: 'MS MARCO MiniLM-L6 Reranker', description: 'Compact cross-encoder reranker', kind: 'reranker'),
+  RepoSpec(backend: 'reranker', repoId: 'cstr/mxbai-rerank-xsmall-v1-GGUF', baseName: 'mxbai-rerank-xsmall-v1',
+    displayPrefix: 'mxbai Rerank XSmall', description: 'mxbai cross-encoder reranker', kind: 'reranker'),
+  RepoSpec(backend: 'reranker', repoId: 'cstr/bge-reranker-v2-m3-GGUF', baseName: 'bge-reranker-v2-m3',
+    displayPrefix: 'BGE Reranker v2 M3', description: 'Multilingual cross-encoder reranker', kind: 'reranker'),
+  // §12 — Larger embedding repos
+  RepoSpec(backend: 'embed', repoId: 'cstr/nomic-embed-text-v1.5-GGUF', baseName: 'nomic-embed-text-v1.5',
+    displayPrefix: 'Nomic Embed v1.5', description: 'Nomic BERT 768-dim (8192 context)', kind: 'embed'),
+  RepoSpec(backend: 'embed', repoId: 'cstr/multilingual-e5-small-GGUF', baseName: 'multilingual-e5-small',
+    displayPrefix: 'Multilingual E5 Small', description: 'Multilingual 384-dim (100+ langs)', kind: 'embed'),
+  RepoSpec(backend: 'embed', repoId: 'cstr/qwen3-embed-0.6b-GGUF', baseName: 'qwen3-embed-0.6b',
+    displayPrefix: 'Qwen3 Embedding 0.6B', description: 'Qwen3 decoder embedding 1024-dim, Matryoshka', kind: 'embed'),
+  // §12 — OCR repos
+  RepoSpec(backend: 'ocr', repoId: 'cstr/pix2tex-mfr-gguf', baseName: 'pix2tex-mfr',
+    displayPrefix: 'pix2tex Math OCR', description: 'DeiT+TrOCR math formula recognition', kind: 'ocr'),
+  RepoSpec(backend: 'ocr', repoId: 'cstr/hmer-handwritten-math-gguf', baseName: 'hmer-hw',
+    displayPrefix: 'HMER Handwritten Math', description: 'DenseNet+Transformer handwritten math OCR', kind: 'ocr'),
+  RepoSpec(backend: 'ocr', repoId: 'cstr/granite-vision-crispembed-GGUF', baseName: 'granite-vision-3.3-2b',
+    displayPrefix: 'Granite Vision 3.3', description: 'SigLIP + Granite 2B VLM document OCR', kind: 'ocr'),
 ];
 
 String _formatSize(int bytes) {

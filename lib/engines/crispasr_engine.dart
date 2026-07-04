@@ -64,7 +64,7 @@ class CrispASREngine implements TranscriptionEngine {
   String get engineName => 'CrispASR (ggml)';
 
   @override
-  String get version => '0.8.0';
+  String get version => '0.8.7';
 
   @override
   // Whisper always supports streaming, so report true for a deferred

@@ -553,11 +553,46 @@ final crispEmbedProvider = FutureProvider<CrispEmbed?>((ref) async {
   return _tryLoadCrispEmbedNative(modelService);
 });
 
+/// §12.3a — Optional cross-encoder reranker for search result re-scoring.
+/// Same lazy-load pattern as [crispEmbedProvider]. Returns null when
+/// no reranker GGUF is downloaded.
+final rerankerProvider = FutureProvider<CrispEmbed?>((ref) async {
+  if (plat.isWeb) return null; // No WASM reranker support yet.
+  final modelService = ref.watch(modelServiceProvider);
+  return _tryLoadRerankerNative(modelService);
+});
+
+CrispEmbed? _tryLoadRerankerNative(ModelService modelService) {
+  try {
+    final modelsDir = modelService.whisperCppDir();
+    final allDefs = [
+      ...ModelCatalog.crispasrBackendModels.values,
+      ...ModelCatalog.whisperCppModels.values,
+    ];
+    for (final def in allDefs) {
+      if (def.kind != ModelKind.reranker) continue;
+      final modelPath = '$modelsDir/${def.fileName}';
+      if (File(modelPath).existsSync()) {
+        return CrispEmbed(modelPath);
+      }
+    }
+    return null;
+  } catch (_) {
+    return null;
+  }
+}
+
 /// Desktop/mobile: sync load from local disk.
 CrispEmbed? _tryLoadCrispEmbedNative(ModelService modelService) {
   try {
     final modelsDir = modelService.whisperCppDir();
-    for (final def in ModelCatalog.whisperCppModels.values) {
+    // Search both catalog maps for embed models — the imatrix variants
+    // (§12.4) live in crispasrBackendModels, legacy Q8_0 in whisperCppModels.
+    final allDefs = [
+      ...ModelCatalog.crispasrBackendModels.values,
+      ...ModelCatalog.whisperCppModels.values,
+    ];
+    for (final def in allDefs) {
       if (def.kind != ModelKind.embed) continue;
       final modelPath = '$modelsDir/${def.fileName}';
       if (File(modelPath).existsSync()) {

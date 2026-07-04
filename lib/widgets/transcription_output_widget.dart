@@ -1,8 +1,11 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:isolate';
 import 'dart:typed_data';
+import 'dart:ui' show ImageByteFormat, instantiateImageCodec;
 
 import '../native/crispasr_import.dart' as crispasr;
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,8 +14,12 @@ import 'package:just_audio/just_audio.dart';
 
 import '../engines/transcription_engine.dart'; // Use engine TranscriptionSegment
 import '../models/segment_tag.dart';
+import '../services/aligner_service.dart';
 import '../services/log_service.dart';
+import '../services/ocr_service.dart';
+import '../services/scan_preprocess_service.dart';
 import '../services/speaker_id_service.dart';
+import '../utils/file_picker_util.dart' show pickFilesRobust;
 import '../l10n/generated/app_localizations.dart';
 import '../main.dart'
     show
@@ -249,6 +256,17 @@ class _TranscriptionOutputWidgetState
                       dense: true,
                     ),
                   ),
+                  // §12.5 — Re-align word timestamps via standalone CTC
+                  // forced alignment (TADA aligner).
+                  PopupMenuItem(
+                    value: 'realign_timestamps',
+                    child: ListTile(
+                      leading: const Icon(Icons.access_time),
+                      title: Text(
+                          AppLocalizations.of(context).outputRealignTimestamps),
+                      dense: true,
+                    ),
+                  ),
                   // §5.24-F — label the transcript's language via the CLD3
                   // text-LID model, outside the Translate flow.
                   PopupMenuItem(
@@ -257,6 +275,16 @@ class _TranscriptionOutputWidgetState
                       leading: const Icon(Icons.translate_outlined),
                       title: Text(
                           AppLocalizations.of(context).outputDetectLanguage),
+                      dense: true,
+                    ),
+                  ),
+                  // §12.6b — OCR: pick an image and append recognized text.
+                  PopupMenuItem(
+                    value: 'ocr_image',
+                    child: ListTile(
+                      leading: const Icon(Icons.document_scanner_outlined),
+                      title: Text(
+                          AppLocalizations.of(context).outputOcrImage),
                       dense: true,
                     ),
                   ),
@@ -902,6 +930,187 @@ class _TranscriptionOutputWidgetState
       case 'detect_language':
         _detectTranscriptLanguage();
         break;
+      case 'realign_timestamps':
+        _realignTimestamps();
+        break;
+      case 'ocr_image':
+        _ocrImage();
+        break;
+    }
+  }
+
+  /// §12.5 — Re-align word timestamps via standalone CTC forced
+  /// alignment (TADA / canary-ctc / wav2vec2 aligner). Reads the
+  /// current audio file and runs alignment without a full ASR pass.
+  Future<void> _realignTimestamps() async {
+    final audioPath = ref.read(selectedAudioPathProvider);
+    if (audioPath == null || audioPath.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No audio file loaded')),
+        );
+      }
+      return;
+    }
+
+    final segments = widget.segments;
+    if (segments.isEmpty) return;
+
+    try {
+      // Decode the audio to PCM.
+      final decoded = crispasr.decodeAudioFile(audioPath);
+      if (decoded.samples.isEmpty) return;
+
+      final aligner = ref.read(alignerServiceProvider);
+      final aligned = await aligner.realignTimestamps(
+        segments,
+        decoded.samples,
+      );
+
+      // Update the app state with re-aligned segments.
+      final appState = ref.read(appStateProvider.notifier);
+      appState.replaceSegments(aligned);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                'Re-aligned ${aligned.where((s) => s.words != null && s.words!.isNotEmpty).length}/${aligned.length} segments'),
+          ),
+        );
+      }
+    } catch (e, st) {
+      Log.instance.w('realign', 'realignTimestamps failed', error: e, stack: st);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Alignment failed: $e')),
+        );
+      }
+    }
+  }
+
+  /// §12.6b — Pick an image and run OCR, showing the result in a dialog.
+  Future<void> _ocrImage() async {
+    final ocrService = ref.read(ocrServiceProvider);
+    final models = await ocrService.availableModels();
+    if (models.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text(
+                  'No OCR models downloaded. Download one from the Models screen.')),
+        );
+      }
+      return;
+    }
+
+    // Pick an image file.
+    final pick = await pickFilesRobust(
+      type: FileType.any,
+      allowedExtensions: const ['png', 'jpg', 'jpeg', 'bmp', 'webp', 'tiff'],
+    );
+    if (pick.localPaths.isEmpty) return;
+    final imagePath = pick.localPaths.first;
+
+    // Decode the image to raw RGBA bytes using Flutter's codec.
+    final imageFile = File(imagePath);
+    if (!await imageFile.exists()) return;
+    final bytes = await imageFile.readAsBytes();
+
+    try {
+      final codec = await instantiateImageCodec(bytes);
+      final frame = await codec.getNextFrame();
+      final image = frame.image;
+      final byteData =
+          await image.toByteData(format: ImageByteFormat.rawRgba);
+      if (byteData == null) return;
+      var rgba = byteData.buffer.asUint8List();
+      var width = image.width;
+      var height = image.height;
+      image.dispose();
+
+      // §12.8g — Optional scan cleanup before OCR.
+      // Convert RGBA→RGB for the scan cleanup pipeline.
+      final scanService = ref.read(scanPreprocessServiceProvider);
+      try {
+        final rgbLen = width * height * 3;
+        final rgb = Uint8List(rgbLen);
+        for (var i = 0, j = 0; i < rgba.length && j < rgbLen; i += 4, j += 3) {
+          rgb[j] = rgba[i];
+          rgb[j + 1] = rgba[i + 1];
+          rgb[j + 2] = rgba[i + 2];
+        }
+        final cleaned = scanService.process(rgb, width, height);
+        if (cleaned.pixels.isNotEmpty) {
+          // Convert cleaned RGB back to RGBA for OCR.
+          final cleanRgba = Uint8List(cleaned.width * cleaned.height * 4);
+          for (var i = 0, j = 0;
+              i < cleaned.pixels.length && j < cleanRgba.length;
+              i += 3, j += 4) {
+            cleanRgba[j] = cleaned.pixels[i];
+            cleanRgba[j + 1] = cleaned.pixels[i + 1];
+            cleanRgba[j + 2] = cleaned.pixels[i + 2];
+            cleanRgba[j + 3] = 255;
+          }
+          rgba = cleanRgba;
+          width = cleaned.width;
+          height = cleaned.height;
+          Log.instance.i('ocr', 'scan cleanup applied',
+              fields: {'ms': cleaned.processingTime.inMilliseconds});
+        }
+      } catch (e) {
+        // Scan cleanup failed — continue with raw image.
+        Log.instance.d('ocr', 'scan cleanup unavailable: $e');
+      }
+
+      // Run OCR with the first available model.
+      final result = ocrService.recognizeRaw(
+        rgba,
+        width,
+        height,
+        4, // RGBA channels
+        modelPath: models.first,
+      );
+
+      if (!mounted) return;
+
+      // Show result in a dialog.
+      await showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(AppLocalizations.of(context).outputOcrImage),
+          content: SingleChildScrollView(
+            child: SelectableText(
+              result.text.isEmpty
+                  ? 'No text recognized.'
+                  : result.text,
+            ),
+          ),
+          actions: [
+            if (result.text.isNotEmpty)
+              TextButton(
+                onPressed: () {
+                  Clipboard.setData(ClipboardData(text: result.text));
+                  ScaffoldMessenger.of(ctx).showSnackBar(
+                    const SnackBar(content: Text('Copied to clipboard')),
+                  );
+                },
+                child: const Text('Copy'),
+              ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Close'),
+            ),
+          ],
+        ),
+      );
+    } catch (e, st) {
+      Log.instance.w('ocr', 'OCR image failed', error: e, stack: st);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('OCR failed: $e')),
+        );
+      }
     }
   }
 

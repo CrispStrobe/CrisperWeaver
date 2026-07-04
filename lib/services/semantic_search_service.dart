@@ -34,24 +34,51 @@ class SemanticSearchService {
   /// §5.25.2 cross-modal: if [historyEntry] has a persisted
   /// [audioEmbedding], the query is also compared against it. The
   /// entry-level score is max(best segment text score, audio score).
+  ///
+  /// §12.3a reranker: when [reranker] is provided (a cross-encoder
+  /// CrispEmbed model), the top candidates from cosine ranking are
+  /// re-scored via `reranker.rerank(query, segmentText)` for higher
+  /// precision. The reranker candidate pool is [rerankTopK] (default 50).
+  ///
+  /// §12.3b audioData: when [audioData] is provided (16 kHz mono PCM)
+  /// and the [embedder] has audio capability (`hasAudio`), the audio
+  /// is encoded into the shared embedding space for cross-modal scoring.
+  /// This supplements any persisted [historyEntry.audioEmbedding].
   static List<SearchResult> search({
     required String query,
     required List<TranscriptionSegment> segments,
     int maxResults = 20,
     CrispEmbed? embedder,
+    CrispEmbed? reranker,
+    int rerankTopK = 50,
     HistoryEntry? historyEntry,
+    Float32List? audioData,
   }) {
     if (query.trim().isEmpty || segments.isEmpty) return [];
 
     // Use real embeddings when available.
     if (embedder != null) {
-      return _embeddingSearch(
+      var results = _embeddingSearch(
         query: query,
         segments: segments,
         embedder: embedder,
-        maxResults: maxResults,
+        maxResults: reranker != null ? rerankTopK : maxResults,
         historyEntry: historyEntry,
+        audioData: audioData,
       );
+
+      // §12.3a — optional cross-encoder reranking on the top-k cosine
+      // candidates. Significantly improves precision for the final results.
+      if (reranker != null && results.isNotEmpty) {
+        results = _rerankResults(
+          query: query,
+          candidates: results,
+          reranker: reranker,
+          maxResults: maxResults,
+        );
+      }
+
+      return results.take(maxResults).toList();
     }
 
     return _tfidfSearch(
@@ -76,6 +103,7 @@ class SemanticSearchService {
     required CrispEmbed embedder,
     required int maxResults,
     HistoryEntry? historyEntry,
+    Float32List? audioData,
   }) {
     final queryVec = embedder.encode(query);
     if (queryVec.isEmpty) {
@@ -96,6 +124,23 @@ class SemanticSearchService {
       if (audioVec.length == queryVec.length) {
         final s = cosineSimilarity(queryVec, audioVec);
         if (s > 0) audioScore = s;
+      }
+    }
+
+    // §12.3b — On-the-fly audio embedding via BidirLM-Omni when no
+    // persisted audio embedding exists but the embedder supports audio.
+    if (audioScore == 0 &&
+        audioData != null &&
+        audioData.isNotEmpty &&
+        embedder.hasAudio) {
+      try {
+        final audioVec = embedder.encodeAudio(audioData);
+        if (audioVec.isNotEmpty && audioVec.length == queryVec.length) {
+          final s = cosineSimilarity(queryVec, audioVec);
+          if (s > 0) audioScore = s;
+        }
+      } catch (_) {
+        // Audio encoding failed — continue without cross-modal score.
       }
     }
 
@@ -135,6 +180,53 @@ class SemanticSearchService {
 
     results.sort((a, b) => b.score.compareTo(a.score));
     return results.take(maxResults).toList();
+  }
+
+  /// §12.3a — Re-score cosine candidates via a cross-encoder reranker.
+  /// The reranker scores each (query, segment_text) pair independently,
+  /// producing a relevance logit that's typically more precise than
+  /// bi-encoder cosine similarity. Returns re-sorted results.
+  ///
+  /// Exposed as public for unit testing (can't mock CrispEmbed's FFI
+  /// constructor). Call sites pass a real CrispEmbed instance; tests
+  /// use [rerankWithScorer] which accepts a plain function.
+  static List<SearchResult> rerankWithScorer({
+    required String query,
+    required List<SearchResult> candidates,
+    required double Function(String query, String document) scorer,
+    required int maxResults,
+  }) {
+    final reranked = <SearchResult>[];
+    for (final c in candidates) {
+      final text = c.segment.text;
+      if (text.trim().isEmpty) continue;
+      try {
+        final score = scorer(query, text);
+        reranked.add(SearchResult(
+          segmentIndex: c.segmentIndex,
+          score: score,
+          segment: c.segment,
+        ));
+      } catch (_) {
+        reranked.add(c);
+      }
+    }
+    reranked.sort((a, b) => b.score.compareTo(a.score));
+    return reranked.take(maxResults).toList();
+  }
+
+  static List<SearchResult> _rerankResults({
+    required String query,
+    required List<SearchResult> candidates,
+    required CrispEmbed reranker,
+    required int maxResults,
+  }) {
+    return rerankWithScorer(
+      query: query,
+      candidates: candidates,
+      scorer: reranker.rerank,
+      maxResults: maxResults,
+    );
   }
 
   /// TF-IDF fallback search (original implementation).

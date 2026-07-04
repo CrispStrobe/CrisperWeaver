@@ -5,6 +5,7 @@ import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../constants/app_constants.dart';
 import '../engines/transcription_engine.dart';
 
 class FileUtils {
@@ -281,7 +282,7 @@ class FileUtils {
     final audioDir = await getAudioDirectory();
     return await listFilesInDirectory(
       audioDir.path,
-      extensions: ['.wav', '.mp3', '.m4a', '.aac', '.ogg', '.flac', '.opus', '.webm'],
+      extensions: AppConstants.supportedAudioExtensions,
     );
   }
 

@@ -18,6 +18,21 @@ import '../services/model_service.dart';
 import '../services/tts_service.dart';
 import '../utils/file_picker_util.dart';
 
+/// Chatterbox emotion/prosody tag that can be inserted inline.
+class ChatterboxEmotionTag {
+  final String tag;
+  final String label;
+  final IconData icon;
+  const ChatterboxEmotionTag(this.tag, this.label, this.icon);
+}
+
+/// Tags supported by chatterbox-turbo for emotion-driven prosody.
+const chatterboxEmotionTags = [
+  ChatterboxEmotionTag('[laugh]', 'Laugh', Icons.sentiment_very_satisfied),
+  ChatterboxEmotionTag('[whispering]', 'Whisper', Icons.volume_down),
+  ChatterboxEmotionTag('[angry]', 'Angry', Icons.sentiment_very_dissatisfied),
+];
+
 /// Text → speech, using whichever CrispASR TTS backend the user has
 /// downloaded. Mirrors the structure of the Transcribe screen but
 /// streamlined: there's no language picker (the TTS backend infers from
@@ -52,6 +67,21 @@ class SynthesizeScreen extends ConsumerStatefulWidget {
     return speakers.first;
   }
 
+  /// Insert an emotion tag into [text] at [cursorPos]. Returns
+  /// (newText, newCursorPos). Pure + static for testability.
+  static (String, int) insertEmotionTag(String text, int cursorPos, String tag) {
+    final pos = cursorPos.clamp(0, text.length);
+    final before = text.substring(0, pos);
+    final after = text.substring(pos);
+    final needSpaceBefore =
+        before.isNotEmpty && !before.endsWith(' ') && !before.endsWith('\n');
+    final needSpaceAfter =
+        after.isNotEmpty && !after.startsWith(' ') && !after.startsWith('\n');
+    final insert =
+        '${needSpaceBefore ? ' ' : ''}$tag${needSpaceAfter ? ' ' : ''}';
+    return ('$before$insert$after', pos + insert.length);
+  }
+
   @override
   ConsumerState<SynthesizeScreen> createState() => _SynthesizeScreenState();
 }
@@ -73,6 +103,16 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
 
   /// Backends that support speech-to-speech at the C level.
   static const _s2sCapableBackends = {'lfm2-audio', 'mini-omni2'};
+
+  /// Insert a chatterbox emotion tag at the current cursor position.
+  void _insertEmotionTag(String tag) {
+    final sel = _textController.selection;
+    final pos = sel.isValid ? sel.baseOffset : _textController.text.length;
+    final (newText, newPos) =
+        SynthesizeScreen.insertEmotionTag(_textController.text, pos, tag);
+    _textController.text = newText;
+    _textController.selection = TextSelection.collapsed(offset: newPos);
+  }
 
   @override
   void initState() {
@@ -969,6 +1009,23 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
                         border: const OutlineInputBorder(),
                       ),
                     ),
+                  // Chatterbox emotion tag quick-insert buttons.
+                  if (modelDef?.backend == 'chatterbox') ...[
+                    const SizedBox(height: 4),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      children: [
+                        for (final tag in chatterboxEmotionTags)
+                          ActionChip(
+                            avatar: Icon(tag.icon, size: 16),
+                            label: Text(tag.label),
+                            visualDensity: VisualDensity.compact,
+                            onPressed: () => _insertEmotionTag(tag.tag),
+                          ),
+                      ],
+                    ),
+                  ],
                   const SizedBox(height: 8),
                   ExpansionTile(
                     initiallyExpanded: ss.showAdvanced,

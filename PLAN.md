@@ -895,3 +895,224 @@ FFI stubs + engine/UI wiring:
 5. ASR advanced options UI (11.2) — beam-size slider, hotwords-boost slider
 6. Server + CLI (11.4) — `diarized_json`, `--diarize-speakers`
 7. Unit tests for everything
+
+---
+
+## 12. CrispASR 0.8.7 + CrispEmbed 0.13.0 integration sweep (July 2026)
+
+Gap analysis performed 2026-07-04 by comparing CrispASR v0.8.7 (1541
+commits in June) and CrispEmbed v0.13.0 (1568 commits since May 20)
+against CrisperWeaver HEAD (95c4e26). §11 covered catalog + TTS FFI +
+server parity; this section targets capabilities that landed since.
+
+### 12.1 Quick wins
+
+- [x] **a. `.amr` in file picker + constants.** `app_constants.dart`
+      has `.au` but not `.amr`. `file_utils.dart:getAudioFiles()` is
+      out of sync with `supportedAudioExtensions` (missing `.amr`,
+      `.mp4`, `.wma`, `.aiff`, `.au`, `.ra`). Fix: sync both lists +
+      add `.amr`.
+      Files: `lib/constants/app_constants.dart`,
+      `lib/utils/file_utils.dart`
+      Tests: unit test asserting both lists are equal
+
+- [x] **b. Qwen3-ASR-1.7B-JA catalog entry.** Japanese anime/galgame
+      fine-tune (dual -hf / non-hf format). Not in catalog.
+      Files: `lib/services/model_catalog.dart`
+      Tests: catalog invariant test
+
+- [x] **c. Chatterbox emotion tag insert buttons.** Chatterbox TTS
+      supports `[laugh]`, `[whispering]`, `[angry]` inline emotion
+      tags. Add quick-insert buttons on the synthesize screen when
+      chatterbox backend is selected.
+      Files: `lib/providers/synthesize_screen_provider.dart`
+      Tests: unit test for tag insertion logic
+
+- [x] **d. Engine version string bump.** `crispasr_engine.dart`
+      reports `version => '0.8.0'`; should be `0.8.7`.
+      Files: `lib/engines/crispasr_engine.dart`
+
+- [x] **e. VAD empty-result guard.** CrispASR now returns empty on
+      silent audio (was hallucinating). Verify CrisperWeaver engine
+      handles empty transcription result → "no speech detected" UX.
+      Files: `lib/engines/crispasr_engine.dart`
+      Tests: unit test for empty result path
+
+### 12.2 CrispEmbed stub parity
+
+The CrispEmbed Dart binding (v0.13.0) has grown significantly.
+`crispembed_stub.dart` (web fallback) is missing most new APIs.
+`crispembed_web.dart` is also incomplete. Both need updating to
+match the real binding's API surface.
+
+- [x] **a. Stub: add reranker APIs.** `rerank(query, doc)` → double,
+      `rerankBiencoder(query, docs, {topN})` → List<RerankResult>,
+      `isReranker` → bool. Plus `RerankResult` class.
+      Files: `lib/native/crispembed_stub.dart`
+      Tests: unit test importing stub on web
+
+- [x] **b. Stub: add sparse + ColBERT APIs.** `encodeSparse(text)` →
+      Map<int,double>, `encodeMultivec(text)` → List<Float32List>,
+      `colbertScore(...)` → double, `hasSparse` → bool,
+      `hasColbert` → bool.
+      Files: `lib/native/crispembed_stub.dart`
+
+- [x] **c. Stub: add vision APIs.** `encodeImage(...)`,
+      `encodeImageRaw(...)`, `encodeImageFile(path)`,
+      `encodeTextWithImageFile(text, path)`.
+      Files: `lib/native/crispembed_stub.dart`,
+      `lib/native/crispembed_web.dart`
+
+- [x] **d. Stub: add config APIs.** `setDim(int)`, `setPrefix(String)`,
+      `dim` getter, `ctxQueryPrefix`, `ctxPassagePrefix`.
+      Files: `lib/native/crispembed_stub.dart`,
+      `lib/native/crispembed_web.dart`
+
+### 12.3 Semantic search upgrades
+
+- [x] **a. Reranker integration.** When CrispEmbed model `isReranker`
+      or a secondary reranker model is loaded, run a cross-encoder
+      reranking pass on the top-k cosine results. Falls back to
+      bi-encoder reranking via `rerankBiencoder()` otherwise.
+      Files: `lib/services/semantic_search_service.dart`
+      Tests: unit test with mock embedder verifying reorder
+
+- [x] **b. BidirLM-Omni audio embedding.** Wire `encodeAudio(pcm)`
+      into `SemanticSearchService._embeddingSearch` for cross-modal
+      scoring (already stubbed in history_service.dart). When the
+      embedder `hasAudio`, encode the audio segment and compare
+      against the query vector.
+      Files: `lib/services/semantic_search_service.dart`
+      Tests: unit test for audio embedding path
+
+### 12.4 imatrix embed model defaults
+
+- [x] CrispEmbed's registry now recommends imatrix quantizations
+      (IQ4_XS, Q4_K+imatrix) over plain quants. Update the embed
+      `ModelDefinition` entries to point at the imatrix variants.
+      Files: `lib/services/model_catalog.dart`
+      Tests: catalog invariant test
+
+### 12.5 TADA standalone alignment
+
+- [x] Expose a "Re-align timestamps" action in the transcript detail
+      screen. Uses `CrispASR.alignWords()` (already in Dart binding)
+      to run CTC forced alignment on existing transcript + audio
+      without a full ASR pass.
+      Files: `lib/engines/crispasr_engine.dart`,
+      `lib/services/aligner_service.dart`,
+      `lib/widgets/transcription_output_widget.dart`
+      Tests: unit test for alignment-only path; live test
+
+### 12.6 Strategic (higher effort)
+
+- [x] **a. LoRA hot-swap for embeddings.** Dart FFI binding added to CrispEmbed (setLora, getLora, listLora); CrisperWeaver stubs updated. CrispEmbed supports
+      dynamic adapter switching. Needs: Dart binding for LoRA load,
+      UI for adapter file selection alongside base model.
+      Files: `lib/services/semantic_search_service.dart`,
+      `lib/native/crispembed_stub.dart`
+      Tests: unit test for adapter path propagation
+
+- [x] **b. VLM OCR engine integration.** CrispEmbed added 6 new VLM
+      OCR backends. Expose an OCR action that runs document OCR on
+      images via a new `OcrService`.
+      Files: new `lib/services/ocr_service.dart`
+      Tests: unit + live test
+
+- [x] **c. Scan/document preprocessing.** CrispEmbed has deskew,
+      denoise, dewarping, super-resolution. Add preprocessing step
+      before OCR.
+      Files: new `lib/services/scan_preprocess_service.dart`
+      Tests: unit test for pipeline orchestration
+
+- [x] **d. WASM CrispEmbed IndexedDB caching.** New WASM build caches
+      models in IndexedDB. Improve web target's embedding experience.
+      Files: `lib/native/crispembed_web.dart`
+      Tests: integration test for WASM path
+
+### 12.7 Additional items (July 2026, round 2)
+
+- [x] LoRA Dart FFI binding added to CrispEmbed (`setLora`, `getLora`,
+      `listLora`); CrisperWeaver stubs + web stubs updated.
+- [x] OCR service wired to real CrispEmbed FFI via conditional import
+      (`ocr_import.dart` + `ocr_stub.dart`); `recognizeMath` + `recognizeRaw`.
+- [x] Scan preprocessing wired to CrispEmbed `CrispScanCleanup` FFI
+      (`scan_cleanup_import.dart` + `scan_cleanup_stub.dart`); `process()`.
+- [x] 6 OCR model catalog entries (pix2tex, HMER, BTTR, PosFormer,
+      Granite Vision, DeepSeek-OCR2) + `ModelKind.ocr` enum.
+- [x] 3 reranker catalog entries (MS MARCO MiniLM, mxbai XSmall, BGE M3)
+      + `ModelKind.reranker` enum + 3 BackendRepos.
+- [x] 3 larger embed catalog entries (Nomic v1.5, E5 Small, Qwen3 0.6B)
+      + 3 BackendRepos.
+- [x] 3 OCR BackendRepos (pix2tex, HMER, Granite Vision).
+- [x] `main.dart` embed provider fix: searches `crispasrBackendModels`
+      (where imatrix entries live) in addition to `whisperCppModels`.
+- [x] "OCR image" action in transcript output widget menu.
+- [x] Live tests: re-alignment, VAD silence, reranker scoring.
+- [x] Full regression: 1089 pass, 23 skip, 0 fail.
+
+### 12.8 Ship + follow-up (July 2026, round 3)
+
+#### Ship-ready (do now)
+
+- [x] **a. Rebake catalog JSON.** Run `scripts/bake_models_catalog.dart`
+      to regenerate `assets/models/catalog.json` with the ~15 new
+      ModelDefinitions (OCR, reranker, embed, Qwen3-JA). Without this
+      the Model Manager won't show the new entries.
+      Files: `scripts/bake_models_catalog.dart` → `assets/models/catalog.json`
+      Tests: `baked_catalog_json_test.dart` round-trip check
+
+- [ ] **b. Commit + tag release.** 1089 tests pass, 0 regressions.
+      Commit all §12 work, tag as v0.8.8 or similar.
+
+#### High-impact
+
+- [x] **c. Reranker auto-load in search.** Wire a `rerankerProvider`
+      (like `crispEmbedProvider`) that probes for downloaded
+      `ModelKind.reranker` GGUFs and loads one as a second CrispEmbed
+      instance. Pass it as `reranker:` to `SemanticSearchService.search()`.
+      This makes the reranker catalog entries actually functional.
+      Files: `lib/main.dart`, `lib/services/semantic_search_service.dart`
+      Tests: unit test for provider logic; live test with real model
+
+- [ ] **d. Rebuild libcrispembed with LoRA symbols.** SKIPPED: OOM risk (270MB free). The Dart binding
+      is ready but the bundled `.so`/`.dylib` predates it. Until rebuilt,
+      `hasLora` returns false at runtime.
+      Files: CrispEmbed build system
+      Tests: live test verifying `hasLora` on rebuilt lib
+
+#### Medium-impact
+
+- [x] **e. OCR image picker flow.** Finish the "OCR image" menu action:
+      pick image via file_picker, decode to pixels, call
+      `ocrService.recognizeMath()`, show result in a dialog with
+      copy-to-clipboard.
+      Files: `lib/widgets/transcription_output_widget.dart`
+      Tests: widget test for dialog
+
+- [x] **f. BidirLM-Omni audio embedding end-to-end.** Verify the
+      `HistoryService.computeAudioEmbedding()` → `encodeAudio()` path
+      works when the omni model is downloaded. Add a live test.
+      Files: `lib/services/history_service.dart`
+      Tests: live test with BidirLM model
+
+- [x] **g. Scan preprocessing UI.** "Clean scan" button on the image
+      import path that runs deskew + whitening before OCR. Wraps
+      `ScanPreprocessService.process()`.
+      Files: `lib/widgets/transcription_output_widget.dart` or new widget
+      Tests: widget test
+
+#### Lower priority
+
+- [x] **h. Wyoming protocol server.** Home Assistant integration —
+      exposes CrispASR as a Wyoming STT provider over TCP. Niche.
+      Files: new `lib/services/wyoming_service.dart`
+
+- [ ] **i. Streaming token callbacks for LLM-ASR.** BLOCKED: no per-token C-ABI. Live partial results
+      from Qwen3/ARK/MOSS backends during decode. Needs UI for
+      progressive text display.
+      Files: `lib/engines/crispasr_engine.dart`
+
+- [x] **j. Widget tests for transcription + synthesize screens.**
+      Remaining test coverage gap (§8.7/§9.3). High effort, lower
+      priority than service/provider tests already covering the logic.

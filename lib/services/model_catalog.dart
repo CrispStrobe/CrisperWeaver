@@ -60,6 +60,17 @@ enum ModelKind {
   /// Loaded via CrispEmbed. Distinct from `asr` — these are
   /// encoder-only text models, not speech models.
   embed,
+
+  /// §12.3a — Cross-encoder reranker GGUF for search result re-scoring.
+  /// Loaded via CrispEmbed's `rerank(query, doc)` API. Distinct from
+  /// `embed` — these score (query, doc) pairs, not produce vectors.
+  reranker,
+
+  /// §12.6b — OCR GGUF for document and math formula recognition.
+  /// Loaded via CrispEmbed OCR classes (CrispEmbedOcr, CrispEmbedHmerOcr).
+  /// Includes math OCR (pix2tex, HMER, BTTR, PosFormer), scene text
+  /// (ParseQ, TrOCR), and document VLM OCR (DeepSeek-OCR2, Granite Vision).
+  ocr,
 }
 
 class ModelDefinition {
@@ -961,6 +972,22 @@ abstract final class ModelCatalog {
       description: 'Qwen3-ASR 1.7B, multilingual (30+ langs) — ~1.1 GB',
       quantization: 'q4_k',
       backend: 'qwen3',
+    ),
+    // Qwen3-ASR-1.7B-JA — Japanese anime/galgame speech fine-tune
+    // (Apache-2.0). Same arch as qwen3-1.7b; uses the standard qwen3 backend.
+    'qwen3-asr-1.7b-ja-anime-q4_k': ModelDefinition(
+      name: 'qwen3-asr-1.7b-ja-anime-q4_k',
+      displayName: 'Qwen3-ASR 1.7B JA Anime (q4_k)',
+      fileName: 'qwen3-asr-1.7b-ja-anime-q4_k.gguf',
+      url:
+          'https://huggingface.co/cstr/qwen3-asr-1.7b-ja-anime-GGUF/resolve/main/qwen3-asr-1.7b-ja-anime-q4_k.gguf',
+      sizeBytes: 1100 * 1024 * 1024,
+      checksum: '',
+      description:
+          'Japanese anime/galgame speech fine-tune of Qwen3-ASR 1.7B — ~1.1 GB',
+      quantization: 'q4_k',
+      backend: 'qwen3',
+      languages: const ['ja'],
     ),
     // Mega-ASR — Qwen3-ASR-1.7B with the upstream robustness LoRA merged
     // offline. Dispatches through the qwen3 code path in
@@ -3454,6 +3481,25 @@ abstract final class ModelCatalog {
     ),
 
     // §5.25.2 — Embedding models for semantic transcript search
+    // §12.4 — IQ4_XS+imatrix is now the recommended default: smaller
+    // (~19 MB vs 23 MB) and higher cosine fidelity than plain Q8_0
+    // thanks to activation-weighted importance-matrix quantization.
+    'all-minilm-l6-v2-iq4_xs': ModelDefinition(
+      name: 'all-minilm-l6-v2-iq4_xs',
+      displayName: 'all-MiniLM-L6-v2 (IQ4_XS+imatrix)',
+      fileName: 'all-MiniLM-L6-v2-iq4_xs.gguf',
+      url:
+          'https://huggingface.co/cstr/all-MiniLM-L6-v2-GGUF/resolve/main/all-MiniLM-L6-v2-iq4_xs.gguf',
+      sizeBytes: 19 * 1024 * 1024,
+      checksum: '',
+      description:
+          'Compact 384-dim text embedding model (~19 MB IQ4_XS+imatrix). Higher cosine fidelity than Q8_0. Fast semantic search. Apache 2.0 license.',
+      quantization: 'iq4_xs',
+      backend: 'embed',
+      kind: ModelKind.embed,
+      languages: ['*'],
+    ),
+    // Legacy Q8_0 variant — kept for users who already downloaded it.
     'all-minilm-l6-v2-q8_0': ModelDefinition(
       name: 'all-minilm-l6-v2-q8_0',
       displayName: 'all-MiniLM-L6-v2 (Q8_0)',
@@ -3487,6 +3533,187 @@ abstract final class ModelCatalog {
       backend: 'embed',
       kind: ModelKind.embed,
       languages: ['*'],
+    ),
+
+    // §12.6b — OCR models (via CrispEmbed)
+    'pix2tex-mfr-q4_k': ModelDefinition(
+      name: 'pix2tex-mfr-q4_k',
+      displayName: 'pix2tex Math OCR (Q4_K)',
+      fileName: 'pix2tex-mfr-q4_k.gguf',
+      url:
+          'https://huggingface.co/cstr/pix2tex-mfr-gguf/resolve/main/pix2tex-mfr-q4_k.gguf',
+      sizeBytes: 17 * 1024 * 1024,
+      checksum: '',
+      description:
+          'DeiT+TrOCR math formula recognition (~17 MB Q4_K). Converts images of equations to LaTeX. MIT license.',
+      quantization: 'q4_k',
+      backend: 'ocr',
+      kind: ModelKind.ocr,
+    ),
+    'hmer-hw-q4_k': ModelDefinition(
+      name: 'hmer-hw-q4_k',
+      displayName: 'HMER Handwritten Math (Q4_K)',
+      fileName: 'hmer-hw-q4_k.gguf',
+      url:
+          'https://huggingface.co/cstr/hmer-handwritten-math-gguf/resolve/main/hmer-hw-q4_k.gguf',
+      sizeBytes: 5 * 1024 * 1024,
+      checksum: '',
+      description:
+          'DenseNet+Transformer handwritten math OCR (~5 MB Q4_K). MIT license.',
+      quantization: 'q4_k',
+      backend: 'ocr',
+      kind: ModelKind.ocr,
+    ),
+    'bttr-hw-q4_k': ModelDefinition(
+      name: 'bttr-hw-q4_k',
+      displayName: 'BTTR Handwritten Math (Q4_K)',
+      fileName: 'bttr-hw-q4_k.gguf',
+      url:
+          'https://huggingface.co/cstr/bttr-handwritten-math-gguf/resolve/main/bttr-hw-q4_k.gguf',
+      sizeBytes: 5 * 1024 * 1024,
+      checksum: '',
+      description:
+          'Bidirectional Transformer handwritten math OCR (~5 MB Q4_K). MIT license.',
+      quantization: 'q4_k',
+      backend: 'ocr',
+      kind: ModelKind.ocr,
+    ),
+    'posformer-crohme-q8_0': ModelDefinition(
+      name: 'posformer-crohme-q8_0',
+      displayName: 'PosFormer CROHME (Q8_0)',
+      fileName: 'posformer-crohme-q8_0.gguf',
+      url:
+          'https://huggingface.co/cstr/posformer-crohme-GGUF/resolve/main/posformer-crohme-q8_0.gguf',
+      sizeBytes: 12 * 1024 * 1024,
+      checksum: '',
+      description:
+          'DenseNet+Transformer+ARM handwritten math OCR (~12 MB Q8_0). CROHME benchmark. CC-BY-NC-SA-3.0 license.',
+      quantization: 'q8_0',
+      backend: 'ocr',
+      kind: ModelKind.ocr,
+      license: 'cc-by-nc-sa-3.0',
+    ),
+    'granite-vision-3.3-2b-q4_k': ModelDefinition(
+      name: 'granite-vision-3.3-2b-q4_k',
+      displayName: 'Granite Vision 3.3 2B (Q4_K)',
+      fileName: 'granite-vision-3.3-2b-q4_k.gguf',
+      url:
+          'https://huggingface.co/cstr/granite-vision-crispembed-GGUF/resolve/main/granite-vision-3.3-2b-q4_k.gguf',
+      sizeBytes: 1913 * 1024 * 1024,
+      checksum: '',
+      description:
+          'SigLIP ViT + Granite 2B VLM document OCR (~1.9 GB Q4_K). Batched prefill, per-token confidences. Apache 2.0 license.',
+      quantization: 'q4_k',
+      backend: 'ocr',
+      kind: ModelKind.ocr,
+    ),
+    'deepseek-ocr2-f16': ModelDefinition(
+      name: 'deepseek-ocr2-f16',
+      displayName: 'DeepSeek-OCR2 (F16)',
+      fileName: 'deepseek-ocr2-f16.gguf',
+      url:
+          'https://huggingface.co/cstr/deepseek-ocr2-crispembed-GGUF/resolve/main/deepseek-ocr2-f16.gguf',
+      sizeBytes: 6500 * 1024 * 1024,
+      checksum: '',
+      description:
+          'SAM vision + Qwen2 encoder + MoE decoder document OCR (~6.5 GB F16). Metal-accelerated. Apache 2.0 license.',
+      quantization: 'f16',
+      backend: 'ocr',
+      kind: ModelKind.ocr,
+    ),
+
+    // §12.3a — Cross-encoder rerankers for search result re-scoring
+    'ms-marco-minilm-l-6-v2-iq4_xs': ModelDefinition(
+      name: 'ms-marco-minilm-l-6-v2-iq4_xs',
+      displayName: 'MS MARCO MiniLM-L6 Reranker (IQ4_XS)',
+      fileName: 'ms-marco-MiniLM-L-6-v2-iq4_xs.gguf',
+      url:
+          'https://huggingface.co/cstr/ms-marco-MiniLM-L-6-v2-GGUF/resolve/main/ms-marco-MiniLM-L-6-v2-iq4_xs.gguf',
+      sizeBytes: 19 * 1024 * 1024,
+      checksum: '',
+      description:
+          'Compact cross-encoder reranker (~19 MB IQ4_XS). Boosts search precision on top-k cosine results. Apache 2.0.',
+      quantization: 'iq4_xs',
+      backend: 'reranker',
+      kind: ModelKind.reranker,
+      languages: const ['en'],
+    ),
+    'mxbai-rerank-xsmall-v1-q8_0': ModelDefinition(
+      name: 'mxbai-rerank-xsmall-v1-q8_0',
+      displayName: 'mxbai Rerank XSmall (Q8_0)',
+      fileName: 'mxbai-rerank-xsmall-v1-q8_0.gguf',
+      url:
+          'https://huggingface.co/cstr/mxbai-rerank-xsmall-v1-GGUF/resolve/main/mxbai-rerank-xsmall-v1-q8_0.gguf',
+      sizeBytes: 78 * 1024 * 1024,
+      checksum: '',
+      description:
+          'Cross-encoder reranker (~78 MB Q8_0). Higher accuracy than MS MARCO MiniLM. Apache 2.0.',
+      quantization: 'q8_0',
+      backend: 'reranker',
+      kind: ModelKind.reranker,
+      languages: const ['en'],
+    ),
+    'bge-reranker-v2-m3-q8_0': ModelDefinition(
+      name: 'bge-reranker-v2-m3-q8_0',
+      displayName: 'BGE Reranker v2 M3 (Q8_0)',
+      fileName: 'bge-reranker-v2-m3-q8_0.gguf',
+      url:
+          'https://huggingface.co/cstr/bge-reranker-v2-m3-GGUF/resolve/main/bge-reranker-v2-m3-q8_0.gguf',
+      sizeBytes: 613 * 1024 * 1024,
+      checksum: '',
+      description:
+          'Multilingual cross-encoder reranker (~613 MB Q8_0). Supports 100+ languages. Apache 2.0.',
+      quantization: 'q8_0',
+      backend: 'reranker',
+      kind: ModelKind.reranker,
+      languages: const ['*'],
+    ),
+
+    // §12.4 — Larger embedding models for higher-quality search
+    'nomic-embed-text-v1.5-q4_k': ModelDefinition(
+      name: 'nomic-embed-text-v1.5-q4_k',
+      displayName: 'Nomic Embed v1.5 (Q4_K+imatrix)',
+      fileName: 'nomic-embed-text-v1.5-q4_k-imatrix.gguf',
+      url:
+          'https://huggingface.co/cstr/nomic-embed-text-v1.5-GGUF/resolve/main/nomic-embed-text-v1.5-q4_k-imatrix.gguf',
+      sizeBytes: 89 * 1024 * 1024,
+      checksum: '',
+      description:
+          '768-dim text embedding (~89 MB Q4_K+imatrix). Nomic BERT with 8192 context. Apache 2.0.',
+      quantization: 'q4_k',
+      backend: 'embed',
+      kind: ModelKind.embed,
+      languages: const ['en'],
+    ),
+    'multilingual-e5-small-iq4_xs': ModelDefinition(
+      name: 'multilingual-e5-small-iq4_xs',
+      displayName: 'Multilingual E5 Small (IQ4_XS)',
+      fileName: 'multilingual-e5-small-iq4_xs.gguf',
+      url:
+          'https://huggingface.co/cstr/multilingual-e5-small-GGUF/resolve/main/multilingual-e5-small-iq4_xs.gguf',
+      sizeBytes: 121 * 1024 * 1024,
+      checksum: '',
+      description:
+          '384-dim multilingual embedding (~121 MB IQ4_XS). 100+ languages. MIT license.',
+      quantization: 'iq4_xs',
+      backend: 'embed',
+      kind: ModelKind.embed,
+      languages: const ['*'],
+    ),
+    'qwen3-embed-0.6b-q4_k': ModelDefinition(
+      name: 'qwen3-embed-0.6b-q4_k',
+      displayName: 'Qwen3 Embedding 0.6B (Q4_K+imatrix)',
+      fileName: 'qwen3-embed-0.6b-q4_k-imatrix.gguf',
+      url:
+          'https://huggingface.co/cstr/qwen3-embed-0.6b-GGUF/resolve/main/qwen3-embed-0.6b-q4_k-imatrix.gguf',
+      sizeBytes: 419 * 1024 * 1024,
+      checksum: '',
+      description:
+          '1024-dim decoder embedding (~419 MB Q4_K+imatrix). Multilingual, Matryoshka-capable. Apache 2.0.',
+      quantization: 'q4_k',
+      backend: 'embed',
+      kind: ModelKind.embed,
+      languages: const ['*'],
     ),
   };
 
@@ -3864,6 +4091,14 @@ abstract final class ModelCatalog {
       displayPrefix: 'Qwen3-ASR 1.7B',
       description: 'Qwen3-ASR 1.7B (29 langs)',
       defaultLanguages: langsQwen3Asr29,
+    ),
+    'qwen3-ja-anime': BackendRepo(
+      backend: 'qwen3',
+      repoId: 'cstr/qwen3-asr-1.7b-ja-anime-GGUF',
+      baseName: 'qwen3-asr-1.7b-ja-anime',
+      displayPrefix: 'Qwen3-ASR 1.7B JA Anime',
+      description: 'Japanese anime/galgame speech fine-tune',
+      defaultLanguages: ['ja'],
     ),
     'mega-asr': BackendRepo(
       backend: 'mega-asr',
@@ -4833,6 +5068,87 @@ abstract final class ModelCatalog {
       description: 'Omnimodal embedding model — text + audio + vision (2048 dim)',
       kind: ModelKind.embed,
       defaultLanguages: ['*'],
+    ),
+    // §12.3a — Reranker repos
+    'reranker-msmarco': BackendRepo(
+      backend: 'reranker',
+      repoId: 'cstr/ms-marco-MiniLM-L-6-v2-GGUF',
+      baseName: 'ms-marco-MiniLM-L-6-v2',
+      displayPrefix: 'MS MARCO MiniLM-L6 Reranker',
+      description: 'Compact cross-encoder reranker',
+      kind: ModelKind.reranker,
+      defaultLanguages: ['en'],
+    ),
+    'reranker-mxbai-xsmall': BackendRepo(
+      backend: 'reranker',
+      repoId: 'cstr/mxbai-rerank-xsmall-v1-GGUF',
+      baseName: 'mxbai-rerank-xsmall-v1',
+      displayPrefix: 'mxbai Rerank XSmall',
+      description: 'mxbai cross-encoder reranker',
+      kind: ModelKind.reranker,
+      defaultLanguages: ['en'],
+    ),
+    'reranker-bge-m3': BackendRepo(
+      backend: 'reranker',
+      repoId: 'cstr/bge-reranker-v2-m3-GGUF',
+      baseName: 'bge-reranker-v2-m3',
+      displayPrefix: 'BGE Reranker v2 M3',
+      description: 'Multilingual cross-encoder reranker',
+      kind: ModelKind.reranker,
+      defaultLanguages: ['*'],
+    ),
+    // §12.4 — Larger embedding repos
+    'embed-nomic': BackendRepo(
+      backend: 'embed',
+      repoId: 'cstr/nomic-embed-text-v1.5-GGUF',
+      baseName: 'nomic-embed-text-v1.5',
+      displayPrefix: 'Nomic Embed v1.5',
+      description: 'Nomic BERT 768-dim (8192 context)',
+      kind: ModelKind.embed,
+      defaultLanguages: ['en'],
+    ),
+    'embed-e5-small': BackendRepo(
+      backend: 'embed',
+      repoId: 'cstr/multilingual-e5-small-GGUF',
+      baseName: 'multilingual-e5-small',
+      displayPrefix: 'Multilingual E5 Small',
+      description: 'Multilingual 384-dim (100+ langs)',
+      kind: ModelKind.embed,
+      defaultLanguages: ['*'],
+    ),
+    'embed-qwen3-0.6b': BackendRepo(
+      backend: 'embed',
+      repoId: 'cstr/qwen3-embed-0.6b-GGUF',
+      baseName: 'qwen3-embed-0.6b',
+      displayPrefix: 'Qwen3 Embedding 0.6B',
+      description: 'Qwen3 decoder embedding 1024-dim, Matryoshka',
+      kind: ModelKind.embed,
+      defaultLanguages: ['*'],
+    ),
+    // §12.6b — OCR model repos
+    'ocr-pix2tex': BackendRepo(
+      backend: 'ocr',
+      repoId: 'cstr/pix2tex-mfr-gguf',
+      baseName: 'pix2tex-mfr',
+      displayPrefix: 'pix2tex Math OCR',
+      description: 'DeiT+TrOCR math formula recognition',
+      kind: ModelKind.ocr,
+    ),
+    'ocr-hmer': BackendRepo(
+      backend: 'ocr',
+      repoId: 'cstr/hmer-handwritten-math-gguf',
+      baseName: 'hmer-hw',
+      displayPrefix: 'HMER Handwritten Math',
+      description: 'DenseNet+Transformer handwritten math OCR',
+      kind: ModelKind.ocr,
+    ),
+    'ocr-granite-vision': BackendRepo(
+      backend: 'ocr',
+      repoId: 'cstr/granite-vision-crispembed-GGUF',
+      baseName: 'granite-vision-3.3-2b',
+      displayPrefix: 'Granite Vision 3.3',
+      description: 'SigLIP + Granite 2B VLM document OCR',
+      kind: ModelKind.ocr,
     ),
   };
 

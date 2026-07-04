@@ -207,9 +207,37 @@ void main() {
       expect(ModelCatalog.kindForBackend('dots-tts'), ModelKind.tts);
     });
 
+    // ---- Qwen3-ASR-1.7B JA Anime fine-tune (§12.1b) ----
+
+    test('qwen3-ja-anime is in the catalog reusing qwen3 backend', () {
+      final def =
+          ModelCatalog.crispasrBackendModels['qwen3-asr-1.7b-ja-anime-q4_k'];
+      expect(def, isNotNull,
+          reason: 'qwen3-asr-1.7b-ja-anime-q4_k missing from catalog');
+      expect(def!.backend, 'qwen3',
+          reason: 'qwen3-ja-anime should reuse qwen3 backend');
+      expect(def.kind, ModelKind.asr);
+      expect(def.languages, contains('ja'));
+      expect(def.quantization, 'q4_k');
+    });
+
+    test('qwen3-ja-anime has a BackendRepo', () {
+      expect(
+          ModelCatalog.backendRepos.containsKey('qwen3-ja-anime'), isTrue,
+          reason: 'BackendRepo "qwen3-ja-anime" missing');
+      expect(ModelCatalog.backendRepos['qwen3-ja-anime']!.backend, 'qwen3');
+    });
+
+    test('qwen3-ja-anime is NOT in recommendedDefaultModels (shares qwen3)',
+        () {
+      expect(
+          ModelCatalog.recommendedDefaultModels.containsKey('qwen3-ja-anime'),
+          isFalse);
+    });
+
     // ---- Cross-checks ----
 
-    test('all 7 new entries have non-empty URLs', () {
+    test('all 8 new entries have non-empty URLs', () {
       const keys = [
         'moss-transcribe-preview-2b-q4_k',
         'higgs-stt-q4_k',
@@ -218,6 +246,7 @@ void main() {
         'reazonspeech-nemo-v2-q8_0',
         'parakeet-ctc-1.1b-ja-q8_0',
         'dots-tts-soar-f16',
+        'qwen3-asr-1.7b-ja-anime-q4_k',
       ];
       for (final key in keys) {
         final def = ModelCatalog.crispasrBackendModels[key];
@@ -237,6 +266,7 @@ void main() {
         'reazonspeech',
         'parakeet-ctc-1.1b-ja',
         'dots-tts',
+        'qwen3-ja-anime',
       ];
       for (final key in keys) {
         final repo = ModelCatalog.backendRepos[key];

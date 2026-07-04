@@ -1421,6 +1421,12 @@ class AppLocalizationsDe extends AppLocalizations {
   String get outputSummarize => 'Zusammenfassen…';
 
   @override
+  String get outputOcrImage => 'Bild-OCR…';
+
+  @override
+  String get outputRealignTimestamps => 'Zeitstempel neu ausrichten';
+
+  @override
   String get outputDetectLanguage => 'Sprache erkennen';
 
   @override

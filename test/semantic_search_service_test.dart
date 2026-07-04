@@ -1,11 +1,13 @@
 // Tests for SemanticSearchService — the TF-IDF fallback ranking used
-// when real embeddings aren't available (§5.25.2).
+// when real embeddings aren't available (§5.25.2), plus §12.3a reranker.
 
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:crisper_weaver/engines/transcription_engine.dart';
+import 'package:crisper_weaver/native/crispembed_stub.dart' show RerankResult;
 import 'package:crisper_weaver/services/history_service.dart';
 import 'package:crisper_weaver/services/semantic_search_service.dart';
 
@@ -183,6 +185,122 @@ void main() {
         historyEntry: entry,
       );
       expect(results, isNotEmpty);
+    });
+  });
+
+  group('§12.3b BidirLM-Omni audio embedding parameter', () {
+    test('search accepts audioData parameter without embedder', () {
+      // Without an embedder, audioData is simply ignored (falls back to
+      // TF-IDF). This verifies the parameter doesn't break the API.
+      final results = SemanticSearchService.search(
+        query: 'hello',
+        segments: _segs(['hello world', 'goodbye world']),
+        audioData: Float32List.fromList(List.filled(16000, 0.1)),
+      );
+      expect(results, isNotEmpty);
+    });
+
+    test('search accepts audioData with null embedder gracefully', () {
+      final results = SemanticSearchService.search(
+        query: 'test',
+        segments: _segs(['test audio embedding']),
+        embedder: null,
+        audioData: Float32List(16000),
+      );
+      expect(results, isNotEmpty);
+      expect(results.first.score, greaterThan(0));
+    });
+  });
+
+  group('§12.3a reranker integration', () {
+    final candidates = [
+      SearchResult(
+        segmentIndex: 0,
+        score: 0.9,
+        segment: TranscriptionSegment(
+            text: 'the weather is nice', startTime: 0, endTime: 10),
+      ),
+      SearchResult(
+        segmentIndex: 1,
+        score: 0.8,
+        segment: TranscriptionSegment(
+            text: 'machine learning rocks', startTime: 10, endTime: 20),
+      ),
+      SearchResult(
+        segmentIndex: 2,
+        score: 0.7,
+        segment: TranscriptionSegment(
+            text: 'deep learning models', startTime: 20, endTime: 30),
+      ),
+    ];
+
+    test('rerankWithScorer re-orders candidates by scorer output', () {
+      // Scorer reverses the original cosine ranking: gives highest
+      // score to "deep learning" when searching for "learning".
+      final results = SemanticSearchService.rerankWithScorer(
+        query: 'learning',
+        candidates: candidates,
+        scorer: (q, doc) {
+          if (doc.contains('deep')) return 0.95;
+          if (doc.contains('machine')) return 0.85;
+          return 0.1;
+        },
+        maxResults: 3,
+      );
+      expect(results.length, 3);
+      // "deep learning models" should now be first (was third)
+      expect(results[0].segmentIndex, 2);
+      expect(results[0].score, closeTo(0.95, 1e-6));
+      // "machine learning rocks" second
+      expect(results[1].segmentIndex, 1);
+    });
+
+    test('rerankWithScorer respects maxResults', () {
+      final results = SemanticSearchService.rerankWithScorer(
+        query: 'test',
+        candidates: candidates,
+        scorer: (q, doc) => 0.5,
+        maxResults: 2,
+      );
+      expect(results.length, 2);
+    });
+
+    test('rerankWithScorer handles scorer exception gracefully', () {
+      var callCount = 0;
+      final results = SemanticSearchService.rerankWithScorer(
+        query: 'test',
+        candidates: candidates,
+        scorer: (q, doc) {
+          callCount++;
+          if (callCount == 2) throw Exception('model error');
+          return 0.5;
+        },
+        maxResults: 10,
+      );
+      // All 3 candidates should still be in results (failed one keeps
+      // its original cosine score).
+      expect(results.length, 3);
+    });
+
+    test('rerankWithScorer skips empty-text segments', () {
+      final candidatesWithEmpty = [
+        ...candidates,
+        SearchResult(
+          segmentIndex: 3,
+          score: 0.6,
+          segment: TranscriptionSegment(
+              text: '   ', startTime: 30, endTime: 40),
+        ),
+      ];
+      final results = SemanticSearchService.rerankWithScorer(
+        query: 'test',
+        candidates: candidatesWithEmpty,
+        scorer: (q, doc) => 0.5,
+        maxResults: 10,
+      );
+      // Empty-text segment should be skipped
+      expect(results.length, 3);
+      expect(results.any((r) => r.segmentIndex == 3), isFalse);
     });
   });
 }

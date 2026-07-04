@@ -2,6 +2,7 @@
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:crisper_weaver/constants/app_constants.dart';
 import 'package:crisper_weaver/utils/file_utils.dart';
 
 void main() {
@@ -55,6 +56,28 @@ void main() {
       // They might be same if called in same millisecond, but format is correct
       expect(a, endsWith('.mp3'));
       expect(b, endsWith('.mp3'));
+    });
+  });
+
+  group('supportedAudioExtensions', () {
+    test('includes .amr for native CrispASR decode', () {
+      expect(AppConstants.supportedAudioExtensions, contains('.amr'));
+    });
+
+    test('includes .au for native CrispASR decode', () {
+      expect(AppConstants.supportedAudioExtensions, contains('.au'));
+    });
+
+    test('all extensions start with a dot', () {
+      for (final ext in AppConstants.supportedAudioExtensions) {
+        expect(ext, startsWith('.'), reason: 'extension "$ext" must start with "."');
+      }
+    });
+
+    test('no duplicate extensions', () {
+      final unique = AppConstants.supportedAudioExtensions.toSet();
+      expect(unique.length, AppConstants.supportedAudioExtensions.length,
+          reason: 'duplicate extensions found');
     });
   });
 

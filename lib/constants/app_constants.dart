@@ -125,6 +125,7 @@ class AppConstants {
     '.wma',
     '.aiff',
     '.au',
+    '.amr',
     '.ra',
   ];
 

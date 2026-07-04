@@ -427,6 +427,8 @@
   "presetsDeleteConfirm": "删除预设「{name}」？此操作无法撤销。",
   "presetsDeleteTooltip": "删除",
   "outputSummarize": "摘要…",
+  "outputOcrImage": "图片OCR…",
+  "outputRealignTimestamps": "重新对齐时间戳",
   "outputDetectLanguage": "检测语言",
   "outputSummarizeTitle": "转录摘要",
   "outputSummarizeHelp": "将转录内容发送给 {model} 并请求结构化摘要。输出为 Markdown 格式的要点列表。",

@@ -1998,7 +1998,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
         // silently ignores (picker never opens or returns empty). Use
         // FileType.any on web and rely on the extension post-filter.
         type: plat.isWeb ? FileType.any : FileType.audio,
-        allowedExtensions: const ['wav', 'mp3', 'flac', 'ogg', 'opus', 'webm', 'm4a'],
+        allowedExtensions: const ['wav', 'mp3', 'flac', 'ogg', 'opus', 'webm', 'm4a', 'aac', 'amr'],
         allowMultiple: true,
       );
     } on FilePickerCloudUriUnsupported catch (e, st) {

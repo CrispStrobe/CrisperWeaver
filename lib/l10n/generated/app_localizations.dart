@@ -2476,6 +2476,18 @@ abstract class AppLocalizations {
   /// **'Summarize…'**
   String get outputSummarize;
 
+  /// No description provided for @outputOcrImage.
+  ///
+  /// In en, this message translates to:
+  /// **'OCR image…'**
+  String get outputOcrImage;
+
+  /// No description provided for @outputRealignTimestamps.
+  ///
+  /// In en, this message translates to:
+  /// **'Re-align timestamps'**
+  String get outputRealignTimestamps;
+
   /// No description provided for @outputDetectLanguage.
   ///
   /// In en, this message translates to:

@@ -1365,6 +1365,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get outputSummarize => '摘要…';
 
   @override
+  String get outputOcrImage => '图片OCR…';
+
+  @override
+  String get outputRealignTimestamps => '重新对齐时间戳';
+
+  @override
   String get outputDetectLanguage => '检测语言';
 
   @override

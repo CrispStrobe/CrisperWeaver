@@ -622,6 +622,8 @@
   },
   "presetsDeleteTooltip": "Delete",
   "outputSummarize": "Summarize…",
+  "outputOcrImage": "OCR image…",
+  "outputRealignTimestamps": "Re-align timestamps",
   "outputDetectLanguage": "Detect language",
   "outputSummarizeTitle": "Summarize transcript",
   "outputSummarizeHelp": "Sends the transcript to {model} and asks for a structured summary. Output is Markdown-formatted bullet lists.",
