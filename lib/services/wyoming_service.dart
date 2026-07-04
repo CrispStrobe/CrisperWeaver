@@ -125,7 +125,7 @@ class WyomingService {
       onDone: () {
         Log.instance.d('wyoming', 'client disconnected');
       },
-      onError: (e) {
+      onError: (Object e) {
         Log.instance.w('wyoming', 'client error: $e');
       },
     );

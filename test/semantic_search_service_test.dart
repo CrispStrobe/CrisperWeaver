@@ -1,13 +1,11 @@
 // Tests for SemanticSearchService — the TF-IDF fallback ranking used
 // when real embeddings aren't available (§5.25.2), plus §12.3a reranker.
 
-import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:crisper_weaver/engines/transcription_engine.dart';
-import 'package:crisper_weaver/native/crispembed_stub.dart' show RerankResult;
 import 'package:crisper_weaver/services/history_service.dart';
 import 'package:crisper_weaver/services/semantic_search_service.dart';
 

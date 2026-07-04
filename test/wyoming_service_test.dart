@@ -1,6 +1,5 @@
 // Unit tests for WyomingService (§12.8h).
 
-import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';

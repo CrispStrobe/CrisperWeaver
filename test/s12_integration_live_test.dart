@@ -21,18 +21,6 @@ import 'package:crisper_weaver/services/semantic_search_service.dart';
 
 import 'support/crispasr_models.dart';
 
-/// Generate a 1-second 440 Hz sine wave at 16 kHz.
-Float32List _sine440(int sampleRate, double durationSeconds) {
-  final n = (sampleRate * durationSeconds).toInt();
-  final pcm = Float32List(n);
-  for (var i = 0; i < n; i++) {
-    pcm[i] = 0.5 *
-        (2.0 * 3.14159265 * 440.0 * i / sampleRate)
-            .remainder(1.0);
-  }
-  return pcm;
-}
-
 void main() {
   final lib = CrispModels.lib;
 

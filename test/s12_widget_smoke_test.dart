@@ -3,23 +3,9 @@
 // These tests verify the new UI elements render without crashing,
 // not full interaction flows (which would need mocked services).
 
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:crisper_weaver/l10n/generated/app_localizations.dart';
 import 'package:crisper_weaver/screens/synthesize_screen.dart';
-
-Widget _harness(Widget child) {
-  return ProviderScope(
-    child: MaterialApp(
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      locale: const Locale('en'),
-      home: Scaffold(body: child),
-    ),
-  );
-}
 
 void main() {
   group('§12.1c Chatterbox emotion tags', () {
