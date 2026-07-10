@@ -24,6 +24,7 @@ print("=== CrisperWeaver Live Validation ===", flush=True)
 if not _CRISPASR_DIR.exists():
     try:
         subprocess.check_call(["git", "clone", "--depth", "1",
+            "--recurse-submodules", "--shallow-submodules",
             CRISPASR_URL, str(_CRISPASR_DIR)])
         sys.path.insert(0, str(_CRISPASR_DIR / "tools" / "kaggle"))
     except Exception:
