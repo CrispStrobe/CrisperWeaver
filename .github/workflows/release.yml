@@ -765,24 +765,103 @@ jobs:
         # is the floor).
         run: timeout 120 dart run scripts/bake_models_catalog.dart || true
 
-      - name: Build iOS (no codesign)
+      - name: Build iOS (no codesign — Flutter step)
         working-directory: repos/CrisperWeaver
         run: flutter build ios --release --no-codesign
 
-      - name: Package IPA
+      # --- App Store signed path (when API key secret is set) ---
+      - name: Install App Store Connect API key
+        if: ${{ env.APPSTORE_API_KEY_P8 != '' }}
+        env:
+          APPSTORE_API_KEY_P8: ${{ secrets.APPSTORE_API_KEY_P8 }}
+        run: |
+          mkdir -p ~/.appstoreconnect/private_keys
+          echo "$APPSTORE_API_KEY_P8" | base64 -d > ~/.appstoreconnect/private_keys/AuthKey_9RMU3C7422.p8
+          chmod 600 ~/.appstoreconnect/private_keys/AuthKey_9RMU3C7422.p8
+
+      - name: Archive (API-key-driven signing)
+        if: ${{ env.APPSTORE_API_KEY_P8 != '' }}
         working-directory: repos/CrisperWeaver
+        env:
+          APPSTORE_API_KEY_P8: ${{ secrets.APPSTORE_API_KEY_P8 }}
+        run: |
+          PATH="/usr/bin:$PATH" xcodebuild \
+            -workspace ios/Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Release \
+            -archivePath build/ios/archive/Runner.xcarchive \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_9RMU3C7422.p8 \
+            -authenticationKeyID 9RMU3C7422 \
+            -authenticationKeyIssuerID 5f618ba3-98ef-42ad-835c-fbbef6c76cf5 \
+            archive
+
+      - name: Export signed IPA
+        if: ${{ env.APPSTORE_API_KEY_P8 != '' }}
+        working-directory: repos/CrisperWeaver
+        env:
+          APPSTORE_API_KEY_P8: ${{ secrets.APPSTORE_API_KEY_P8 }}
+        run: |
+          PATH="/usr/bin:$PATH" xcodebuild -exportArchive \
+            -archivePath build/ios/archive/Runner.xcarchive \
+            -exportPath build/ios/export \
+            -exportOptionsPlist ios/ExportOptions.plist \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_9RMU3C7422.p8 \
+            -authenticationKeyID 9RMU3C7422 \
+            -authenticationKeyIssuerID 5f618ba3-98ef-42ad-835c-fbbef6c76cf5
+          cp build/ios/export/Runner.ipa crisper_weaver-ios-appstore.ipa
+          shasum -a 256 crisper_weaver-ios-appstore.ipa | tee crisper_weaver-ios-appstore.ipa.sha256
+
+      - name: Validate signed IPA
+        if: ${{ env.APPSTORE_API_KEY_P8 != '' }}
+        working-directory: repos/CrisperWeaver
+        env:
+          APPSTORE_API_KEY_P8: ${{ secrets.APPSTORE_API_KEY_P8 }}
+        run: |
+          xcrun altool --validate-app \
+            -f crisper_weaver-ios-appstore.ipa \
+            --type ios \
+            --api-key 9RMU3C7422 \
+            --api-issuer 5f618ba3-98ef-42ad-835c-fbbef6c76cf5
+
+      - name: Upload to App Store Connect
+        if: ${{ env.APPSTORE_API_KEY_P8 != '' && env.APPSTORE_APP_ID != '' }}
+        working-directory: repos/CrisperWeaver
+        env:
+          APPSTORE_API_KEY_P8: ${{ secrets.APPSTORE_API_KEY_P8 }}
+          APPSTORE_APP_ID: ${{ secrets.APPSTORE_APP_ID }}
+        run: |
+          VERSION=$(grep 'version:' pubspec.yaml | head -1 | sed 's/version: //' | cut -d+ -f1)
+          BUILD=$(grep 'version:' pubspec.yaml | head -1 | sed 's/version: //' | cut -d+ -f2)
+          xcrun altool --upload-package crisper_weaver-ios-appstore.ipa \
+            --type ios \
+            --apple-id "$APPSTORE_APP_ID" \
+            --bundle-id com.crispstrobe.crisperweaver \
+            --bundle-version "$BUILD" \
+            --bundle-short-version-string "$VERSION" \
+            --api-key 9RMU3C7422 \
+            --api-issuer 5f618ba3-98ef-42ad-835c-fbbef6c76cf5
+
+      # --- Unsigned fallback (when no API key) ---
+      - name: Package unsigned IPA (fallback)
+        if: ${{ env.APPSTORE_API_KEY_P8 == '' }}
+        working-directory: repos/CrisperWeaver
+        env:
+          APPSTORE_API_KEY_P8: ${{ secrets.APPSTORE_API_KEY_P8 }}
         run: |
           mkdir -p Payload
           cp -R build/ios/iphoneos/Runner.app Payload/
           zip -qr crisper_weaver-ios-unsigned.ipa Payload
           shasum -a 256 crisper_weaver-ios-unsigned.ipa | tee crisper_weaver-ios-unsigned.ipa.sha256
-          ls -lh crisper_weaver-ios-unsigned.ipa
 
       - name: Upload IPA
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ inputs.tag || github.ref_name }}
           files: |
+            repos/CrisperWeaver/crisper_weaver-ios-appstore.ipa
+            repos/CrisperWeaver/crisper_weaver-ios-appstore.ipa.sha256
             repos/CrisperWeaver/crisper_weaver-ios-unsigned.ipa
             repos/CrisperWeaver/crisper_weaver-ios-unsigned.ipa.sha256
           draft: false

@@ -88,3 +88,7 @@ CLAUDE.md
 android/key.properties
 *.jks
 *.keystore
+
+# Apple App Store Connect API key (NEVER commit)
+.appstoreconnect/
+*.p8
