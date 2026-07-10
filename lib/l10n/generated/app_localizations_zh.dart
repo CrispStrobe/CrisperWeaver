@@ -1886,6 +1886,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get synthSpeakerHelper => '此声音内置多个说话人 — 请选择一个。';
 
   @override
+  String get synthPreviewVoice => '预览声音';
+
+  @override
+  String get synthPreviewSample => '你好，这是语音预览。';
+
+  @override
   String get advancedVadBackend => 'VAD 后端';
 
   @override

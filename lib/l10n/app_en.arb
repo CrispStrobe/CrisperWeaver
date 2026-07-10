@@ -836,6 +836,8 @@
 
   "synthSpeakerLabel": "Speaker",
   "synthSpeakerHelper": "This voice has built-in speakers — pick one.",
+  "synthPreviewVoice": "Preview voice",
+  "synthPreviewSample": "Hello, this is a voice preview.",
 
   "advancedVadBackend": "VAD backend",
   "advancedVadBackendHelper": "Silero is bundled (~885 KB). FireRed / MarbleNet / Whisper-VAD need a Model Management download; missing files fall back to Silero.",

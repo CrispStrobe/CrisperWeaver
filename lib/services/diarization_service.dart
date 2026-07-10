@@ -303,6 +303,49 @@ class DiarizationService {
     return out;
   }
 
+  /// §9.6 #110 — Global-scope diarization: takes raw PCM audio and a
+  /// window size, creates uniform segments covering the full audio, runs
+  /// diarization on all of them at once (so pyannote/sherpa sees the full
+  /// timeline), and returns speaker-labelled segments.
+  ///
+  /// This is useful when you have raw audio but no ASR segments yet, or
+  /// want speaker labels independent of the ASR segmentation.
+  Future<List<TranscriptionSegment>> diarizeFullAudio(
+    AudioData audioData, {
+    double windowSeconds = 3.0,
+    crispasr.DiarizeMethod method = crispasr.DiarizeMethod.pyannote,
+    String? pyannoteModelPath,
+    int? maxSpeakers,
+    void Function(double progress)? onProgress,
+  }) async {
+    if (audioData.samples.isEmpty) return const [];
+
+    // Create uniform segments covering the full audio.
+    final durationSeconds = audioData.samples.length / 16000.0;
+    final segments = <TranscriptionSegment>[];
+    var t = 0.0;
+    while (t < durationSeconds) {
+      final end = (t + windowSeconds).clamp(0.0, durationSeconds);
+      segments.add(TranscriptionSegment(
+        text: '',
+        startTime: t,
+        endTime: end,
+      ));
+      t = end;
+      if (end >= durationSeconds) break;
+    }
+
+    // Run diarization on the full set of segments.
+    return diarizeSegments(
+      audioData,
+      segments,
+      method: method,
+      pyannoteModelPath: pyannoteModelPath,
+      maxSpeakers: maxSpeakers,
+      onProgress: onProgress,
+    );
+  }
+
   /// For every unique numeric speaker label, find the longest segment
   /// tagged with it, extract a representative ~3 s PCM slice from its
   /// middle, run the TitaNet matcher once, and build the cluster → name

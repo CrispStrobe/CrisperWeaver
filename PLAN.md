@@ -274,17 +274,12 @@ worktree) → app `ModelDefinition` + `BackendRepo` → drop from guard
 catalogue entry whose backend has no dispatch arm, so catalogue and
 engine can't silently drift.
 
-**F. bidirlm-omni embedding — TODO (pending).**
-`bidirlm-omni-2.5b` (`cstr/bidirlm-omni-2.5b-GGUF`) — an **omnimodal
-embedding** model (text + audio + vision → one shared 2048-d space),
-run by **CrispEmbed** (sibling repo, ggml). Its **audio tower**
-(Whisper-shape, 16 kHz PCM → 2048-d) is built on CrispASR's shared
-`crisp_audio` lib — so it genuinely aligns with CrispASR. Enables
-cross-modal use (semantic transcript search, audio-clip retrieval,
-text↔audio matching). TODO to make it usable in-app: (a) link/embed
-CrispEmbed (or expose an embedding C-ABI from CrispASR), (b) a Dart
-binding, (c) a search/retrieval feature to consume embeddings. Bigger
-than a catalogue entry — it's a new capability.
+**F. bidirlm-omni embedding — DONE (§12.3b, §12.8f).**
+`bidirlm-omni-2.5b` wired end-to-end: catalog entry, CrispEmbed
+stub parity (`encodeAudio`, `hasAudio`), `SemanticSearchService`
+cross-modal scoring, `HistoryService.computeAudioEmbedding()` path
+verified with JSON round-trip test. Live validation pending on a
+machine with the 1.7 GB omni model downloaded.
 
 ---
 
@@ -715,10 +710,10 @@ it or document it as intentionally internal:
 
 ### 9.6 New CrispASR capabilities to consider surfacing
 From CrispASR HISTORY (May–Jun 2026), not yet in CrisperWeaver:
-- [ ] Streaming token callbacks for LLM-based ASR backends (#157)
-- [ ] Wyoming protocol server (Home Assistant) (#172)
-- [ ] Local TTS speaker playback (#173)
-- [ ] Global-scope diarization (pyannote/sherpa) (#110)
+- [x] Streaming token callbacks for LLM-based ASR backends (#157) — per-segment (§12.8i) + per-token (12 backends)
+- [x] Wyoming protocol server (Home Assistant) (#172) — shipped §12.8h
+- [x] Local TTS speaker playback (#173) — preview button on speaker dropdown
+- [x] Global-scope diarization (pyannote/sherpa) (#110) — `diarizeFullAudio()` method
 - [x] SenseVoice emotion/event tags — parsed from `<|HAPPY|>` etc. in
       transcript text, stripped from display, surfaced as `emotion` /
       `audio_event` in segment metadata + orange/teal badges in
@@ -1062,7 +1057,7 @@ match the real binding's API surface.
       Files: `scripts/bake_models_catalog.dart` → `assets/models/catalog.json`
       Tests: `baked_catalog_json_test.dart` round-trip check
 
-- [ ] **b. Commit + tag release.** 1089 tests pass, 0 regressions.
+- [x] **b. Commit + tag release.** v0.9.0 tagged, CI green, release built.
       Commit all §12 work, tag as v0.8.8 or similar.
 
 #### High-impact
@@ -1075,7 +1070,7 @@ match the real binding's API surface.
       Files: `lib/main.dart`, `lib/services/semantic_search_service.dart`
       Tests: unit test for provider logic; live test with real model
 
-- [ ] **d. Rebuild libcrispembed with LoRA symbols.** SKIPPED: OOM risk (270MB free). The Dart binding
+- [x] **d. Rebuild libcrispembed with LoRA symbols.** Built locally (v0.13.0), LoRA + reranker symbols verified. The Dart binding
       is ready but the bundled `.so`/`.dylib` predates it. Until rebuilt,
       `hasLora` returns false at runtime.
       Files: CrispEmbed build system

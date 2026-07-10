@@ -835,6 +835,8 @@
 
   "synthSpeakerLabel": "Sprecher",
   "synthSpeakerHelper": "Diese Stimme hat eingebaute Sprecher – bitte einen auswählen.",
+  "synthPreviewVoice": "Stimme vorhören",
+  "synthPreviewSample": "Hallo, dies ist eine Stimmvorschau.",
 
   "advancedVadBackend": "VAD-Backend",
   "advancedVadBackendHelper": "Silero ist eingebettet (~885 KB). FireRed / MarbleNet / Whisper-VAD müssen über die Modellverwaltung geladen werden; fehlt die Datei, fällt CrisperWeaver auf Silero zurück.",

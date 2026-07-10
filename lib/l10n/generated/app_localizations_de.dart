@@ -1967,6 +1967,12 @@ class AppLocalizationsDe extends AppLocalizations {
       'Diese Stimme hat eingebaute Sprecher – bitte einen auswählen.';
 
   @override
+  String get synthPreviewVoice => 'Stimme vorhören';
+
+  @override
+  String get synthPreviewSample => 'Hallo, dies ist eine Stimmvorschau.';
+
+  @override
   String get advancedVadBackend => 'VAD-Backend';
 
   @override

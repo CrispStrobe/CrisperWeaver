@@ -1952,6 +1952,12 @@ class AppLocalizationsEn extends AppLocalizations {
       'This voice has built-in speakers — pick one.';
 
   @override
+  String get synthPreviewVoice => 'Preview voice';
+
+  @override
+  String get synthPreviewSample => 'Hello, this is a voice preview.';
+
+  @override
   String get advancedVadBackend => 'VAD backend';
 
   @override

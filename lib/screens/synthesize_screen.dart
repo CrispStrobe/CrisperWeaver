@@ -104,6 +104,20 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
   /// Backends that support speech-to-speech at the C level.
   static const _s2sCapableBackends = {'lfm2-audio', 'mini-omni2'};
 
+  /// §9.6 #173 — Synthesize a short sample with the current voice and play it.
+  Future<void> _previewVoice(String sampleText) async {
+    final ss = ref.read(synthesizeScreenProvider);
+    if (ss.busy || ss.selectedModel == null) return;
+
+    // Use the existing synth pipeline with a short sample sentence.
+    final origText = _textController.text;
+    _textController.text = sampleText;
+    // Trigger synthesis (reuses the full _synthesize flow).
+    await _synthesize();
+    // Restore original text.
+    _textController.text = origText;
+  }
+
   /// Insert a chatterbox emotion tag at the current cursor position.
   void _insertEmotionTag(String tag) {
     final sel = _textController.selection;
@@ -909,21 +923,36 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
                     // a selection here CustomVoice synthesises silence.
                     if (ss.presetSpeakers.isNotEmpty) ...[
                       const SizedBox(height: 8),
-                      DropdownButtonFormField<String>(
-                        decoration: InputDecoration(
-                          labelText: l.synthSpeakerLabel,
-                          helperText: l.synthSpeakerHelper,
-                        ),
-                        initialValue: ss.selectedSpeaker,
-                        items: ss.presetSpeakers
-                            .map((s) => DropdownMenuItem(
-                                  value: s,
-                                  child:
-                                      Text(s, overflow: TextOverflow.ellipsis),
-                                ))
-                            .toList(),
-                        onChanged: (v) =>
-                            sn.setSelectedSpeaker(v),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Expanded(
+                            child: DropdownButtonFormField<String>(
+                              decoration: InputDecoration(
+                                labelText: l.synthSpeakerLabel,
+                                helperText: l.synthSpeakerHelper,
+                              ),
+                              initialValue: ss.selectedSpeaker,
+                              items: ss.presetSpeakers
+                                  .map((s) => DropdownMenuItem(
+                                        value: s,
+                                        child: Text(s,
+                                            overflow: TextOverflow.ellipsis),
+                                      ))
+                                  .toList(),
+                              onChanged: (v) => sn.setSelectedSpeaker(v),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          // §9.6 #173 — Preview selected voice
+                          IconButton(
+                            icon: const Icon(Icons.play_circle_outline),
+                            tooltip: l.synthPreviewVoice,
+                            onPressed: ss.selectedSpeaker != null && !ss.busy
+                                ? () => _previewVoice(l.synthPreviewSample)
+                                : null,
+                          ),
+                        ],
                       ),
                     ] else if (ss.nSpeakers > 1) ...[
                       // Integer-indexed speaker picker (melotts, piper, fastpitch).

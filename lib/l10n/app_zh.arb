@@ -584,6 +584,8 @@
 
   "synthSpeakerLabel": "说话人",
   "synthSpeakerHelper": "此声音内置多个说话人 — 请选择一个。",
+  "synthPreviewVoice": "预览声音",
+  "synthPreviewSample": "你好，这是语音预览。",
 
   "advancedVadBackend": "VAD 后端",
   "advancedVadBackendHelper": "Silero 已内置（约 885 KB）。FireRed / MarbleNet / Whisper-VAD 需在模型管理中下载；缺少文件时回退到 Silero。",

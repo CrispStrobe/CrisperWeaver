@@ -813,6 +813,12 @@ List<SessionSegment> drainStreamedSegments({String? libPath}) => const [];
 
 void resetStreamedSegments({String? libPath}) {}
 
+int getStreamedTokenCount({String? libPath}) => 0;
+
+List<String> drainStreamedTokens({String? libPath}) => const [];
+
+void resetStreamedTokens({String? libPath}) {}
+
 List<int> crispasrAgglomerativeCluster(dynamic lib, Float32List embeddings,
     {required int n,
     required int dim,

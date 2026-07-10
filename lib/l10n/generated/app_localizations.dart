@@ -3394,6 +3394,18 @@ abstract class AppLocalizations {
   /// **'This voice has built-in speakers — pick one.'**
   String get synthSpeakerHelper;
 
+  /// No description provided for @synthPreviewVoice.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview voice'**
+  String get synthPreviewVoice;
+
+  /// No description provided for @synthPreviewSample.
+  ///
+  /// In en, this message translates to:
+  /// **'Hello, this is a voice preview.'**
+  String get synthPreviewSample;
+
   /// No description provided for @advancedVadBackend.
   ///
   /// In en, this message translates to:

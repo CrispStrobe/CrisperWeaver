@@ -13,6 +13,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'dart:typed_data';
 
 import 'package:crisper_weaver/engines/crispasr_engine.dart';
+import 'package:crisper_weaver/services/audio_service.dart';
+import 'package:crisper_weaver/services/diarization_service.dart';
 import 'package:crisper_weaver/engines/transcription_engine.dart';
 import 'package:crisper_weaver/native/crispembed_stub.dart';
 import 'package:crisper_weaver/providers/synthesize_screen_provider.dart';
@@ -285,6 +287,22 @@ void main() {
       }
       // Type-level check: these would fail at compile time if missing
       expect(true, isTrue); // compiles = passes
+    });
+  });
+
+  // ---- §9.6 #110 Global diarization ----
+  group('Global-scope diarization (§9.6 #110)', () {
+    test('DiarizationService has diarizeFullAudio method', () {
+      final svc = DiarizationService();
+      expect(svc.diarizeFullAudio, isNotNull);
+    });
+
+    test('diarizeFullAudio returns empty for empty audio', () async {
+      final svc = DiarizationService();
+      final result = await svc.diarizeFullAudio(
+        AudioData(samples: Float32List(0)),
+      );
+      expect(result, isEmpty);
     });
   });
 
