@@ -83,3 +83,8 @@ macos/Runner/Frameworks/libwhisper.dylib
 # Local-only scratch notes for Claude (env-specific; not shared)
 CLAUDE.md
 .vercel
+
+# Android release signing (NEVER commit)
+android/key.properties
+*.jks
+*.keystore

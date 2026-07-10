@@ -67,16 +67,12 @@
 	<!-- Privacy and Permissions -->
 	<key>NSMicrophoneUsageDescription</key>
 	<string>This app needs access to the microphone to record audio for transcription.</string>
-	<key>NSCameraUsageDescription</key>
-	<string>This app may need camera access for certain features.</string>
 	<key>NSDocumentsFolderUsageDescription</key>
 	<string>This app needs access to documents to save and load audio files and transcriptions.</string>
 	<key>NSDownloadsFolderUsageDescription</key>
 	<string>This app needs access to downloads to import audio files for transcription.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>This app needs access to photo library to import media files for transcription.</string>
-	<key>NSContactsUsageDescription</key>
-	<string>This app may access contacts for sharing transcriptions.</string>
 
 	<!-- Required by Flutter for wireless debugging on iOS 14+. The
 	     Dart VM service binds to a local port and is discovered by

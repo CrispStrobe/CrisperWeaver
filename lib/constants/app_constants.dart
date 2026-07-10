@@ -227,7 +227,7 @@ class AppConstants {
   static const String issuesUrl =
       'https://github.com/crisperweaver/flutter-app/issues';
   static const String privacyPolicyUrl =
-      'https://github.com/crisperweaver/flutter-app/blob/main/PRIVACY.md';
+      'https://github.com/CrispStrobe/CrisperWeaver/blob/main/PRIVACY.md';
   static const String licenseUrl =
       'https://github.com/crisperweaver/flutter-app/blob/main/LICENSE';
 
