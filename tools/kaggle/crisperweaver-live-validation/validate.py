@@ -66,7 +66,7 @@ print(f"✓ Built: {CRISPASR_BIN}", flush=True)
 # ── Download models ────────────────────────────────────────────
 print("\n=== Downloading models ===", flush=True)
 
-hf_token = kh.hf_token()
+hf_token = kh.resolve_hf_token()
 if hf_token:
     os.environ["HF_TOKEN"] = hf_token
 
