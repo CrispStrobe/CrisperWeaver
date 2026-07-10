@@ -90,8 +90,8 @@ models = {
     },
     # Translation
     "m2m100": {
-        "repo": "cstr/m2m100-GGUF",
-        "file": "m2m100-418m-q8_0.gguf",
+        "repo": "cstr/m2m100-418m-GGUF",
+        "file": "m2m100-418m-q4_k.gguf",
     },
     # ASR (needed as base for LLM cleanup test)
     "whisper-tiny": {
