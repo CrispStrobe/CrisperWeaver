@@ -614,9 +614,9 @@ live decode pass is run serially afterward (no concurrent GPU thrash).
 - [x] Watermark *detect* live — `test/watermark_live_test.dart` (pure
       DSP, no model: embed→detect margin + threshold). Green. Covers the
       §9.5 orphaned watermark-detect capability.
-- [ ] Local-LLM cleanup/summarize live — `gemma4-e2b-it-q4_k` (2.6 G,
+- [x] Local-LLM cleanup/summarize live — `gemma4-e2b-it-q4_k` (2.6 G,
       heavy; lower priority)
-- [ ] Speech-to-speech live — needs lfm2-audio / mini-omni2 (large;
+- [x] Speech-to-speech live — lfm2-audio-1.5b-q5_k on Kaggle P100 (27.4x RT,
       lower priority)
 
 ### 9.3 Unit-test gaps
