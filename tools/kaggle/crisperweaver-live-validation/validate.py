@@ -55,7 +55,7 @@ cmake_cmd = [
     *cuda_flags, *cache_flags,
 ]
 subprocess.check_call(cmake_cmd)
-kh.build_heartbeat()
+kh.build_heartbeat("crispasr")
 subprocess.check_call(["cmake", "--build", str(build_dir), "-j", str(jobs),
                         "--target", "crispasr-cli"])
 
