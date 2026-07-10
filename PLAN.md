@@ -629,7 +629,7 @@ live decode pass is run serially afterward (no concurrent GPU thrash).
       dep makes any test that imports the engine graph fail to compile
       (multilingual grouping, file_utils generators, server SRT/VTT,
       note_export, etc. are written-able but not runnable until fixed).
-- [ ] Widget tests for the two flagged screens (§8.7): transcription,
+- [x] Widget tests for the two flagged screens (§8.7): transcription,
       synthesize.
 
 ### 9.7 CrispEmbed path dependency — RESOLVED (2026-06-21)
