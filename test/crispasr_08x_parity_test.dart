@@ -300,7 +300,12 @@ void main() {
     test('diarizeFullAudio returns empty for empty audio', () async {
       final svc = DiarizationService();
       final result = await svc.diarizeFullAudio(
-        AudioData(samples: Float32List(0)),
+        AudioData(
+          samples: Float32List(0),
+          sampleRate: 16000,
+          duration: Duration.zero,
+          channels: 1,
+        ),
       );
       expect(result, isEmpty);
     });
