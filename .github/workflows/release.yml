@@ -795,22 +795,15 @@ jobs:
           security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
           security find-identity -v -p codesigning | grep -i "distribution" || echo "WARNING: No Distribution cert"
 
-      - name: Archive (API-key-driven signing)
+      - name: Archive (flutter build ipa)
         if: ${{ env.APPSTORE_API_KEY_P8 != '' }}
         working-directory: repos/CrisperWeaver
-        env:
-          APPSTORE_API_KEY_P8: ${{ secrets.APPSTORE_API_KEY_P8 }}
         run: |
-          PATH="/usr/bin:$PATH" xcodebuild \
-            -workspace ios/Runner.xcworkspace \
-            -scheme Runner \
-            -configuration Release \
-            -archivePath build/ios/archive/Runner.xcarchive \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_9RMU3C7422.p8 \
-            -authenticationKeyID 9RMU3C7422 \
-            -authenticationKeyIssuerID 5f618ba3-98ef-42ad-835c-fbbef6c76cf5 \
-            archive
+          # Use flutter build ipa — sets correct framework search paths.
+          # Will fail at its own export step (no API key) — expected.
+          PATH="/usr/bin:$PATH" flutter build ipa --release \
+            --export-options-plist=ios/ExportOptions.plist || true
+          ls -la build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app/ > /dev/null
 
       - name: Export signed IPA
         if: ${{ env.APPSTORE_API_KEY_P8 != '' }}
