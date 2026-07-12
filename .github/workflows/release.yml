@@ -776,7 +776,7 @@ jobs:
           APPSTORE_API_KEY_P8: ${{ secrets.APPSTORE_API_KEY_P8 }}
         run: |
           mkdir -p ~/.appstoreconnect/private_keys
-          echo "$APPSTORE_API_KEY_P8" | base64 -d > ~/.appstoreconnect/private_keys/AuthKey_9RMU3C7422.p8
+          printf '%s' "$APPSTORE_API_KEY_P8" > ~/.appstoreconnect/private_keys/AuthKey_9RMU3C7422.p8
           chmod 600 ~/.appstoreconnect/private_keys/AuthKey_9RMU3C7422.p8
 
       - name: Archive (API-key-driven signing)
