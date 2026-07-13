@@ -57,7 +57,7 @@ mkdir -p "$LIBDIR"
 # (libapp.so, libflutter_linux_gtk.so, etc.) — those have flutter_,
 # app., or _plugin in their names, never libwhisper / libcrispasr /
 # libggml / lib<backend>.
-rm -f "$LIBDIR"/libwhisper*.so* "$LIBDIR"/libcrispasr*.so* "$LIBDIR"/libggml*.so*
+rm -f "$LIBDIR"/libwhisper*.so* "$LIBDIR"/libcrispasr*.so* "$LIBDIR"/libggml*.so* "$LIBDIR"/libglint.so*
 
 # Core library. CrispASR produces libcrispasr.so.{version} plus
 # symlinks libcrispasr.so and libwhisper.so; pick whichever concrete
@@ -89,6 +89,22 @@ ln -sf libwhisper.so "$LIBDIR/libcrispasr.so.1"
 # Bundle every ggml shared library (incl. version aliases).
 if [[ -d "$GGMLDIR" ]]; then
   find "$GGMLDIR" -name "libggml*.so*" -exec cp -P {} "$LIBDIR/" \;
+fi
+
+# glint codec library (on-device MP3 / AAC-LC / Opus). Self-contained
+# (only libc/libm/libstdc++), so a plain copy into the bundle's lib/ dir
+# resolves it like libwhisper ($ORIGIN/lib is on the rpath). Non-fatal —
+# the app falls back to WAV/ffmpeg at runtime when it's absent.
+GLINT_DIR="${GLINT_DIR:-$(cd "$(dirname "$0")/../.." && pwd)/glint}"
+GLINT_SO=""
+for cand in "$GLINT_DIR/build/libglint.so" "$GLINT_DIR/build-fixed/libglint.so"; do
+  if [[ -f "$cand" ]]; then GLINT_SO="$cand"; break; fi
+done
+if [[ -n "$GLINT_SO" ]]; then
+  cp -L "$GLINT_SO" "$LIBDIR/libglint.so"
+  echo "Bundled libglint from $GLINT_SO"
+else
+  echo "warn: libglint.so not found under $GLINT_DIR; MP3/AAC/Opus codec disabled (app falls back to WAV/ffmpeg)" >&2
 fi
 
 echo "Bundled .so files:"

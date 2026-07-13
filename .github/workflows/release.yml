@@ -35,6 +35,8 @@ env:
   CRISPASR_REF: main
   CRISPEMBED_REPO: CrispStrobe/CrispEmbed
   CRISPEMBED_REF: main
+  GLINT_REPO: CrispStrobe/glint
+  GLINT_REF: main
 
 jobs:
   build-macos:
@@ -69,6 +71,13 @@ jobs:
           path: repos/CrispEmbed
           submodules: recursive
 
+      - name: Check out sibling glint
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ env.GLINT_REPO }}
+          ref: ${{ env.GLINT_REF }}
+          path: repos/glint
+
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -94,6 +103,13 @@ jobs:
           cmake --build build --config Release --parallel 2 --target crispasr-lib
           ls -lh build/src/libwhisper*.dylib
 
+      - name: Build libglint.dylib (codec suite)
+        working-directory: repos/glint
+        run: |
+          cmake -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --config Release --parallel 2 --target glint_shared
+          ls -lh build/libglint.dylib
+
       - name: Pub get
         working-directory: repos/CrisperWeaver
         run: flutter pub get
@@ -116,10 +132,11 @@ jobs:
         working-directory: repos/CrisperWeaver
         run: flutter build macos --release
 
-      - name: Bundle all CrispASR dylibs + ad-hoc sign
+      - name: Bundle all CrispASR + glint dylibs + ad-hoc sign
         working-directory: repos/CrisperWeaver
         run: |
           CRISPASR_DIR="$GITHUB_WORKSPACE/repos/CrispASR" \
+            GLINT_DIR="$GITHUB_WORKSPACE/repos/glint" \
             APP=build/macos/Build/Products/Release/crisper_weaver.app \
             ./scripts/bundle_macos_dylibs.sh
 
@@ -167,6 +184,13 @@ jobs:
           ref: ${{ env.CRISPEMBED_REF }}
           path: repos/CrispEmbed
           submodules: recursive
+
+      - name: Check out sibling glint
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ env.GLINT_REPO }}
+          ref: ${{ env.GLINT_REF }}
+          path: repos/glint
 
       - name: Install Linux desktop toolchain
         run: |
@@ -224,6 +248,13 @@ jobs:
           done
           echo "  ✓ opus + core symbols verified"
 
+      - name: Build libglint.so (codec suite)
+        working-directory: repos/glint
+        run: |
+          cmake -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --config Release --parallel --target glint_shared
+          ls -lh build/libglint.so
+
       - name: Enable Linux desktop + pub get
         working-directory: repos/CrisperWeaver
         run: |
@@ -250,6 +281,8 @@ jobs:
           # Single self-contained shared lib (ggml + all backends linked in)
           cp ../CrispASR/build/src/libcrispasr.so "$BUNDLE/lib/libwhisper.so"
           ln -sf libwhisper.so "$BUNDLE/lib/libcrispasr.so"
+          # glint codec (MP3/AAC/Opus) — self-contained, drop beside libwhisper.
+          cp ../glint/build/libglint.so "$BUNDLE/lib/libglint.so"
           # Bundle libespeak-ng so kokoro can phonemize on machines that
           # don't have espeak-ng pre-installed. CMake links via NEEDED;
           # if the user system doesn't have it, dlopen fails silently
@@ -329,6 +362,13 @@ jobs:
           repository: ${{ env.CRISPEMBED_REPO }}
           ref: ${{ env.CRISPEMBED_REF }}
           path: repos/CrispEmbed
+
+      - name: Check out sibling glint
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ env.GLINT_REPO }}
+          ref: ${{ env.GLINT_REF }}
+          path: repos/glint
 
       - name: Set up JDK 17
         uses: actions/setup-java@v5
@@ -565,6 +605,23 @@ jobs:
           done
           echo "✓ core API symbols present"
 
+      - name: Cross-build libglint.so for Android arm64 (codec suite)
+        working-directory: repos/glint
+        env:
+          NDK_TC: ${{ env.ANDROID_NDK_HOME }}/build/cmake/android.toolchain.cmake
+        run: |
+          # Self-contained clean-room codec (only NEEDs libc++_shared, which
+          # the CrispASR step already stages into jniLibs). GLINT_MODE=fixed
+          # matches glint's own mobile CI (Q31 fixed-point, no FP reliance).
+          cmake -S . -B build-android/arm64-v8a \
+            -DCMAKE_TOOLCHAIN_FILE="$NDK_TC" \
+            -DANDROID_ABI=arm64-v8a \
+            -DANDROID_PLATFORM=android-24 \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DGLINT_MODE=fixed
+          cmake --build build-android/arm64-v8a --parallel --target glint_shared
+          ls -lh build-android/arm64-v8a/libglint.so
+
       - name: Copy native lib into jniLibs/
         working-directory: repos/CrisperWeaver
         run: |
@@ -572,6 +629,9 @@ jobs:
           mkdir -p "$DEST"
           cp ../CrispASR/build-android/arm64-v8a/src/libcrispasr.so "$DEST/libwhisper.so"
           cp "$DEST/libwhisper.so" "$DEST/libcrispasr.so"
+          # glint codec (MP3/AAC/Opus) — self-contained, NEEDs only the
+          # libc++_shared.so staged below.
+          cp ../glint/build-android/arm64-v8a/libglint.so "$DEST/libglint.so"
           # libcrispasr.so is C++ and NEEDs libc++_shared.so — without it
           # the Android loader silently fails DynamicLibrary.open and the
           # Dart side falls back to availableBackends()=[], yielding the
@@ -720,6 +780,13 @@ jobs:
           path: repos/CrispEmbed
           submodules: recursive
 
+      - name: Check out sibling glint
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ env.GLINT_REPO }}
+          ref: ${{ env.GLINT_REF }}
+          path: repos/glint
+
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -746,6 +813,20 @@ jobs:
         run: |
           gem install xcodeproj --no-document
           ruby scripts/wire_ios_xcframework.rb
+
+      # glint codec framework — its Dart loader uses DynamicLibrary.process()
+      # on iOS, so the framework must be LINKED into Runner (the wire script
+      # does that) for glint_* to resolve at runtime.
+      - name: Build glint.xcframework (iOS codec suite)
+        working-directory: repos/CrisperWeaver
+        env:
+          GLINT_DIR: ${{ github.workspace }}/repos/glint
+          IOS_MIN_OS_VERSION: "13.0"
+        run: bash scripts/build_ios_glint_xcframework.sh
+
+      - name: Wire glint.xcframework into Runner.xcodeproj
+        working-directory: repos/CrisperWeaver
+        run: ruby scripts/wire_ios_glint.rb
 
       - name: Pub get
         working-directory: repos/CrisperWeaver
@@ -913,6 +994,13 @@ jobs:
           path: repos/CrispEmbed
           submodules: recursive
 
+      - name: Check out sibling glint
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ env.GLINT_REPO }}
+          ref: ${{ env.GLINT_REF }}
+          path: repos/glint
+
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -1028,6 +1116,14 @@ jobs:
           cmake --build build --config Release --parallel --target crispasr-lib
           Get-ChildItem build -Recurse -Filter *.dll | Select-Object FullName, Length
 
+      - name: Build glint.dll (codec suite)
+        working-directory: repos/glint
+        shell: pwsh
+        run: |
+          cmake -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --config Release --parallel --target glint_shared
+          Get-ChildItem build -Recurse -Filter glint.dll | Select-Object FullName, Length
+
       - name: Enable Windows desktop + pub get
         working-directory: repos/CrisperWeaver
         shell: pwsh
@@ -1050,11 +1146,12 @@ jobs:
         shell: pwsh
         run: flutter build windows --release
 
-      - name: Bundle CrispASR DLLs next to runner.exe
+      - name: Bundle CrispASR + glint DLLs next to runner.exe
         working-directory: repos/CrisperWeaver
         shell: pwsh
         env:
           CRISPASR_DIR: ${{ github.workspace }}\repos\CrispASR
+          GLINT_DIR: ${{ github.workspace }}\repos\glint
           RUNNER_DIR: build\windows\x64\runner\Release
         run: pwsh ./scripts/bundle_windows_dlls.ps1
 

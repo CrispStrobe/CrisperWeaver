@@ -76,6 +76,11 @@ dependencies:
   crispembed:
     path: ../CrispEmbed/flutter/crispembed
 
+  # On-device MP3 / AAC-LC / Opus encode + decode (clean-room codec suite),
+  # so compressed export/import no longer needs an external ffmpeg binary.
+  glint:
+    path: ../glint/bindings/dart
+
   # Utility
   uuid: ^4.3.3
   shared_preferences: ^2.2.2

@@ -92,6 +92,24 @@ foreach ($g in @("ggml", "ggml-cpu", "ggml-base", "ggml-blas")) {
     }
 }
 
+# glint codec DLL (on-device MP3 / AAC-LC / Opus). Self-contained (no
+# extra runtime deps), so just drop it next to the runner exe where the
+# Dart loader's `DynamicLibrary.open('glint.dll')` finds it. Non-fatal —
+# the app falls back to WAV/ffmpeg at runtime when it's absent.
+$glintDir = if ($env:GLINT_DIR) { $env:GLINT_DIR } else { "..\glint" }
+$glintDll = $null
+foreach ($cand in @(
+    "$glintDir\build\Release\glint.dll",
+    "$glintDir\build\glint.dll")) {
+    if (Test-Path $cand) { $glintDll = $cand; break }
+}
+if ($glintDll) {
+    Copy-Item $glintDll "$runnerDir\glint.dll" -Force
+    Write-Host "  bundled glint.dll from $glintDll"
+} else {
+    Write-Host "  warn: glint.dll not found under $glintDir; MP3/AAC/Opus codec disabled (app falls back to WAV/ffmpeg)" -ForegroundColor Yellow
+}
+
 # espeak-ng runtime — kokoro NEEDS libespeak-ng.dll at load time
 # (linked at build via CRISPASR_HAVE_ESPEAK_NG). Without this DLL +
 # espeak-ng-data\ next to runner.exe, kokoro_synthesize returns no

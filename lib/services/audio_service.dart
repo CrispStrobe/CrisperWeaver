@@ -10,6 +10,7 @@ import 'package:path/path.dart' as path;
 import 'package:http/http.dart' as http;
 
 import 'audio_prefetch_service.dart';
+import 'glint_codec_service.dart';
 import 'log_service.dart';
 import 'settings_service.dart';
 
@@ -312,11 +313,41 @@ class AudioService {
           });
     }
 
+    final ext = path.extension(audioFile.path).toLowerCase();
+
+    // On-device glint decode for compressed formats the miniaudio build
+    // may lack (mp3 / aac / opus / ogg) — no external ffmpeg required.
+    // Preferred over the ffmpeg/MediaCodec fallbacks below when the
+    // bundled libglint is present; on failure we fall through to them.
+    if (GlintCodecService.isAvailable &&
+        GlintCodecService.canDecodePath(audioFile.path)) {
+      try {
+        final bytes = await audioFile.readAsBytes();
+        final dec = const GlintCodecService().decodeBytes(bytes);
+        final mono = _downmixToMono(dec.pcm, dec.channels);
+        done(extra: {
+          'via': 'glint',
+          'samples': mono.length,
+          'sr': dec.sampleRate,
+          'format': ext,
+        });
+        return WavData(
+          samples: mono,
+          sampleRate: dec.sampleRate,
+          channels: 1,
+        );
+      } catch (e, st) {
+        Log.instance.w('audio', 'glint decode failed, falling back',
+            error: e,
+            stack: st,
+            fields: {'file': path.basename(audioFile.path), 'format': ext});
+      }
+    }
+
     // FFmpeg fallback for formats miniaudio doesn't handle (opus,
     // webm, m4a/aac). Convert to 16 kHz mono WAV via pipe. Falls
     // through to the Android MediaCodec fallback (on Android) or
     // the Dart WAV parser when ffmpeg isn't installed.
-    final ext = path.extension(audioFile.path).toLowerCase();
     if (const {'.opus', '.webm', '.m4a', '.aac', '.mp4', '.wma'}
         .contains(ext)) {
       try {
@@ -409,6 +440,24 @@ class AudioService {
       {'path': filePath},
     );
     return result;
+  }
+
+  /// Average interleaved [pcm] down to a single channel — the transcription
+  /// pipeline (like `decodeAudioFile`) works in mono. Pass-through when the
+  /// source is already mono.
+  static Float32List _downmixToMono(Float32List pcm, int channels) {
+    if (channels <= 1) return pcm;
+    final frames = pcm.length ~/ channels;
+    final out = Float32List(frames);
+    for (var f = 0; f < frames; f++) {
+      var sum = 0.0;
+      final base = f * channels;
+      for (var c = 0; c < channels; c++) {
+        sum += pcm[base + c];
+      }
+      out[f] = sum / channels;
+    }
+    return out;
   }
 
   /// Basic WAV file processing fallback
