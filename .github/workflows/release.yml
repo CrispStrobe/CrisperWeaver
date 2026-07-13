@@ -219,7 +219,10 @@ jobs:
             -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
             -DCRISPASR_BUILD_EXAMPLES=OFF -DCRISPASR_BUILD_TESTS=OFF \
             -DCRISPASR_OPUS_FETCH=ON
-          cmake --build build --config Release --parallel --target crispasr-lib
+          # --parallel 2 (not unbounded): caps peak RAM so the heavy
+          # CrispASR compile doesn't get OOM-killed (exit 143) on the
+          # runner — same guard the macOS job uses.
+          cmake --build build --config Release --parallel 2 --target crispasr-lib
           cd build
           # -Wl,-rpath,$ORIGIN so libcrispasr.so finds its sibling
           # libespeak-ng.so.1 in <bundle>/lib/ at dlopen time. Without
