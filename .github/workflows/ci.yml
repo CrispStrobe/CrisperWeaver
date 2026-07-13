@@ -227,6 +227,11 @@ jobs:
         working-directory: repos/CrisperWeaver
         env:
           CRISPASR_DIR: ${{ github.workspace }}/repos/CrispASR
+          # Cap parallelism so the heavy CrispASR compile doesn't get
+          # OOM-killed (exit 143) on the runner — same guard the release
+          # workflow's macOS job uses (--parallel 2). Unbounded --parallel
+          # spawns one g++ per core, each eating GBs on the large TUs.
+          JOBS: 2
         run: bash scripts/build_linux.sh debug
 
       - name: Upload Linux bundle
