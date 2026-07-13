@@ -200,10 +200,12 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
     if (result == null) return;
     setState(() => _probing = true);
     try {
-      // When the user picks "auto", fall back to 'whisper' for the
-      // probe pass — the post-download auto-detect in ModelService
-      // will correct the backend from GGUF metadata once the file
-      // lands on disk.
+      // When the user picks "auto", register with a 'whisper' placeholder
+      // for the probe pass. The real backend is recovered from the GGUF
+      // architecture metadata once the file is on disk — both after a
+      // download (ModelService) and again at load time (CrispasrEngine,
+      // which also covers manually-placed files). Users who want to skip
+      // the guesswork can pick a concrete backend from the dropdown.
       final probeBackend =
           result.backend == 'auto' ? 'whisper' : result.backend;
       final added =
@@ -285,21 +287,51 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
     if (removed == true && mounted) await _loadModels();
   }
 
-  /// Returns the runtime CrispASR backend list, plus a hard-coded
-  /// 'whisper' fallback in case availableBackends() throws (e.g. the
-  /// dylib is too old to expose the symbol — pre-0.5.15 builds had a
-  /// 256-byte truncation bug too). The list isn't strict on the
-  /// CrispASR side either — `omniasr-llm-foo` works as long as it
-  /// starts with an advertised prefix.
+  /// Backends this app knows how to route, used to backfill the HF-repo
+  /// dialog dropdown when the native `availableBackends()` underreports.
+  /// Older/mis-bundled dylibs (esp. on Windows, #30) can return an empty
+  /// or whisper-only list even though the linked engine supports far
+  /// more; without this the user can only pick `auto`/`whisper` and a
+  /// non-whisper GGUF (e.g. Cohere ASR) gets force-routed to whisper and
+  /// crashes. The engine still auto-detects the real backend from the
+  /// GGUF at load time — this just lets the user force it explicitly.
+  static const List<String> _knownBackends = [
+    'whisper',
+    'parakeet',
+    'canary',
+    'canary-ctc',
+    'qwen3',
+    'cohere',
+    'granite',
+    'fastconformer-ctc',
+    'voxtral',
+    'voxtral4b',
+    'moonshine',
+    'wav2vec2',
+  ];
+
+  /// Returns the runtime CrispASR backend list unioned with the curated
+  /// [_knownBackends] set, so the dropdown always offers the common
+  /// backends even when the dylib is too old to expose the symbol
+  /// (pre-0.5.15 builds also had a 256-byte truncation bug). The list
+  /// isn't strict on the CrispASR side either — `omniasr-llm-foo` works
+  /// as long as it starts with an advertised prefix.
   List<String> _safeAvailableBackends() {
+    final seen = <String>{};
+    final out = <String>[];
+    void add(String b) {
+      if (b.isNotEmpty && seen.add(b)) out.add(b);
+    }
+
     try {
-      final b = crispasr.CrispasrSession.availableBackends();
-      if (b.isNotEmpty) return b;
+      crispasr.CrispasrSession.availableBackends().forEach(add);
     } catch (e) {
       Log.instance.w('model-mgmt', 'availableBackends() failed, using defaults',
           fields: {'err': e.toString()});
     }
-    return const ['whisper'];
+    // Backfill the curated set so nothing common is ever missing.
+    _knownBackends.forEach(add);
+    return out;
   }
 
   @override
