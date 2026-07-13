@@ -553,6 +553,7 @@ class AdvancedOptions {
     'omniasr-llm-unlimited',
     'moonshine',
     'moss-audio',
+    'moss-diarize',
     'sensevoice',
     'funasr',
     'paraformer',
@@ -573,6 +574,7 @@ class AdvancedOptions {
     'gemma4-e2b',
     'mimo-asr',
     'moss-audio',
+    'moss-diarize',
   };
 
   /// Backends that honour `crispasr_session_set_temperature` per the

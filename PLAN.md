@@ -308,6 +308,20 @@ worktree) → app `ModelDefinition` + `BackendRepo` → drop from guard
 catalogue entry whose backend has no dispatch arm, so catalogue and
 engine can't silently drift.
 
+**G. MOSS-Diarize + MOSS-TTS — DONE (2026-07).**
+Both already compiled into the CrispASR flutter-bundle lib (unconditional
+`add_library` + auto-pulled into crispasr-lib), so this was pure catalog
+wiring: `moss-diarize` (backend `moss-diarize`, repo
+`cstr/MOSS-Transcribe-Diarize-GGUF`) — single-pass ASR + speaker
+diarization + timestamps, surfaces as an ASR model with the Ask +
+source-language fields enabled; and `moss-tts` (backend `moss-tts`, repo
+`cstr/moss-tts-v1.5-GGUF`) — voice-cloning TTS (Qwen3-8B) with the
+`moss-tts-v1.5-codec` companion (loaded via setCodecPath) + a reference
+voice WAV. Added: 3 `ModelDefinition`s, 2 `recommendedDefaultModels`, 2
+`BackendRepo`s, `kindForBackend` tts entry, capability sets, and the
+build-script `BACKEND_TARGETS` for early-error parity. Live download +
+run validation pending (moss-tts is desktop-class: ~5 GB + ~3.4 GB codec).
+
 **F. bidirlm-omni embedding — DONE (§12.3b, §12.8f).**
 `bidirlm-omni-2.5b` wired end-to-end: catalog entry, CrispEmbed
 stub parity (`encodeAudio`, `hasAudio`), `SemanticSearchService`
