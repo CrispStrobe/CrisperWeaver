@@ -114,6 +114,28 @@ if [[ -d "$GGMLDIR" ]]; then
   find "$GGMLDIR" -name "libggml*.dylib" -exec cp -R {} "$FRAMEWORKS/" \;
 fi
 
+# glint codec library (on-device MP3 / AAC-LC / Opus encode + decode).
+# Self-contained (only links system libc++/libSystem) and its install id
+# is already @rpath/libglint.dylib, so a plain copy into Frameworks
+# resolves the same way libcrispasr does. Non-fatal if absent — the app
+# falls back to WAV/ffmpeg at runtime (GlintCodecService.isAvailable
+# gates on whether this loaded). Build it with:
+#   cmake -B build -DCMAKE_BUILD_TYPE=Release ../glint && cmake --build build
+GLINT_DIR="${GLINT_DIR:-$(cd "$(dirname "$0")/../.." && pwd)/glint}"
+GLINT_DYLIB=""
+for cand in \
+  "$GLINT_DIR/build/libglint.dylib" \
+  "$GLINT_DIR/build-fixed/libglint.dylib"; do
+  if [[ -f "$cand" ]]; then GLINT_DYLIB="$cand"; break; fi
+done
+if [[ -n "$GLINT_DYLIB" ]]; then
+  cp -L "$GLINT_DYLIB" "$FRAMEWORKS/libglint.dylib"
+  install_name_tool -id @rpath/libglint.dylib "$FRAMEWORKS/libglint.dylib" 2>/dev/null || true
+  echo "Bundled libglint from $GLINT_DYLIB"
+else
+  echo "warn: libglint.dylib not found under $GLINT_DIR; MP3/AAC/Opus codec disabled (app falls back to WAV/ffmpeg)" >&2
+fi
+
 # espeak-ng-data — kokoro's in-process libespeak-ng needs the phoneme
 # tables at runtime. Without it, espeak_Initialize silently fails and
 # kokoro_synthesize returns no PCM (#6 root cause on platforms that

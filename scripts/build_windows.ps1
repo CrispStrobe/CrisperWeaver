@@ -110,6 +110,22 @@ Write-Host "==> link whisper.dll"
 if ($LASTEXITCODE -ne 0) { throw "crispasr (whisper.dll) link failed (exit $LASTEXITCODE)" }
 
 # ---------------------------------------------------------------------------
+# Step 2c: build the glint codec DLL (glint.dll) for on-device
+# MP3 / AAC-LC / Opus. Self-contained, so a plain Release build suffices.
+# Non-fatal: without it the app falls back to WAV/ffmpeg.
+# ---------------------------------------------------------------------------
+$glintDir = if ($env:GLINT_DIR) { (Resolve-Path $env:GLINT_DIR).Path } else { (Join-Path (Split-Path $repoRoot -Parent) "glint") }
+if (Test-Path $glintDir) {
+    Write-Host "==> build glint.dll"
+    $glintBuild = Join-Path $glintDir "build"
+    & cmake -S $glintDir -B $glintBuild -DCMAKE_BUILD_TYPE=Release | Out-Null
+    & cmake --build $glintBuild --config Release --parallel --target glint_shared
+    if ($LASTEXITCODE -ne 0) { Write-Host "  warn: glint build failed; app falls back to WAV/ffmpeg" -ForegroundColor Yellow }
+} else {
+    Write-Host "  warn: sibling glint repo not at $glintDir — skipping codec DLL" -ForegroundColor Yellow
+}
+
+# ---------------------------------------------------------------------------
 # Step 3: flutter build
 # ---------------------------------------------------------------------------
 Push-Location $repoRoot
@@ -134,6 +150,7 @@ try {
     $env:CRISPASR_DIR          = $crispasrDir
     $env:CRISPASR_BUILD_SUBDIR = $crispasrBuildSubdir
     $env:RUNNER_DIR            = $runnerDir
+    $env:GLINT_DIR             = $glintDir
     & "$repoRoot\scripts\bundle_windows_dlls.ps1"
     if ($LASTEXITCODE -ne 0) { throw "DLL bundling failed (exit $LASTEXITCODE)" }
 

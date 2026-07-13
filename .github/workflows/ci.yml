@@ -20,6 +20,9 @@ env:
   # CrispEmbed — on-device embeddings. pubspec path: `../CrispEmbed/flutter/crispembed`.
   CRISPEMBED_REPO: CrispStrobe/CrispEmbed
   CRISPEMBED_REF: main
+  # glint — MP3/AAC/Opus codec suite. pubspec path: `../glint/bindings/dart`.
+  GLINT_REPO: CrispStrobe/glint
+  GLINT_REF: main
 
 jobs:
   analyze-and-test:
@@ -49,6 +52,13 @@ jobs:
           repository: ${{ env.CRISPEMBED_REPO }}
           ref: ${{ env.CRISPEMBED_REF }}
           path: repos/CrispEmbed
+
+      - name: Check out sibling glint (Dart FFI package)
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ env.GLINT_REPO }}
+          ref: ${{ env.GLINT_REF }}
+          path: repos/glint
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -106,6 +116,13 @@ jobs:
           repository: ${{ env.CRISPEMBED_REPO }}
           ref: ${{ env.CRISPEMBED_REF }}
           path: repos/CrispEmbed
+
+      - name: Check out sibling glint
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ env.GLINT_REPO }}
+          ref: ${{ env.GLINT_REF }}
+          path: repos/glint
           submodules: recursive
 
       - name: Set up Flutter
@@ -167,6 +184,13 @@ jobs:
           repository: ${{ env.CRISPEMBED_REPO }}
           ref: ${{ env.CRISPEMBED_REF }}
           path: repos/CrispEmbed
+
+      - name: Check out sibling glint
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ env.GLINT_REPO }}
+          ref: ${{ env.GLINT_REF }}
+          path: repos/glint
           submodules: recursive
 
       - name: Install Linux desktop toolchain

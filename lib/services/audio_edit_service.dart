@@ -39,6 +39,7 @@ import 'dart:typed_data';
 import '../native/crispasr_import.dart' as crispasr;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'glint_codec_service.dart';
 import 'log_service.dart';
 
 /// One contiguous removal range in [cut] — both bounds in
@@ -130,6 +131,41 @@ class AudioEditService {
         ? src.samples
         : Float32List.sublistView(src.samples, lo, hi);
     return _writeWav(destinationPath, slice, src.sampleRate);
+  }
+
+  /// Export the decoded source — optionally just the `[startSec, endSec)`
+  /// slice — as a compressed MP3 / AAC-LC / Opus file via the bundled
+  /// libglint (no external ffmpeg). glint auto-resamples to a codec-valid
+  /// rate. Throws [StateError] when the codec is unavailable, so callers
+  /// should offer this only when [GlintCodecService.isAvailable] and fall
+  /// back to [trim]/[_writeWav] (WAV) otherwise.
+  Future<File> exportEncoded({
+    required String sourcePath,
+    required GlintFormat format,
+    required String destinationPath,
+    double? startSec,
+    double? endSec,
+    int bitrateKbps = 128,
+  }) async {
+    final src = await decode(sourcePath);
+    var samples = src.samples;
+    if (startSec != null || endSec != null) {
+      final i0 = src.secondsToSample(startSec ?? 0);
+      final i1 = src.secondsToSample(endSec ?? src.durationSec);
+      final lo = i0 < i1 ? i0 : i1;
+      final hi = i1 > i0 ? i1 : i0;
+      if (!(lo == 0 && hi == src.samples.length)) {
+        samples = Float32List.sublistView(src.samples, lo, hi);
+      }
+    }
+    return const GlintCodecService().encodePcmToFile(
+      samples,
+      channels: 1, // decode() yields mono
+      sampleRate: src.sampleRate,
+      format: format,
+      destinationPath: destinationPath,
+      bitrateKbps: bitrateKbps,
+    );
   }
 
   /// §5.1.5 — emit `source` minus every region in `regions` as

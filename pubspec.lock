@@ -191,14 +191,14 @@ packages:
       path: "../CrispASR/flutter/crispasr"
       relative: true
     source: path
-    version: "0.8.6"
+    version: "0.8.10"
   crispembed:
     dependency: "direct main"
     description:
       path: "../CrispEmbed/flutter/crispembed"
       relative: true
     source: path
-    version: "0.13.0"
+    version: "0.14.0"
   cross_file:
     dependency: transitive
     description:
@@ -413,6 +413,13 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "9.2.1"
+  glint:
+    dependency: "direct main"
+    description:
+      path: "../glint/bindings/dart"
+      relative: true
+    source: path
+    version: "0.1.0"
   glob:
     dependency: transitive
     description:

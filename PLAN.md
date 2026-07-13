@@ -126,6 +126,8 @@ The same unified dispatcher is shared with the Python (`crispasr.Session`) and R
 | Inbound share (audio → app)                | ✅ Android intent filters, iOS doc types, macOS UTI open-in           |
 | Desktop drag-and-drop                      | ✅ `desktop_drop` on transcription screen                             |
 | Audio decoding (WAV / MP3 / FLAC)          | ✅ `crispasr_audio_load` FFI via miniaudio — no ffmpeg dep            |
+| Compressed decode (MP3 / AAC / Opus)       | ✅ on-device via bundled `libglint` (§5.1.11) — tried before the ffmpeg/MediaCodec fallbacks, graceful WAV fallback when absent |
+| Compressed export (MP3 / AAC / Opus)       | ✅ `GlintCodecService` / `AudioEditService.exportEncoded` via `libglint` — no external ffmpeg (§5.1.11) |
 | Word-level timestamps (Whisper)            | ✅ via CrispASR 0.2.0                                                 |
 | Language auto-detect (Whisper)             | ✅ via CrispASR 0.2.0 `crispasr_detect_language`                      |
 | VAD (Silero) — end to end                  | ✅ shipped in v0.1.7 via CrispASR 0.4.4 `crispasr_session_transcribe_vad`; single Advanced Options toggle, Silero GGUF bundled as asset, whisper + session paths both wired |
@@ -163,6 +165,38 @@ Most of §5.1 is shipped — full write-ups in
   held everywhere else — would need a Dart-side ffmpeg-kit
   wrapper or a pure-Dart muxer to fit. Deferred until either
   exists.
+
+#### 5.1.11 On-device compressed codec via glint — ✅ shipped
+
+The sibling **glint** repo (`../glint`, MIT, clean-room, dependency-free)
+is bundled as `libglint` so the app encodes/decodes **MP3 / AAC-LC /
+Opus** on-device without an external ffmpeg binary — closing the
+long-standing "WAV-only export, ffmpeg-punt decode" gap.
+
+- **Dart layer:** `lib/native/glint_native{,_stub,_import}.dart` (the same
+  conditional-import pattern as `vad_native`; web → stub) →
+  `GlintCodecService` (`isAvailable`, `encodePcm[ToFile]`, `decodeBytes`,
+  `canDecodePath`). `dart:ffi` stays inside the wrapper so web still
+  compiles.
+- **Decode:** `AudioService` tries glint for `.mp3/.aac/.opus/.ogg`
+  *before* the ffmpeg + Android-MediaCodec fallbacks; any failure falls
+  through unchanged.
+- **Encode:** `AudioEditService.exportEncoded(...)` writes a compressed
+  file (optionally a `[startSec,endSec)` slice); WAV output paths are
+  untouched.
+- **Native bundling:** `libglint.{dylib,so,dll}` / `glint.xcframework`
+  built + shipped per platform by `scripts/build_{macos,linux,windows}.sh`,
+  the `bundle_*` scripts, and `scripts/build_ios_glint_xcframework.sh` +
+  `wire_ios_glint.rb`. Release CI (`.github/workflows/release.yml`) checks
+  out `../glint` and rebuilds the lib fresh for all five platforms,
+  mirroring the CrispASR steps. Everything degrades gracefully — when the
+  lib isn't present, `isAvailable` is false and callers keep the WAV path.
+- iOS uses `DynamicLibrary.process()`, so the framework is *linked* into
+  Runner (wire script) rather than dlopen'd by name.
+
+Verified end-to-end on macOS: MP3 + Opus encode→decode round-trips against
+the real `libglint.dylib` (`test/glint_codec_test.dart`). Other platforms
+build in CI.
 
 #### Tier D — skip / wait for demand
 

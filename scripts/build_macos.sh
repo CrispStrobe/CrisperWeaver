@@ -160,6 +160,30 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# Step 2c: build the glint codec library (libglint.dylib) for the app's
+# on-device MP3 / AAC-LC / Opus encode + decode. glint is self-contained
+# (no external deps), so a plain Release cmake build is all it needs.
+# Non-fatal: without it the app falls back to WAV/ffmpeg.
+# ---------------------------------------------------------------------------
+GLINT_DIR="${GLINT_DIR:-$(cd "$REPO_ROOT/.." && pwd)/glint}"
+if [[ -d "$GLINT_DIR" ]]; then
+  echo "==> build libglint.dylib"
+  GLINT_BUILD="$GLINT_DIR/build"
+  if [[ $REBUILD_CMAKE == 1 || ! -f "$GLINT_BUILD/CMakeCache.txt" ]]; then
+    cmake -S "$GLINT_DIR" -B "$GLINT_BUILD" -DCMAKE_BUILD_TYPE=Release >/dev/null
+  fi
+  cmake --build "$GLINT_BUILD" $JOBS_FLAG --target glint_shared 2>&1 \
+    | grep -E "(Built target|Linking|error:|Error)" || true
+  if [[ -f "$GLINT_BUILD/libglint.dylib" ]]; then
+    echo "  ✓ libglint.dylib built"
+  else
+    echo "  ⚠ libglint.dylib not produced; app falls back to WAV/ffmpeg" >&2
+  fi
+else
+  echo "warn: sibling glint repo not at $GLINT_DIR — skipping codec lib (app falls back to WAV/ffmpeg)" >&2
+fi
+
+# ---------------------------------------------------------------------------
 # Step 3: flutter build
 # ---------------------------------------------------------------------------
 cd "$REPO_ROOT"
@@ -185,6 +209,7 @@ fi
 # ---------------------------------------------------------------------------
 echo "==> bundle dylibs"
 CRISPASR_DIR="$CRISPASR_DIR" CRISPASR_BUILD_SUBDIR="$CRISPASR_BUILD_SUBDIR" \
+  GLINT_DIR="$GLINT_DIR" \
   "$REPO_ROOT/scripts/bundle_macos_dylibs.sh" "$APP"
 
 echo
