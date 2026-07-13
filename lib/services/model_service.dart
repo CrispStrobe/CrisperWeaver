@@ -231,6 +231,21 @@ class ModelService {
         BakedCatalogLoader.cached[name];
   }
 
+  /// Persist a backend correction for [name] into the runtime overlay so
+  /// the rest of the app (capability gating, list filters, reloads) sees
+  /// the real backend rather than a placeholder. Used when the on-disk
+  /// GGUF's architecture metadata resolves a concrete backend for an
+  /// `auto`-probed / mislabelled entry (#30). No-op when the definition
+  /// is unknown or already carries [backend].
+  void overrideBackend(String name, String backend) {
+    if (backend.isEmpty) return;
+    final def = lookupDefinition(name);
+    if (def == null || def.backend == backend) return;
+    _discoveredModels[name] = def.copyWith(backend: backend);
+    Log.instance.i('model', 'backend override from GGUF metadata',
+        fields: {'model': name, 'from': def.backend, 'to': backend});
+  }
+
   /// PLAN §5.4 — the recommended "start here" model for [backend], or
   /// `null` when the backend has no curated default (companions,
   /// post-processors, etc.). Resolves the [ModelCatalog.recommendedDefaultModels]

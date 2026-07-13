@@ -72,6 +72,40 @@ void main() {
     });
   });
 
+  group('overrideBackend (#30)', () {
+    test('rewrites the backend so subsequent lookups see the real one', () {
+      // A whisper-typed baseline exists in the catalog under 'tiny'.
+      final before = svc.lookupDefinition('tiny');
+      expect(before!.backend, 'whisper');
+      svc.overrideBackend('tiny', 'cohere');
+      final after = svc.lookupDefinition('tiny');
+      expect(after!.backend, 'cohere',
+          reason: 'GGUF-detected backend must shadow the catalog default');
+      // Every other field is preserved (copyWith semantics).
+      expect(after.fileName, before.fileName);
+      expect(after.url, before.url);
+    });
+
+    test('is a no-op for an unknown model', () {
+      svc.overrideBackend('nonexistent-model-xyz', 'cohere');
+      expect(svc.lookupDefinition('nonexistent-model-xyz'), isNull);
+    });
+
+    test('is a no-op when the backend already matches', () {
+      final before = svc.lookupDefinition('tiny');
+      svc.overrideBackend('tiny', 'whisper');
+      final after = svc.lookupDefinition('tiny');
+      expect(after!.backend, 'whisper');
+      // Unchanged catalog entry — same const instance, not a fresh copy.
+      expect(identical(before, after), isTrue);
+    });
+
+    test('ignores an empty backend string', () {
+      svc.overrideBackend('tiny', '');
+      expect(svc.lookupDefinition('tiny')!.backend, 'whisper');
+    });
+  });
+
   group('defaultForBackend', () {
     test('returns a definition for backends with a recommended default', () {
       for (final entry in ModelCatalog.recommendedDefaultModels.entries) {

@@ -310,28 +310,26 @@ class CrispASREngine implements TranscriptionEngine {
       return true;
     }
 
-    final def = _modelService!.lookupDefinition(modelId);
-    if (def == null) {
+    final lookedUp = _modelService!.lookupDefinition(modelId);
+    if (lookedUp == null) {
       throw ModelLoadException(
         'Model definition not found for $modelId',
         engineId,
         modelId,
       );
     }
+    // Mutable so the #30 GGUF-metadata backend correction below can
+    // replace it in place; all downstream uses read the resolved value.
+    var def = lookedUp;
 
-    // Check if the backend is available in the bundled dylib.
+    // Backends linked into the bundled dylib. Empty means the build is
+    // too old to expose `crispasr_session_available_backends` (or the
+    // lib failed to open) — treat that as "unknown", not "nothing
+    // linked", and skip the front-door gate below rather than rejecting
+    // every model (#30).
     final available = crispasr.CrispasrSession.availableBackends();
     Log.instance.d('crispasr',
         'Available backends in libwhisper: ${available.join(", ")}');
-    if (!available.contains(def.backend)) {
-      throw ModelLoadException(
-        'Model uses the ${def.backend} backend. The bundled libwhisper '
-        'was built with {${available.join(", ")}}. Rebuild CrispASR '
-        'with the ${def.backend} backend linked in.',
-        engineId,
-        modelId,
-      );
-    }
 
     onProgress?.call(0.05);
 
@@ -365,6 +363,52 @@ class CrispASREngine implements TranscriptionEngine {
     if (!await File(modelPath).exists()) {
       throw ModelLoadException(
         'Model file missing on disk: $modelPath',
+        engineId,
+        modelId,
+      );
+    }
+
+    // #30 — `auto`-probed and mislabelled GGUFs carry a placeholder
+    // backend chosen before the file was on disk (the HF-repo dialog
+    // falls back to `whisper` for the probe pass, and the corrective
+    // auto-detect only ran on *download* — never for files already
+    // present). Now that the GGUF is on disk, read its architecture
+    // metadata to recover the real backend so e.g. a Cohere ASR model
+    // isn't force-loaded through the whisper pipeline and crash. Only
+    // kicks in when the stored backend is `auto`/empty or isn't linked
+    // into this dylib — a correctly-tagged, runnable model is untouched.
+    if (modelPath.endsWith('.gguf') &&
+        (def.backend.isEmpty ||
+            def.backend == 'auto' ||
+            !available.contains(def.backend))) {
+      try {
+        final detected = crispasr.detectBackendFromGguf(modelPath);
+        if (detected != null &&
+            detected.isNotEmpty &&
+            detected != def.backend) {
+          Log.instance.i(
+              'crispasr',
+              'auto-detected backend "$detected" from GGUF for $modelId '
+              '(was "${def.backend}")');
+          _modelService!.overrideBackend(modelId, detected);
+          def = def.copyWith(backend: detected);
+        }
+      } catch (e, st) {
+        Log.instance.w('crispasr',
+            'detectBackendFromGguf failed — using stored backend',
+            error: e, stack: st);
+      }
+    }
+
+    // Front-door backend gate — enforced only when the dylib actually
+    // reported its linked backends. An empty list is "unknown" (see
+    // above), so we let the session open surface the real native error
+    // rather than pre-emptively rejecting a model that may well load.
+    if (available.isNotEmpty && !available.contains(def.backend)) {
+      throw ModelLoadException(
+        'Model uses the ${def.backend} backend. The bundled libwhisper '
+        'was built with {${available.join(", ")}}. Rebuild CrispASR '
+        'with the ${def.backend} backend linked in.',
         engineId,
         modelId,
       );
