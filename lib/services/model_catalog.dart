@@ -1865,6 +1865,56 @@ abstract final class ModelCatalog {
       quantization: 'q4_k',
       backend: 'moss-transcribe',
     ),
+    // MOSS-Transcribe-Diarize 0.9B — joint ASR + native speaker
+    // diarization + timestamps in one model (Whisper enc + Qwen3-0.6B dec).
+    // Surfaces as an ASR model; speaker labels come back inline.
+    'moss-transcribe-diarize-0.9b-q4_k': ModelDefinition(
+      name: 'moss-transcribe-diarize-0.9b-q4_k',
+      displayName: 'MOSS-Diarize 0.9B (q4_k)',
+      fileName: 'moss-transcribe-diarize-0.9b-q4_k.gguf',
+      url:
+          'https://huggingface.co/cstr/MOSS-Transcribe-Diarize-GGUF/resolve/main/moss-transcribe-diarize-0.9b-q4_k.gguf',
+      sizeBytes: 1200 * 1024 * 1024,
+      checksum: '',
+      description:
+          'MOSS-Transcribe-Diarize 0.9B — single-pass ASR + speaker '
+          'diarization + timestamps (Whisper enc + Qwen3-0.6B dec), ~1.2 GB',
+      quantization: 'q4_k',
+      backend: 'moss-diarize',
+    ),
+    // MOSS-TTS v1.5 — Qwen3-8B backbone + 32-RVQ codec, voice cloning from
+    // a reference WAV (no preset voicepack). Desktop-class (~5 GB backbone
+    // + ~3.4 GB codec). Needs the codec GGUF via setCodecPath (companion).
+    'moss-tts-v1.5-q4_k': ModelDefinition(
+      name: 'moss-tts-v1.5-q4_k',
+      displayName: 'MOSS-TTS v1.5 (q4_k)',
+      fileName: 'moss-tts-v1.5-q4_k.gguf',
+      url:
+          'https://huggingface.co/cstr/moss-tts-v1.5-GGUF/resolve/main/moss-tts-v1.5-q4_k.gguf',
+      sizeBytes: 5 * 1024 * 1024 * 1024,
+      checksum: '',
+      description:
+          'MOSS-TTS v1.5 — voice-cloning TTS (Qwen3-8B backbone); needs the '
+          'moss-tts-v1.5-codec GGUF + a reference voice WAV. ~5 GB',
+      quantization: 'q4_k',
+      backend: 'moss-tts',
+      kind: ModelKind.tts,
+      companions: ['moss-tts-v1.5-codec'],
+      requiresVoice: true,
+    ),
+    'moss-tts-v1.5-codec': ModelDefinition(
+      name: 'moss-tts-v1.5-codec',
+      displayName: 'MOSS-TTS v1.5 codec',
+      fileName: 'moss-tts-v1.5-codec.gguf',
+      url:
+          'https://huggingface.co/cstr/moss-tts-v1.5-GGUF/resolve/main/moss-tts-v1.5-codec.gguf',
+      sizeBytes: 3400 * 1024 * 1024,
+      checksum: '',
+      description: 'MOSS-TTS v1.5 RVQ codec (load via setCodecPath)',
+      quantization: 'f16',
+      backend: 'moss-tts',
+      kind: ModelKind.codec,
+    ),
     // Higgs-Audio-v3-STT — bosonai Whisper-large-v3 encoder + Qwen3-1.7B
     // decoder. Internal chunking, beam search, --ask prompt. ~2.3 GB Q4_K.
     'higgs-stt-q4_k': ModelDefinition(
@@ -3759,6 +3809,7 @@ abstract final class ModelCatalog {
     'canary-ctc-aligner': 'canary-ctc-aligner-q4_k',
     'moss-audio': 'moss-audio-4b-instruct-q4_k',
     'moss-transcribe': 'moss-transcribe-preview-2b-q4_k',
+    'moss-diarize': 'moss-transcribe-diarize-0.9b-q4_k',
     'higgs-stt': 'higgs-stt-q4_k',
     'ark-asr': 'ark-asr-3b-q4_k',
     // gemma4-e4b, reazonspeech, parakeet-ctc-1.1b-ja share backends
@@ -3772,6 +3823,7 @@ abstract final class ModelCatalog {
     'kokoro': 'kokoro-82m-q8_0',
     'vibevoice-tts': 'vibevoice-realtime-0.5b-tts-f16',
     'qwen3-tts': 'qwen3-tts-12hz-0.6b-base-q8_0',
+    'moss-tts': 'moss-tts-v1.5-q4_k',
     'orpheus': 'orpheus-3b-base-q8_0',
     'voxcpm2-tts': 'voxcpm2-q4_k',
     'piper': 'piper-en-cori',
@@ -4443,6 +4495,24 @@ abstract final class ModelCatalog {
       baseName: 'moss-transcribe-preview-2b',
       displayPrefix: 'MOSS-Transcribe 2B',
       description: 'ASR with native punctuation + streaming (Qwen3-Omni)',
+      defaultLanguages: langsAll,
+    ),
+    'moss-diarize': BackendRepo(
+      backend: 'moss-diarize',
+      repoId: 'cstr/MOSS-Transcribe-Diarize-GGUF',
+      baseName: 'moss-transcribe-diarize-0.9b',
+      displayPrefix: 'MOSS-Diarize 0.9B',
+      description: 'Single-pass ASR + speaker diarization + timestamps',
+      defaultLanguages: langsAll,
+    ),
+    'moss-tts': BackendRepo(
+      backend: 'moss-tts',
+      repoId: 'cstr/moss-tts-v1.5-GGUF',
+      baseName: 'moss-tts-v1.5',
+      displayPrefix: 'MOSS-TTS v1.5',
+      description: 'Voice-cloning TTS (Qwen3-8B) — needs the moss-tts-v1.5-codec',
+      kind: ModelKind.tts,
+      defaultCompanions: ['moss-tts-v1.5-codec'],
       defaultLanguages: langsAll,
     ),
     // Higgs-Audio-v3-STT — Whisper-v3 enc + Qwen3-1.7B dec.
@@ -5239,6 +5309,7 @@ abstract final class ModelCatalog {
       'indextts',
       'f5-tts',
       'dots-tts',
+      'moss-tts',
     };
     const punc = {'firered-punc', 'fullstop-punc'};
     const diarize = {'pyannote'};
