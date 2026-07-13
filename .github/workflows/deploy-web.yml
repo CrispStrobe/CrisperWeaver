@@ -33,9 +33,11 @@ jobs:
       CRISPASR_REF: main
       CRISPEMBED_REPO: CrispStrobe/CrispEmbed
       CRISPEMBED_REF: main
+      GLINT_REPO: CrispStrobe/glint
+      GLINT_REF: main
 
     steps:
-      # -- Checkout repos (pubspec references ../CrispASR, ../CrispEmbed) --
+      # -- Checkout repos (pubspec references ../CrispASR, ../CrispEmbed, ../glint) --
       - name: Check out CrisperWeaver
         uses: actions/checkout@v5
         with:
@@ -54,6 +56,13 @@ jobs:
           repository: ${{ env.CRISPEMBED_REPO }}
           ref: ${{ env.CRISPEMBED_REF }}
           path: repos/CrispEmbed
+
+      - name: Check out sibling glint (Dart FFI package)
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ env.GLINT_REPO }}
+          ref: ${{ env.GLINT_REF }}
+          path: repos/glint
 
       # -- Flutter SDK -----------------------------------------------------
       - name: Set up Flutter
