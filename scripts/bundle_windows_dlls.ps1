@@ -162,22 +162,20 @@ if ($dumpbinPath) {
     $deps = & $dumpbinPath /dependents "$runnerDir\crispasr.dll" 2>$null |
         Select-String -Pattern '^\s{2,}([A-Za-z0-9_.\-]+\.dll)\s*$' |
         ForEach-Object { $_.Matches[0].Groups[1].Value }
-    # DLLs provided by Windows itself or the VC++ redistributable — not our
-    # job to bundle. Matched case-insensitively as prefixes.
-    $systemPrefixes = @('kernel32','advapi32','ole32','shell32','user32',
-        'gdi32','ws2_32','bcrypt','crypt32','msvcp140','vcruntime140',
-        'vcomp140','concrt140','api-ms-','ext-ms-','ucrtbase','ntdll',
-        'winmm','oleaut32','shlwapi','dbghelp','secur32','rpcrt4','iphlpapi',
-        'userenv','psapi','powrprof','dwmapi','setupapi','cfgmgr32','d3d11',
-        'dxgi','mfplat','mf.dll','mfreadwrite','avrt','ksuser','dnsapi')
+    # A dependency is fine if it's bundled next to the exe OR provided by
+    # Windows itself (present in System32/SysWOW64) OR an API-set stub
+    # (api-ms-*/ext-ms-*, virtual, resolved by the loader). Anything else
+    # is a genuinely-missing DLL that would cause error 126 on a user's
+    # machine. Checking System32 directly avoids a brittle hand-maintained
+    # system-DLL allowlist (which false-flagged WINHTTP.dll).
     $missing = @()
     foreach ($d in $deps) {
-        $isSystem = $false
-        foreach ($p in $systemPrefixes) {
-            if ($d.ToLower().StartsWith($p.ToLower())) { $isSystem = $true; break }
-        }
-        if ($isSystem) { continue }
-        if (-not (Test-Path (Join-Path $runnerDir $d))) { $missing += $d }
+        $dl = $d.ToLower()
+        if ($dl.StartsWith('api-ms-') -or $dl.StartsWith('ext-ms-')) { continue }
+        if (Test-Path (Join-Path $runnerDir $d)) { continue }
+        if (Test-Path (Join-Path "$env:SystemRoot\System32" $d)) { continue }
+        if (Test-Path (Join-Path "$env:SystemRoot\SysWOW64" $d)) { continue }
+        $missing += $d
     }
     if ($missing.Count -gt 0) {
         Write-Host "::error::crispasr.dll imports DLL(s) missing from the bundle: $($missing -join ', ') — these cause Windows error 126 (can't load crispasr.dll) on user machines. Add them to this script's copy list."
