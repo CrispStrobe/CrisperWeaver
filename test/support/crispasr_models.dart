@@ -26,9 +26,14 @@ import 'dart:io';
 const Map<String, String> _modelFiles = {
   // ASR
   'whisper_tiny': 'ggml-tiny.bin',
+  // #30 repro — the Cohere Arabic ASR GGUF that mis-routed to whisper.
+  // Lives under the `crispasr-gguf` models dir; self-skips elsewhere.
+  'cohere_arabic': 'cohere-transcribe-arabic-q4_k.gguf',
   'moonshine_tiny': 'moonshine-tiny-q4_k.gguf',
   'sensevoice': 'sensevoice-small-q4_k.gguf',
   'parakeet_110m': 'parakeet-tdt_ctc-110m-q4_k.gguf',
+  // v0.8.10 backend catch-up — NVIDIA Nemotron 3.5 streaming ASR.
+  'nemotron': 'nemotron-3.5-asr-streaming-0.6b-q4_k.gguf',
   'fastconformer_ctc': 'stt-en-fastconformer-ctc-large-q4_k.gguf',
   'wav2vec2': 'wav2vec2-xlsr-en-q4_k.gguf',
   'paraformer_zh': 'paraformer-zh-q4_k.gguf',
