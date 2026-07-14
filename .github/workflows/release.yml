@@ -85,18 +85,17 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Install espeak-ng (kokoro phonemizer)
-        # CMake links libespeak-ng into kokoro when Homebrew has it
-        # available (find_path scans /opt/homebrew/include). Without
-        # this, kokoro_synthesize falls back to popen("espeak-ng") at
-        # runtime — broken on a clean .app handed to a user.
-        run: brew install espeak-ng
-
       - name: Build libwhisper.dylib (Release + Metal)
         working-directory: repos/CrispASR
         run: |
+          # WITH_ESPEAK_NG=AUTO → kokoro/piper dlopen espeak at runtime (not
+          # linked), so libwhisper.dylib carries no espeak dependency and the
+          # .app ships GPL-free (App-Store-safe). We deliberately do NOT
+          # `brew install espeak-ng` so CMake can't find + link it. Built-in
+          # G2P covers EN/DE/FR/ES; a user can add their own libespeak-ng.
           cmake -B build -DCMAKE_BUILD_TYPE=Release \
             -DBUILD_SHARED_LIBS=ON -DWHISPER_METAL=ON \
+            -DCRISPASR_WITH_ESPEAK_NG=AUTO \
             -DCRISPASR_OPUS_FETCH=ON
           # --parallel 2 (not unbounded): caps peak RAM so the heavier
           # CrispASR build doesn't get OOM-killed on the 7 GB M1 runner.
@@ -218,26 +217,24 @@ jobs:
             -DBUILD_SHARED_LIBS=OFF \
             -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
             -DCRISPASR_BUILD_EXAMPLES=OFF -DCRISPASR_BUILD_TESTS=OFF \
-            -DCRISPASR_OPUS_FETCH=ON
+            -DCRISPASR_OPUS_FETCH=ON \
+            -DCRISPASR_WITH_ESPEAK_NG=AUTO
           # --parallel 2 (not unbounded): caps peak RAM so the heavy
           # CrispASR compile doesn't get OOM-killed (exit 143) on the
           # runner — same guard the macOS job uses.
           cmake --build build --config Release --parallel 2 --target crispasr-lib
           cd build
-          # -Wl,-rpath,$ORIGIN so libcrispasr.so finds its sibling
-          # libespeak-ng.so.1 in <bundle>/lib/ at dlopen time. Without
-          # this, the NEEDED entry from -lespeak-ng resolves against
-          # the system loader only — fine on dev machines with apt
-          # espeak-ng installed, broken on a vanilla Linux user who
-          # just untars our release.
+          # WITH_ESPEAK_NG=AUTO → kokoro/piper dlopen espeak at runtime (not
+          # linked), so libcrispasr.so carries no espeak NEEDED entry and the
+          # app ships GPL-free. $ORIGIN rpath is still handy so a user who
+          # drops their own libespeak-ng.so into <bundle>/lib/ gets picked up.
           gcc -shared -o src/libcrispasr.so \
             -Wl,-rpath,'$ORIGIN' \
             -Wl,--whole-archive \
             src/libcrispasr.a \
             $(find . -name "lib*.a" ! -name "libcrispasr.a" ! -name "libCatch*" ! -name "libcommon*" -printf "%p ") \
             -Wl,--no-whole-archive \
-            -lstdc++ -lm -lpthread -fopenmp \
-            -lespeak-ng
+            -lstdc++ -lm -lpthread -fopenmp
           ln -sf libcrispasr.so src/libwhisper.so
           ls -lh src/libcrispasr.so
           nm -D src/libcrispasr.so | grep -c "T " | xargs printf "  %d exported symbols\n"
@@ -276,7 +273,7 @@ jobs:
         working-directory: repos/CrisperWeaver
         run: flutter build linux --release
 
-      - name: Bundle libcrispasr.so + libespeak-ng into bundle/lib/
+      - name: Bundle libcrispasr.so + libglint into bundle/lib/
         working-directory: repos/CrisperWeaver
         run: |
           BUNDLE=build/linux/x64/release/bundle
@@ -286,30 +283,10 @@ jobs:
           ln -sf libwhisper.so "$BUNDLE/lib/libcrispasr.so"
           # glint codec (MP3/AAC/Opus) — self-contained, drop beside libwhisper.
           cp ../glint/build/libglint.so "$BUNDLE/lib/libglint.so"
-          # Bundle libespeak-ng so kokoro can phonemize on machines that
-          # don't have espeak-ng pre-installed. CMake links via NEEDED;
-          # if the user system doesn't have it, dlopen fails silently
-          # (kokoro stays unusable). Ship the .so and its symlinks.
-          ESP=$(dpkg -L libespeak-ng1 2>/dev/null | grep -E 'libespeak-ng\.so' | head -3)
-          if [ -n "$ESP" ]; then
-            for f in $ESP; do cp -P "$f" "$BUNDLE/lib/" 2>/dev/null || true; done
-            ls -lh "$BUNDLE/lib/" | grep espeak || true
-          else
-            echo "::warning::libespeak-ng package files not found via dpkg -L; kokoro phonemizer will require system espeak-ng" >&2
-          fi
-          # Bundle espeak-ng-data so libespeak-ng can phonemize without
-          # the user installing the data package separately. Mirror the
-          # apt path layout — espeak-ng searches relative to its own dir
-          # at runtime as well as $ESPEAK_DATA_PATH.
-          if [ -d /usr/lib/x86_64-linux-gnu/espeak-ng-data ]; then
-            mkdir -p "$BUNDLE/lib/espeak-ng-data"
-            cp -R /usr/lib/x86_64-linux-gnu/espeak-ng-data/. "$BUNDLE/lib/espeak-ng-data/"
-          elif [ -d /usr/share/espeak-ng-data ]; then
-            mkdir -p "$BUNDLE/lib/espeak-ng-data"
-            cp -R /usr/share/espeak-ng-data/. "$BUNDLE/lib/espeak-ng-data/"
-          else
-            echo "::warning::espeak-ng-data not found in standard apt paths" >&2
-          fi
+          # espeak-ng (GPL-3.0) is deliberately NOT bundled — built AUTO
+          # (dlopen), so kokoro/piper use the built-in non-GPL G2P. A user who
+          # wants espeak can drop libespeak-ng.so + espeak-ng-data into
+          # <bundle>/lib/ ($ORIGIN rpath) themselves (their GPL binary).
           ls -lh "$BUNDLE/lib/libwhisper.so"
           # Verify key symbols are present
           nm -D "$BUNDLE/lib/libwhisper.so" | grep -q ggml_siglu_swapped && echo "OK: ggml_siglu_swapped exported" || echo "WARN: ggml_siglu_swapped missing!"
@@ -535,8 +512,7 @@ jobs:
             -DCRISPASR_BUILD_EXAMPLES=OFF \
             -DCRISPASR_BUILD_TESTS=OFF \
             -DCRISPASR_OPUS_FETCH=ON \
-            -DESPEAK_NG_INCLUDE_DIR="$ESPEAK_INC" \
-            -DESPEAK_NG_LIBRARY="$ESPEAK_LIB"
+            -DCRISPASR_WITH_ESPEAK_NG=AUTO
           cmake --build build-android/arm64-v8a --parallel
           # Re-link all static archives into a single shared lib.
           # CMake's OpenMP detection (-- Found OpenMP_CXX: -fopenmp=libomp)
@@ -548,19 +524,16 @@ jobs:
           # (a recurrence of #3 the v0.6.5 build hit).
           cd build-android/arm64-v8a
           NDK_CC=$(find $ANDROID_NDK_HOME/toolchains/llvm/prebuilt -name "aarch64-linux-android24-clang++" | head -1)
-          # Pull in the cross-compiled libespeak-ng.a too — without
-          # --whole-archive on it, only the espeak_* symbols kokoro
-          # actually references get linked, which is what we want
-          # (espeak's own data tables live in espeak-ng-data/ at
-          # runtime, not in the .a).
+          # espeak-ng (GPL-3.0) is NOT linked — WITH_ESPEAK_NG=AUTO compiles
+          # kokoro/piper to dlopen espeak at runtime, so libcrispasr.so has no
+          # espeak/ucd references and the APK ships GPL-free. Built-in G2P
+          # covers EN/DE/FR/ES.
           $NDK_CC -shared -o src/libcrispasr.so \
             -fopenmp -static-openmp \
             -Wl,--whole-archive \
             src/libcrispasr.a \
             $(find . -name "lib*.a" ! -name "libcrispasr.a" ! -name "libCatch*" ! -name "libcommon*" -printf "%p ") \
             -Wl,--no-whole-archive \
-            "$ESPEAK_NG_ANDROID_ROOT"/lib*/libespeak-ng.a \
-            "$UCD_LIB" \
             -lm -llog -lmediandk
           ln -sf libcrispasr.so src/libwhisper.so
           ls -lh src/libcrispasr.so
@@ -664,48 +637,10 @@ jobs:
             esac
           done
 
-      - name: Stage espeak-ng-data as Flutter asset
-        working-directory: repos/CrisperWeaver
-        # Android can't dlopen a directory of phoneme tables — and
-        # Flutter's pubspec `assets:` directive doesn't bundle
-        # subdirectories recursively. Ship the entire tree as one
-        # `espeak-ng-data.tar.gz` asset; EspeakDataService extracts it
-        # to the app's docs dir on first launch and sets
-        # CRISPASR_ESPEAK_DATA_PATH there before the first kokoro
-        # session opens. A single asset avoids enumerating every
-        # `lang/<family>/` + `voices/!v/` subdir in pubspec.yaml.
-        run: |
-          set -x
-          NATIVE_DATA="$ESPEAK_NG_NATIVE_ROOT/share/espeak-ng-data"
-          if [ ! -d "$NATIVE_DATA" ]; then
-            NATIVE_DATA=$(find "$ESPEAK_NG_NATIVE_ROOT" -maxdepth 4 -type d -name 'espeak-ng-data' | head -1)
-          fi
-          if [ -z "$NATIVE_DATA" ] || [ ! -d "$NATIVE_DATA" ]; then
-            echo "::error::espeak-ng-data dir not produced by the native build" >&2
-            ls -la "$ESPEAK_NG_NATIVE_ROOT" || true
-            ls -la "$ESPEAK_NG_NATIVE_ROOT/share" || true
-            exit 1
-          fi
-          # Fail fast if the data target didn't run — phontab + phondata +
-          # phonindex are what libespeak-ng actually loads at init.
-          for required in phontab phondata phonindex; do
-            if [ ! -f "$NATIVE_DATA/$required" ]; then
-              echo "::error::espeak-ng-data missing compiled file: $required (data target didn't run)" >&2
-              ls "$NATIVE_DATA" | head -20 >&2
-              exit 1
-            fi
-          done
-          # Strip the per-file asset bundle, repack as one tarball.
-          rm -rf assets/espeak-ng-data
-          mkdir -p assets
-          tar -C "$NATIVE_DATA" -czf assets/espeak-ng-data.tar.gz .
-          ls -lh assets/espeak-ng-data.tar.gz
-          NFILES=$(tar -tzf assets/espeak-ng-data.tar.gz | wc -l | tr -d ' ')
-          echo "espeak-ng-data tarball: $NFILES entries"
-          if [ "$NFILES" -lt 100 ]; then
-            echo "::error::espeak-ng-data tarball suspiciously small ($NFILES entries)" >&2
-            exit 1
-          fi
+      # espeak-ng-data (GPL-3.0) is deliberately NOT staged into the APK.
+      # CrispASR is built WITH_ESPEAK_NG=AUTO (dlopen), so kokoro/piper use
+      # the built-in non-GPL G2P and the shipped app is GPL-free. The
+      # committed placeholder assets/espeak-ng-data.tar.gz stays as-is.
 
       - name: Pub get
         working-directory: repos/CrisperWeaver
@@ -1141,8 +1076,12 @@ jobs:
             -DWHISPER_BUILD_EXAMPLES=OFF `
             -DWHISPER_BUILD_TESTS=OFF `
             -DCRISPASR_OPUS_FETCH=ON `
-            -DESPEAK_NG_INCLUDE_DIR="$espeakInc" `
-            -DESPEAK_NG_LIBRARY="$espeakLib"
+            -DCRISPASR_WITH_ESPEAK_NG=AUTO
+          # WITH_ESPEAK_NG=AUTO: kokoro/piper dlopen espeak at runtime (NOT
+          # linked), so whisper.dll carries no espeak import and the app ships
+          # GPL-free (App-Store-safe). Built-in G2P covers EN/DE/FR/ES; a user
+          # can drop their own libespeak-ng.dll in for the rest. The dumpbin
+          # guard in bundle_windows_dlls.ps1 verifies no espeak import remains.
           cmake --build build --config Release --parallel --target crispasr-lib
           Get-ChildItem build -Recurse -Filter *.dll | Select-Object FullName, Length
 

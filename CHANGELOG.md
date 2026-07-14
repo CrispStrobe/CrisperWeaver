@@ -5,6 +5,22 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 
 ## [Unreleased]
 
+### Changed — GPL-free builds + complete native-license attribution
+
+Every shipped build is now GPL-free, so the app is App-Store-distributable
+and free of GPL redistribution obligations:
+- **espeak-ng (GPL-3.0) is no longer bundled or linked** on any platform.
+  CrispASR is built `WITH_ESPEAK_NG=AUTO` (dlopen at runtime, not linked),
+  so kokoro/piper fall back to the **built-in, non-GPL G2P** (EN/DE/FR/ES).
+  A user who wants espeak can drop their own `libespeak-ng` next to the app
+  (their GPL binary, their responsibility). Removed the espeak bundling +
+  hard-links + the GPL phoneme-data asset from Windows/macOS/Linux/Android
+  (iOS was already espeak-free).
+- **Complete attribution**: the About → Licenses screen now lists the
+  bundled native binaries it was missing — **libopus** + **libogg**
+  (BSD-3-Clause, Xiph.Org), **glint** (MIT), and **libmpv** (LGPL-2.1+,
+  Windows/Linux only) — alongside CrispASR/whisper.cpp/ggml.
+
 ### Added — On-device MP3 / AAC-LC / Opus codec (v0.9.1)
 
 Compressed audio encode + decode via the bundled clean-room `libglint`
