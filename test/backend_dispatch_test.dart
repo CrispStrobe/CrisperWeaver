@@ -234,7 +234,20 @@ void main() {
       //     not-yet-rebuilt engine. Drop them once the standard bundled /
       //     sibling-build dylib is past d846274d. (CI's analyze-and-test job
       //     doesn't build CrispASR, so this guard skips there regardless.)
-      const pending = {'piper', 'f5-tts', 'lfm2-audio', 'mini-omni2'};
+      // canary-ctc-aligner is a forced-alignment GGUF consumed by
+      // AlignerService (picked by filename, driven through the CTC-align
+      // C-API), NOT a session-transcribed ASR backend — the engine has no
+      // `canary-ctc-aligner` dispatch arm and never will. It's catalogued
+      // kind:asr only so it appears as a downloadable model (there is no
+      // dedicated aligner ModelKind). Permanent exemption, not a deferred
+      // TODO like the rest of this set.
+      const pending = {
+        'piper',
+        'f5-tts',
+        'lfm2-audio',
+        'mini-omni2',
+        'canary-ctc-aligner',
+      };
 
       final catalogueBackends = <String>{
         for (final m in ModelCatalog.crispasrBackendModels.values)
@@ -280,7 +293,25 @@ void main() {
       //                omniasr-llm / -unlimited variants are catalogued
       //   omniasr-300m — engine dispatch alias for the omniasr-ctc-300m
       //                model (catalogued under backend `omniasr`)
-      const engineOnly = {'whisper', 'canary-ctc', 'omniasr', 'omniasr-300m'};
+      //   tada-1b / tada-tts-1b / tada-3b-ml — dispatch ALIASES that the
+      //                engine normalizes to the canonical `tada` backend
+      //                (crispasr_c_api.cpp: `s->backend = "tada"`); the app
+      //                catalogues TADA under `tada`, so the aliases carry
+      //                no separate model.
+      const engineOnly = {
+        'whisper',
+        'canary-ctc',
+        'omniasr',
+        'omniasr-300m',
+        'tada-1b',
+        'tada-tts-1b',
+        'tada-3b-ml',
+        // reazonspeech shares the parakeet compute path; the app
+        // catalogues its GGUF under BackendRepo `reazonspeech` with
+        // backend:`parakeet`, so the bare `reazonspeech` dispatch string
+        // carries no separate catalogue backend id.
+        'reazonspeech',
+      };
 
       final catalogued = <String>{
         for (final m in ModelCatalog.crispasrBackendModels.values)
