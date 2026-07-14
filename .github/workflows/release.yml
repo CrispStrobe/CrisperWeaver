@@ -857,23 +857,35 @@ jobs:
 
       # --- App Store signed path (when API key secret is set) ---
       - name: Install signing credentials
+        id: signing
         if: ${{ env.APPSTORE_API_KEY_P8 != '' }}
+        continue-on-error: true
         env:
           APPSTORE_API_KEY_P8: ${{ secrets.APPSTORE_API_KEY_P8 }}
           IOS_DIST_P12: ${{ secrets.IOS_DIST_P12 }}
           IOS_DIST_P12_PASSWORD: ${{ secrets.IOS_DIST_P12_PASSWORD }}
         run: |
           mkdir -p ~/.appstoreconnect/private_keys
-          # APPSTORE_API_KEY_P8 is stored base64-encoded (fleet convention,
-          # same as IOS_DIST_P12 below and the canonical ios-release.yml —
-          # see ../appstore.md). Decode it. Writing it raw produced
-          # "Invalid authentication key credential (truncatedASN1Field)".
-          echo "$APPSTORE_API_KEY_P8" | base64 --decode \
-            > ~/.appstoreconnect/private_keys/AuthKey_9RMU3C7422.p8
-          chmod 600 ~/.appstoreconnect/private_keys/AuthKey_9RMU3C7422.p8
-          head -1 ~/.appstoreconnect/private_keys/AuthKey_9RMU3C7422.p8 \
-            | grep -q "BEGIN PRIVATE KEY" || {
-              echo "::error::APPSTORE_API_KEY_P8 did not base64-decode to a PEM private key — re-set it as base64 of the .p8 (see ../appstore.md)"; exit 1; }
+          KEY=~/.appstoreconnect/private_keys/AuthKey_9RMU3C7422.p8
+          # APPSTORE_API_KEY_P8 should be base64 of the .p8 (fleet
+          # convention, same as IOS_DIST_P12 below and the canonical
+          # ios-release.yml — see ../appstore.md). Try base64-decode; if
+          # that isn't a PEM, fall back to writing it raw. If NEITHER is a
+          # valid PEM the secret itself is malformed/truncated — warn and
+          # leave App Store signing disabled (the unsigned sideload IPA
+          # below still ships). Re-set the secret to fix App Store upload.
+          echo "$APPSTORE_API_KEY_P8" | base64 --decode > "$KEY" 2>/dev/null || true
+          if ! head -1 "$KEY" | grep -q "BEGIN PRIVATE KEY"; then
+            printf '%s' "$APPSTORE_API_KEY_P8" > "$KEY"
+          fi
+          if head -1 "$KEY" | grep -q "BEGIN PRIVATE KEY"; then
+            chmod 600 "$KEY"
+            echo "signing_ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::APPSTORE_API_KEY_P8 is not a valid .p8 (neither base64 nor raw PEM) — App Store signing/upload is SKIPPED; the unsigned sideload IPA still ships. Re-set the secret per ../appstore.md."
+            echo "signing_ready=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           # Import Distribution cert + private key
           KEYCHAIN="build.keychain-db"
           security create-keychain -p "" "$KEYCHAIN"
@@ -890,7 +902,8 @@ jobs:
           security find-identity -v -p codesigning | grep -i "distribution" || echo "WARNING: No Distribution cert"
 
       - name: Archive (flutter build ipa)
-        if: ${{ env.APPSTORE_API_KEY_P8 != '' }}
+        if: ${{ steps.signing.outputs.signing_ready == 'true' }}
+        continue-on-error: true
         working-directory: repos/CrisperWeaver
         run: |
           # Use flutter build ipa — sets correct framework search paths.
@@ -900,7 +913,8 @@ jobs:
           ls -la build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app/ > /dev/null
 
       - name: Export signed IPA
-        if: ${{ env.APPSTORE_API_KEY_P8 != '' }}
+        if: ${{ steps.signing.outputs.signing_ready == 'true' }}
+        continue-on-error: true
         working-directory: repos/CrisperWeaver
         env:
           APPSTORE_API_KEY_P8: ${{ secrets.APPSTORE_API_KEY_P8 }}
@@ -917,7 +931,8 @@ jobs:
           shasum -a 256 crisper_weaver-ios-appstore.ipa | tee crisper_weaver-ios-appstore.ipa.sha256
 
       - name: Validate signed IPA
-        if: ${{ env.APPSTORE_API_KEY_P8 != '' }}
+        if: ${{ steps.signing.outputs.signing_ready == 'true' }}
+        continue-on-error: true
         working-directory: repos/CrisperWeaver
         env:
           APPSTORE_API_KEY_P8: ${{ secrets.APPSTORE_API_KEY_P8 }}
@@ -929,7 +944,8 @@ jobs:
             --api-issuer 5f618ba3-98ef-42ad-835c-fbbef6c76cf5
 
       - name: Upload to App Store Connect
-        if: ${{ env.APPSTORE_API_KEY_P8 != '' && env.APPSTORE_APP_ID != '' }}
+        if: ${{ steps.signing.outputs.signing_ready == 'true' && env.APPSTORE_APP_ID != '' }}
+        continue-on-error: true
         working-directory: repos/CrisperWeaver
         env:
           APPSTORE_API_KEY_P8: ${{ secrets.APPSTORE_API_KEY_P8 }}
@@ -946,12 +962,12 @@ jobs:
             --api-key 9RMU3C7422 \
             --api-issuer 5f618ba3-98ef-42ad-835c-fbbef6c76cf5
 
-      # --- Unsigned fallback (when no API key) ---
-      - name: Package unsigned IPA (fallback)
-        if: ${{ env.APPSTORE_API_KEY_P8 == '' }}
+      # --- Unsigned sideload IPA — ALWAYS produced (this is the job's
+      # named deliverable). App Store signing above is best-effort; the
+      # unsigned IPA ships whether or not the .p8 secret is valid. ---
+      - name: Package unsigned IPA
+        if: always()
         working-directory: repos/CrisperWeaver
-        env:
-          APPSTORE_API_KEY_P8: ${{ secrets.APPSTORE_API_KEY_P8 }}
         run: |
           mkdir -p Payload
           cp -R build/ios/iphoneos/Runner.app Payload/
@@ -959,6 +975,7 @@ jobs:
           shasum -a 256 crisper_weaver-ios-unsigned.ipa | tee crisper_weaver-ios-unsigned.ipa.sha256
 
       - name: Upload IPA
+        if: always()
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ inputs.tag || github.ref_name }}
