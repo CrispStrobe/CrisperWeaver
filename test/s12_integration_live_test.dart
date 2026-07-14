@@ -80,27 +80,35 @@ void main() {
     });
   });
 
-  // ---- §12.1e VAD empty-result live test ----
+  // ---- §12.1e VAD silent audio live test ----
+  // The deterministic core of "silence must not hallucinate a transcript":
+  // the Silero VAD dispatcher finds NO speech spans in pure silence, so
+  // the VAD-gated transcribe path emits nothing. (A raw whisper decode of
+  // silence DOES hallucinate — "you", "Thank you.", subtitle credits — so
+  // we exercise the VAD dispatcher directly rather than asserting on a
+  // flaky raw transcript.) Opt-in gated (skipReason) and pins the resolved
+  // dylib via libPath, like the rest of the live suite — so the default
+  // `flutter test` pre-push gate skips it instead of loading a GGUF.
   group('§12.1e VAD silent audio live', () {
-    test('transcribing silence produces empty result', () {
-      final whisperModel = CrispModels.model('whisper_tiny');
-      if (lib == null || whisperModel == null) {
-        markTestSkipped('CrispASR dylib or whisper model not on disk');
-        return;
-      }
+    final skip = CrispModels.skipReason(models: ['whisper_tiny']);
+    test('VAD finds no speech spans in pure silence', () {
+      // whisper_tiny is guaranteed present when skip == null.
+      final cr = crispasr.CrispASR(CrispModels.model('whisper_tiny')!,
+          libPath: lib);
+      addTearDown(cr.dispose);
 
-      // 2 seconds of silence.
+      // 2 seconds of digital silence.
       final silence = Float32List(32000);
-      final ctx = crispasr.CrispASR(whisperModel);
-      final segs = ctx.transcribePcm(silence);
-      ctx.dispose();
-      final text = segs.map((s) => s.text).join(' ').trim();
-
-      // CrispASR 0.8.7 should return empty/near-empty for silence
-      // (VAD hallucination fix). Accept empty or very short text.
-      expect(text.length, lessThan(10),
-          reason: 'silence should produce empty/near-empty text');
-    });
+      final spans = cr.vadSlices(
+        silence,
+        modelPath: CrispModels.sileroAsset,
+        minSpeechMs: 250,
+        minSilenceMs: 100,
+      );
+      expect(spans, isEmpty,
+          reason: 'Silero VAD must detect no speech in pure silence '
+              '(got ${spans.length} span(s))');
+    }, skip: skip);
   });
 
   // ---- §12.8f BidirLM-Omni audio embedding e2e ----
