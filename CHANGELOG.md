@@ -5,6 +5,41 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 
 ## [Unreleased]
 
+### Added — On-device MP3 / AAC-LC / Opus codec (v0.9.1)
+
+Compressed audio encode + decode via the bundled clean-room `libglint`
+codec suite — export to MP3/AAC/Opus and decode `.mp3`/`.aac`/`.opus`
+on-device, no external ffmpeg. `GlintCodecService` +
+`AudioEditService.exportEncoded`; `AudioService` prefers glint before the
+ffmpeg/MediaCodec fallbacks. Native `libglint` built + bundled per
+platform in release CI. Graceful WAV fallback where absent.
+
+### Added — CrispASR 0.8.10 backend catch-up (v0.9.1)
+
+Cataloged the engine backends the app had fallen behind on:
+**MOSS-Diarize** (single-pass ASR + speaker diarization), **MOSS-TTS
+v1.5** (voice-cloning TTS), **OmniVoice** (600+ lang TTS), **Irodori-TTS**
+(Japanese), **Voxtral-4B-TTS** (non-commercial), **Canary-Qwen 2.5B**,
+and completed **Nemotron** streaming ASR. Fixed CosyVoice3-TTS
+classification. The `backend_dispatch` catalog↔engine parity guard is
+green against the built 0.8.10 dylib.
+
+### Fixed — #30 non-Whisper GGUFs from "Add from HuggingFace repo"
+
+A Cohere ASR GGUF linked via the HF-repo dialog was force-routed to the
+whisper pipeline and crashed. The engine now recovers the real backend
+from the GGUF architecture metadata at load, no longer hard-rejects when
+the dylib reports an empty backend list, and the dialog offers a concrete
+backend override. Also fixed the underlying `detectBackendFromGguf` FFI
+binding bug (inverted return-code check) that had silently disabled GGUF
+backend auto-detection entirely. Verified live against the reporter's
+model.
+
+### Added — iOS App Store signing pipeline (v0.9.1)
+
+API-key-driven signing + archive/export for the release IPA
+(`flutter build ipa`, Distribution `.p12` into a build keychain).
+
 ### Fixed — .opus file support on Android (#26)
 
 WhatsApp `.opus` audio files (and `.webm` with Opus audio) now decode
