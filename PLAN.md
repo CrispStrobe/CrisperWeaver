@@ -322,6 +322,28 @@ voice WAV. Added: 3 `ModelDefinition`s, 2 `recommendedDefaultModels`, 2
 build-script `BACKEND_TARGETS` for early-error parity. Live download +
 run validation pending (moss-tts is desktop-class: ~5 GB + ~3.4 GB codec).
 
+**H. CrispASR 0.8.10 backend catch-up — DONE (2026-07, v0.9.1).**
+The `backend_dispatch` guard (runs only with the real dylib) flagged
+engine backends the catalog had drifted behind on. Added `omnivoice`
+(TTS, +tokenizer companion), `irodori-tts` (TTS-JA, +DAC-VAE companion),
+`voxtral-tts` (TTS, CC-BY-NC-4.0), `canary-qwen` (ASR), and completed the
+partial `nemotron` (ASR) entry; fixed `cosyvoice3-tts` `kindForBackend`
+classification. The dispatch guard's allowlists were reconciled:
+`tada-1b`/`tada-tts-1b`/`tada-3b-ml` + `reazonspeech` are engine dispatch
+aliases (→ `engineOnly`), and `canary-ctc-aligner` is an
+AlignerService-consumed forced-aligner, never session-dispatched (→
+permanent `pending` exemption). Nemotron ASR live-verified on jfk.wav.
+
+**I. detectBackendFromGguf binding bug — FIXED (2026-07, v0.9.1).**
+The `crispasr` package's `detectBackendFromGguf` checked `if (rc != 0)
+return null`, but the C ABI returns `strlen(name)` (>0) on a match / 0 on
+no-match — so it returned null for EVERY detected backend, silently
+killing the #30 GGUF auto-routing and ModelService's post-download
+correction. CrisperWeaver now calls the ABI directly with the correct
+contract via `lib/native/crispasr_detect_native.dart`; the engine +
+ModelService use it. Verified live: the real `cohere-transcribe-arabic`
+GGUF resolves to `cohere` and transcribes through the cohere arm (#30).
+
 **F. bidirlm-omni embedding — DONE (§12.3b, §12.8f).**
 `bidirlm-omni-2.5b` wired end-to-end: catalog entry, CrispEmbed
 stub parity (`encodeAudio`, `hasAudio`), `SemanticSearchService`
