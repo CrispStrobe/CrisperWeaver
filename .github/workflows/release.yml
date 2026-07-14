@@ -358,6 +358,7 @@ jobs:
           repository: ${{ env.CRISPASR_REPO }}
           ref: ${{ env.CRISPASR_REF }}
           path: repos/CrispASR
+          submodules: recursive
 
       - name: Check out sibling CrispEmbed
         uses: actions/checkout@v5
@@ -365,6 +366,7 @@ jobs:
           repository: ${{ env.CRISPEMBED_REPO }}
           ref: ${{ env.CRISPEMBED_REF }}
           path: repos/CrispEmbed
+          submodules: recursive
 
       - name: Check out sibling glint
         uses: actions/checkout@v5
@@ -862,8 +864,16 @@ jobs:
           IOS_DIST_P12_PASSWORD: ${{ secrets.IOS_DIST_P12_PASSWORD }}
         run: |
           mkdir -p ~/.appstoreconnect/private_keys
-          printf '%s' "$APPSTORE_API_KEY_P8" > ~/.appstoreconnect/private_keys/AuthKey_9RMU3C7422.p8
+          # APPSTORE_API_KEY_P8 is stored base64-encoded (fleet convention,
+          # same as IOS_DIST_P12 below and the canonical ios-release.yml —
+          # see ../appstore.md). Decode it. Writing it raw produced
+          # "Invalid authentication key credential (truncatedASN1Field)".
+          echo "$APPSTORE_API_KEY_P8" | base64 --decode \
+            > ~/.appstoreconnect/private_keys/AuthKey_9RMU3C7422.p8
           chmod 600 ~/.appstoreconnect/private_keys/AuthKey_9RMU3C7422.p8
+          head -1 ~/.appstoreconnect/private_keys/AuthKey_9RMU3C7422.p8 \
+            | grep -q "BEGIN PRIVATE KEY" || {
+              echo "::error::APPSTORE_API_KEY_P8 did not base64-decode to a PEM private key — re-set it as base64 of the .p8 (see ../appstore.md)"; exit 1; }
           # Import Distribution cert + private key
           KEYCHAIN="build.keychain-db"
           security create-keychain -p "" "$KEYCHAIN"
