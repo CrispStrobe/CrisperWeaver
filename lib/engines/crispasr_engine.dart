@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'package:path/path.dart' as path;
 
 import '../native/crispasr_import.dart' as crispasr;
+import '../native/crispasr_detect_import.dart' as crispasr_detect;
 
 import 'transcription_engine.dart';
 import '../services/aligner_service.dart';
@@ -382,7 +383,7 @@ class CrispASREngine implements TranscriptionEngine {
             def.backend == 'auto' ||
             !available.contains(def.backend))) {
       try {
-        final detected = crispasr.detectBackendFromGguf(modelPath);
+        final detected = crispasr_detect.detectBackendFromGguf(modelPath);
         if (detected != null &&
             detected.isNotEmpty &&
             detected != def.backend) {

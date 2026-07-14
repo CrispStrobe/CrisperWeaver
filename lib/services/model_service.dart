@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 import 'package:crypto/crypto.dart';
 import '../native/crispasr_import.dart' as crispasr;
+import '../native/crispasr_detect_import.dart' as crispasr_detect;
 
 import 'baked_catalog_loader.dart';
 import 'ios_helpers.dart';
@@ -796,7 +797,7 @@ class ModelService {
       // transcription / synthesis calls dispatch to the right engine.
       if (localPath.endsWith('.gguf')) {
         try {
-          final detected = crispasr.detectBackendFromGguf(localPath);
+          final detected = crispasr_detect.detectBackendFromGguf(localPath);
           if (detected != null &&
               detected.isNotEmpty &&
               detected != modelDef.backend) {
