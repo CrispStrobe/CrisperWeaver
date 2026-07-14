@@ -136,29 +136,12 @@ else
   echo "warn: libglint.dylib not found under $GLINT_DIR; MP3/AAC/Opus codec disabled (app falls back to WAV/ffmpeg)" >&2
 fi
 
-# espeak-ng-data — kokoro's in-process libespeak-ng needs the phoneme
-# tables at runtime. Without it, espeak_Initialize silently fails and
-# kokoro_synthesize returns no PCM (#6 root cause on platforms that
-# don't ship the data dir alongside the runtime).
-#
-# Homebrew installs it under share/; both arches share the same files.
-# Bundle to Resources/ so the .app is self-contained, then we set
-# ESPEAK_DATA_PATH at engine init time (see CrispASREngine).
-RESOURCES="$APP/Contents/Resources"
-mkdir -p "$RESOURCES"
-ESPEAK_DATA_SRC=""
-for cand in /opt/homebrew/share/espeak-ng-data /usr/local/share/espeak-ng-data; do
-  if [[ -d "$cand" ]]; then ESPEAK_DATA_SRC="$cand"; break; fi
-done
-if [[ -n "$ESPEAK_DATA_SRC" ]]; then
-  # Wipe any older copy first so renamed / removed files don't linger.
-  rm -rf "$RESOURCES/espeak-ng-data"
-  mkdir -p "$RESOURCES/espeak-ng-data"
-  cp -R "$ESPEAK_DATA_SRC/." "$RESOURCES/espeak-ng-data/"
-  echo "Bundled espeak-ng-data from $ESPEAK_DATA_SRC"
-else
-  echo "warn: espeak-ng-data not found in /opt/homebrew or /usr/local; kokoro will need system espeak-ng at runtime" >&2
-fi
+# espeak-ng (GPL-3.0) is deliberately NOT bundled — CrispASR is built
+# WITH_ESPEAK_NG=AUTO (dlopen at runtime, not linked), so libwhisper carries
+# no espeak dependency and kokoro/piper use the built-in non-GPL G2P
+# (EN/DE/FR/ES). Keeps the .app MIT/BSD-only for the Mac App Store. A user
+# who wants espeak can install it (brew) or drop libespeak-ng + espeak-ng-data
+# in themselves; the runtime dlopen picks it up.
 
 # Ad-hoc codesign so Gatekeeper accepts the modified bundle locally.
 # Release builds should re-sign with a real Developer ID via codesign

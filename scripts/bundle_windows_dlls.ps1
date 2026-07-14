@@ -127,69 +127,12 @@ if ($glintDll) {
     Write-Host "  warn: glint.dll not found under $glintDir; MP3/AAC/Opus codec disabled (app falls back to WAV/ffmpeg)" -ForegroundColor Yellow
 }
 
-# espeak-ng runtime — kokoro NEEDS libespeak-ng.dll at load time
-# (linked at build via CRISPASR_HAVE_ESPEAK_NG). Without this DLL +
-# espeak-ng-data\ next to runner.exe, kokoro_synthesize returns no
-# PCM and the user sees "synth failed : Exception: synthesize
-# returned no audio for backend kokoro" — that's issue #6.
-#
-# ESPEAK_NG_ROOT is exported by the CI workflow's source build of
-# espeak-ng. Layout matches `cmake --install` so files live under
-# bin\, lib\, share\espeak-ng-data\.
-$espeakRoot = $env:ESPEAK_NG_ROOT
-if ($espeakRoot -and (Test-Path $espeakRoot)) {
-    # DLL: cmake install lays it under bin\ on Windows.
-    # MSVC drops the `lib` prefix on shared libs — the file is
-    # `espeak-ng.dll`, not `libespeak-ng.dll`. whisper.dll's import
-    # table NEEDs `espeak-ng.dll` (matches the LINK_NAME at build
-    # time), so bundle it under that name. We also drop a copy under
-    # `libespeak-ng.dll` for any caller still using the Unix name.
-    $espeakDll = $null
-    foreach ($cand in @(
-        "$espeakRoot\bin\espeak-ng.dll",
-        "$espeakRoot\bin\libespeak-ng.dll",
-        "$espeakRoot\espeak-ng.dll",
-        "$espeakRoot\libespeak-ng.dll")) {
-        if (Test-Path $cand) { $espeakDll = $cand; break }
-    }
-    if ($espeakDll) {
-        $dllBase = [System.IO.Path]::GetFileName($espeakDll)
-        Copy-Item $espeakDll "$runnerDir\$dllBase" -Force
-        Write-Host "  bundled $dllBase from $espeakDll"
-        # Provide the alternate name too — cheap insurance against
-        # whisper.dll being relinked under either NEEDED string.
-        if ($dllBase -eq "libespeak-ng.dll") {
-            Copy-Item $espeakDll "$runnerDir\espeak-ng.dll" -Force
-        } elseif ($dllBase -eq "espeak-ng.dll") {
-            Copy-Item $espeakDll "$runnerDir\libespeak-ng.dll" -Force
-        }
-    } else {
-        Write-Host "::error::espeak-ng DLL not found under $espeakRoot" -ForegroundColor Red
-    }
-    $espeakExe = $null
-    foreach ($cand in @("$espeakRoot\bin\espeak-ng.exe", "$espeakRoot\espeak-ng.exe")) {
-        if (Test-Path $cand) { $espeakExe = $cand; break }
-    }
-    if ($espeakExe) {
-        Copy-Item $espeakExe "$runnerDir\espeak-ng.exe" -Force
-        Write-Host "  bundled espeak-ng.exe from $espeakExe"
-    }
-    # espeak-ng-data — produced by ESPEAK_COMPILE_PHONEME_DATA at build.
-    $espeakData = $null
-    foreach ($cand in @("$espeakRoot\share\espeak-ng-data", "$espeakRoot\espeak-ng-data")) {
-        if (Test-Path $cand) { $espeakData = $cand; break }
-    }
-    if ($espeakData) {
-        $dst = Join-Path $runnerDir "espeak-ng-data"
-        if (Test-Path $dst) { Remove-Item $dst -Recurse -Force }
-        Copy-Item $espeakData $dst -Recurse -Force
-        Write-Host "  bundled espeak-ng-data\ from $espeakData"
-    } else {
-        Write-Host "::error::espeak-ng-data dir not found under $espeakRoot" -ForegroundColor Red
-    }
-} else {
-    Write-Host "  warn: ESPEAK_NG_ROOT not set — kokoro will be unusable" -ForegroundColor Yellow
-}
+# espeak-ng is deliberately NOT bundled — it is GPL-3.0, incompatible with
+# App Store distribution and an ongoing GPL-compliance burden. CrispASR is
+# built WITH_ESPEAK_NG=AUTO (dlopen at runtime, not linked), so kokoro/piper
+# fall back to the built-in non-GPL G2P (EN/DE/FR/ES). A user who wants
+# in-process espeak phonemisation can drop their own libespeak-ng.dll +
+# espeak-ng-data next to the exe (their GPL binary, their responsibility).
 
 Write-Host "`nFinal runner dir contents:"
 Get-ChildItem $runnerDir -Filter *.dll | ForEach-Object { Write-Host "  $($_.Name)  $($_.Length) bytes" }
