@@ -1915,6 +1915,102 @@ abstract final class ModelCatalog {
       backend: 'moss-tts',
       kind: ModelKind.codec,
     ),
+    // --- v0.8.10 backend catch-up (2026-07): backends the engine
+    // dispatches but the catalog didn't surface yet. ---
+    // OmniVoice — Qwen3-0.6B masked multi-codebook TTS; needs its
+    // HiggsAudioV2 audio-tokenizer companion (setCodecPath).
+    'omnivoice-f16': ModelDefinition(
+      name: 'omnivoice-f16',
+      displayName: 'OmniVoice (f16)',
+      fileName: 'omnivoice-f16.gguf',
+      url:
+          'https://huggingface.co/cstr/omnivoice-GGUF/resolve/main/omnivoice-f16.gguf',
+      sizeBytes: 1230625280,
+      checksum: '',
+      description:
+          'OmniVoice masked multi-codebook TTS (600+ langs) — pulls the '
+          'audio-tokenizer companion',
+      quantization: 'f16',
+      backend: 'omnivoice',
+      kind: ModelKind.tts,
+      companions: ['omnivoice-tokenizer-f16'],
+      languages: langsAll,
+    ),
+    'omnivoice-tokenizer-f16': ModelDefinition(
+      name: 'omnivoice-tokenizer-f16',
+      displayName: 'OmniVoice tokenizer (f16)',
+      fileName: 'omnivoice-tokenizer-f16.gguf',
+      url:
+          'https://huggingface.co/cstr/omnivoice-GGUF/resolve/main/omnivoice-tokenizer-f16.gguf',
+      sizeBytes: 403183616,
+      checksum: '',
+      description: 'OmniVoice audio tokenizer (load via setCodecPath)',
+      quantization: 'f16',
+      backend: 'omnivoice',
+      kind: ModelKind.codec,
+    ),
+    // Irodori-TTS — Japanese 500M TTS; needs the DAC-VAE codec companion.
+    'irodori-tts-500m-v3-q4_k': ModelDefinition(
+      name: 'irodori-tts-500m-v3-q4_k',
+      displayName: 'Irodori-TTS 500M v3 (q4_k)',
+      fileName: 'irodori-tts-500m-v3-q4_k.gguf',
+      url:
+          'https://huggingface.co/cstr/irodori-tts-GGUF/resolve/main/irodori-tts-500m-v3-q4_k.gguf',
+      sizeBytes: 852 * 1024 * 1024,
+      checksum: '',
+      description: 'Irodori-TTS 500M (Japanese) — pulls the DAC-VAE codec',
+      quantization: 'q4_k',
+      backend: 'irodori-tts',
+      kind: ModelKind.tts,
+      companions: ['dacvae-ja-32dim-f16'],
+      languages: ['ja'],
+    ),
+    'dacvae-ja-32dim-f16': ModelDefinition(
+      name: 'dacvae-ja-32dim-f16',
+      displayName: 'Irodori DAC-VAE codec (f16)',
+      fileName: 'dacvae-ja-32dim-f16.gguf',
+      url:
+          'https://huggingface.co/cstr/irodori-tts-GGUF/resolve/main/dacvae-ja-32dim-f16.gguf',
+      sizeBytes: 410 * 1024 * 1024,
+      checksum: '',
+      description: 'Irodori-TTS DAC-VAE codec (load via setCodecPath)',
+      quantization: 'f16',
+      backend: 'irodori-tts',
+      kind: ModelKind.codec,
+    ),
+    // Voxtral-4B-TTS — Mistral. NON-COMMERCIAL (CC-BY-NC-4.0).
+    'voxtral-4b-tts-q4_k': ModelDefinition(
+      name: 'voxtral-4b-tts-q4_k',
+      displayName: 'Voxtral 4B TTS (q4_k)',
+      fileName: 'voxtral-4b-tts-q4_k.gguf',
+      url:
+          'https://huggingface.co/cstr/voxtral-4b-tts-GGUF/resolve/main/voxtral-4b-tts-q4_k.gguf',
+      sizeBytes: 2500 * 1024 * 1024,
+      checksum: '',
+      description: 'Voxtral 4B TTS (Mistral) — non-commercial use only, ~2.5 GB',
+      quantization: 'q4_k',
+      backend: 'voxtral-tts',
+      kind: ModelKind.tts,
+      license: 'cc-by-nc-4.0',
+      languages: langsAll,
+    ),
+    // (ReazonSpeech is already catalogued under the `parakeet` backend —
+    // the engine's bare `reazonspeech` dispatch string is a parakeet-path
+    // alias, handled in the dispatch guard's engineOnly set.)
+    // Canary-Qwen 2.5B — NVIDIA Canary encoder + Qwen LLM decoder.
+    'canary-qwen-2.5b-q8_0': ModelDefinition(
+      name: 'canary-qwen-2.5b-q8_0',
+      displayName: 'Canary-Qwen 2.5B (q8_0)',
+      fileName: 'canary-qwen-2.5b-q8_0.gguf',
+      url:
+          'https://huggingface.co/cstr/canary-qwen-2.5b-GGUF/resolve/main/canary-qwen-2.5b-q8_0.gguf',
+      sizeBytes: 4100 * 1024 * 1024,
+      checksum: '',
+      description: 'Canary-Qwen 2.5B — Canary encoder + Qwen decoder ASR, ~4.1 GB',
+      quantization: 'q8_0',
+      backend: 'canary-qwen',
+      languages: langsAll,
+    ),
     // Higgs-Audio-v3-STT — bosonai Whisper-large-v3 encoder + Qwen3-1.7B
     // decoder. Internal chunking, beam search, --ask prompt. ~2.3 GB Q4_K.
     'higgs-stt-q4_k': ModelDefinition(
@@ -3810,6 +3906,8 @@ abstract final class ModelCatalog {
     'moss-audio': 'moss-audio-4b-instruct-q4_k',
     'moss-transcribe': 'moss-transcribe-preview-2b-q4_k',
     'moss-diarize': 'moss-transcribe-diarize-0.9b-q4_k',
+    'nemotron': 'nemotron-3.5-asr-streaming-0.6b-q4_k',
+    'canary-qwen': 'canary-qwen-2.5b-q8_0',
     'higgs-stt': 'higgs-stt-q4_k',
     'ark-asr': 'ark-asr-3b-q4_k',
     // gemma4-e4b, reazonspeech, parakeet-ctc-1.1b-ja share backends
@@ -3824,6 +3922,9 @@ abstract final class ModelCatalog {
     'vibevoice-tts': 'vibevoice-realtime-0.5b-tts-f16',
     'qwen3-tts': 'qwen3-tts-12hz-0.6b-base-q8_0',
     'moss-tts': 'moss-tts-v1.5-q4_k',
+    'omnivoice': 'omnivoice-f16',
+    'irodori-tts': 'irodori-tts-500m-v3-q4_k',
+    'voxtral-tts': 'voxtral-4b-tts-q4_k',
     'orpheus': 'orpheus-3b-base-q8_0',
     'voxcpm2-tts': 'voxcpm2-q4_k',
     'piper': 'piper-en-cori',
@@ -4513,6 +4614,51 @@ abstract final class ModelCatalog {
       description: 'Voice-cloning TTS (Qwen3-8B) — needs the moss-tts-v1.5-codec',
       kind: ModelKind.tts,
       defaultCompanions: ['moss-tts-v1.5-codec'],
+      defaultLanguages: langsAll,
+    ),
+    'nemotron': BackendRepo(
+      backend: 'nemotron',
+      repoId: 'cstr/nemotron-3.5-asr-streaming-0.6b-GGUF',
+      baseName: 'nemotron-3.5-asr-streaming-0.6b',
+      displayPrefix: 'Nemotron 3.5 ASR Streaming 0.6B',
+      description: 'NVIDIA Nemotron 3.5 streaming ASR (0.6B)',
+      defaultLanguages: langsAll,
+    ),
+    'canary-qwen': BackendRepo(
+      backend: 'canary-qwen',
+      repoId: 'cstr/canary-qwen-2.5b-GGUF',
+      baseName: 'canary-qwen-2.5b',
+      displayPrefix: 'Canary-Qwen 2.5B',
+      description: 'NVIDIA Canary encoder + Qwen LLM decoder ASR',
+      defaultLanguages: langsAll,
+    ),
+    'omnivoice': BackendRepo(
+      backend: 'omnivoice',
+      repoId: 'cstr/omnivoice-GGUF',
+      baseName: 'omnivoice',
+      displayPrefix: 'OmniVoice',
+      description: 'OmniVoice — Qwen3-0.6B multi-codebook TTS (600+ langs)',
+      kind: ModelKind.tts,
+      defaultCompanions: ['omnivoice-tokenizer-f16'],
+      defaultLanguages: langsAll,
+    ),
+    'irodori-tts': BackendRepo(
+      backend: 'irodori-tts',
+      repoId: 'cstr/irodori-tts-GGUF',
+      baseName: 'irodori-tts-500m-v3',
+      displayPrefix: 'Irodori-TTS 500M v3',
+      description: 'Japanese TTS — needs the DAC-VAE codec companion',
+      kind: ModelKind.tts,
+      defaultCompanions: ['dacvae-ja-32dim-f16'],
+      defaultLanguages: ['ja'],
+    ),
+    'voxtral-tts': BackendRepo(
+      backend: 'voxtral-tts',
+      repoId: 'cstr/voxtral-4b-tts-GGUF',
+      baseName: 'voxtral-4b-tts',
+      displayPrefix: 'Voxtral 4B TTS',
+      description: 'Mistral Voxtral TTS — non-commercial (CC-BY-NC-4.0)',
+      kind: ModelKind.tts,
       defaultLanguages: langsAll,
     ),
     // Higgs-Audio-v3-STT — Whisper-v3 enc + Qwen3-1.7B dec.
@@ -5310,6 +5456,10 @@ abstract final class ModelCatalog {
       'f5-tts',
       'dots-tts',
       'moss-tts',
+      'omnivoice',
+      'irodori-tts',
+      'voxtral-tts',
+      'cosyvoice3-tts',
     };
     const punc = {'firered-punc', 'fullstop-punc'};
     const diarize = {'pyannote'};

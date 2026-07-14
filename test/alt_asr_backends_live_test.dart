@@ -91,6 +91,8 @@ void main() {
         note: 'NeMo FastConformer CTC, English'),
     _AsrBackend('wav2vec2', 'wav2vec2',
         note: 'wav2vec2/HuBERT XLSR CTC, English'),
+    _AsrBackend('nemotron', 'nemotron',
+        note: 'NVIDIA Nemotron 3.5 streaming ASR 0.6B (v0.8.10 catch-up)'),
   ];
 
   // The famous JFK line: "And so, my fellow Americans, ask not what your
