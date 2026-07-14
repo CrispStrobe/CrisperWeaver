@@ -92,6 +92,23 @@ foreach ($g in @("ggml", "ggml-cpu", "ggml-base", "ggml-blas")) {
     }
 }
 
+# Opus/Ogg codec runtime. With CRISPASR_OPUS_FETCH=ON + BUILD_SHARED_LIBS=ON,
+# libopus + libopusfile's libogg build as separate DLLs (opus.dll, ogg.dll)
+# that crispasr.dll IMPORTS (opusfile, for native .opus decode). Without
+# them crispasr.dll fails to load with Windows error 126 ("specified module
+# could not be found") — even though crispasr.dll itself is present — which
+# is exactly the #30 "built with {}" / error-126 report. These are REQUIRED,
+# not optional: warn loudly if missing so the guard below catches it.
+foreach ($c in @("opus", "ogg")) {
+    $dll = Find-Dll $cBase $c
+    if ($dll) {
+        Copy-Item $dll "$runnerDir\$c.dll" -Force
+        Write-Host "  bundled $c.dll"
+    } else {
+        Write-Host "::warning::$c.dll not found under $cBase — crispasr.dll may fail to load (error 126) if it imports it" -ForegroundColor Yellow
+    }
+}
+
 # glint codec DLL (on-device MP3 / AAC-LC / Opus). Self-contained (no
 # extra runtime deps), so just drop it next to the runner exe where the
 # Dart loader's `DynamicLibrary.open('glint.dll')` finds it. Non-fatal —
@@ -176,3 +193,39 @@ if ($espeakRoot -and (Test-Path $espeakRoot)) {
 
 Write-Host "`nFinal runner dir contents:"
 Get-ChildItem $runnerDir -Filter *.dll | ForEach-Object { Write-Host "  $($_.Name)  $($_.Length) bytes" }
+
+# --- Dependency sanity check (mirrors the Android NEEDED-deps guard) ---
+# Verify every non-system DLL that crispasr.dll imports is present next to
+# runner.exe. This is what would have caught the opus.dll / ogg.dll gap
+# that shipped as Windows "error 126" (#30 follow-up) at BUILD time instead
+# of on a user's machine. dumpbin ships with MSVC on the runner.
+$dumpbin = Get-Command dumpbin -ErrorAction SilentlyContinue
+if ($dumpbin) {
+    $deps = & dumpbin /dependents "$runnerDir\crispasr.dll" 2>$null |
+        Select-String -Pattern '^\s{2,}([A-Za-z0-9_.\-]+\.dll)\s*$' |
+        ForEach-Object { $_.Matches[0].Groups[1].Value }
+    # DLLs provided by Windows itself or the VC++ redistributable — not our
+    # job to bundle. Matched case-insensitively as prefixes.
+    $systemPrefixes = @('kernel32','advapi32','ole32','shell32','user32',
+        'gdi32','ws2_32','bcrypt','crypt32','msvcp140','vcruntime140',
+        'vcomp140','concrt140','api-ms-','ext-ms-','ucrtbase','ntdll',
+        'winmm','oleaut32','shlwapi','dbghelp','secur32','rpcrt4','iphlpapi',
+        'userenv','psapi','powrprof','dwmapi','setupapi','cfgmgr32','d3d11',
+        'dxgi','mfplat','mf.dll','mfreadwrite','avrt','ksuser','dnsapi')
+    $missing = @()
+    foreach ($d in $deps) {
+        $isSystem = $false
+        foreach ($p in $systemPrefixes) {
+            if ($d.ToLower().StartsWith($p.ToLower())) { $isSystem = $true; break }
+        }
+        if ($isSystem) { continue }
+        if (-not (Test-Path (Join-Path $runnerDir $d))) { $missing += $d }
+    }
+    if ($missing.Count -gt 0) {
+        Write-Host "::error::crispasr.dll imports DLL(s) missing from the bundle: $($missing -join ', ') — these cause Windows error 126 (can't load crispasr.dll) on user machines. Add them to this script's copy list."
+        exit 1
+    }
+    Write-Host "  OK: every non-system DLL crispasr.dll imports is bundled"
+} else {
+    Write-Host "  warn: dumpbin not on PATH — skipped the crispasr.dll dependency check" -ForegroundColor Yellow
+}

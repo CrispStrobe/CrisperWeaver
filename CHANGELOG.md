@@ -35,6 +35,15 @@ binding bug (inverted return-code check) that had silently disabled GGUF
 backend auto-detection entirely. Verified live against the reporter's
 model.
 
+Follow-up (v0.9.1): on Windows the fix surfaced the *real* underlying
+failure — `crispasr.dll` couldn't load at all (Windows error 126), which
+is why `availableBackends()` had returned `{}`. With
+`CRISPASR_OPUS_FETCH=ON` + `BUILD_SHARED_LIBS=ON`, libopus/libogg build as
+`opus.dll` / `ogg.dll` that `crispasr.dll` imports (opusfile, for native
+`.opus` decode) but the Windows bundler never copied. Now bundled, plus a
+`dumpbin`-based guard that fails the build if any non-system DLL
+`crispasr.dll` imports is missing from the runner dir.
+
 ### Added — iOS App Store signing pipeline (v0.9.1)
 
 API-key-driven signing + archive/export for the release IPA
