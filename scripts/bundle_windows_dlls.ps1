@@ -199,9 +199,24 @@ Get-ChildItem $runnerDir -Filter *.dll | ForEach-Object { Write-Host "  $($_.Nam
 # runner.exe. This is what would have caught the opus.dll / ogg.dll gap
 # that shipped as Windows "error 126" (#30 follow-up) at BUILD time instead
 # of on a user's machine. dumpbin ships with MSVC on the runner.
-$dumpbin = Get-Command dumpbin -ErrorAction SilentlyContinue
-if ($dumpbin) {
-    $deps = & dumpbin /dependents "$runnerDir\crispasr.dll" 2>$null |
+$dumpbinPath = (Get-Command dumpbin -ErrorAction SilentlyContinue).Source
+if (-not $dumpbinPath) {
+    # dumpbin ships with MSVC but isn't on PATH without a vcvars/Developer
+    # shell. Locate it via vswhere (present on GitHub windows runners).
+    $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+    if (Test-Path $vswhere) {
+        $vsPath = & $vswhere -latest -products * `
+            -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
+            -property installationPath
+        if ($vsPath) {
+            $found = Get-ChildItem "$vsPath\VC\Tools\MSVC\*\bin\Hostx64\x64\dumpbin.exe" `
+                -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($found) { $dumpbinPath = $found.FullName }
+        }
+    }
+}
+if ($dumpbinPath) {
+    $deps = & $dumpbinPath /dependents "$runnerDir\crispasr.dll" 2>$null |
         Select-String -Pattern '^\s{2,}([A-Za-z0-9_.\-]+\.dll)\s*$' |
         ForEach-Object { $_.Matches[0].Groups[1].Value }
     # DLLs provided by Windows itself or the VC++ redistributable — not our
