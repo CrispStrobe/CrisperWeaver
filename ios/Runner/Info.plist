@@ -90,11 +90,15 @@
 	</array>
 
 	<!-- Background Modes -->
+	<!-- Only `audio` is a valid UIBackgroundModes value we actually use
+	     (background TTS playback / recording). The prior entries
+	     'background-processing' / 'background-fetch' are Xcode capability
+	     *labels*, not valid plist values (the real values are 'processing' /
+	     'fetch') — App Store upload rejects them (ITMS-90112), and the app
+	     ships no BGTaskScheduler / background-fetch code, so they're dropped. -->
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>audio</string>
-		<string>background-processing</string>
-		<string>background-fetch</string>
 	</array>
 
 	<!-- Audio Session -->
