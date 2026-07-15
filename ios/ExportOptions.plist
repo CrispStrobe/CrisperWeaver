@@ -6,9 +6,27 @@
 	<string>app-store-connect</string>
 	<key>teamID</key>
 	<string>N9XSJ4M3GT</string>
+	<!-- Manual signing: CI has only the Distribution key + explicit App Store
+	     provisioning profiles (created via the ASC API, bound to the shared
+	     Distribution cert L9PHHNLY9Y). We deliberately do NOT use
+	     `-allowProvisioningUpdates` — on a CI runner it creates a Development
+	     cert and, to stay under Apple's 5-cert limit, silently revokes the
+	     shared Distribution cert, breaking signing for every app on the
+	     account (see ../appstore.md). -->
 	<key>signingStyle</key>
-	<string>automatic</string>
+	<string>manual</string>
+	<key>signingCertificate</key>
+	<string>Apple Distribution</string>
+	<key>provisioningProfiles</key>
+	<dict>
+		<key>com.crispstrobe.crisperweaver</key>
+		<string>CrisperWeaver AppStore CI</string>
+		<key>com.crispstrobe.crisperweaver.ShareExtension</key>
+		<string>CrisperWeaver ShareExt AppStore CI</string>
+	</dict>
 	<key>destination</key>
 	<string>export</string>
+	<key>uploadSymbols</key>
+	<true/>
 </dict>
 </plist>

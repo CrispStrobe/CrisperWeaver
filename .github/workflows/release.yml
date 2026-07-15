@@ -799,6 +799,8 @@ jobs:
           APPSTORE_API_KEY_P8: ${{ secrets.APPSTORE_API_KEY_P8 }}
           IOS_DIST_P12: ${{ secrets.IOS_DIST_P12 }}
           IOS_DIST_P12_PASSWORD: ${{ secrets.IOS_DIST_P12_PASSWORD }}
+          IOS_PROFILE_APP_BASE64: ${{ secrets.IOS_PROFILE_APP_BASE64 }}
+          IOS_PROFILE_EXT_BASE64: ${{ secrets.IOS_PROFILE_EXT_BASE64 }}
         run: |
           mkdir -p ~/.appstoreconnect/private_keys
           KEY=~/.appstoreconnect/private_keys/AuthKey_9RMU3C7422.p8
@@ -835,39 +837,90 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" "$KEYCHAIN"
           security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
           security find-identity -v -p codesigning | grep -i "distribution" || echo "WARNING: No Distribution cert"
+          # --- Install explicit App Store provisioning profiles (manual signing) ---
+          # CI holds only the Distribution key, so we sign manually against
+          # profiles created via the ASC API (bound to the shared Distribution
+          # cert). The app AND its ShareExtension each need one. We deliberately
+          # do NOT use `-allowProvisioningUpdates` anywhere — on a runner it
+          # mints a Development cert and silently revokes the shared Distribution
+          # cert to stay under Apple's 5-cert limit, breaking every app's
+          # signing (see ../appstore.md). Install to both the legacy dir and the
+          # Xcode-16+/26 dir, named <UUID>.mobileprovision.
+          if [ -n "$IOS_PROFILE_APP_BASE64" ] && [ -n "$IOS_PROFILE_EXT_BASE64" ]; then
+            PDIRS=("$HOME/Library/MobileDevice/Provisioning Profiles" \
+                   "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles")
+            for d in "${PDIRS[@]}"; do mkdir -p "$d"; done
+            for b64 in "$IOS_PROFILE_APP_BASE64" "$IOS_PROFILE_EXT_BASE64"; do
+              tmp=$(mktemp)
+              echo "$b64" | base64 --decode > "$tmp"
+              uuid=$(security cms -D -i "$tmp" 2>/dev/null | plutil -extract UUID raw -)
+              name=$(security cms -D -i "$tmp" 2>/dev/null | plutil -extract Name raw -)
+              for d in "${PDIRS[@]}"; do cp "$tmp" "$d/$uuid.mobileprovision"; done
+              echo "installed profile '$name' ($uuid)"
+              rm -f "$tmp"
+            done
+            echo "profiles_ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::IOS_PROFILE_APP_BASE64 / IOS_PROFILE_EXT_BASE64 not set — manual App Store signing is unavailable; only the unsigned sideload IPA will ship."
+            echo "profiles_ready=false" >> "$GITHUB_OUTPUT"
+          fi
 
-      - name: Archive (flutter build ipa)
-        if: ${{ steps.signing.outputs.signing_ready == 'true' }}
-        continue-on-error: true
+      # Package the UNSIGNED sideload IPA first, from the no-codesign Flutter
+      # build, so the (clean) Distribution archive below can't disturb it. This
+      # is the job's guaranteed deliverable regardless of App Store signing.
+      - name: Package unsigned IPA
+        if: always()
         working-directory: repos/CrisperWeaver
         run: |
-          # Use flutter build ipa — sets correct framework search paths.
-          # Will fail at its own export step (no API key) — expected.
-          PATH="/usr/bin:$PATH" flutter build ipa --release \
-            --export-options-plist=ios/ExportOptions.plist || true
+          mkdir -p Payload
+          cp -R build/ios/iphoneos/Runner.app Payload/
+          zip -qr crisper_weaver-ios-unsigned.ipa Payload
+          shasum -a 256 crisper_weaver-ios-unsigned.ipa | tee crisper_weaver-ios-unsigned.ipa.sha256
+
+      # Archive UNSIGNED (CI has no Development profile) via a bare xcodebuild —
+      # NOT `flutter build ipa`, which forces automatic signing and needs an
+      # Xcode account (that was the silent build-71 failure: "No profiles for
+      # com.crispstrobe.crisperweaver were found"). Distribution signing is
+      # applied at -exportArchive from the manual ExportOptions. This project
+      # has no Swift Package Manager plugin refs, so the CocoaPods archive
+      # builds cleanly. Fail loud (no continue-on-error) — a broken archive
+      # must turn the job red, not slip through green with 0 uploaded builds.
+      - name: Archive (xcodebuild, unsigned)
+        if: ${{ steps.signing.outputs.signing_ready == 'true' && steps.signing.outputs.profiles_ready == 'true' }}
+        working-directory: repos/CrisperWeaver
+        run: |
+          set -o pipefail
+          PATH="/usr/bin:$PATH" xcodebuild \
+            -workspace ios/Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/ios/archive/Runner.xcarchive \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO \
+            clean archive
           ls -la build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app/ > /dev/null
 
       - name: Export signed IPA
-        if: ${{ steps.signing.outputs.signing_ready == 'true' }}
-        continue-on-error: true
+        if: ${{ steps.signing.outputs.signing_ready == 'true' && steps.signing.outputs.profiles_ready == 'true' }}
         working-directory: repos/CrisperWeaver
-        env:
-          APPSTORE_API_KEY_P8: ${{ secrets.APPSTORE_API_KEY_P8 }}
         run: |
+          # Manual signing from ExportOptions.plist + the installed profiles.
+          # No -allowProvisioningUpdates / auth key (see the footgun note above).
           PATH="/usr/bin:$PATH" xcodebuild -exportArchive \
             -archivePath build/ios/archive/Runner.xcarchive \
             -exportPath build/ios/export \
-            -exportOptionsPlist ios/ExportOptions.plist \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_9RMU3C7422.p8 \
-            -authenticationKeyID 9RMU3C7422 \
-            -authenticationKeyIssuerID 5f618ba3-98ef-42ad-835c-fbbef6c76cf5
+            -exportOptionsPlist ios/ExportOptions.plist
+          if [ ! -f build/ios/export/Runner.ipa ]; then
+            echo "::error::exportArchive produced no Runner.ipa — App Store signing failed. Not uploading."
+            ls -la build/ios/export || true
+            exit 1
+          fi
           cp build/ios/export/Runner.ipa crisper_weaver-ios-appstore.ipa
           shasum -a 256 crisper_weaver-ios-appstore.ipa | tee crisper_weaver-ios-appstore.ipa.sha256
 
       - name: Validate signed IPA
-        if: ${{ steps.signing.outputs.signing_ready == 'true' }}
-        continue-on-error: true
+        if: ${{ steps.signing.outputs.signing_ready == 'true' && steps.signing.outputs.profiles_ready == 'true' }}
         working-directory: repos/CrisperWeaver
         env:
           APPSTORE_API_KEY_P8: ${{ secrets.APPSTORE_API_KEY_P8 }}
@@ -879,8 +932,7 @@ jobs:
             --api-issuer 5f618ba3-98ef-42ad-835c-fbbef6c76cf5
 
       - name: Upload to App Store Connect
-        if: ${{ steps.signing.outputs.signing_ready == 'true' && env.APPSTORE_APP_ID != '' }}
-        continue-on-error: true
+        if: ${{ steps.signing.outputs.signing_ready == 'true' && steps.signing.outputs.profiles_ready == 'true' && env.APPSTORE_APP_ID != '' }}
         working-directory: repos/CrisperWeaver
         env:
           APPSTORE_API_KEY_P8: ${{ secrets.APPSTORE_API_KEY_P8 }}
@@ -896,18 +948,6 @@ jobs:
             --bundle-short-version-string "$VERSION" \
             --api-key 9RMU3C7422 \
             --api-issuer 5f618ba3-98ef-42ad-835c-fbbef6c76cf5
-
-      # --- Unsigned sideload IPA — ALWAYS produced (this is the job's
-      # named deliverable). App Store signing above is best-effort; the
-      # unsigned IPA ships whether or not the .p8 secret is valid. ---
-      - name: Package unsigned IPA
-        if: always()
-        working-directory: repos/CrisperWeaver
-        run: |
-          mkdir -p Payload
-          cp -R build/ios/iphoneos/Runner.app Payload/
-          zip -qr crisper_weaver-ios-unsigned.ipa Payload
-          shasum -a 256 crisper_weaver-ios-unsigned.ipa | tee crisper_weaver-ios-unsigned.ipa.sha256
 
       - name: Upload IPA
         if: always()
