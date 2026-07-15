@@ -303,66 +303,15 @@
 	re-introducing the manifest.
 	-->
 
-	<!-- App Icon and Launch Images -->
-	<key>CFBundleIcons</key>
-	<dict>
-		<key>CFBundlePrimaryIcon</key>
-		<dict>
-			<key>CFBundleIconFiles</key>
-			<array>
-				<string>Icon-App-20x20@1x</string>
-				<string>Icon-App-20x20@2x</string>
-				<string>Icon-App-20x20@3x</string>
-				<string>Icon-App-29x29@1x</string>
-				<string>Icon-App-29x29@2x</string>
-				<string>Icon-App-29x29@3x</string>
-				<string>Icon-App-40x40@1x</string>
-				<string>Icon-App-40x40@2x</string>
-				<string>Icon-App-40x40@3x</string>
-				<string>Icon-App-50x50@1x</string>
-				<string>Icon-App-50x50@2x</string>
-				<string>Icon-App-57x57@1x</string>
-				<string>Icon-App-57x57@2x</string>
-				<string>Icon-App-60x60@2x</string>
-				<string>Icon-App-60x60@3x</string>
-				<string>Icon-App-72x72@1x</string>
-				<string>Icon-App-72x72@2x</string>
-				<string>Icon-App-76x76@1x</string>
-				<string>Icon-App-76x76@2x</string>
-				<string>Icon-App-83.5x83.5@2x</string>
-				<string>Icon-App-1024x1024@1x</string>
-			</array>
-			<key>CFBundleIconName</key>
-			<string>AppIcon</string>
-		</dict>
-	</dict>
-
-	<!-- iPad specific -->
-	<key>CFBundleIcons~ipad</key>
-	<dict>
-		<key>CFBundlePrimaryIcon</key>
-		<dict>
-			<key>CFBundleIconFiles</key>
-			<array>
-				<string>Icon-App-20x20@1x</string>
-				<string>Icon-App-20x20@2x</string>
-				<string>Icon-App-29x29@1x</string>
-				<string>Icon-App-29x29@2x</string>
-				<string>Icon-App-40x40@1x</string>
-				<string>Icon-App-40x40@2x</string>
-				<string>Icon-App-50x50@1x</string>
-				<string>Icon-App-50x50@2x</string>
-				<string>Icon-App-72x72@1x</string>
-				<string>Icon-App-72x72@2x</string>
-				<string>Icon-App-76x76@1x</string>
-				<string>Icon-App-76x76@2x</string>
-				<string>Icon-App-83.5x83.5@2x</string>
-				<string>Icon-App-1024x1024@1x</string>
-			</array>
-			<key>CFBundleIconName</key>
-			<string>AppIcon</string>
-		</dict>
-	</dict>
+	<!-- App icon: asset-catalog only (modern iOS 11+ setup). Do NOT add
+	     CFBundleIcons/CFBundleIcons~ipad with CFBundleIconFiles — listing
+	     Icon-App-1024x1024 there is invalid (the 1024 marketing icon must
+	     live only in the AppIcon asset catalog), which produced loose
+	     low-res icons + blank placeholders, made App Store Connect extract
+	     a 167px iPad icon (no store icon), and hard-rejected the build in
+	     processing. The AppIcon.appiconset carries the real 1024² icon. -->
+	<key>CFBundleIconName</key>
+	<string>AppIcon</string>
 
 	<!-- QuickLook Support -->
 	<key>QLSupportedContentTypes</key>
