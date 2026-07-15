@@ -12,11 +12,11 @@ import 'dart:ffi';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:glint/glint.dart' as glint;
+import 'package:glint_audio/glint_audio.dart' as glint;
 
 // Re-export the value types callers need so they don't depend on the
-// `glint` package directly (the web stub mirrors these names).
-export 'package:glint/glint.dart' show GlintCodec, GlintDecodedAudio;
+// `glint_audio` package directly (the web stub mirrors these names).
+export 'package:glint_audio/glint_audio.dart' show GlintCodec, GlintDecodedAudio;
 
 bool? _available;
 
