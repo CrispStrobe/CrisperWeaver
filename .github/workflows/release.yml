@@ -911,12 +911,15 @@ jobs:
             -archivePath build/ios/archive/Runner.xcarchive \
             -exportPath build/ios/export \
             -exportOptionsPlist ios/ExportOptions.plist
-          if [ ! -f build/ios/export/Runner.ipa ]; then
-            echo "::error::exportArchive produced no Runner.ipa — App Store signing failed. Not uploading."
+          # xcodebuild names the exported IPA after PRODUCT_NAME
+          # (crisper_weaver.ipa), NOT the scheme (Runner.ipa) — glob for it.
+          IPA=$(ls build/ios/export/*.ipa 2>/dev/null | head -1)
+          if [ -z "$IPA" ] || [ ! -f "$IPA" ]; then
+            echo "::error::exportArchive produced no .ipa — App Store signing failed. Not uploading."
             ls -la build/ios/export || true
             exit 1
           fi
-          cp build/ios/export/Runner.ipa crisper_weaver-ios-appstore.ipa
+          cp "$IPA" crisper_weaver-ios-appstore.ipa
           shasum -a 256 crisper_weaver-ios-appstore.ipa | tee crisper_weaver-ios-appstore.ipa.sha256
 
       - name: Validate signed IPA
