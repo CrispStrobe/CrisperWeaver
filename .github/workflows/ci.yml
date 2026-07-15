@@ -96,6 +96,13 @@ jobs:
     name: Build macOS (.app)
     runs-on: macos-latest
     needs: analyze-and-test
+    # CrispASR keeps growing (more backends → a bigger libwhisper.dylib link).
+    # An unbounded build OOM-kills the macos-latest runner mid-link (exit 143 /
+    # "runner received a shutdown signal"), exactly as release.yml's macOS job
+    # hit — release.yml fixed it with --parallel 2 and passes on the same
+    # commit. Give the job a hard ceiling so a hung/thrashing link fails fast
+    # instead of burning the full 6 h default.
+    timeout-minutes: 90
     steps:
       - name: Check out CrisperWeaver
         uses: actions/checkout@v5
@@ -150,6 +157,11 @@ jobs:
         working-directory: repos/CrisperWeaver
         env:
           CRISPASR_DIR: ${{ github.workspace }}/repos/CrispASR
+          # Cap parallelism so the heavy libwhisper.dylib link doesn't run
+          # alongside a swarm of other jobs and blow the runner's RAM (exit
+          # 143). Mirrors release.yml's `--parallel 2`; build_macos.sh maps
+          # JOBS -> `cmake --build -j`.
+          JOBS: "2"
         run: bash scripts/build_macos.sh debug
 
       - name: Upload .app artifact
