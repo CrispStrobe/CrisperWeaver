@@ -922,15 +922,23 @@ jobs:
           cp "$IPA" crisper_weaver-ios-appstore.ipa
           shasum -a 256 crisper_weaver-ios-appstore.ipa | tee crisper_weaver-ios-appstore.ipa.sha256
 
+      # Advisory pre-check. altool --validate-app needs --apple-id (the numeric
+      # app id) or it can't resolve the app from the bundle id
+      # ("Cannot determine the Apple ID from Bundle ID"). Non-fatal: the Upload
+      # step below re-validates server-side and is the real gate, so a validate
+      # hiccup must not block the actual upload.
       - name: Validate signed IPA
-        if: ${{ steps.signing.outputs.signing_ready == 'true' && steps.signing.outputs.profiles_ready == 'true' }}
+        if: ${{ steps.signing.outputs.signing_ready == 'true' && steps.signing.outputs.profiles_ready == 'true' && env.APPSTORE_APP_ID != '' }}
+        continue-on-error: true
         working-directory: repos/CrisperWeaver
         env:
           APPSTORE_API_KEY_P8: ${{ secrets.APPSTORE_API_KEY_P8 }}
+          APPSTORE_APP_ID: ${{ secrets.APPSTORE_APP_ID }}
         run: |
           xcrun altool --validate-app \
             -f crisper_weaver-ios-appstore.ipa \
             --type ios \
+            --apple-id "$APPSTORE_APP_ID" \
             --api-key 9RMU3C7422 \
             --api-issuer 5f618ba3-98ef-42ad-835c-fbbef6c76cf5
 
