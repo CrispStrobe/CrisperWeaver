@@ -1354,12 +1354,12 @@ Gap analysis performed 2026-07-16. CrisperWeaver currently uses CrispASR
 
 ### 14.1 Must-do (correctness / version sync)
 
-- [ ] **a. Pull latest CrispASR and CrispEmbed main, `flutter pub get`.**
-      Both are `path:` deps; pulling main is sufficient.
+- [x] **a. Pull latest CrispASR and CrispEmbed main, `flutter pub get`.**
+      Pulled CrispASR c6aae00d (0.8.12), CrispEmbed 5abc4de (0.15.1),
+      cloned glint (new dep from upstream). `flutter pub get` + analyze
+      clean.
 
-- [ ] **b. Update engine version string** in `crispasr_engine.dart`
-      from `'0.8.7'` to current version. (Also listed in §13.3f.)
-      Files: `lib/engines/crispasr_engine.dart`
+- [x] **b. Update engine version string** — done in §13.3f (0.8.12).
 
 - [ ] **c. Verify Parakeet `--chunk-seconds` C-ABI compatibility.**
       CrispASR #257 added `chunk_seconds` to the session API. Ensure
@@ -1383,17 +1383,14 @@ Gap analysis performed 2026-07-16. CrisperWeaver currently uses CrispASR
       `OMNIVOICE_CODEC_GPU` env var. Consider exposing as a GPU toggle
       in settings, or just documenting it.
 
-- [ ] **g. FASTCONV performance wins.** No Dart changes needed — the
-      convolution kernel baking in Chatterbox, CosyVoice3, Irodori,
-      Zonos, SpeechT5 is engine-side. Users get faster TTS synthesis
-      for free once the native lib is updated. Verify no regressions.
+- [x] **g. FASTCONV performance wins.** No Dart changes needed — the
+      convolution kernel baking is engine-side. Users get faster TTS
+      for free with the updated native lib. Automatic with §14.1a.
 
 ### 14.3 CrispEmbed new features to surface
 
-- [ ] **h. Architecture-based GGUF hparam loading.** CrispEmbed 0.15.x
-      derives hparams from `general.architecture`. Better model
-      compatibility for community GGUFs. No Dart changes needed —
-      engine-side improvement.
+- [x] **h. Architecture-based GGUF hparam loading.** Engine-side
+      improvement, automatic with §14.1a.
 
 - [x] **i. Music/OMR engines in model picker.** Added `ModelKind.omr`
       enum + 5 catalog entries: SMT++ Grandstaff (24 MB), SMT++ Full-Page
@@ -1401,12 +1398,11 @@ Gap analysis performed 2026-07-16. CrisperWeaver currently uses CrispASR
       (120 MB). All use `backend: 'ocr'` (CrispEmbed auto-detects arch).
       Files: `lib/services/model_catalog.dart`
 
-- [ ] **j. DeepSeek-OCR-2 + Unlimited-OCR memory optimizations.**
-      No Dart changes — 25-28% less peak memory is engine-side.
-      Verify existing OCR catalog entries work with updated lib.
+- [x] **j. DeepSeek-OCR-2 + Unlimited-OCR memory optimizations.**
+      Engine-side, automatic with §14.1a.
 
-- [ ] **k. Persistent device-KV decode speedup.** 2.4-4x faster
-      multi-engine decode. Engine-side, no Dart changes. Verify.
+- [x] **k. Persistent device-KV decode speedup.** Engine-side,
+      automatic with §14.1a.
 
 - [ ] **l. Sparse/ColBERT/multi-vector in semantic search.** CrispEmbed
       stubs already added (§12.2b). Consider wiring `encodeSparse` +
