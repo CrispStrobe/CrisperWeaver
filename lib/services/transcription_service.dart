@@ -187,6 +187,11 @@ class AdvancedTranscribeOptions {
   /// between canary-ctc-aligner and wav2vec2-aligner-<lang> variants.
   final String? alignerModel;
 
+  /// §14.2d — Chunked transcription window (seconds). 0 = per-model
+  /// default (~30s). Smaller values reduce peak memory on long files.
+  /// Passed to `CrispasrSession.transcribeChunked(chunkSeconds:)`.
+  final int chunkSeconds;
+
   const AdvancedTranscribeOptions({
     this.vadBackend = VadBackend.silero,
     this.vadThreshold = 0.5,
@@ -226,6 +231,7 @@ class AdvancedTranscribeOptions {
     this.hotwordsBoost = 1.5,
     this.beamSize = 0,
     this.alignerModel,
+    this.chunkSeconds = 0,
   });
 }
 
