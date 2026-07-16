@@ -2283,6 +2283,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
         hotwordsBoost: adv.hotwordsBoost,
         beamSize: adv.beamSize,
         alignerModel: adv.alignerModel.isEmpty ? null : adv.alignerModel,
+        chunkSeconds: adv.chunkSeconds,
       );
 
       // §5.1.2 vocabulary merge — resolve the active backend
@@ -2536,6 +2537,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
       hotwordsBoost: adv.hotwordsBoost,
       beamSize: adv.beamSize,
       alignerModel: adv.alignerModel.isEmpty ? null : adv.alignerModel,
+      chunkSeconds: adv.chunkSeconds,
     );
 
     // Load the model once for the whole batch.
