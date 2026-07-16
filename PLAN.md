@@ -1302,16 +1302,19 @@ deepfake/synthetic audio generation (TTS with voice cloning).
         perform real-time remote biometric identification in publicly
         accessible spaces.
 
-- [ ] **k. Data Protection Impact Assessment (DPIA).** GDPR Art. 35
-      requires a DPIA for biometric processing. Create
-      `docs/DPIA.md` covering: processing purpose, necessity,
-      proportionality, risks to data subjects, and mitigations.
+- [x] **k. Data Protection Impact Assessment (DPIA).** Created
+      `docs/DPIA.md` covering processing description, necessity,
+      proportionality, risk assessment (6 risks with likelihood/
+      severity/mitigations), technical + organizational measures.
+      Conclusion: no DPA consultation needed (Art. 36) — residual
+      risk is not high given on-device-only processing.
 
-- [ ] **l. Annex IV technical documentation.** Create
-      `docs/AI_ACT_TECHNICAL.md` structured per Annex IV:
-      intended purpose, design specifications, development
-      methodology, data governance, risk management, post-market
-      monitoring plan.
+- [x] **l. Annex IV technical documentation.** Created
+      `docs/AI_ACT_TECHNICAL.md` structured per Annex IV: system
+      overview, architecture diagram, design specifications, dev
+      methodology, testing (1164 tests), data governance, risk
+      management (cross-refs AI_ACT_RISK.md + DPIA.md), post-market
+      monitoring, instructions for use (Art. 13).
 
 - [ ] **m. C2PA verification in transcription screen.** Enhance the
       existing "Verify Watermark" feature to also verify the C2PA
@@ -1392,10 +1395,10 @@ Gap analysis performed 2026-07-16. CrisperWeaver currently uses CrispASR
       compatibility for community GGUFs. No Dart changes needed —
       engine-side improvement.
 
-- [ ] **i. Music/OMR engines in model picker.** 4 new optical music
-      recognition backends: Transcoda (kern), TrOMR (polyphonic MIDI),
-      Flova (LilyPond), SMT++ (pianoform). Add `ModelDefinition` +
-      `BackendRepo` entries + `ModelKind.omr` enum value if needed.
+- [x] **i. Music/OMR engines in model picker.** Added `ModelKind.omr`
+      enum + 5 catalog entries: SMT++ Grandstaff (24 MB), SMT++ Full-Page
+      (16 MB), Polyphonic-TrOMR (31 MB), Flova (88 MB Q4_K), Transcoda-59M
+      (120 MB). All use `backend: 'ocr'` (CrispEmbed auto-detects arch).
       Files: `lib/services/model_catalog.dart`
 
 - [ ] **j. DeepSeek-OCR-2 + Unlimited-OCR memory optimizations.**

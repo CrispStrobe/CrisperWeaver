@@ -71,6 +71,12 @@ enum ModelKind {
   /// Includes math OCR (pix2tex, HMER, BTTR, PosFormer), scene text
   /// (ParseQ, TrOCR), and document VLM OCR (DeepSeek-OCR2, Granite Vision).
   ocr,
+
+  /// §14.3i — Optical Music Recognition (OMR) GGUF for sheet music
+  /// recognition. Loaded via CrispEmbed OCR dispatch (arch auto-detected).
+  /// Includes SMT++ (bekern), TrOMR (polyphonic MIDI), Flova (LilyPond),
+  /// and Transcoda (Humdrum **kern).
+  omr,
 }
 
 class ModelDefinition {
@@ -3766,6 +3772,79 @@ abstract final class ModelCatalog {
       quantization: 'f16',
       backend: 'ocr',
       kind: ModelKind.ocr,
+    ),
+
+    // §14.3i — Optical Music Recognition (OMR) engines from CrispEmbed 0.15.x
+    'smt-grandstaff-q8_0': ModelDefinition(
+      name: 'smt-grandstaff-q8_0',
+      displayName: 'SMT++ Grandstaff OMR (Q8_0)',
+      fileName: 'smt-grandstaff-q8_0.gguf',
+      url:
+          'https://huggingface.co/cstr/smt-grandstaff-GGUF/resolve/main/smt-grandstaff-q8_0.gguf',
+      sizeBytes: 24 * 1024 * 1024,
+      checksum: '',
+      description:
+          'Sheet Music Transformer: staff notation → bekern (21.4M, pianoform). MIT license.',
+      quantization: 'q8_0',
+      backend: 'ocr',
+      kind: ModelKind.omr,
+    ),
+    'smt-fp-grandstaff-q8_0': ModelDefinition(
+      name: 'smt-fp-grandstaff-q8_0',
+      displayName: 'SMT++ Full-Page OMR (Q8_0)',
+      fileName: 'smt-fp-grandstaff-q8_0.gguf',
+      url:
+          'https://huggingface.co/cstr/smt-fp-grandstaff-GGUF/resolve/main/smt-fp-grandstaff-q8_0.gguf',
+      sizeBytes: 16 * 1024 * 1024,
+      checksum: '',
+      description:
+          'SMT++ full-page OMR: whole pianoform page → bekern (10.9M). MIT license.',
+      quantization: 'q8_0',
+      backend: 'ocr',
+      kind: ModelKind.omr,
+    ),
+    'tromr-q8_0': ModelDefinition(
+      name: 'tromr-q8_0',
+      displayName: 'Polyphonic-TrOMR (Q8_0)',
+      fileName: 'tromr-q8_0.gguf',
+      url:
+          'https://huggingface.co/cstr/tromr-GGUF/resolve/main/tromr-q8_0.gguf',
+      sizeBytes: 31 * 1024 * 1024,
+      checksum: '',
+      description:
+          'Polyphonic TrOMR: ResNetV2 + ViT encoder, 3-stream AR decoder for rhythm/pitch/lift (22M). Apache 2.0.',
+      quantization: 'q8_0',
+      backend: 'ocr',
+      kind: ModelKind.omr,
+    ),
+    'flova-omr-q4_k': ModelDefinition(
+      name: 'flova-omr-q4_k',
+      displayName: 'Flova OMR (Q4_K)',
+      fileName: 'flova-q4_k.gguf',
+      url:
+          'https://huggingface.co/cstr/flova-omr-GGUF/resolve/main/flova-q4_k.gguf',
+      sizeBytes: 88 * 1024 * 1024,
+      checksum: '',
+      description:
+          'Flova: DonutSwin + mBART decoder for handwritten/whiteboard music → LilyPond (143M). Apache 2.0.',
+      quantization: 'q4_k',
+      backend: 'ocr',
+      kind: ModelKind.omr,
+    ),
+    'transcoda-omr-q8_0': ModelDefinition(
+      name: 'transcoda-omr-q8_0',
+      displayName: 'Transcoda-59M OMR (Q8_0)',
+      fileName: 'transcoda-q8_0.gguf',
+      url:
+          'https://huggingface.co/cstr/transcoda-omr-GGUF/resolve/main/transcoda-q8_0.gguf',
+      sizeBytes: 120 * 1024 * 1024,
+      checksum: '',
+      description:
+          'Transcoda: ConvNeXt-V2 + RoPE cross-attn decoder for full-page score → Humdrum **kern (59M). CC-BY-4.0.',
+      quantization: 'q8_0',
+      backend: 'ocr',
+      kind: ModelKind.omr,
+      license: 'cc-by-4.0',
     ),
 
     // §12.3a — Cross-encoder rerankers for search result re-scoring
