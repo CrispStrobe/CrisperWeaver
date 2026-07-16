@@ -137,8 +137,13 @@ class ContentProvenanceService {
       if (id == 'c2pa') {
         final end = offset + 8 + size;
         if (end > wavBytes.length) return null;
+        // Trim trailing null bytes from RIFF padding before JSON parse.
+        var payloadEnd = end;
+        while (payloadEnd > offset + 8 && wavBytes[payloadEnd - 1] == 0) {
+          payloadEnd--;
+        }
         final json = utf8.decode(
-            wavBytes.sublist(offset + 8, end),
+            wavBytes.sublist(offset + 8, payloadEnd),
             allowMalformed: true);
         try {
           return jsonDecode(json) as Map<String, dynamic>;

@@ -1,7 +1,7 @@
 # Privacy Policy — CrisperWeaver
 
 **Effective date:** 2026-07-10
-**Last updated:** 2026-07-10
+**Last updated:** 2026-07-16
 
 CrisperWeaver is an offline-first audio transcription and speech
 synthesis app. This policy explains what data the app accesses, how
@@ -89,12 +89,74 @@ You can delete all data at any time by:
 - Deleting models from the Models screen
 - Uninstalling the app (removes all app data)
 
-## 5. Children's Privacy
+## 5. Biometric Data (GDPR Art. 9 / EU AI Act)
+
+CrisperWeaver's speaker identification feature processes **biometric
+data** in the form of voice embeddings (TitaNet neural speaker
+representations).
+
+### 5.1 What We Process
+
+When you enroll a speaker, the app extracts a fixed-length voice
+embedding vector from the reference audio. This embedding is
+biometric data under GDPR Art. 9 because it uniquely identifies a
+natural person by their voice characteristics.
+
+### 5.2 Legal Basis
+
+Processing is based on **explicit consent** (GDPR Art. 9(2)(a)). The
+app displays a consent dialog before any biometric processing that
+explains:
+
+- Voice embeddings are biometric data under GDPR Art. 9
+- Data is stored on-device only and never transmitted
+- You can delete your data at any time (GDPR Art. 17 right to
+  erasure)
+
+A consent record (`.consent.json`) is saved alongside each speaker
+profile, documenting: speaker name, consent timestamp, purpose,
+lawful basis, and storage location.
+
+### 5.3 Storage and Security
+
+- Voice embeddings (`.spk` files) are stored **exclusively on your
+  device** in the app's documents directory.
+- No biometric data is transmitted to any server, cloud service,
+  or third party.
+- No remote biometric identification is performed.
+- No real-time biometric identification in publicly accessible
+  spaces is performed (EU AI Act Art. 5 compliance).
+
+### 5.4 Your Rights
+
+- **Right to erasure (Art. 17):** Delete any speaker profile and its
+  consent record from the Speaker Management screen. Both the
+  embedding file and the consent record are permanently deleted.
+- **Right to data portability (Art. 20):** Export all stored data for
+  any speaker via the export function.
+- **Right to withdraw consent:** Delete the speaker profile at any
+  time. Processing ceases immediately.
+
+### 5.5 Voice Cloning
+
+Voice cloning (TTS with a reference voice) generates synthetic audio
+that replicates a voice's characteristics. Under EU AI Act Art. 50(4),
+synthetic audio that resembles a specific person's voice must be
+disclosed as AI-generated. CrisperWeaver:
+
+- Automatically watermarks all synthesized audio (spread-spectrum +
+  C2PA signed provenance metadata)
+- Prepends an audible beep disclaimer to voice-cloned output
+- Requires explicit attestation that the user has rights to clone
+  the voice before proceeding
+- Logs all voice-cloning consent attestations for audit
+
+## 6. Children's Privacy
 
 CrisperWeaver is not directed at children under 13. We do not
 knowingly collect data from children.
 
-## 6. Your Rights
+## 7. Your Rights
 
 Since all data stays on your device, you have full control:
 
@@ -105,12 +167,12 @@ Since all data stays on your device, you have full control:
 - **No account required:** The app does not require registration or
   login
 
-## 7. Changes to This Policy
+## 8. Changes to This Policy
 
 We may update this policy when new features are added. The
 "Last updated" date at the top reflects the most recent revision.
 
-## 8. Contact
+## 9. Contact
 
 For questions about this privacy policy:
 

@@ -800,6 +800,9 @@
   "voiceCloneSummaryRefTextEmpty": "(keiner — reines Audio-Cloning)",
   "voiceCloneBack": "Zurück",
   "voiceCloneNext": "Weiter",
+  "voiceCloneConsentTitle": "Stimmrechte-Bestätigung",
+  "voiceCloneConsentBody": "Voice-Cloning erzeugt eine synthetische Nachbildung der Stimme in Ihrer Referenzaufnahme. Gemäß EU AI Act (Art. 50) und DSGVO (Art. 9) benötigen Sie die ausdrückliche Einwilligung des Stimminhabers, oder es muss Ihre eigene Stimme sein. Der Missbrauch von Voice-Cloning zur Identitätstäuschung ist verboten.",
+  "voiceCloneConsentCheckbox": "Ich bestätige, dass ich die Rechte zum Klonen dieser Stimme habe (es ist meine eigene Stimme oder ich habe die ausdrückliche Zustimmung des Stimminhabers)",
   "voiceCloneFinish": "In Synthese öffnen",
   "synthTitle": "Synthese",
   "synthModelLabel": "TTS-Modell",
@@ -1181,6 +1184,10 @@
   "aboutSyntheticCompliance": "Synthetische Inhalte",
   "aboutSyntheticComplianceText": "Synthetische Sprachausgaben werden mit Wasserzeichen versehen und enthalten maschinenlesbare Herkunftsmetadaten. Die Sprecherregistrierung erfordert eine ausdrückliche biometrische Einwilligung (DSGVO Art. 9). Alle Daten verbleiben auf dem Gerät; Sie können Ihre Daten jederzeit löschen.",
   "syntheticDisclosureNote": "Dieser Inhalt enthält KI-generierte synthetische Sprache.",
+
+  "aiTransparencyTitle": "KI-gestützte Anwendung",
+  "aiTransparencyBody": "CrisperWeaver verwendet Systeme der Künstlichen Intelligenz für:\n\n• Spracherkennung (ASR) — Umwandlung von Audio in Text\n• Sprachsynthese (TTS) — Erzeugung gesprochener Audiodaten aus Text\n• Sprecheridentifikation — biometrischer Stimmabgleich\n• Dokumentenanalyse (OCR) — Texterkennung in Bildern\n• Semantische Suche — KI-gestützte Inhaltssuche\n\nAlle Verarbeitung erfolgt auf Ihrem Gerät. Es werden keine Daten an externe Server gesendet. KI-generierte Audiodaten werden automatisch mit Wasserzeichen versehen und mit maschinenlesbaren Herkunftsmetadaten signiert (EU AI Act Art. 50).\n\nWeitere Informationen finden Sie im Info-Bildschirm.",
+  "aiTransparencyAcknowledge": "Verstanden",
 
   "historySearchSemanticTooltip": "Semantische Suche (aktiv)",
   "historySearchSubstringTooltip": "Textsuche (tippen für semantisch)",

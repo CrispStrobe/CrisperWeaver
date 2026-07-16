@@ -89,14 +89,15 @@ class FileUtils {
   ///
   /// When [syntheticDisclosure] is true, formats that support it
   /// (SRT, VTT, JSON, Markdown) prepend an AI-generated content
-  /// notice — required for compliance when the transcript
-  /// originates from synthetic speech.
+  /// notice — required by EU AI Act Art. 50 when the transcript
+  /// originates from or contains synthetic speech. Defaults to
+  /// true: callers must explicitly opt out rather than opt in.
   static Future<File> saveTranscription(
     String text,
     String fileName, {
     TranscriptFormat format = TranscriptFormat.txt,
     List<TranscriptionSegment>? segments,
-    bool syntheticDisclosure = false,
+    bool syntheticDisclosure = true,
   }) async {
     final transcriptionsDir = await getTranscriptionsDirectory();
     final extension = _getExtensionForFormat(format);
@@ -411,7 +412,7 @@ class FileUtils {
 
   static String generateSrtContent(
     List<TranscriptionSegment> segments, {
-    bool syntheticDisclosure = false,
+    bool syntheticDisclosure = true,
   }) {
     final buffer = StringBuffer();
     if (syntheticDisclosure) {
@@ -432,7 +433,7 @@ class FileUtils {
 
   static String generateVttContent(
     List<TranscriptionSegment> segments, {
-    bool syntheticDisclosure = false,
+    bool syntheticDisclosure = true,
   }) {
     final buffer = StringBuffer();
     buffer.writeln('WEBVTT');
@@ -456,7 +457,7 @@ class FileUtils {
 
   static String generateJsonContent(
     List<TranscriptionSegment> segments, {
-    bool syntheticDisclosure = false,
+    bool syntheticDisclosure = true,
   }) {
     final segList = segments
         .map((segment) => {
@@ -569,7 +570,7 @@ class FileUtils {
   static String generateMarkdownContent(
     List<TranscriptionSegment> segments, {
     String plainText = '',
-    bool syntheticDisclosure = false,
+    bool syntheticDisclosure = true,
   }) {
     final buffer = StringBuffer();
     buffer.writeln('# Transcript');

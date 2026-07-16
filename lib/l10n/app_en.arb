@@ -801,6 +801,9 @@
   "voiceCloneSummaryRefTextEmpty": "(none — audio-only clone)",
   "voiceCloneBack": "Back",
   "voiceCloneNext": "Next",
+  "voiceCloneConsentTitle": "Voice Rights Attestation",
+  "voiceCloneConsentBody": "Voice cloning creates a synthetic replica of the voice in your reference audio. Under the EU AI Act (Art. 50) and GDPR (Art. 9), you must have explicit consent from the voice owner, or the voice must be your own. Misuse of voice cloning for impersonation is prohibited.",
+  "voiceCloneConsentCheckbox": "I confirm that I have the rights to clone this voice (it is my own voice, or I have explicit consent from the voice owner)",
   "voiceCloneFinish": "Open in Synthesize",
   "synthTitle": "Synthesize",
   "synthModelLabel": "TTS model",
@@ -1182,6 +1185,10 @@
   "aboutSyntheticCompliance": "Synthetic Content Compliance",
   "aboutSyntheticComplianceText": "Synthetic speech outputs are watermarked and carry machine-readable provenance metadata. Speaker enrollment requires explicit biometric consent (GDPR Art. 9). All data stays on-device; you can delete your data at any time.",
   "syntheticDisclosureNote": "This content contains AI-generated synthetic speech.",
+
+  "aiTransparencyTitle": "AI-Powered Application",
+  "aiTransparencyBody": "CrisperWeaver uses artificial intelligence systems for:\n\n• Speech recognition (ASR) — converting audio to text\n• Speech synthesis (TTS) — generating spoken audio from text\n• Speaker identification — biometric voice matching\n• Document analysis (OCR) — recognizing text in images\n• Semantic search — AI-powered content retrieval\n\nAll processing runs on your device. No data is sent to external servers. AI-generated audio is automatically watermarked and signed with machine-readable provenance metadata (EU AI Act Art. 50).\n\nFor details, see the About screen.",
+  "aiTransparencyAcknowledge": "I understand",
 
   "historySearchSemanticTooltip": "Semantic search (active)",
   "historySearchSubstringTooltip": "Substring search (tap for semantic)",

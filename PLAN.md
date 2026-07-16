@@ -1183,3 +1183,240 @@ match the real binding's API surface.
 - [x] **j. Widget tests for transcription + synthesize screens.**
       Remaining test coverage gap (§8.7/§9.3). High effort, lower
       priority than service/provider tests already covering the logic.
+
+---
+
+## 13. EU AI Act compliance (July 2026)
+
+Full compliance sweep targeting EU AI Act (Regulation (EU) 2024/1689),
+GDPR, and the C2PA provenance standard. CrisperWeaver is classified as
+a **general-purpose AI application** with two features touching Annex III
+high-risk categories: biometric categorization (speaker ID) and
+deepfake/synthetic audio generation (TTS with voice cloning).
+
+### 13.1 What already exists
+
+| Requirement | Implementation | Status |
+|---|---|---|
+| **Art. 50: AI content watermark** | Spread-spectrum watermark auto-embedded by C API (`crispasr_session_synthesize`); Dart-side LSB fallback for web | DONE |
+| **Art. 50: Machine-readable metadata** | WAV LIST/INFO (`ISFT=AI-generated`), MP3 ID3v2 TXXX (`AI_GENERATED=true`), HTTP `x-content-ai-generated: true` header | DONE |
+| **Art. 50: C2PA provenance** | Unsigned JSON-LD manifest in RIFF `c2pa` chunk (fallback) + native COSE/X.509 signed C2PA via c2pa-audio (primary) | DONE |
+| **Art. 50(4): Deepfake disclosure** | Beep-based audio disclaimer prepended to voice-cloned TTS output | DONE |
+| **Art. 50(4): Voice-clone consent** | Voice clone wizard requires rights attestation checkbox; server API requires `disclaimer_override_attestation` string to suppress beep | DONE |
+| **Art. 52: AI transparency notice** | First-use dialog explaining AI systems in use; persisted dismissal | DONE |
+| **GDPR Art. 9: Biometric consent** | Explicit consent dialog before speaker enrollment with purpose/legal-basis record | DONE |
+| **GDPR Art. 17: Right to erasure** | `deleteSpeaker()` deletes both embedding and consent record | DONE |
+| **GDPR Art. 20: Data portability** | `exportSpeakerData()` exports all stored data for a speaker | DONE |
+| **Privacy by design** | All processing on-device; `collectUsageData = false`, `enableCloudSync = false` | DONE |
+| **Synthetic export disclosure** | SRT/VTT/JSON/Markdown exports default to `syntheticDisclosure = true` | DONE |
+| **Post-embed verification** | `detectWatermark()` called immediately after watermark embedding | DONE |
+| **Heuristic AI detection** | `detectAiAudio()` analyzes spectral/temporal properties of unknown audio | DONE |
+| **Watermark verify UI** | "Verify Watermark" button in transcription screen toolbar | DONE |
+| **Compliance indicator** | Synthesize screen shows provenance status card | DONE |
+| **Compliance tests** | 14 synthetic compliance tests + format-specific tests | DONE |
+| **iOS Privacy Manifest** | `PrivacyInfo.xcprivacy` with audio data declarations | DONE |
+| **Privacy policy** | `PRIVACY.md` covering data collection, permissions, user rights | DONE |
+| **Consent audit logging** | `[CONSENT]` log entries for voice-cloned synthesis | DONE |
+
+### 13.2 What was added in this sweep
+
+- [x] **a. Real C2PA signing via c2pa-audio.** `CrispasrC2pa` Dart FFI
+      class wraps `crispasr_c2pa_sign()` (ES256 COSE_Sign1 + JUMBF, via
+      vendored c2pa-audio submodule). TTS service tries native signing
+      first, falls back to unsigned JSON-LD when unavailable. Stub added
+      for web.
+      Files: `CrispASR/flutter/crispasr/lib/src/crispasr.dart`,
+      `lib/native/crispasr_stub.dart`, `lib/services/tts_service.dart`
+
+- [x] **b. Mandatory beep disclaimer with burden-shift override.**
+      Removed `spokenDisclaimer: bool` parameter from `writeWav()`.
+      Replaced with `disclaimerOverrideAttestation: String?` — to suppress
+      the beep, callers must provide a non-empty legal attestation string
+      documenting their basis for suppression. The attestation is logged
+      at WARNING level with full context for audit. Server API field
+      renamed from `spoken_disclaimer` to `disclaimer_override_attestation`.
+      Files: `lib/services/tts_service.dart`,
+      `lib/services/server_service.dart`
+
+- [x] **c. Third-party voice consent gate in voice clone wizard.**
+      Handoff step now includes a consent box: "I confirm that I have the
+      rights to clone this voice." The Finish button is disabled until
+      checked. Matches CrispASR's `--i-have-rights` pattern. Localized
+      in EN/DE/ZH with EU AI Act + GDPR references.
+      Files: `lib/screens/voice_clone_wizard_screen.dart`,
+      `lib/l10n/app_{en,de,zh}.arb`
+
+- [x] **d. Art. 52 first-use AI transparency notice.** On first launch,
+      a non-dismissable dialog explains which AI systems CrisperWeaver
+      uses (ASR, TTS, speaker ID, OCR, semantic search), that all
+      processing is on-device, and that AI-generated audio is
+      watermarked/signed. Persisted via `SettingsService`. Localized
+      EN/DE/ZH.
+      Files: `lib/main.dart`, `lib/services/settings_service.dart`,
+      `lib/l10n/app_{en,de,zh}.arb`
+
+- [x] **e. Synthetic disclosure defaults to true.** All export format
+      functions (`generateSrtContent`, `generateVttContent`,
+      `generateJsonContent`, `generateMarkdownContent`,
+      `saveTranscription`) now default `syntheticDisclosure = true`.
+      Callers must explicitly opt out rather than opt in.
+      Files: `lib/utils/file_utils.dart`
+
+### 13.3 Remaining compliance roadmap
+
+#### HIGH priority
+
+- [x] **f. Update engine version string.** `crispasr_engine.dart`
+      updated from `'0.8.7'` to `'0.8.12'`.
+      Files: `lib/engines/crispasr_engine.dart`
+
+- [ ] **g. C2PA signing for MP3 exports.** TTS output is WAV-only
+      currently; MP3 C2PA signing will be needed when MP3 export is
+      added. `CrispasrC2pa.sign` already supports `'audio/mpeg'`.
+      Blocked on: MP3 export feature.
+
+- [x] **h. Server voice-clone consent gate.** Server TTS endpoint
+      returns 403 when `voice` / `voice_file` is present but no
+      `disclaimer_override_attestation` provided. Error message
+      cites EU AI Act Art. 50(4) and GDPR Art. 9.
+      Files: `lib/services/server_service.dart`
+
+- [x] **i. Update PRIVACY.md for biometric data.** Added §5 covering
+      voice embeddings, GDPR Art. 9(2)(a) legal basis, on-device
+      guarantee, rights (erasure/portability/withdrawal), and voice
+      cloning disclosures.
+      Files: `PRIVACY.md`
+
+#### MEDIUM priority
+
+- [x] **j. Risk classification document.** Created `docs/AI_ACT_RISK.md`
+      documenting CrisperWeaver's self-assessment under Annex III:
+      - Speaker ID = biometric categorization (Annex III, 1(a)) —
+        high-risk but exempt from most requirements because it is
+        on-device-only, no remote biometric identification, no
+        public-space deployment.
+      - Voice cloning TTS = synthetic media generation — subject to
+        Art. 50(4) deepfake disclosure (implemented).
+      - ASR/OCR = general-purpose, not high-risk.
+      - Explicit Art. 5 compliance statement: CrisperWeaver does NOT
+        perform real-time remote biometric identification in publicly
+        accessible spaces.
+
+- [ ] **k. Data Protection Impact Assessment (DPIA).** GDPR Art. 35
+      requires a DPIA for biometric processing. Create
+      `docs/DPIA.md` covering: processing purpose, necessity,
+      proportionality, risks to data subjects, and mitigations.
+
+- [ ] **l. Annex IV technical documentation.** Create
+      `docs/AI_ACT_TECHNICAL.md` structured per Annex IV:
+      intended purpose, design specifications, development
+      methodology, data governance, risk management, post-market
+      monitoring plan.
+
+- [ ] **m. C2PA verification in transcription screen.** Enhance the
+      existing "Verify Watermark" feature to also verify the C2PA
+      COSE signature (not just detect the JSON-LD chunk). Call
+      `CrispasrC2pa` verify path or parse the JUMBF.
+      Files: `lib/screens/transcription_screen.dart`
+
+#### LOWER priority
+
+- [ ] **n. Anti-impersonation policy / Terms of Service.** Document
+      acceptable use of voice cloning. Consider a ToS that prohibits
+      impersonation of public figures without consent.
+
+- [ ] **o. Third-party abuse reporting.** A way for recipients of
+      CrisperWeaver-generated audio to report misuse (could be as
+      simple as contact info in the C2PA manifest or a URL in the
+      beep disclaimer metadata).
+
+- [ ] **p. Music/OMR engine Art. 50 marking.** When CrispEmbed OCR
+      engines are used, the output (recognized text/scores) should
+      carry a notice that it was AI-generated. Currently OCR output
+      has no disclosure flag.
+
+- [x] **q. Automated compliance regression tests.** Extended from 14
+      to 53 tests: added C2PA manifest build/inject/extract round-trip,
+      heuristic AI detection, disclosure-default-true assertions,
+      privacy constant integrity. Fixed C2PA extract null-padding bug.
+      Updated 3 existing test files for syntheticDisclosure default
+      change. Full suite: 1164 pass, 99 skip, 0 fail.
+
+---
+
+## 14. CrispASR 0.8.12 + CrispEmbed 0.15.1 dependency update (July 2026)
+
+Gap analysis performed 2026-07-16. CrisperWeaver currently uses CrispASR
+0.8.8 and CrispEmbed 0.14.0; upstream is at 0.8.12 and 0.15.1.
+
+### 14.1 Must-do (correctness / version sync)
+
+- [ ] **a. Pull latest CrispASR and CrispEmbed main, `flutter pub get`.**
+      Both are `path:` deps; pulling main is sufficient.
+
+- [ ] **b. Update engine version string** in `crispasr_engine.dart`
+      from `'0.8.7'` to current version. (Also listed in §13.3f.)
+      Files: `lib/engines/crispasr_engine.dart`
+
+- [ ] **c. Verify Parakeet `--chunk-seconds` C-ABI compatibility.**
+      CrispASR #257 added `chunk_seconds` to the session API. Ensure
+      existing `CrispasrSession` calls don't break (the new param
+      should be optional/defaulted in the C ABI).
+
+### 14.2 CrispASR new features to surface
+
+- [ ] **d. Parakeet chunk-seconds setting.** Expose as a setting in
+      Advanced Options, gated on Parakeet backend. Helps users with
+      limited RAM transcribe long files without OOM.
+      Files: `lib/screens/settings_screen.dart`,
+      `lib/engines/crispasr_engine.dart`
+
+- [ ] **e. OmniVoice TTS-steps quality/speed slider.** CrispASR added
+      `tts-steps` as a tunable for OmniVoice. Expose in synthesize
+      screen's advanced TTS controls when OmniVoice backend is selected.
+      Files: `lib/providers/synthesize_screen_provider.dart`
+
+- [ ] **f. OmniVoice GPU codec decode toggle.** Gate on
+      `OMNIVOICE_CODEC_GPU` env var. Consider exposing as a GPU toggle
+      in settings, or just documenting it.
+
+- [ ] **g. FASTCONV performance wins.** No Dart changes needed — the
+      convolution kernel baking in Chatterbox, CosyVoice3, Irodori,
+      Zonos, SpeechT5 is engine-side. Users get faster TTS synthesis
+      for free once the native lib is updated. Verify no regressions.
+
+### 14.3 CrispEmbed new features to surface
+
+- [ ] **h. Architecture-based GGUF hparam loading.** CrispEmbed 0.15.x
+      derives hparams from `general.architecture`. Better model
+      compatibility for community GGUFs. No Dart changes needed —
+      engine-side improvement.
+
+- [ ] **i. Music/OMR engines in model picker.** 4 new optical music
+      recognition backends: Transcoda (kern), TrOMR (polyphonic MIDI),
+      Flova (LilyPond), SMT++ (pianoform). Add `ModelDefinition` +
+      `BackendRepo` entries + `ModelKind.omr` enum value if needed.
+      Files: `lib/services/model_catalog.dart`
+
+- [ ] **j. DeepSeek-OCR-2 + Unlimited-OCR memory optimizations.**
+      No Dart changes — 25-28% less peak memory is engine-side.
+      Verify existing OCR catalog entries work with updated lib.
+
+- [ ] **k. Persistent device-KV decode speedup.** 2.4-4x faster
+      multi-engine decode. Engine-side, no Dart changes. Verify.
+
+- [ ] **l. Sparse/ColBERT/multi-vector in semantic search.** CrispEmbed
+      stubs already added (§12.2b). Consider wiring `encodeSparse` +
+      `colbertScore` into `SemanticSearchService` as an optional
+      retrieval mode when the loaded model `hasSparse`/`hasColbert`.
+      Files: `lib/services/semantic_search_service.dart`
+
+### 14.4 CI updates
+
+- [ ] **m. Pin CrispASR/CrispEmbed refs to tags.** CI workflows
+      currently pin to `main`. Consider pinning to release tags
+      (e.g. `v0.8.12`) for reproducible builds, with a scheduled
+      job to check for new upstream tags.
+      Files: `.github/workflows/ci.yml`,
+      `.github/workflows/release.yml`,
+      `.github/workflows/deploy-web.yml`

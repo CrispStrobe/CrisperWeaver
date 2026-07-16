@@ -3232,6 +3232,24 @@ abstract class AppLocalizations {
   /// **'Next'**
   String get voiceCloneNext;
 
+  /// No description provided for @voiceCloneConsentTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice Rights Attestation'**
+  String get voiceCloneConsentTitle;
+
+  /// No description provided for @voiceCloneConsentBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice cloning creates a synthetic replica of the voice in your reference audio. Under the EU AI Act (Art. 50) and GDPR (Art. 9), you must have explicit consent from the voice owner, or the voice must be your own. Misuse of voice cloning for impersonation is prohibited.'**
+  String get voiceCloneConsentBody;
+
+  /// No description provided for @voiceCloneConsentCheckbox.
+  ///
+  /// In en, this message translates to:
+  /// **'I confirm that I have the rights to clone this voice (it is my own voice, or I have explicit consent from the voice owner)'**
+  String get voiceCloneConsentCheckbox;
+
   /// No description provided for @voiceCloneFinish.
   ///
   /// In en, this message translates to:
@@ -4953,6 +4971,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This content contains AI-generated synthetic speech.'**
   String get syntheticDisclosureNote;
+
+  /// No description provided for @aiTransparencyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'AI-Powered Application'**
+  String get aiTransparencyTitle;
+
+  /// No description provided for @aiTransparencyBody.
+  ///
+  /// In en, this message translates to:
+  /// **'CrisperWeaver uses artificial intelligence systems for:\n\n• Speech recognition (ASR) — converting audio to text\n• Speech synthesis (TTS) — generating spoken audio from text\n• Speaker identification — biometric voice matching\n• Document analysis (OCR) — recognizing text in images\n• Semantic search — AI-powered content retrieval\n\nAll processing runs on your device. No data is sent to external servers. AI-generated audio is automatically watermarked and signed with machine-readable provenance metadata (EU AI Act Art. 50).\n\nFor details, see the About screen.'**
+  String get aiTransparencyBody;
+
+  /// No description provided for @aiTransparencyAcknowledge.
+  ///
+  /// In en, this message translates to:
+  /// **'I understand'**
+  String get aiTransparencyAcknowledge;
 
   /// No description provided for @historySearchSemanticTooltip.
   ///

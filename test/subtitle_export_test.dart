@@ -99,8 +99,9 @@ void main() {
       expect(out, contains(': no speaker here\n'));
     });
 
-    test('empty input yields empty output', () {
-      expect(FileUtils.generateSrtContent(const []), '');
+    test('empty input with no disclosure yields empty output', () {
+      expect(FileUtils.generateSrtContent(const [],
+          syntheticDisclosure: false), '');
     });
   });
 
@@ -119,7 +120,8 @@ void main() {
 
   group('FileUtils.generateJsonContent', () {
     test('serializes every field per segment', () {
-      final out = FileUtils.generateJsonContent(segs);
+      final out = FileUtils.generateJsonContent(segs,
+          syntheticDisclosure: false);
       final decoded = jsonDecode(out) as List;
       expect(decoded.length, 2);
 
@@ -137,7 +139,8 @@ void main() {
             text: 't', startTime: 0.0, endTime: 1.0, confidence: 1.0),
       ];
       final decoded =
-          jsonDecode(FileUtils.generateJsonContent(noSpk)) as List;
+          jsonDecode(FileUtils.generateJsonContent(noSpk,
+              syntheticDisclosure: false)) as List;
       expect((decoded[0] as Map)['speaker'], isNull);
     });
   });
