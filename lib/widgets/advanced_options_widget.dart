@@ -293,6 +293,13 @@ class AdvancedOptions {
   /// an analog today.
   final int altN;
 
+  /// §14.2d — Parakeet chunked transcription window (seconds).
+  /// 0 = per-model default (typically 30 s). Setting a smaller value
+  /// (e.g. 10–15 s) reduces peak memory on long files, at the cost
+  /// of more segment-boundary artefacts. Only effective on Parakeet
+  /// and other session backends via `transcribeChunked()`.
+  final int chunkSeconds;
+
   /// §5.26.2 — Hotwords for contextual biasing. Comma-separated list
   /// of words/phrases the user expects in the audio. Delivered to
   /// LLM backends via setAsk() with "The following words may appear
@@ -388,6 +395,7 @@ class AdvancedOptions {
     this.hotwordsBoost = 1.5,
     this.beamSize = 0,
     this.alignerModel = '',
+    this.chunkSeconds = 0,
   });
 
   AdvancedOptions copyWith({
@@ -440,6 +448,7 @@ class AdvancedOptions {
     double? hotwordsBoost,
     int? beamSize,
     String? alignerModel,
+    int? chunkSeconds,
   }) =>
       AdvancedOptions(
         translate: translate ?? this.translate,
@@ -497,6 +506,7 @@ class AdvancedOptions {
         hotwordsBoost: hotwordsBoost ?? this.hotwordsBoost,
         beamSize: beamSize ?? this.beamSize,
         alignerModel: alignerModel ?? this.alignerModel,
+        chunkSeconds: chunkSeconds ?? this.chunkSeconds,
       );
 
   /// Backends that accept a target-language hint different from the
@@ -836,6 +846,10 @@ class _AdvancedDecodingSectionState
               ],
             ),
           ),
+        // §14.2d — Chunked transcription window for Parakeet and other
+        // session backends. 0 = per-model default. Smaller values reduce
+        // peak memory on long files.
+        _buildChunkSecondsRow(context, opts),
         SwitchListTile(
           dense: true,
           contentPadding: EdgeInsets.zero,
@@ -2080,6 +2094,36 @@ class _AdvancedDecodingSectionState
             onChanged: (v) =>
                 ref.read(advancedOptionsProvider.notifier).state =
                     opts.copyWith(hotwordsBoost: v),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// §14.2d — Chunked transcription window for session backends.
+  Widget _buildChunkSecondsRow(
+      BuildContext context, AdvancedOptions opts) {
+    final l = AppLocalizations.of(context);
+    return ListTile(
+      dense: true,
+      contentPadding: EdgeInsets.zero,
+      title: Text(l.advancedChunkSeconds(opts.chunkSeconds)),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(l.advancedChunkSecondsHelper,
+              style: const TextStyle(fontSize: 11)),
+          Slider(
+            value: opts.chunkSeconds.toDouble(),
+            min: 0,
+            max: 120,
+            divisions: 12,
+            label: opts.chunkSeconds == 0
+                ? 'default'
+                : '${opts.chunkSeconds}s',
+            onChanged: (v) =>
+                ref.read(advancedOptionsProvider.notifier).state =
+                    opts.copyWith(chunkSeconds: v.round()),
           ),
         ],
       ),

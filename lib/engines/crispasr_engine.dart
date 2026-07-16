@@ -1559,7 +1559,11 @@ class CrispASREngine implements TranscriptionEngine {
         ),
       );
     }
-    return _session!.transcribeChunked(pcm, language: langHint);
+    return _session!.transcribeChunked(
+      pcm,
+      chunkSeconds: advanced.chunkSeconds,
+      language: langHint,
+    );
   }
 
   /// §9 — session-backend transcription dispatched through the
@@ -1611,6 +1615,7 @@ class CrispASREngine implements TranscriptionEngine {
       vadMinSpeechMs: useVad ? advanced.vadMinSpeechMs : null,
       vadMinSilenceMs: useVad ? advanced.vadMinSilenceMs : null,
       vadSpeechPadMs: useVad ? advanced.vadSpeechPadMs : null,
+      chunkSeconds: advanced.chunkSeconds,
     );
 
     final backend = _session?.backend;

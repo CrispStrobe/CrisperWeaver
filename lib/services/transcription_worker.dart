@@ -158,6 +158,7 @@ Future<void> transcriptionWorkerEntry(TranscriptionWorkerArgs args) async {
     final vadMinSpeechMs = (raw['vadMinSpeechMs'] as num?)?.toInt();
     final vadMinSilenceMs = (raw['vadMinSilenceMs'] as num?)?.toInt();
     final vadSpeechPadMs = (raw['vadSpeechPadMs'] as num?)?.toInt();
+    final chunkSeconds = (raw['chunkSeconds'] as num?)?.toInt() ?? 0;
     // §5.8 — GBNF grammar-constrained sampling (whisper-only).
     // Empty string = clear any prior grammar; non-empty = parse +
     // bind + force beam search at whisper_full time.
@@ -308,7 +309,11 @@ Future<void> transcriptionWorkerEntry(TranscriptionWorkerArgs args) async {
           ),
         );
       } else {
-        segs = session.transcribeChunked(samples, language: language);
+        segs = session.transcribeChunked(
+          samples,
+          chunkSeconds: chunkSeconds,
+          language: language,
+        );
       }
       // Stream segments first (UI gets them as they arrive), then
       // signal done with the full list (drain loop uses it for

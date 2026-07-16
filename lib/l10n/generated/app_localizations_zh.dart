@@ -1178,6 +1178,15 @@ class AppLocalizationsZh extends AppLocalizations {
       'CTC/TDT 热词偏置增强因子（granite、parakeet）。0 = 关闭。';
 
   @override
+  String advancedChunkSeconds(int n) {
+    return '分块窗口：$n秒';
+  }
+
+  @override
+  String get advancedChunkSecondsHelper =>
+      '转录分块大小（秒）。0 = 模型默认值（约30秒）。较小的值可减少长文件的峰值内存占用。';
+
+  @override
   String get advancedInitialPrompt => '初始提示（词汇/上下文）';
 
   @override

@@ -293,6 +293,7 @@ class TranscriptionWorkerPool {
     bool carryInitialPrompt = false,
     int altN = 0,
     String hotwords = '',
+    int chunkSeconds = 0,
     void Function(TranscriptionSegment seg)? onSegment,
   }) async {
     final worker = await _acquire();
@@ -349,6 +350,7 @@ class TranscriptionWorkerPool {
         if (vadMinSpeechMs != null) 'vadMinSpeechMs': vadMinSpeechMs,
         if (vadMinSilenceMs != null) 'vadMinSilenceMs': vadMinSilenceMs,
         if (vadSpeechPadMs != null) 'vadSpeechPadMs': vadSpeechPadMs,
+        if (chunkSeconds > 0) 'chunkSeconds': chunkSeconds,
         // §5.8 — always send the grammar fields. Empty text means
         // "clear" on the worker side, so a stale grammar from a
         // previous job can't carry over.

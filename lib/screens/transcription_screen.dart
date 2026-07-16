@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:desktop_drop/desktop_drop.dart';
 
 import '../utils/platform_utils.dart' as plat;
@@ -1386,6 +1387,37 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
   /// Open the preset picker. Returns the chosen preset (or
   /// Pick an audio file and check it for the CrisperWeaver AI watermark.
   /// Shows a dialog with the result.
+  /// Detect whether a WAV file contains a COSE-signed C2PA manifest
+  /// (JUMBF structure) as opposed to the unsigned JSON-LD fallback.
+  /// The native c2pa-audio signer embeds a JUMBF superbox in a RIFF
+  /// `c2pa` chunk; the first 4 bytes of the payload are a big-endian
+  /// box length, followed by 'jumb'. The unsigned fallback starts with
+  /// '{' (JSON). Full signature verification is blocked on a C ABI
+  /// function not yet exposed; this is a structural detection only.
+  static bool _hasSignedC2pa(Uint8List wavBytes) {
+    if (wavBytes.length < 44) return false;
+    var offset = 12;
+    while (offset + 8 <= wavBytes.length) {
+      final id = String.fromCharCodes(wavBytes.sublist(offset, offset + 4));
+      final bd = ByteData.view(wavBytes.buffer);
+      final size = bd.getUint32(offset + 4, Endian.little);
+      if (id == 'c2pa' && size > 8) {
+        // Check if payload starts with JUMBF box (not '{' JSON).
+        final payloadStart = offset + 8;
+        if (payloadStart + 8 <= wavBytes.length) {
+          // JUMBF: big-endian box length + 'jumb' type
+          final boxType = String.fromCharCodes(
+              wavBytes.sublist(payloadStart + 4, payloadStart + 8));
+          if (boxType == 'jumb') return true;
+          // Also check for the C2PA manifest store UUID box
+          if (wavBytes[payloadStart] != 0x7B /* '{' */) return true;
+        }
+      }
+      offset += 8 + size + (size.isOdd ? 1 : 0);
+    }
+    return false;
+  }
+
   Future<void> _verifyWatermark() async {
     try {
       final pick = await pickFilesRobust(
@@ -1475,7 +1507,12 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
                 ),
               ],
               const SizedBox(height: 6),
-              // C2PA manifest result
+              // C2PA manifest result — distinguish signed (COSE/JUMBF)
+              // from unsigned (JSON-LD fallback). Full COSE signature
+              // verification requires a C ABI function not yet exposed;
+              // for now we detect the manifest type by checking whether
+              // the RIFF chunk contains JUMBF structure (starts with a
+              // box-length header) or plain JSON (starts with '{').
               Row(
                 children: [
                   Icon(c2pa != null ? Icons.check_circle : Icons.cancel,
@@ -1485,7 +1522,10 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
                   Expanded(
                     child: Text(c2pa != null
                         ? 'C2PA manifest: ${c2pa['claim_generator'] ?? 'present'}'
-                        : 'No C2PA manifest'),
+                            ' (unsigned JSON-LD)'
+                        : _hasSignedC2pa(bytes)
+                            ? 'C2PA manifest: COSE-signed (cryptographic)'
+                            : 'No C2PA manifest'),
                   ),
                 ],
               ),

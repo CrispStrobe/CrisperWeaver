@@ -2146,6 +2146,18 @@ abstract class AppLocalizations {
   /// **'Boost factor for CTC/TDT hotword biasing (granite, parakeet). 0 = off.'**
   String get advancedHotwordsBoostHelper;
 
+  /// No description provided for @advancedChunkSeconds.
+  ///
+  /// In en, this message translates to:
+  /// **'Chunk window: {n}s'**
+  String advancedChunkSeconds(int n);
+
+  /// No description provided for @advancedChunkSecondsHelper.
+  ///
+  /// In en, this message translates to:
+  /// **'Transcription chunk size in seconds. 0 = per-model default (~30s). Smaller values reduce peak memory on long files.'**
+  String get advancedChunkSecondsHelper;
+
   /// No description provided for @advancedInitialPrompt.
   ///
   /// In en, this message translates to:

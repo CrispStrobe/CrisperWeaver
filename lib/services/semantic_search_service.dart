@@ -144,28 +144,50 @@ class SemanticSearchService {
       }
     }
 
+    // §14.3l — ColBERT late-interaction scoring: when the embedder
+    // supports multi-vector representations (hasColbert), compute
+    // per-token MaxSim scores for higher retrieval precision than
+    // single-vector cosine. Falls back to dense cosine otherwise.
+    final useColbert = embedder.hasColbert;
+    List<Float32List>? queryMultivec;
+    if (useColbert) {
+      try {
+        queryMultivec = embedder.encodeMultivec(query);
+      } catch (_) {
+        // ColBERT encode failed — fall back to dense cosine.
+      }
+    }
+
     final results = <SearchResult>[];
     for (var i = 0; i < segments.length; i++) {
       final text = segments[i].text;
       if (text.trim().isEmpty) continue;
 
-      // 1) Try pre-computed embeddings from persisted history entry.
-      Float32List? segVec = historyEntry?.embeddingForSegment(i);
+      double textScore;
 
-      // 2) Fall back to in-memory cache.
-      segVec ??= _embeddingCache[text];
-
-      // 3) Fall back to on-the-fly encoding + cache.
-      if (segVec == null) {
-        segVec = embedder.encode(text);
-        if (segVec.isNotEmpty) {
-          _embeddingCache[text] = segVec;
+      if (queryMultivec != null && queryMultivec.isNotEmpty) {
+        // ColBERT: multi-vector late-interaction scoring.
+        try {
+          final segMultivec = embedder.encodeMultivec(text);
+          final dim = queryMultivec.first.length;
+          textScore = embedder.colbertScore(
+            _flattenMultivec(queryMultivec),
+            queryMultivec.length,
+            _flattenMultivec(segMultivec),
+            segMultivec.length,
+            dim,
+          );
+        } catch (_) {
+          // ColBERT scoring failed for this segment — fall back to dense.
+          textScore = _denseScore(
+            text, i, queryVec, embedder, historyEntry);
         }
+      } else {
+        // Dense bi-encoder cosine similarity (standard path).
+        textScore = _denseScore(
+          text, i, queryVec, embedder, historyEntry);
       }
 
-      if (segVec.isEmpty) continue;
-
-      final textScore = cosineSimilarity(queryVec, segVec);
       // Take the max of text similarity and audio similarity —
       // a strong cross-modal match lifts all segments of the entry.
       final score = math.max(textScore, audioScore);
@@ -180,6 +202,39 @@ class SemanticSearchService {
 
     results.sort((a, b) => b.score.compareTo(a.score));
     return results.take(maxResults).toList();
+  }
+
+  /// Flatten a list of per-token vectors into a single contiguous buffer
+  /// for the ColBERT FFI call.
+  static Float32List _flattenMultivec(List<Float32List> vecs) {
+    if (vecs.isEmpty) return Float32List(0);
+    final dim = vecs.first.length;
+    final out = Float32List(vecs.length * dim);
+    for (var i = 0; i < vecs.length; i++) {
+      out.setRange(i * dim, (i + 1) * dim, vecs[i]);
+    }
+    return out;
+  }
+
+  /// Dense cosine score for a single segment, using the 3-tier cache:
+  /// persisted entry → in-memory cache → on-the-fly encoding.
+  static double _denseScore(
+    String text,
+    int segIndex,
+    Float32List queryVec,
+    CrispEmbed embedder,
+    HistoryEntry? historyEntry,
+  ) {
+    Float32List? segVec = historyEntry?.embeddingForSegment(segIndex);
+    segVec ??= _embeddingCache[text];
+    if (segVec == null) {
+      segVec = embedder.encode(text);
+      if (segVec.isNotEmpty) {
+        _embeddingCache[text] = segVec;
+      }
+    }
+    if (segVec.isEmpty) return 0;
+    return cosineSimilarity(queryVec, segVec);
   }
 
   /// §12.3a — Re-score cosine candidates via a cross-encoder reranker.

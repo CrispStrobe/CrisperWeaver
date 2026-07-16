@@ -1223,6 +1223,15 @@ class AppLocalizationsDe extends AppLocalizations {
       'Boost-Faktor für CTC/TDT-Hotword-Biasing (granite, parakeet). 0 = aus.';
 
   @override
+  String advancedChunkSeconds(int n) {
+    return 'Chunk-Fenster: ${n}s';
+  }
+
+  @override
+  String get advancedChunkSecondsHelper =>
+      'Transkriptions-Chunkgröße in Sekunden. 0 = Modell-Standard (~30s). Kleinere Werte reduzieren den Spitzenspeicherbedarf bei langen Dateien.';
+
+  @override
   String get advancedInitialPrompt => 'Initial-Prompt (Vokabular / Kontext)';
 
   @override

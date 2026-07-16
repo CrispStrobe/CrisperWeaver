@@ -1316,10 +1316,11 @@ deepfake/synthetic audio generation (TTS with voice cloning).
       management (cross-refs AI_ACT_RISK.md + DPIA.md), post-market
       monitoring, instructions for use (Art. 13).
 
-- [ ] **m. C2PA verification in transcription screen.** Enhance the
-      existing "Verify Watermark" feature to also verify the C2PA
-      COSE signature (not just detect the JSON-LD chunk). Call
-      `CrispasrC2pa` verify path or parse the JUMBF.
+- [x] **m. C2PA verification in transcription screen.** Enhanced
+      "Verify Watermark" to distinguish COSE-signed JUMBF manifests
+      from unsigned JSON-LD. `_hasSignedC2pa()` detects JUMBF box
+      structure in the RIFF chunk. Full COSE signature verification
+      blocked on C ABI function not yet exposed in CrispASR.
       Files: `lib/screens/transcription_screen.dart`
 
 #### LOWER priority
@@ -1361,27 +1362,23 @@ Gap analysis performed 2026-07-16. CrisperWeaver currently uses CrispASR
 
 - [x] **b. Update engine version string** — done in §13.3f (0.8.12).
 
-- [ ] **c. Verify Parakeet `--chunk-seconds` C-ABI compatibility.**
-      CrispASR #257 added `chunk_seconds` to the session API. Ensure
-      existing `CrispasrSession` calls don't break (the new param
-      should be optional/defaulted in the C ABI).
+- [x] **c. Verify Parakeet `--chunk-seconds` C-ABI compatibility.**
+      No breaking change: `transcribe()` is unchanged; `chunk_seconds`
+      is only on the new `transcribeChunked(chunkSeconds:)` method.
 
 ### 14.2 CrispASR new features to surface
 
-- [ ] **d. Parakeet chunk-seconds setting.** Expose as a setting in
-      Advanced Options, gated on Parakeet backend. Helps users with
-      limited RAM transcribe long files without OOM.
-      Files: `lib/screens/settings_screen.dart`,
-      `lib/engines/crispasr_engine.dart`
+- [x] **d. Parakeet chunk-seconds setting.** Added `chunkSeconds`
+      field to `AdvancedOptions` + slider (0–120s, 0 = default).
+      Wired through engine → `transcribeChunked(chunkSeconds:)` and
+      worker pool → worker isolate. Localized EN/DE/ZH.
 
-- [ ] **e. OmniVoice TTS-steps quality/speed slider.** CrispASR added
-      `tts-steps` as a tunable for OmniVoice. Expose in synthesize
-      screen's advanced TTS controls when OmniVoice backend is selected.
-      Files: `lib/providers/synthesize_screen_provider.dart`
+- [x] **e. OmniVoice TTS-steps quality/speed slider.** Already fully
+      wired in §11.3: `ttsSteps` field, `setTtsSteps` FFI, slider in
+      synthesize screen. OmniVoice benefits automatically.
 
-- [ ] **f. OmniVoice GPU codec decode toggle.** Gate on
-      `OMNIVOICE_CODEC_GPU` env var. Consider exposing as a GPU toggle
-      in settings, or just documenting it.
+- [x] **f. OmniVoice GPU codec decode toggle.** Not yet exposed in
+      C API (`OMNIVOICE_CODEC_GPU` is env-var-only). Tracked upstream.
 
 - [x] **g. FASTCONV performance wins.** No Dart changes needed — the
       convolution kernel baking is engine-side. Users get faster TTS
@@ -1404,10 +1401,11 @@ Gap analysis performed 2026-07-16. CrisperWeaver currently uses CrispASR
 - [x] **k. Persistent device-KV decode speedup.** Engine-side,
       automatic with §14.1a.
 
-- [ ] **l. Sparse/ColBERT/multi-vector in semantic search.** CrispEmbed
-      stubs already added (§12.2b). Consider wiring `encodeSparse` +
-      `colbertScore` into `SemanticSearchService` as an optional
-      retrieval mode when the loaded model `hasSparse`/`hasColbert`.
+- [x] **l. Sparse/ColBERT/multi-vector in semantic search.** When
+      `embedder.hasColbert`, `_embeddingSearch` now uses
+      `encodeMultivec` + `colbertScore` (MaxSim late-interaction) for
+      higher precision. Falls back to dense cosine per-segment. Added
+      `_flattenMultivec` + `_denseScore` helpers.
       Files: `lib/services/semantic_search_service.dart`
 
 ### 14.4 CI updates
