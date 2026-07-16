@@ -202,9 +202,9 @@ void main() {
 
   // ---- §12.1d Engine version bump ----
   group('CrispASR engine version (§12.1d)', () {
-    test('CrispASREngine reports version 0.8.7', () {
+    test('CrispASREngine reports version 0.8.12', () {
       final engine = CrispASREngine();
-      expect(engine.version, '0.8.7');
+      expect(engine.version, '0.8.12');
     });
   });
 

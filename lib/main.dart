@@ -290,6 +290,9 @@ class _CrisperWeaverAppState extends ConsumerState<CrisperWeaverApp> {
           _watchFolderService!.start(settings.watchFolderPath!);
         }
       }
+
+      // EU AI Act Art. 52: first-use AI transparency notice.
+      _showAiTransparencyNoticeIfNeeded();
     });
 
     // On desktop, the user clicking the red close button fires
@@ -302,6 +305,41 @@ class _CrisperWeaverAppState extends ConsumerState<CrisperWeaverApp> {
     _lifecycle = AppLifecycleListener(
       onExitRequested: _onExitRequested,
     );
+  }
+
+  /// EU AI Act Art. 52: inform the user on first launch that this
+  /// application uses AI systems for speech recognition, synthesis,
+  /// speaker identification, and document analysis. Dismissal is
+  /// persisted so the dialog only shows once.
+  void _showAiTransparencyNoticeIfNeeded() {
+    final settings = ref.read(settingsServiceProvider);
+    if (settings.aiTransparencyNoticeSeen) return;
+
+    // Show after a short delay so the app has fully rendered.
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (!mounted) return;
+      final l = AppLocalizations.of(context);
+      showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => AlertDialog(
+          icon: const Icon(Icons.smart_toy_outlined, size: 32),
+          title: Text(l.aiTransparencyTitle),
+          content: SingleChildScrollView(
+            child: Text(l.aiTransparencyBody),
+          ),
+          actions: [
+            FilledButton(
+              onPressed: () {
+                settings.aiTransparencyNoticeSeen = true;
+                Navigator.of(ctx).pop();
+              },
+              child: Text(l.aiTransparencyAcknowledge),
+            ),
+          ],
+        ),
+      );
+    });
   }
 
   Future<AppExitResponse> _onExitRequested() async {

@@ -689,6 +689,30 @@ class CrispasrWatermark {
   }
 }
 
+class CrispasrC2pa {
+  CrispasrC2pa._();
+
+  static bool isAvailable({dynamic lib}) => false;
+
+  static Uint8List? sign(
+    Uint8List data, {
+    required String format,
+    String? certPath,
+    String? keyPath,
+    dynamic lib,
+  }) {
+    return null; // C2PA signing unavailable on web
+  }
+
+  static Uint8List? pcmToWav(
+    Float32List pcm, {
+    int sampleRate = 24000,
+    dynamic lib,
+  }) {
+    return null; // C2PA WAV encoding unavailable on web
+  }
+}
+
 class PuncModel {
   PuncModel._();
 

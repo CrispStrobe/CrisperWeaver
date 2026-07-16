@@ -531,6 +531,12 @@ class SettingsService {
     }
 
   }
+
+  // EU AI Act Art. 52 — first-use AI transparency notice.
+  bool get aiTransparencyNoticeSeen =>
+      _prefs.getBool('ai_transparency_notice_seen') ?? false;
+  set aiTransparencyNoticeSeen(bool value) =>
+      _prefs.setBool('ai_transparency_notice_seen', value);
 }
 
 /// Provider for the SettingsService.

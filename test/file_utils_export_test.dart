@@ -192,7 +192,7 @@ void main() {
       final out = FileUtils.generateMarkdownContent([
         const TranscriptionSegment(
             text: 'plain', startTime: 0, endTime: 1, speaker: '   '),
-      ]);
+      ], syntheticDisclosure: false);
       expect(out, contains('` plain'));
       expect(out, isNot(contains('**')));
     });
@@ -201,6 +201,7 @@ void main() {
       final out = FileUtils.generateMarkdownContent(
         [],
         plainText: 'just a paragraph',
+        syntheticDisclosure: false,
       );
       expect(out, contains('# Transcript'));
       expect(out, contains('just a paragraph'));
@@ -209,21 +210,20 @@ void main() {
     });
 
     test('no segments and no plainText yields just the heading', () {
-      final out = FileUtils.generateMarkdownContent([]);
+      final out = FileUtils.generateMarkdownContent([],
+          syntheticDisclosure: false);
       expect(out.trim(), '# Transcript');
     });
 
-    test('synthetic disclosure inserts the notice blockquote', () {
-      final out = FileUtils.generateMarkdownContent(
-        twoSegs,
-        syntheticDisclosure: true,
-      );
+    test('default includes disclosure notice (Art. 50)', () {
+      final out = FileUtils.generateMarkdownContent(twoSegs);
       expect(out, contains('> **Notice:**'));
       expect(out, contains('AI-generated synthetic speech'));
     });
 
-    test('disclosure is omitted by default', () {
-      final out = FileUtils.generateMarkdownContent(twoSegs);
+    test('disclosure omitted when explicitly opted out', () {
+      final out = FileUtils.generateMarkdownContent(twoSegs,
+          syntheticDisclosure: false);
       expect(out, isNot(contains('Notice:')));
     });
   });

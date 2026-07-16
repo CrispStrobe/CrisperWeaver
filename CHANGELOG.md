@@ -5,6 +5,31 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 
 ## [Unreleased]
 
+### Added — EU AI Act full compliance (§13)
+
+Complete EU AI Act compliance sweep with mandatory enforcement:
+
+- **Real C2PA signing**: COSE/X.509 ES256-signed provenance manifests via
+  CrispASR's native c2pa-audio library (unsigned JSON-LD fallback for web).
+- **Mandatory deepfake disclaimer**: voice-cloned TTS output always gets
+  the beep disclaimer. Suppression requires a legal attestation string
+  that shifts compliance burden to the caller and is audit-logged.
+- **Voice clone consent gate**: wizard requires "I have rights to clone
+  this voice" attestation before proceeding; server API returns 403 without
+  `disclaimer_override_attestation`.
+- **Art. 52 transparency notice**: first-launch dialog explaining all AI
+  systems in use (ASR, TTS, speaker ID, OCR, semantic search).
+- **Synthetic disclosure defaults ON**: all export formats (SRT, VTT, JSON,
+  Markdown) now include AI-generated content notice by default.
+- **Risk classification**: `docs/AI_ACT_RISK.md` with Annex III
+  self-assessment and Art. 5 compliance statement.
+- **PRIVACY.md §5**: biometric data section covering voice embeddings,
+  GDPR Art. 9(2)(a) legal basis, and rights (erasure/portability).
+- **C2PA extract bug fix**: null-padding in RIFF chunk parsing.
+- **53 compliance tests** (up from 14): C2PA round-trip, heuristic AI
+  detection, disclosure defaults, privacy constants.
+- **Engine version**: 0.8.7 → 0.8.12.
+
 ### Changed — GPL-free builds + complete native-license attribution
 
 Every shipped build is now GPL-free, so the app is App-Store-distributable

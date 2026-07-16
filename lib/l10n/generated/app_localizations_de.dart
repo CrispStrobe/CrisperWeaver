@@ -1871,6 +1871,17 @@ class AppLocalizationsDe extends AppLocalizations {
   String get voiceCloneNext => 'Weiter';
 
   @override
+  String get voiceCloneConsentTitle => 'Stimmrechte-Bestätigung';
+
+  @override
+  String get voiceCloneConsentBody =>
+      'Voice-Cloning erzeugt eine synthetische Nachbildung der Stimme in Ihrer Referenzaufnahme. Gemäß EU AI Act (Art. 50) und DSGVO (Art. 9) benötigen Sie die ausdrückliche Einwilligung des Stimminhabers, oder es muss Ihre eigene Stimme sein. Der Missbrauch von Voice-Cloning zur Identitätstäuschung ist verboten.';
+
+  @override
+  String get voiceCloneConsentCheckbox =>
+      'Ich bestätige, dass ich die Rechte zum Klonen dieser Stimme habe (es ist meine eigene Stimme oder ich habe die ausdrückliche Zustimmung des Stimminhabers)';
+
+  @override
   String get voiceCloneFinish => 'In Synthese öffnen';
 
   @override
@@ -2968,6 +2979,16 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get syntheticDisclosureNote =>
       'Dieser Inhalt enthält KI-generierte synthetische Sprache.';
+
+  @override
+  String get aiTransparencyTitle => 'KI-gestützte Anwendung';
+
+  @override
+  String get aiTransparencyBody =>
+      'CrisperWeaver verwendet Systeme der Künstlichen Intelligenz für:\n\n• Spracherkennung (ASR) — Umwandlung von Audio in Text\n• Sprachsynthese (TTS) — Erzeugung gesprochener Audiodaten aus Text\n• Sprecheridentifikation — biometrischer Stimmabgleich\n• Dokumentenanalyse (OCR) — Texterkennung in Bildern\n• Semantische Suche — KI-gestützte Inhaltssuche\n\nAlle Verarbeitung erfolgt auf Ihrem Gerät. Es werden keine Daten an externe Server gesendet. KI-generierte Audiodaten werden automatisch mit Wasserzeichen versehen und mit maschinenlesbaren Herkunftsmetadaten signiert (EU AI Act Art. 50).\n\nWeitere Informationen finden Sie im Info-Bildschirm.';
+
+  @override
+  String get aiTransparencyAcknowledge => 'Verstanden';
 
   @override
   String get historySearchSemanticTooltip => 'Semantische Suche (aktiv)';

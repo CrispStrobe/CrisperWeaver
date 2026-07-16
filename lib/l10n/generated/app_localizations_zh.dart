@@ -1794,6 +1794,17 @@ class AppLocalizationsZh extends AppLocalizations {
   String get voiceCloneNext => '下一步';
 
   @override
+  String get voiceCloneConsentTitle => '声音权利确认';
+
+  @override
+  String get voiceCloneConsentBody =>
+      '语音克隆会创建参考音频中声音的合成复制品。根据欧盟AI法案（第50条）和GDPR（第9条），您必须获得声音所有者的明确同意，或该声音必须是您自己的。禁止滥用语音克隆进行身份冒充。';
+
+  @override
+  String get voiceCloneConsentCheckbox =>
+      '我确认我有权克隆此声音（这是我自己的声音，或我已获得声音所有者的明确同意）';
+
+  @override
   String get voiceCloneFinish => '在合成中打开';
 
   @override
@@ -2854,6 +2865,16 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get syntheticDisclosureNote => '此内容包含 AI 生成的合成语音。';
+
+  @override
+  String get aiTransparencyTitle => 'AI 驱动的应用程序';
+
+  @override
+  String get aiTransparencyBody =>
+      'CrisperWeaver 使用人工智能系统进行：\n\n• 语音识别 (ASR) — 将音频转换为文本\n• 语音合成 (TTS) — 从文本生成语音音频\n• 说话人识别 — 生物特征语音匹配\n• 文档分析 (OCR) — 识别图像中的文字\n• 语义搜索 — AI 驱动的内容检索\n\n所有处理均在您的设备上运行。不会向外部服务器发送任何数据。AI 生成的音频会自动添加水印并签署机器可读的来源元数据（欧盟AI法案第50条）。\n\n详情请参见关于页面。';
+
+  @override
+  String get aiTransparencyAcknowledge => '我了解';
 
   @override
   String get historySearchSemanticTooltip => '语义搜索（已激活）';

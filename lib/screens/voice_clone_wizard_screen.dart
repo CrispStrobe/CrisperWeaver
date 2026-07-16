@@ -76,6 +76,11 @@ class _VoiceCloneWizardScreenState
   AudioPlayer? _previewPlayer;
   bool _previewPlaying = false;
 
+  /// EU AI Act Art. 50(4) + GDPR Art. 9: voice cloning requires
+  /// explicit consent from the voice owner. The user must check this
+  /// before the wizard completes.
+  bool _voiceRightsAttested = false;
+
   @override
   void dispose() {
     _recordCountdownTimer?.cancel();
@@ -493,6 +498,57 @@ class _VoiceCloneWizardScreenState
                 : _refTextController.text.trim(),
           ),
           const SizedBox(height: 16),
+          // EU AI Act Art. 50(4) + GDPR Art. 9: voice-cloning consent gate.
+          // The user must attest they have rights to clone the voice in the
+          // reference audio before the wizard completes. Matches CrispASR's
+          // --i-have-rights pattern.
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.errorContainer.withValues(alpha: 0.3),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: _voiceRightsAttested
+                    ? Colors.green.shade400
+                    : Theme.of(context).colorScheme.error.withValues(alpha: 0.5),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.gavel,
+                        size: 16,
+                        color: Theme.of(context).colorScheme.error),
+                    const SizedBox(width: 6),
+                    Text(l.voiceCloneConsentTitle,
+                        style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color:
+                                Theme.of(context).colorScheme.error)),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(l.voiceCloneConsentBody,
+                    style: TextStyle(
+                        fontSize: 12, color: Colors.grey.shade700)),
+                const SizedBox(height: 8),
+                CheckboxListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  value: _voiceRightsAttested,
+                  onChanged: (v) =>
+                      setState(() => _voiceRightsAttested = v ?? false),
+                  title: Text(l.voiceCloneConsentCheckbox,
+                      style: const TextStyle(fontSize: 12)),
+                  controlAffinity: ListTileControlAffinity.leading,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
           Text(l.voiceCloneHandoffModelHint,
               style: TextStyle(
                   fontSize: 12, color: Colors.grey.shade600)),
@@ -538,8 +594,9 @@ class _VoiceCloneWizardScreenState
               size: 18),
           label: Text(
               isLast ? l.voiceCloneFinish : l.voiceCloneNext),
-          onPressed:
-              (_canAdvance || isLast) ? _next : null,
+          onPressed: isLast
+              ? (_voiceRightsAttested ? _next : null)
+              : (_canAdvance ? _next : null),
         ),
       ],
     );

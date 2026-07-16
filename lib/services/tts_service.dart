@@ -614,9 +614,15 @@ class TtsService {
   /// dialog.
   ///
   /// When [voiceRefPath] is non-null, the output uses a cloned voice and
-  /// a beep-based AI disclaimer marker is prepended to the PCM unless
-  /// [spokenDisclaimer] is false. A consent attestation
-  /// is also logged for audit purposes.
+  /// a beep-based AI disclaimer marker is prepended to the PCM.
+  ///
+  /// EU AI Act Art. 50(4): the beep disclaimer is **mandatory** for
+  /// voice-cloned output. To suppress it, the caller must provide
+  /// [disclaimerOverrideAttestation] — a non-empty string documenting
+  /// the legal basis for suppression (e.g. "internal testing, not for
+  /// distribution"). This shifts the compliance burden to the caller
+  /// and is logged for audit. The watermark and C2PA signing remain
+  /// regardless.
   ///
   /// Note: the spread-spectrum watermark is now auto-applied by
   /// `crispasr_session_synthesize` at the C API level — no need to call
@@ -625,7 +631,7 @@ class TtsService {
     SynthesizedAudio audio, {
     String? basename,
     String? voiceRefPath,
-    bool spokenDisclaimer = true,
+    String? disclaimerOverrideAttestation,
   }) async {
     final dir = await getTemporaryDirectory();
     // macOS with sandbox-app disabled returns
@@ -641,12 +647,16 @@ class TtsService {
     final stamp = now.millisecondsSinceEpoch;
     final name = basename ?? 'crisperweaver-synth-$stamp.wav';
     final out = File(p.join(dir.path, name));
-    // Voice-clone disclaimer + consent audit logging .
+    // Voice-clone disclaimer + consent audit logging.
     var samples = audio.samples;
     final bool isVoiceClone = voiceRefPath != null && voiceRefPath.isNotEmpty;
     if (isVoiceClone) {
-      if (spokenDisclaimer) {
-        // Prepend beep-based AI disclaimer marker to the PCM.
+      final bool suppressDisclaimer =
+          disclaimerOverrideAttestation != null &&
+          disclaimerOverrideAttestation.trim().isNotEmpty;
+
+      if (!suppressDisclaimer) {
+        // EU AI Act Art. 50(4): mandatory beep disclaimer for deepfake audio.
         final beeps = AudioWatermarkService.generateBeepDisclaimer(
           sampleRate: audio.sampleRate,
         );
@@ -654,10 +664,20 @@ class TtsService {
         combined.setRange(0, beeps.length, beeps);
         combined.setRange(beeps.length, combined.length, samples);
         samples = combined;
-        Log.instance.d('tts', 'beep disclaimer prepended',
+        Log.instance.d('tts', 'beep disclaimer prepended (mandatory)',
             fields: {'beep_samples': beeps.length});
       } else {
-        Log.instance.d('tts', 'beep disclaimer skipped (opt-out)');
+        // Caller has provided a legal attestation to suppress the beep.
+        // Compliance burden shifts to the caller. Log for audit.
+        Log.instance.w('tts',
+            '[DISCLAIMER-OVERRIDE] beep disclaimer suppressed — '
+            'burden shifted to caller',
+            fields: {
+              'attestation': disclaimerOverrideAttestation,
+              'ts': DateTime.now().toUtc().toIso8601String(),
+              'model': _backend ?? 'unknown',
+              'voice': voiceRefPath,
+            });
       }
 
       // Log consent attestation for audit trail.
@@ -724,19 +744,39 @@ class TtsService {
             fields: {'synthetic': verified.synthetic});
       }
     }
-    // C2PA provenance manifest — append a machine-readable JSON-LD
-    // assertion chunk to the WAV so C2PA-aware tools can discover
-    // the AI origin without needing our watermark decoder.
-    bytes = ContentProvenanceService.injectIntoWav(
-      bytes,
-      generator: 'CrisperWeaver',
-      generatorVersion: AppConstants.appVersion,
-      modelName: _backend,
-      voiceId: voiceRefPath != null
-          ? p.basenameWithoutExtension(voiceRefPath)
-          : null,
-      timestamp: now,
-    );
+    // C2PA signing — EU AI Act Art. 50 machine-readable AI-content marking.
+    // Try real COSE/X.509 signing via CrispASR's native c2pa-audio first;
+    // fall back to the unsigned JSON-LD manifest when the native symbols
+    // are unavailable (web builds, old dylibs).
+    bool c2paSigned = false;
+    if (crispasr.CrispasrC2pa.isAvailable()) {
+      final signed = crispasr.CrispasrC2pa.sign(
+        bytes,
+        format: 'audio/wav',
+      );
+      if (signed != null) {
+        bytes = signed;
+        c2paSigned = true;
+        Log.instance.d('tts', 'C2PA signed (COSE/X.509, native c2pa-audio)');
+      } else {
+        Log.instance.w('tts', 'C2PA native signing returned null — falling back to unsigned manifest');
+      }
+    }
+    if (!c2paSigned) {
+      // Unsigned JSON-LD fallback: still machine-readable, but not
+      // cryptographically verifiable. Better than nothing.
+      bytes = ContentProvenanceService.injectIntoWav(
+        bytes,
+        generator: 'CrisperWeaver',
+        generatorVersion: AppConstants.appVersion,
+        modelName: _backend,
+        voiceId: voiceRefPath != null
+            ? p.basenameWithoutExtension(voiceRefPath)
+            : null,
+        timestamp: now,
+      );
+      Log.instance.d('tts', 'C2PA unsigned JSON-LD manifest injected (fallback)');
+    }
     await out.writeAsBytes(bytes, flush: true);
     return out;
   }
