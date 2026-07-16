@@ -1213,6 +1213,15 @@ class AppLocalizationsEn extends AppLocalizations {
       'Boost factor for CTC/TDT hotword biasing (granite, parakeet). 0 = off.';
 
   @override
+  String advancedChunkSeconds(int n) {
+    return 'Chunk window: ${n}s';
+  }
+
+  @override
+  String get advancedChunkSecondsHelper =>
+      'Transcription chunk size in seconds. 0 = per-model default (~30s). Smaller values reduce peak memory on long files.';
+
+  @override
   String get advancedInitialPrompt => 'Initial prompt (vocabulary / context)';
 
   @override
