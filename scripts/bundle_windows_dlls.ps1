@@ -84,12 +84,41 @@ foreach ($name in $siblings) {
 }
 
 # ggml runtime (new-style CrispASR builds ship it as separate DLLs).
-foreach ($g in @("ggml", "ggml-cpu", "ggml-base", "ggml-blas")) {
+$cudaBackendBundled = $false
+foreach ($g in @("ggml", "ggml-cpu", "ggml-base", "ggml-blas", "ggml-cuda")) {
     $dll = Find-Dll $cBase $g
     if ($dll) {
         Copy-Item $dll "$runnerDir\$g.dll" -Force
         Write-Host "  bundled $g.dll"
+        if ($g -eq "ggml-cuda") { $cudaBackendBundled = $true }
     }
+}
+
+# A CUDA-enabled build needs the redistributable CUDA runtime DLLs beside
+# ggml-cuda.dll. CPU builds do not enter this branch.
+if ($cudaBackendBundled) {
+    if (-not $env:CUDA_PATH) {
+        throw "ggml-cuda.dll was built, but CUDA_PATH is not set; cannot bundle its CUDA runtime dependencies."
+    }
+
+    $cudaBin = Join-Path $env:CUDA_PATH "bin"
+    foreach ($cudaRuntime in @("cudart64_12.dll", "cublas64_12.dll", "cublasLt64_12.dll")) {
+        $cudaDll = Join-Path $cudaBin $cudaRuntime
+        if (-not (Test-Path $cudaDll)) {
+            throw "Required CUDA runtime DLL not found: $cudaDll"
+        }
+        Copy-Item $cudaDll $runnerDir -Force
+        Write-Host "  bundled $cudaRuntime"
+    }
+
+    $nvJitLink = Get-ChildItem -Path $cudaBin -Filter "nvJitLink_*.dll" |
+        Sort-Object Name -Descending |
+        Select-Object -First 1
+    if (-not $nvJitLink) {
+        throw "Required nvJitLink runtime DLL not found under $cudaBin"
+    }
+    Copy-Item $nvJitLink.FullName $runnerDir -Force
+    Write-Host "  bundled $($nvJitLink.Name)"
 }
 
 # Opus/Ogg codec runtime. With CRISPASR_OPUS_FETCH=ON + BUILD_SHARED_LIBS=ON,

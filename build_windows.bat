@@ -9,6 +9,7 @@ REM Usage:
 REM   build_windows.bat                        REM = release build
 REM   build_windows.bat debug
 REM   build_windows.bat release -RebuildCmake
+REM   build_windows.bat release -P100
 REM
 REM Prefers PowerShell 7+ (pwsh.exe) when available, falls back to
 REM Windows PowerShell 5.1 (powershell.exe).

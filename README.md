@@ -214,9 +214,14 @@ Each desktop platform has an end-to-end script that configures + builds CrispASR
 build_windows.bat release
 # or directly:
 pwsh -File scripts\build_windows.ps1 release
+
+# Windows + NVIDIA Tesla P100 (CUDA 12.x, x64 developer shell)
+pwsh -File scripts\build_windows.ps1 release -P100
 ```
 
 Pass `debug` instead of `release` for a debug build; add `--rebuild-cmake` (or `-RebuildCmake` on Windows) to force a fresh CrispASR cmake configure. Each script's output ends with a path to the runnable bundle / `.app` / `.exe`.
+
+Tesla P100 requires a CUDA 12.x toolkit because it is a Pascal (`sm_60`) GPU. See [Windows Tesla P100 build](docs/windows-p100-cuda.md) for prerequisites and verification.
 
 The bundlers can also be invoked standalone (`scripts/bundle_macos_dylibs.sh`, `scripts/bundle_linux_libs.sh`, `scripts/bundle_windows_dlls.ps1`) if you've already built CrispASR and `flutter build <platform>` separately and just want to drop the libs in place.
 

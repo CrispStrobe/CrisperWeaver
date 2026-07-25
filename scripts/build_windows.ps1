@@ -8,7 +8,7 @@
 #      the runner exe via bundle_windows_dlls.ps1
 #
 # Usage:
-#   pwsh -File scripts\build_windows.ps1 [debug|release] [-RebuildCmake]
+#   pwsh -File scripts\build_windows.ps1 [debug|release] [-RebuildCmake] [-P100]
 #
 #   Or via the convenience wrapper at the repo root:
 #     build_windows.bat [debug|release] [-RebuildCmake]
@@ -17,7 +17,9 @@
 #   CRISPASR_DIR          path to sibling CrispASR repo
 #                         (default: ..\CrispASR)
 #   CRISPASR_BUILD_SUBDIR cmake binary dir under CRISPASR_DIR
-#                         (default: build-flutter-bundle)
+#                         (default: build-flutter-bundle, or
+#                         build-flutter-p100 with -P100)
+#   CUDA_PATH             CUDA Toolkit 12.x root (required with -P100)
 #
 # The default subdir is "build-flutter-bundle" rather than "build" on
 # purpose: the upstream CrispASR repo's `build\` is often configured
@@ -29,7 +31,8 @@ param(
     [Parameter(Position=0)]
     [ValidateSet("debug","Debug","release","Release")]
     [string]$Config = "release",
-    [switch]$RebuildCmake
+    [switch]$RebuildCmake,
+    [switch]$P100
 )
 
 $ErrorActionPreference = "Stop"
@@ -44,7 +47,8 @@ $crispasrDir = if ($env:CRISPASR_DIR) {
 } else {
     (Resolve-Path "$repoRoot\..\CrispASR").Path
 }
-$crispasrBuildSubdir = if ($env:CRISPASR_BUILD_SUBDIR) { $env:CRISPASR_BUILD_SUBDIR } else { "build-flutter-bundle" }
+$defaultBuildSubdir = if ($P100) { "build-flutter-p100" } else { "build-flutter-bundle" }
+$crispasrBuildSubdir = if ($env:CRISPASR_BUILD_SUBDIR) { $env:CRISPASR_BUILD_SUBDIR } else { $defaultBuildSubdir }
 $buildDir = Join-Path $crispasrDir $crispasrBuildSubdir
 
 if (-not (Test-Path $crispasrDir)) {
@@ -56,6 +60,27 @@ Write-Host "==> CrispASR repo:    $crispasrDir"
 Write-Host "==> CrispASR build:   $buildDir"
 Write-Host "==> Flutter config:   $Config"
 
+if ($P100) {
+    if (-not $env:CUDA_PATH) {
+        throw "-P100 requires CUDA Toolkit 12.x and CUDA_PATH to be set."
+    }
+
+    $nvcc = Join-Path $env:CUDA_PATH "bin\nvcc.exe"
+    if (-not (Test-Path $nvcc)) {
+        throw "nvcc.exe not found at $nvcc. Install CUDA Toolkit 12.x or correct CUDA_PATH."
+    }
+    if (-not (Get-Command ninja -ErrorAction SilentlyContinue)) {
+        throw "-P100 requires Ninja on PATH. Install Ninja or run from a Developer Command Prompt that provides it."
+    }
+
+    $nvccVersion = (& $nvcc --version | Select-String "release (\d+)\." | Select-Object -Last 1)
+    if (-not $nvccVersion -or [int]$nvccVersion.Matches[0].Groups[1].Value -ne 12) {
+        throw "-P100 requires CUDA Toolkit 12.x; CUDA 13 no longer supports Pascal code generation."
+    }
+
+    Write-Host "==> CUDA target:      NVIDIA Tesla P100 (sm_60)"
+}
+
 # ---------------------------------------------------------------------------
 # Step 1: configure CrispASR (skip if cmake cache already exists, unless
 # -RebuildCmake is passed).
@@ -64,14 +89,40 @@ $cacheFile = Join-Path $buildDir "CMakeCache.txt"
 if ($RebuildCmake -or -not (Test-Path $cacheFile)) {
     Write-Host "==> cmake configure"
     if (Test-Path $buildDir) { Remove-Item -Recurse -Force $buildDir }
-    & cmake -S $crispasrDir -B $buildDir `
-        -DCMAKE_BUILD_TYPE=$cmakeBuildType `
-        -DBUILD_SHARED_LIBS=ON `
-        -DCRISPASR_BUILD_TESTS=OFF `
-        -DCRISPASR_BUILD_EXAMPLES=OFF `
-        -DCRISPASR_BUILD_SERVER=OFF `
-        -DCRISPASR_OPUS_FETCH=ON
+
+    $cmakeArgs = @(
+        "-S", $crispasrDir,
+        "-B", $buildDir,
+        "-DCMAKE_BUILD_TYPE=$cmakeBuildType",
+        "-DBUILD_SHARED_LIBS=ON",
+        "-DCRISPASR_BUILD_TESTS=OFF",
+        "-DCRISPASR_BUILD_EXAMPLES=OFF",
+        "-DCRISPASR_BUILD_SERVER=OFF",
+        "-DCRISPASR_OPUS_FETCH=ON"
+    )
+    if ($P100) {
+        $cmakeArgs += @(
+            "-G", "Ninja",
+            "-DGGML_CUDA=ON",
+            "-DGGML_CUDA_NO_VMM=ON",
+            "-DGGML_CUDA_NCCL=OFF",
+            "-DGGML_NATIVE=OFF",
+            "-DCMAKE_CUDA_ARCHITECTURES=60",
+            "-DCMAKE_CUDA_COMPILER=$nvcc"
+        )
+    }
+
+    & cmake @cmakeArgs
     if ($LASTEXITCODE -ne 0) { throw "cmake configure failed (exit $LASTEXITCODE)" }
+}
+
+if ($P100) {
+    $cmakeCache = Get-Content $cacheFile -Raw
+    $isCudaBuild = $cmakeCache -match "(?m)^GGML_CUDA:BOOL=ON\r?$"
+    $targetsP100 = $cmakeCache -match "(?m)^CMAKE_CUDA_ARCHITECTURES:[^=]+=60\r?$"
+    if (-not ($isCudaBuild -and $targetsP100)) {
+        throw "The existing CMake cache is not a P100 CUDA build. Re-run with -P100 -RebuildCmake."
+    }
 }
 
 # ---------------------------------------------------------------------------
