@@ -29,10 +29,15 @@ class OcrResult {
   /// Processing time.
   final Duration processingTime;
 
+  /// True when this came from an optical-music-recognition engine, which
+  /// only changes the wording of the disclosure.
+  final bool isMusic;
+
   const OcrResult({
     required this.text,
     this.confidence,
     this.processingTime = Duration.zero,
+    this.isMusic = false,
   });
 
   /// EU AI Act Art. 50(2): OCR output is AI-generated text and has to be
@@ -44,23 +49,56 @@ class OcrResult {
       'AI-generated: recognised by an on-device OCR model. Verify before '
       'relying on it.';
 
+  /// Music variant of [disclosure] — OMR emits symbolic notation rather
+  /// than prose, and misreads there are pitch/rhythm errors rather than
+  /// typos.
+  static const String musicDisclosure =
+      'AI-generated: transcribed from sheet music by an on-device model. '
+      'Check pitches and rhythms before relying on it.';
+
+  /// The disclosure appropriate to whichever engine produced this result.
+  String get disclosureText => isMusic ? musicDisclosure : disclosure;
+
   /// [text] prefixed with the Art. 50(2) disclosure. Empty when there is
   /// no recognised text to disclose.
   String get textWithDisclosure =>
-      text.trim().isEmpty ? '' : '[$disclosure]\n\n$text';
+      text.trim().isEmpty ? '' : '[$disclosureText]\n\n$text';
 }
 
 /// Known OCR model filenames and their engine type.
+///
+/// The `smt` / `tromr` / `flova` / `transcoda` entries are optical music
+/// recognition (OMR) models — sheet music in, symbolic notation out.
+/// They were catalogued in §14.3i with `backend: 'ocr'` but were never
+/// matched here, so [OcrService.availableModels] never listed them and
+/// they could be downloaded but never run. CrispEmbed auto-detects the
+/// architecture from the GGUF, so they dispatch through the same
+/// `CrispEmbedOcr` path as the text engines — and therefore inherit the
+/// same Art. 50(2) disclosure on their output.
 enum OcrEngine {
   mathOcr('pix2tex'),
   hmerOcr('hmer'),
   bttrOcr('bttr'),
   posformerOcr('posformer'),
   graniteVision('granite-vision'),
-  deepseekOcr('deepseek-ocr');
+  deepseekOcr('deepseek-ocr'),
+  // Optical music recognition.
+  smtOmr('smt-'),
+  tromrOmr('tromr'),
+  flovaOmr('flova'),
+  transcodaOmr('transcoda');
 
   final String backendPrefix;
   const OcrEngine(this.backendPrefix);
+
+  /// True for optical-music-recognition engines. Their output is
+  /// symbolic notation rather than prose, which the disclosure wording
+  /// reflects.
+  bool get isMusic =>
+      this == smtOmr ||
+      this == tromrOmr ||
+      this == flovaOmr ||
+      this == transcodaOmr;
 }
 
 /// High-level OCR service backed by CrispEmbed GGUF models.
@@ -116,6 +154,7 @@ class OcrService {
       return OcrResult(
         text: text ?? '',
         processingTime: sw.elapsed,
+        isMusic: engine?.isMusic ?? false,
       );
     } catch (e, st) {
       sw.stop();
@@ -136,12 +175,17 @@ class OcrService {
       return const OcrResult(text: '');
     }
 
+    final engine = engineForModel(modelPath);
     final sw = Stopwatch()..start();
     try {
       _mathOcr ??= CrispEmbedOcr(modelPath);
       final text = _mathOcr!.recognizeRaw(bytes, width, height, channels);
       sw.stop();
-      return OcrResult(text: text ?? '', processingTime: sw.elapsed);
+      return OcrResult(
+        text: text ?? '',
+        processingTime: sw.elapsed,
+        isMusic: engine?.isMusic ?? false,
+      );
     } catch (e, st) {
       sw.stop();
       Log.instance.w('ocr', 'recognizeRaw failed', error: e, stack: st);
