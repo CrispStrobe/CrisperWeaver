@@ -624,7 +624,18 @@ class CrispasrChatSession {
 }
 
 class CrispasrSpeakerDB {
-  CrispasrSpeakerDB(dynamic lib, String dirPath) {
+  /// Signature must track the native `CrispasrSpeakerDB`, including the
+  /// closed-roster consent gate ([expectedNames] + [consentAttested]).
+  /// Web builds resolve this stub instead of the FFI package, so a
+  /// drifted signature here fails only in `flutter build web` — not in
+  /// `flutter analyze` or `flutter test`, which both take the native
+  /// path.
+  CrispasrSpeakerDB(
+    dynamic lib,
+    String dirPath, {
+    required String expectedNames,
+    required bool consentAttested,
+  }) {
     throw UnsupportedError('CrispasrSpeakerDB is not available on web');
   }
 
