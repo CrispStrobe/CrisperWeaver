@@ -2973,10 +2973,10 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get speakerConsentBody =>
-      'Die Sprecherregistrierung erstellt einen Stimmabdruck (biometrische Daten gemäß DSGVO Art. 9). Diese Daten werden ausschließlich auf Ihrem Gerät gespeichert und niemals übertragen. Sie können Ihr Sprecherprofil jederzeit in der Sprecherverwaltung löschen.\n\nMit dem Fortfahren erteilen Sie Ihre ausdrückliche Einwilligung zur Verarbeitung dieser biometrischen Daten zur Sprecheridentifikation.';
+      'Die Sprecherregistrierung erstellt einen Stimmabdruck (biometrische Daten gemäß DSGVO Art. 9). Diese Daten werden ausschließlich auf Ihrem Gerät gespeichert, niemals übertragen und können jederzeit in der Sprecherverwaltung gelöscht werden.\n\nHandelt es sich nicht um Ihre eigene Stimme, benötigen Sie vor der Registrierung die ausdrückliche Einwilligung der betreffenden Person. Nur Sprecher mit Einwilligungsnachweis werden abgeglichen.\n\nMit dem Fortfahren bestätigen Sie, dass es sich um Ihre eigene Stimme handelt oder dass Ihnen die ausdrückliche Einwilligung der betreffenden Person vorliegt (DSGVO Art. 9(2)(a)).';
 
   @override
-  String get speakerConsentAgree => 'Ich stimme zu';
+  String get speakerConsentAgree => 'Ich bestätige';
 
   @override
   String get aboutSyntheticCompliance => 'Synthetische Inhalte';

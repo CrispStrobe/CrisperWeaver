@@ -4957,13 +4957,13 @@ abstract class AppLocalizations {
   /// No description provided for @speakerConsentBody.
   ///
   /// In en, this message translates to:
-  /// **'Speaker enrollment creates a voice embedding (biometric data under GDPR Art. 9). This data is stored only on your device and is never transmitted. You can delete your speaker profile at any time from the speaker management screen.\n\nBy proceeding, you give your explicit consent to the processing of this biometric data for speaker identification.'**
+  /// **'Speaker enrollment creates a voice embedding (biometric data under GDPR Art. 9). It is stored only on your device, is never transmitted, and can be deleted at any time from the speaker management screen.\n\nIf the voice is not your own, you must have the explicit consent of the person it belongs to before enrolling them. Only speakers with a consent record are matched.\n\nBy proceeding you confirm that the voice is your own, or that you have the explicit consent of the person it belongs to (GDPR Art. 9(2)(a)).'**
   String get speakerConsentBody;
 
   /// No description provided for @speakerConsentAgree.
   ///
   /// In en, this message translates to:
-  /// **'I Consent'**
+  /// **'I Confirm'**
   String get speakerConsentAgree;
 
   /// No description provided for @aboutSyntheticCompliance.

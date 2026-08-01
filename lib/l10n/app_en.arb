@@ -1183,8 +1183,8 @@
 
   "aiGeneratedAudio": "AI-Generated Audio",
   "speakerConsentTitle": "Biometric Data Consent",
-  "speakerConsentBody": "Speaker enrollment creates a voice embedding (biometric data under GDPR Art. 9). This data is stored only on your device and is never transmitted. You can delete your speaker profile at any time from the speaker management screen.\n\nBy proceeding, you give your explicit consent to the processing of this biometric data for speaker identification.",
-  "speakerConsentAgree": "I Consent",
+  "speakerConsentBody": "Speaker enrollment creates a voice embedding (biometric data under GDPR Art. 9). It is stored only on your device, is never transmitted, and can be deleted at any time from the speaker management screen.\n\nIf the voice is not your own, you must have the explicit consent of the person it belongs to before enrolling them. Only speakers with a consent record are matched.\n\nBy proceeding you confirm that the voice is your own, or that you have the explicit consent of the person it belongs to (GDPR Art. 9(2)(a)).",
+  "speakerConsentAgree": "I Confirm",
   "aboutSyntheticCompliance": "Synthetic Content Compliance",
   "aboutSyntheticComplianceText": "Synthetic speech outputs are watermarked and carry machine-readable provenance metadata. Speaker enrollment requires explicit biometric consent (GDPR Art. 9). All data stays on-device; you can delete your data at any time.",
   "syntheticDisclosureNote": "This content contains AI-generated synthetic speech.",

@@ -34,6 +34,20 @@ class OcrResult {
     this.confidence,
     this.processingTime = Duration.zero,
   });
+
+  /// EU AI Act Art. 50(2): OCR output is AI-generated text and has to be
+  /// marked as such when it leaves the app (clipboard, export, share).
+  /// Kept as a separate getter rather than baked into [text] so callers
+  /// that only render it on screen — where the surrounding UI already
+  /// makes the provenance obvious — aren't forced to strip it out.
+  static const String disclosure =
+      'AI-generated: recognised by an on-device OCR model. Verify before '
+      'relying on it.';
+
+  /// [text] prefixed with the Art. 50(2) disclosure. Empty when there is
+  /// no recognised text to disclose.
+  String get textWithDisclosure =>
+      text.trim().isEmpty ? '' : '[$disclosure]\n\n$text';
 }
 
 /// Known OCR model filenames and their engine type.
