@@ -415,10 +415,19 @@ class ServerService {
     String? input;
     String? voice;
     String? modelName;
-    // EU AI Act Art. 50(4): beep disclaimer is mandatory for voice-cloned
-    // output. To suppress it, callers must provide a consent_attestation
-    // string documenting the legal basis — the compliance burden shifts to
-    // the caller and the attestation is logged for audit.
+    // Two distinct fields, deliberately separated.
+    //
+    // `consent_attestation` — GDPR Art. 9 / Art. 50(4) consent to clone
+    //   this voice at all. Mandatory for any voice-clone request.
+    // `disclaimer_override_attestation` — suppresses the audible beep.
+    //   Optional, and a much bigger deal legally.
+    //
+    // These used to be one field, which meant every compliant caller
+    // (forced to attest consent) silently lost the beep disclosure — the
+    // gate defeated the very disclosure it was meant to protect.
+    // `disclaimer_override_attestation` is still accepted as consent for
+    // backwards compatibility, since callers who pass it have attested.
+    String? consentAttestation;
     String? disclaimerOverrideAttestation;
     double speed = 1.0;
     File? voiceTempFile;
@@ -433,6 +442,7 @@ class ServerService {
       input = fields['input']?.value;
       voice = fields['voice']?.value;
       modelName = fields['model']?.value;
+      consentAttestation = fields['consent_attestation']?.value;
       disclaimerOverrideAttestation =
           fields['disclaimer_override_attestation']?.value;
       speed = (double.tryParse(fields['speed']?.value ?? '') ?? 1.0)
@@ -461,6 +471,7 @@ class ServerService {
       input = args['input'] as String?;
       voice = args['voice'] as String?;
       modelName = args['model'] as String?;
+      consentAttestation = args['consent_attestation'] as String?;
       disclaimerOverrideAttestation =
           args['disclaimer_override_attestation'] as String?;
       speed = ((args['speed'] as num?)?.toDouble() ?? 1.0)
@@ -481,26 +492,29 @@ class ServerService {
         body: 'missing required fields: model + input',
       );
     }
-    // EU AI Act Art. 50(4) + GDPR Art. 9: voice cloning requires
-    // explicit consent attestation. The disclaimer_override_attestation
-    // field serves double duty: (1) consent to clone this voice, and
-    // (2) optional override for the beep disclaimer. Without it,
-    // voice-clone requests are refused (403). Matches CrispASR server
-    // behavior (--i-have-rights / consent_attestation).
+    // EU AI Act Art. 50(4) + GDPR Art. 9: voice cloning requires an
+    // explicit consent attestation. Without it, voice-clone requests are
+    // refused (403). Matches CrispASR server behaviour
+    // (--i-have-rights / consent_attestation).
     final bool isVoiceCloneRequest =
         voice != null && voice.trim().isNotEmpty;
+    final String? effectiveConsent =
+        (consentAttestation != null && consentAttestation.trim().isNotEmpty)
+            ? consentAttestation
+            : disclaimerOverrideAttestation;
     if (isVoiceCloneRequest &&
-        (disclaimerOverrideAttestation == null ||
-         disclaimerOverrideAttestation!.trim().isEmpty)) {
+        (effectiveConsent == null || effectiveConsent.trim().isEmpty)) {
       if (voiceTempFile != null) {
         try { await voiceTempFile.delete(); } catch (_) {}
       }
       return Response(403,
           body: 'Voice cloning requires consent. Provide a '
-              '"disclaimer_override_attestation" field attesting you '
-              'have rights to clone this voice (EU AI Act Art. 50(4), '
-              'GDPR Art. 9). Example: "I have explicit consent from '
-              'the voice owner for this synthesis."');
+              '"consent_attestation" field attesting you have rights to '
+              'clone this voice (EU AI Act Art. 50(4), GDPR Art. 9). '
+              'Example: "I have explicit consent from the voice owner for '
+              'this synthesis." The audible beep disclaimer is still '
+              'applied; suppressing it additionally requires '
+              '"disclaimer_override_attestation".');
     }
     final tts = ref.read(ttsServiceProvider);
     final status = await tts.prepare(
@@ -1011,6 +1025,22 @@ class ServerService {
       } catch (_) {}
     }
 
+    // EU AI Act Art. 50(4) + GDPR Art. 9: speech-to-speech is voice
+    // conversion — the output impersonates a voice just as cloning does,
+    // so it gets the same consent gate as /v1/audio/speech.
+    final s2sConsent = fields['consent_attestation']?.value ??
+        fields['disclaimer_override_attestation']?.value;
+    if (s2sConsent == null || s2sConsent.trim().isEmpty) {
+      return Response(403,
+          body: 'Speech-to-speech voice conversion requires consent. '
+              'Provide a "consent_attestation" field attesting you have '
+              'rights to convert/reproduce this voice (EU AI Act '
+              'Art. 50(4), GDPR Art. 9). Example: "I have explicit consent '
+              'from the voice owner for this conversion."');
+    }
+    final s2sDisclaimerOverride =
+        fields['disclaimer_override_attestation']?.value;
+
     final tts = ref.read(ttsServiceProvider);
     if (modelName != null) {
       final status = await tts.prepare(modelName: modelName);
@@ -1032,7 +1062,11 @@ class ServerService {
           body: 'speech-to-speech returned null — no S2S-capable model '
               'loaded (requires lfm2-audio or mini-omni2)');
     }
-    final wav = await tts.writeWav(result);
+    final wav = await tts.writeWav(
+      result,
+      voiceConverted: true,
+      disclaimerOverrideAttestation: s2sDisclaimerOverride,
+    );
     final bytes = await wav.readAsBytes();
     return Response.ok(bytes, headers: const {
       'content-type': 'audio/wav',
