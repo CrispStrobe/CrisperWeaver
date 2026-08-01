@@ -133,7 +133,10 @@ on these facts:
   derogation must *document* the assessment before placing the system on
   the market, and — under Art. 49(2) — **register the system in the EU
   database**. Invoking the derogation is not the same as escaping
-  registration. This obligation is currently **not discharged**; see §7.
+  registration. This matters only if §3.2 ever becomes the operative
+  reading: on the §3.1 analysis the subsystem is outside Annex III, so
+  Art. 6(3) is never reached and Art. 49(2) does not bite. See §7.3 for
+  the four changes that would re-open it.
 - **The derogation is void where the system performs profiling** of
   natural persons. CrisperWeaver does not profile: it resolves a
   diarisation label to a name and stores no behavioural, inferential, or
@@ -272,7 +275,21 @@ already met, and on the robustness limb arguably exceeded:
 | "As far as technically feasible" | Sub-100 ms and digitally silent audio cannot carry a spectral watermark; the app **reports** this instead of claiming a mark it did not make |
 
 **Outstanding:** signing the Code is an organisational act only the
-maintainer can perform. Nothing technical blocks it.
+maintainer can perform — complete the Signatory Form and email it to
+`CNECT-AIOFFICE-CODE-OF-PRACTICE-TRANSPARENCY@ec.europa.eu`, signed by
+someone with authority to bind the provider. Open at any time; the
+initial-signatories list closed 22 July 2026.
+
+Note the benefit precisely: signatories can *demonstrate* compliance and
+have enforcement focused on monitoring adherence rather than individual
+assessment by each national market surveillance authority. This is **not**
+an Art. 40 "presumption of conformity" — that concept attaches to
+harmonised standards, not codes of practice.
+
+Signing is a judgement call rather than a technical gap. It commits the
+project to the code's measures on an ongoing basis, so diverging later is
+a worse position than never having signed, and the benefit mainly accrues
+to providers who expect to be assessed. Art. 50 itself is met either way.
 
 ### 7.3 Art. 49(2) registration
 

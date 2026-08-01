@@ -1606,7 +1606,8 @@ Art. 50(4) deepfake disclosure has no such runway.
 - [x] **o. Refresh timelines for the Digital Omnibus** across
       `AI_ACT_RISK.md`, `AI_ACT_TECHNICAL.md`, `DPIA.md`. Note the
       Code of Practice on Transparency of AI-generated Content
-      (adherence confers presumption of conformity).
+      (signatories can demonstrate compliance and get enforcement
+      predictability; not an Art. 40 presumption of conformity).
 
 ### 15.5 Verification
 
@@ -1774,6 +1775,77 @@ One item is **technically complete but organisationally open**: the
 Code of Practice on Transparency of AI-generated Content (final
 10 June 2026) is already satisfied on every technical limb, and on
 robustness arguably exceeded — but *signing* it is an act only the
-maintainer can perform. Adherence confers a presumption of conformity
-with Art. 50(2) and avoids individual assessment by market surveillance
-authorities, so it is worth doing; nothing in the code blocks it.
+maintainer can perform: complete the Signatory Form and email it to
+`CNECT-AIOFFICE-CODE-OF-PRACTICE-TRANSPARENCY@ec.europa.eu`, signed by
+someone with authority to bind the provider. Signing is open at any
+time; the initial-signatories list closed 22 July 2026.
+
+**Correction to an earlier wording here:** adherence does *not* confer a
+"presumption of conformity" — that is the Art. 40 concept for harmonised
+standards. What signatories get is the ability to *demonstrate*
+compliance, with enforcement focused on monitoring adherence rather than
+individual assessment by each national market surveillance authority.
+
+Whether to sign is a judgement call for the maintainer, not a technical
+gap. It binds the project to the code's measures on an ongoing basis —
+diverging later is a worse position than never signing — and the benefit
+mainly accrues to providers who expect to be assessed. Nothing in the
+code blocks it either way; Art. 50 itself is met regardless.
+
+### 15.10 Speaker-DB verification audit + empty-roster bug (2026-08-01)
+
+Prompted by a direct challenge — *does the speaker DB do 1:N biometric
+identification, and should it be removed?* Answered by reading the C
+implementation rather than the Dart doc comment.
+
+**It cannot do open 1:N identification.** Three enforced gates:
+
+- `crispasr_speaker_db_load(dir)` — the old 1:N entry point — was
+  **removed** (CrispASR #266). It returns `nullptr` and prints
+  "open 1:N identification is unsupported", kept as a symbol only so
+  old callers fail loudly rather than at link time.
+- `crispasr_speaker_db_open` returns `nullptr` unless given **both** a
+  non-empty roster and `consent_attested`.
+- `speaker_db_retain` **physically deletes** every profile not on the
+  roster (`db->speakers = std::move(kept)`) before any match;
+  `speaker_db_match` iterates only the survivors.
+
+So the operation is "which of the participants I claim are present is
+this segment?" — 1:N *within a declared roster*, never against the whole
+database. That is biometric **verification**, which Annex III 1(a)
+expressly excludes, and it is why `docs/AI_ACT_RISK.md` §3.1 leads with
+that rather than the weaker Art. 6(3) derogation. **No reason to remove
+the feature** — the design already survived this scrutiny upstream, and
+§15.1a narrowed it further by deriving the roster from consent records.
+
+**The challenge did expose a real bug in §15.1a's own code**, though:
+
+- [x] **t. Empty roster produced a silently dead DB.** `_ensureOpen`
+      passed `expectedNames: roster.join(',')`, empty whenever no
+      enrolled speaker has a consent record — **including every fresh
+      install**. Upstream refuses that and returns a null handle, which
+      the Dart wrapper wrapped in a live-looking object while the log
+      announced "opened SpeakerEmbedder + SpeakerDB". Not a crash (the C
+      side is null-safe), which is worse: matching would silently never
+      work and the logs would say it was fine. Now the DB is simply not
+      opened when the roster is empty, and `matchSegment` short-circuits
+      to a clean no-match.
+
+- [x] **u. `_db == null` can no longer double as "not yet opened".**
+      It is a valid steady state, so the idempotence guard would have
+      reopened the embedder on every call. Added `_openAttempted`.
+
+- [x] **v. `enroll()` would have thrown on the first speaker.** `_db` is
+      null exactly when the roster is empty, i.e. when enrolling speaker
+      #1. Enrollment writes through `dirPath` and does not need the
+      loaded profile set, so it now opens a throwaway handle rostered on
+      the name being enrolled.
+
+- [x] **w. Live test passed an empty roster.** `expectedNames: ''` would
+      fail against a real dylib; it only passed because the test skips
+      without `CRISPASR_LIB`.
+
+**Lesson worth keeping:** §15.1a was verified by `flutter analyze` +
+1191 green tests, and every one of these bugs sat underneath that,
+because the failing paths are all gated behind a dylib the default suite
+skips. Compiling is not evidence that an FFI boundary works.
