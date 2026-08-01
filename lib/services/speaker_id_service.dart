@@ -42,6 +42,11 @@ class SpeakerIdService {
   /// double-init the C side.
   Completer<void>? _openInFlight;
 
+  /// True once an open has been attempted. Needed because a null [_db]
+  /// is a valid outcome (empty consent roster), so it cannot double as
+  /// the "not yet opened" signal.
+  bool _openAttempted = false;
+
   /// Embedding dimension from the active embedder. Populated after
   /// [_ensureOpen]; defaults to 192 (TitaNet) before open.
   int get embeddingDim => _embedder?.dim ?? 192;
@@ -73,6 +78,10 @@ class SpeakerIdService {
     double threshold = defaultThreshold,
   }) async {
     await _ensureOpen();
+    // No consented speakers on the roster — nothing to confirm against.
+    // Upstream deliberately has no "identify anyone" mode, so this is a
+    // no-match rather than a wider search.
+    if (_db == null) return (null, 0.0);
     final embedding = _embedder!.embed(pcm16k);
     if (embedding == null) return (null, 0.0);
     return _db!.match(embedding, threshold: threshold);
@@ -91,10 +100,37 @@ class SpeakerIdService {
           fields: {'name': name});
       return false;
     }
-    final ok = _db!.enroll(name.trim(), embedding);
+    // `_db` is null whenever the consent roster is empty — which is
+    // exactly the state when enrolling the *first* speaker. Enrollment
+    // writes through `dirPath` and does not need the loaded profile set,
+    // so open a throwaway handle rostered on the name being enrolled.
+    // (Consent is collected by the caller before this point; the record
+    // is persisted by saveConsent immediately after.)
+    var ok = false;
+    final db = _db;
+    if (db != null) {
+      ok = db.enroll(name.trim(), embedding);
+    } else {
+      final lib = DynamicLibrary.open(crispasr.CrispASR.defaultLibName());
+      final dir = await _ensureDbDir();
+      final tmp = crispasr.CrispasrSpeakerDB(
+        lib,
+        dir.path,
+        expectedNames: name.trim(),
+        consentAttested: true,
+      );
+      try {
+        ok = tmp.enroll(name.trim(), embedding);
+      } finally {
+        tmp.close();
+      }
+    }
     if (!ok) {
       Log.instance.w('speakers', 'enroll failed', fields: {'name': name});
     } else {
+      // A new profile changes the roster; force the next open to
+      // re-derive it so the speaker becomes matchable once consented.
+      _closeHandles();
       Log.instance
           .i('speakers', 'enrolled speaker', fields: {'name': name.trim()});
     }
@@ -282,6 +318,7 @@ class SpeakerIdService {
     }
     _embedder = null;
     _db = null;
+    _openAttempted = false;
   }
 
   /// Open the speaker embedder + DB handles. Idempotent + serialised
@@ -291,7 +328,10 @@ class SpeakerIdService {
   /// auto-selects the best available embedder from the models on disk
   /// (TitaNet > ECAPA-TDNN > IndexTTS).
   Future<void> _ensureOpen() async {
-    if (_embedder != null && _db != null) return;
+    // `_db` is legitimately null when the consent roster is empty (see
+    // below), so it cannot be part of the "already open" test — that
+    // would re-open the embedder on every call.
+    if (_embedder != null && _openAttempted) return;
     if (_openInFlight != null) {
       await _openInFlight!.future;
       return;
@@ -329,12 +369,28 @@ class SpeakerIdService {
             'excluding speakers without a consent record from the match roster',
             fields: {'excluded': unconsented.join(',')});
       }
+      // Upstream REFUSES an empty roster — `crispasr_speaker_db_open`
+      // returns null rather than silently falling back to an open 1:N
+      // search. So don't construct a DB we know would be dead; leave
+      // `_db` null and let [matchSegment] short-circuit. This is the
+      // normal state on a fresh install and whenever no enrolled speaker
+      // has a consent record.
+      if (roster.isEmpty) {
+        _db = null;
+        _openAttempted = true;
+        Log.instance.i('speakers',
+            'speaker DB not opened — no consented speakers to match against',
+            fields: {'enrolledWithoutConsent': unconsented.length});
+        completer.complete();
+        return;
+      }
       _db = crispasr.CrispasrSpeakerDB(
         lib,
         dir.path,
         expectedNames: roster.join(','),
         consentAttested: true,
       );
+      _openAttempted = true;
       Log.instance.i('speakers', 'opened SpeakerEmbedder + SpeakerDB',
           fields: {
             'embedder': _embedder!.name,

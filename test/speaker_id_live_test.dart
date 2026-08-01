@@ -118,8 +118,12 @@ void main() {
       try {
         // Closed-roster open: the DB confirms claimed participants, so
         // 'alice' has to be on the roster for dbB.match to resolve her.
+        // An EMPTY roster is refused outright by
+        // `crispasr_speaker_db_open` (open 1:N is unsupported), which
+        // returns a null handle — so roster on 'alice' from the start.
+        // Enrollment writes via dirPath, so it works before she exists.
         final dbA = crispasr.CrispasrSpeakerDB(lib, tmp.path,
-            expectedNames: '', consentAttested: true);
+            expectedNames: 'alice', consentAttested: true);
         expect(dbA.count, 0, reason: 'fresh dir starts empty');
         final emb = _syntheticEmbedding(192, 1);
         expect(dbA.enroll('alice', emb), isTrue);
