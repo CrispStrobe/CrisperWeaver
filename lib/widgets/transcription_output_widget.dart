@@ -1087,7 +1087,7 @@ class _TranscriptionOutputWidgetState
                 if (result.text.isNotEmpty) ...[
                   // EU AI Act Art. 50(2) — AI-generated text disclosure.
                   Text(
-                    OcrResult.disclosure,
+                    result.disclosureText,
                     style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
                           fontStyle: FontStyle.italic,
                           color: Theme.of(ctx).colorScheme.onSurfaceVariant,
