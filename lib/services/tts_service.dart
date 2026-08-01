@@ -26,6 +26,30 @@ class SynthesizedAudio {
   double get durationSeconds => samples.length / sampleRate;
 }
 
+/// Outcome of the EU AI Act Art. 50(2) marking pass for one synthesis.
+///
+/// Two marks are applied. The **watermark** is robust — it survives
+/// re-encoding and trimming. The **container marking** (C2PA manifest,
+/// WAV LIST/INFO, ID3v2) is machine-readable but strips on any
+/// re-encode. A COSE-signed C2PA manifest is cryptographically
+/// verifiable; the unsigned JSON-LD fallback is not.
+///
+/// [robustMarkPresent] is the one that matters: false means the output
+/// is marked only by metadata a re-encode would remove.
+class MarkingStatus {
+  final bool watermarkVerified;
+  final double watermarkConfidence;
+  final bool c2paSigned;
+
+  const MarkingStatus({
+    required this.watermarkVerified,
+    required this.watermarkConfidence,
+    required this.c2paSigned,
+  });
+
+  bool get robustMarkPresent => watermarkVerified || c2paSigned;
+}
+
 /// Wraps `CrispasrSession` for the TTS backends (kokoro, vibevoice-tts,
 /// qwen3-tts, orpheus). One session per (model, voice/codec) tuple is
 /// cached and reused across synth calls — opening these models is the
@@ -39,6 +63,24 @@ class SynthesizedAudio {
 class TtsService {
   final ModelService modelService;
   TtsService(this.modelService);
+
+  /// Marking outcome of the most recent [writeWav]. Null before the
+  /// first synthesis. The synthesise screen reads this so the provenance
+  /// card reports what was actually embedded rather than what was
+  /// intended.
+  MarkingStatus? lastMarking;
+
+  /// Confidence floor for treating a spread-spectrum watermark as
+  /// present.
+  ///
+  /// Measured against this detector (see the assertions in
+  /// `test/synthetic_compliance_test.dart`): clean audio peaks at ~0.50,
+  /// freshly watermarked audio sits at 0.78–0.91 from ~100 ms upward,
+  /// and detection is level-invariant (0.78 at 0.01x amplitude). 0.65
+  /// sits in that gap, so it neither passes unmarked audio nor rejects
+  /// quiet-but-real output. A borderline read triggers the Dart
+  /// fallback — double-marking is harmless, shipping unmarked is not.
+  static const double _watermarkConfidenceFloor = 0.65;
 
   /// §5.25.9 — Pronunciation lexicon applied to text before synthesis.
   PronunciationLexicon? _lexicon;
@@ -613,24 +655,28 @@ class TtsService {
   /// the file path so the caller can hand it to the share sheet / save
   /// dialog.
   ///
-  /// When [voiceRefPath] is non-null, the output uses a cloned voice and
-  /// a beep-based AI disclaimer marker is prepended to the PCM.
+  /// When [voiceRefPath] is non-null the output uses a cloned voice, and
+  /// when [voiceConverted] is true the output is speech-to-speech voice
+  /// conversion. Both are deep fakes for Art. 50(4) purposes, so both get
+  /// a beep-based AI disclaimer prepended to the PCM.
   ///
   /// EU AI Act Art. 50(4): the beep disclaimer is **mandatory** for
-  /// voice-cloned output. To suppress it, the caller must provide
-  /// [disclaimerOverrideAttestation] — a non-empty string documenting
-  /// the legal basis for suppression (e.g. "internal testing, not for
-  /// distribution"). This shifts the compliance burden to the caller
-  /// and is logged for audit. The watermark and C2PA signing remain
-  /// regardless.
+  /// voice-cloned and voice-converted output. To suppress it, the caller
+  /// must provide [disclaimerOverrideAttestation] — a non-empty string
+  /// documenting the legal basis for suppression (e.g. "internal testing,
+  /// not for distribution"). This shifts the compliance burden to the
+  /// caller and is logged for audit. The watermark and C2PA signing
+  /// remain regardless.
   ///
-  /// Note: the spread-spectrum watermark is now auto-applied by
-  /// `crispasr_session_synthesize` at the C API level — no need to call
-  /// `CrispasrWatermark.embed()` here.
+  /// Note: the spread-spectrum watermark is normally auto-applied by
+  /// `crispasr_session_synthesize` at the C API level. We *probe the PCM*
+  /// to confirm that rather than inferring it from symbol availability —
+  /// see the marking block below.
   Future<File> writeWav(
     SynthesizedAudio audio, {
     String? basename,
     String? voiceRefPath,
+    bool voiceConverted = false,
     String? disclaimerOverrideAttestation,
   }) async {
     final dir = await getTemporaryDirectory();
@@ -649,7 +695,8 @@ class TtsService {
     final out = File(p.join(dir.path, name));
     // Voice-clone disclaimer + consent audit logging.
     var samples = audio.samples;
-    final bool isVoiceClone = voiceRefPath != null && voiceRefPath.isNotEmpty;
+    final bool isVoiceClone =
+        (voiceRefPath != null && voiceRefPath.isNotEmpty) || voiceConverted;
     if (isVoiceClone) {
       final bool suppressDisclaimer =
           disclaimerOverrideAttestation != null &&
@@ -683,65 +730,107 @@ class TtsService {
       // Log consent attestation for audit trail.
       _logConsentAttestation(
         modelId: _backend ?? 'unknown',
-        voiceId: voiceRefPath,
+        voiceId: voiceRefPath ?? '(speech-to-speech voice conversion)',
       );
     }
 
-    // Watermark: crispasr_session_synthesize() now auto-embeds the
-    // spread-spectrum / AudioSeal watermark at the C API level, so the
-    // PCM arriving here is already watermarked. We only fall back to
-    // the pure-Dart spread-spectrum watermark when the native symbols are
-    // unavailable (e.g. web builds or very old dylibs). The spread-spectrum
-    // watermark is cross-compatible with CrispASR/CrispTTS detectors.
-    bool nativeWatermarked = false;
+    // EU AI Act Art. 50(2) machine-readable marking.
+    //
+    // `crispasr_session_synthesize` normally auto-embeds the
+    // spread-spectrum watermark at the C API level. We must NOT infer
+    // that from `CrispasrWatermark.isAvailable()` — that only reports
+    // whether the *symbol* exists, not whether embedding ran. If the
+    // native auto-embed were ever conditional (backend without support,
+    // env gate, old dylib), we would skip the fallback and ship unmarked
+    // audio while believing it was marked. So: probe the PCM.
+    //
+    // Detection runs on `audio.samples` (pre-beep) because the native
+    // watermark covers only the synthesised audio; a prepended beep
+    // would dilute the frame-averaged correlation.
+    var markedNatively = false;
     if (AppConstants.enableAudioWatermark) {
-      try {
-        nativeWatermarked = crispasr.CrispasrWatermark.isAvailable();
-        if (nativeWatermarked) {
-          Log.instance.d('tts', 'native watermark auto-applied by C API');
-        }
-      } catch (_) {}
+      final confidence = SpreadSpectrumWatermark.detect(audio.samples);
+      markedNatively = confidence >= _watermarkConfidenceFloor;
+      Log.instance.d('tts', 'native watermark probe',
+          fields: {
+            'confidence': confidence.toStringAsFixed(3),
+            'floor': _watermarkConfidenceFloor,
+            'marked': markedNatively,
+          });
+    }
+
+    // The PCM that actually lands in the WAV — watermarked in the
+    // fallback branch, passed through when the C API already marked it.
+    var pcmForWav = samples;
+    var appliedDartFallback = false;
+    if (AppConstants.enableAudioWatermark && !markedNatively) {
+      // Pure-Dart spread-spectrum watermark, cross-compatible with the
+      // CrispASR / CrispTTS detectors.
+      pcmForWav = SpreadSpectrumWatermark.embed(samples);
+      appliedDartFallback = true;
     }
     var bytes = _floatPcmToWavBytes(
-      samples,
+      pcmForWav,
       audio.sampleRate,
       modelName: _backend,
       voiceId: voiceRefPath != null
           ? p.basenameWithoutExtension(voiceRefPath)
           : null,
     );
-    if (AppConstants.enableAudioWatermark && !nativeWatermarked) {
-      // Apply spread-spectrum watermark to the PCM before WAV encoding.
-      // This is cross-compatible with CrispASR's and CrispTTS's detectors.
-      final watermarkedPcm = SpreadSpectrumWatermark.embed(samples);
-      // Re-encode the watermarked PCM as WAV (replacing the earlier bytes).
-      bytes = _floatPcmToWavBytes(
-        watermarkedPcm,
-        audio.sampleRate,
-        modelName: _backend,
-        voiceId: voiceRefPath != null
-            ? p.basenameWithoutExtension(voiceRefPath)
-            : null,
-      );
+    if (appliedDartFallback) {
       // Also apply LSB watermark for backward compat with older detectors.
       bytes = AudioWatermarkService.embedWatermark(
         bytes,
         timestamp: now,
         synthetic: true,
       );
-      Log.instance.d('tts', 'dart spread-spectrum + LSB watermark applied (fallback)');
+      Log.instance
+          .d('tts', 'dart spread-spectrum + LSB watermark applied (fallback)');
     }
     // Post-embed watermark verification: detect immediately after
     // embedding to catch silent failures (corrupted WAV, truncation).
+    //
+    // Measured on this detector: clean audio peaks at ~0.50 confidence,
+    // freshly watermarked audio sits at 0.78–0.91 from ~100 ms upward,
+    // and detection is level-invariant (0.78 at 0.01× amplitude). Audio
+    // below one FFT frame (~100 ms) and digital silence both read 0.000
+    // — they cannot carry a spectral watermark at all. The 0.65 floor
+    // sits in the gap and does not reject quiet or short-but-real output.
+    var watermarkVerified = false;
+    var watermarkConfidence = 0.0;
     if (AppConstants.enableAudioWatermark) {
-      final verified = AudioWatermarkService.detectWatermark(bytes);
-      if (verified == null) {
-        Log.instance.w('tts',
-            'post-embed watermark verification failed: '
-            'detectWatermark returned null on freshly watermarked WAV');
+      // Verify with the detector matching whichever path actually ran.
+      // The previous code always used the LSB detector, which the native
+      // path never populates — so this warned on every single synthesis
+      // while verifying nothing.
+      watermarkConfidence = SpreadSpectrumWatermark.detect(pcmForWav);
+      final ssOk = watermarkConfidence >= _watermarkConfidenceFloor;
+      final lsbOk = !appliedDartFallback ||
+          AudioWatermarkService.detectWatermark(bytes) != null;
+      watermarkVerified = ssOk && lsbOk;
+      if (!watermarkVerified) {
+        // Escalated from warning: this is the robust mark failing. The
+        // container metadata below still marks the file, but it strips
+        // on any re-encode, so the user has to be told.
+        Log.instance.e('tts',
+            'post-embed watermark verification FAILED — output carries only '
+            'strippable container marking, not the robust Art. 50(2) watermark',
+            fields: {
+              'ssConfidence': watermarkConfidence.toStringAsFixed(3),
+              'floor': _watermarkConfidenceFloor,
+              'ssOk': ssOk,
+              'lsbOk': lsbOk,
+              'path': appliedDartFallback ? 'dart-fallback' : 'native',
+              'samples': audio.samples.length,
+              'hint': audio.samples.length < 1600
+                  ? 'audio shorter than ~100 ms cannot carry the watermark'
+                  : 'near-silent audio cannot carry a spectral watermark',
+            });
       } else {
-        Log.instance.d('tts', 'post-embed watermark verified',
-            fields: {'synthetic': verified.synthetic});
+        Log.instance.d('tts', 'post-embed watermark verified', fields: {
+          'ssConfidence': watermarkConfidence.toStringAsFixed(3),
+          'path': appliedDartFallback ? 'dart-fallback' : 'native',
+        });
       }
     }
     // C2PA signing — EU AI Act Art. 50 machine-readable AI-content marking.
@@ -776,6 +865,18 @@ class TtsService {
         timestamp: now,
       );
       Log.instance.d('tts', 'C2PA unsigned JSON-LD manifest injected (fallback)');
+    }
+    lastMarking = MarkingStatus(
+      watermarkVerified: watermarkVerified,
+      watermarkConfidence: watermarkConfidence,
+      c2paSigned: c2paSigned,
+    );
+    if (!lastMarking!.robustMarkPresent) {
+      Log.instance.e('tts',
+          '[MARKING] no robust mark on synthesised output — neither a verified '
+          'watermark nor a COSE-signed C2PA manifest; only strippable '
+          'container metadata (EU AI Act Art. 50(2))',
+          fields: {'file': out.path});
     }
     await out.writeAsBytes(bytes, flush: true);
     return out;

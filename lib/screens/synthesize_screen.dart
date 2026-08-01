@@ -92,6 +92,11 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
   final _instructController = TextEditingController();
   final _player = AudioPlayer();
 
+  /// Art. 50(2) marking outcome of the last synthesis, so the provenance
+  /// card can report what was actually embedded rather than asserting a
+  /// mark that may have failed (e.g. on near-silent or very short audio).
+  MarkingStatus? _marking;
+
   /// Backends that may expose preset speakers. We only open the model to
   /// enumerate speakers for these — opening kokoro / vibevoice / chatterbox
   /// just to discover an always-empty speaker list would be wasted work.
@@ -585,7 +590,11 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
         }
         return;
       }
-      final wav = await tts.writeWav(audio);
+      // EU AI Act Art. 50(4): the reference voice has to reach writeWav,
+      // otherwise the mandatory beep disclaimer for cloned output never
+      // fires. `prepare(voiceName:)` alone is not enough.
+      final wav = await tts.writeWav(audio, voiceRefPath: ss.selectedVoice);
+      if (mounted) setState(() => _marking = tts.lastMarking);
       sn.setLastWav(wav);
 
       // Auto-play once synthesised so the user gets immediate feedback.
@@ -721,8 +730,11 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
         return;
       }
 
-      final wav = await tts.writeWav(audio);
+      // Art. 50(4): speech-to-speech is voice conversion — a deep fake
+      // even though no reference-voice file is involved.
+      final wav = await tts.writeWav(audio, voiceConverted: true);
       if (!mounted) return;
+      setState(() => _marking = tts.lastMarking);
       sn.setLastWav(wav);
       await _player.setFilePath(wav.path);
       await _player.play();
@@ -844,15 +856,25 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
                             horizontal: 12, vertical: 8),
                         child: Row(
                           children: [
-                            Icon(Icons.verified_user,
+                            Icon(
+                                _marking?.robustMarkPresent == false
+                                    ? Icons.gpp_maybe
+                                    : Icons.verified_user,
                                 size: 16,
-                                color: Theme.of(context).colorScheme.primary),
+                                color: _marking?.robustMarkPresent == false
+                                    ? Theme.of(context).colorScheme.error
+                                    : Theme.of(context).colorScheme.primary),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                'AI provenance: watermark + WAV metadata + '
-                                '${ss.selectedVoice != null ? "beep disclaimer + " : ""}'
-                                'MP3 ID3v2 tags embedded automatically',
+                                _marking?.robustMarkPresent == false
+                                    ? 'Last output could NOT be watermarked '
+                                        '(too short or near-silent). It carries '
+                                        'only container metadata, which is lost '
+                                        'on re-encoding — EU AI Act Art. 50(2).'
+                                    : 'AI provenance: watermark + C2PA manifest + '
+                                        'WAV/ID3 metadata embedded automatically'
+                                        '${ss.selectedVoice != null ? ". Cloned voice — an audible beep disclaimer is prepended (EU AI Act Art. 50(4))" : ""}',
                                 style: Theme.of(context).textTheme.bodySmall,
                               ),
                             ),
