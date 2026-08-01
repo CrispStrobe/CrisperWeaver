@@ -2,7 +2,7 @@
 
 **Regulation:** GDPR Art. 35
 **Application:** CrisperWeaver
-**Date:** 2026-07-16
+**Date:** 2026-08-01 (revised; originally 2026-07-16)
 **Assessor:** CrisperWeaver development team
 
 ---
@@ -122,8 +122,27 @@ architecture eliminates network-borne data breach risks.
 This DPIA was prepared by the development team. No DPA consultation
 under Art. 36 is required because the residual risk after mitigations
 is not high — no biometric data is transmitted, no centralized
-database exists, and processing is entirely under the data subject's
-control.
+database exists, and processing is confined to a single device under
+the user's control.
+
+**Correction (2026-08-01).** The earlier revision said processing was
+"entirely under the data subject's control". That was wrong in the
+common case. When a user enrols another participant from a recording,
+the **user and the data subject are different people**, and the data
+subject has no direct control over the device holding their embedding.
+The mitigations that actually bear on this are:
+
+- every enrolment path now presents a consent gate that asks the user
+  to confirm the voice is their own **or** that they hold the explicit
+  consent of the person it belongs to (GDPR Art. 9(2)(a));
+- the match roster is derived from consent records, so a profile
+  without recorded consent is never matched;
+- erasure of the consent record removes the speaker from matching, so
+  withdrawal of consent takes effect without any further user action.
+
+The residual risk — a user who falsely attests consent — is a
+misuse risk borne by the user as controller, not one the software can
+eliminate. It is disclosed rather than mitigated away.
 
 ## 6. Review Schedule
 
@@ -137,3 +156,4 @@ This DPIA should be reviewed:
 | Date | Change |
 |---|---|
 | 2026-07-16 | Initial DPIA |
+| 2026-08-01 | Audit revision: corrected the third-party data-subject assumption in §5; recorded the consent gate on every enrolment path and the consent-derived match roster. |

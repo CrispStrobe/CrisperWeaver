@@ -28,12 +28,15 @@ void main() {
   group('§12.5 TADA re-alignment live', () {
     final alignerModel = CrispModels.model('canary_aligner');
     final whisperModel = CrispModels.model('whisper_tiny');
+    // Use the shared gate rather than a hand-rolled markTestSkipped: this
+    // group used to run on a plain `flutter test` whenever the models
+    // happened to be on disk, which is exactly what CrispModels.enabled
+    // exists to prevent. It was the sole red test in the pre-push gate.
+    final skip = CrispModels.skipReason(
+        models: ['canary_aligner', 'whisper_tiny']);
 
     test('realignTimestamps produces word-level timings', () async {
-      if (lib == null || alignerModel == null || whisperModel == null) {
-        markTestSkipped('CrispASR dylib or aligner/whisper model not on disk');
-        return;
-      }
+      if (alignerModel == null || whisperModel == null) return;
 
       // Decode a reference audio file to get PCM.
       final jfk = File('${CrispModels.modelsDir}/samples/jfk.wav');
@@ -41,11 +44,15 @@ void main() {
         markTestSkipped('jfk.wav sample not on disk');
         return;
       }
-      final decoded = crispasr.decodeAudioFile(jfk.path);
+      // Pass the resolved lib explicitly: without libPath this falls back
+      // to bare-name `libcrispasr.dylib` resolution, which fails even
+      // though the guard above proved a dylib exists — so the test threw
+      // instead of skipping. Matches how the other live tests call it.
+      final decoded = crispasr.decodeAudioFile(jfk.path, libPath: lib);
       expect(decoded.samples.isNotEmpty, isTrue);
 
       // Create segments as if from a prior ASR pass.
-      final ctx = crispasr.CrispASR(whisperModel);
+      final ctx = crispasr.CrispASR(whisperModel, libPath: lib);
       final segs = ctx.transcribePcm(decoded.samples);
       ctx.dispose();
       final resultText = segs.map((s) => s.text).join(' ').trim();
@@ -77,7 +84,7 @@ void main() {
         expect(words[i].startTime, greaterThanOrEqualTo(words[i - 1].startTime),
             reason: 'word ${words[i].word} has non-monotonic start time');
       }
-    });
+    }, skip: skip);
   });
 
   // ---- §12.1e VAD silent audio live test ----

@@ -1,8 +1,8 @@
 # EU AI Act Risk Classification — CrisperWeaver
 
-**Date:** 2026-07-16
+**Date:** 2026-08-01 (revised; originally 2026-07-16)
 **Regulation:** Regulation (EU) 2024/1689 (EU AI Act)
-**Application:** CrisperWeaver v0.9.0+
+**Application:** CrisperWeaver v0.9.6+
 
 ---
 
@@ -48,11 +48,11 @@ user's device — no data is transmitted to external servers.
 
 | Property | Value |
 |---|---|
-| Function | Matches a voice against enrolled speaker profiles using TitaNet neural embeddings |
-| Annex III category | **1(a): Biometric identification and categorisation of natural persons** |
-| Risk level | **Potentially high-risk, but exempt from most obligations** |
-| Rationale for exemption | See §3 below |
-| Mitigations | Explicit GDPR Art. 9(2)(a) consent, on-device-only processing, right to erasure, consent record persistence |
+| Function | Confirms a **claimed** participant against a closed, consent-derived roster of enrolled profiles using TitaNet neural embeddings |
+| Annex III category | **Outside 1(a)** — biometric *verification*, which 1(a) expressly excludes |
+| Risk level | **Not high-risk** (fallback argument under Art. 6(3) if that reading is rejected) |
+| Rationale | See §3 below |
+| Mitigations | Closed-roster API (`expectedNames` + `consentAttested`, throws without consent), explicit GDPR Art. 9(2)(a) consent gate on every enrolment path, roster derived from consent records so withdrawal removes the speaker from matching, on-device-only processing, right to erasure, data portability |
 
 ### 2.5 Document Analysis (OCR)
 
@@ -76,12 +76,36 @@ user's device — no data is transmitted to external servers.
 
 CrisperWeaver's speaker identification subsystem uses TitaNet voice
 embeddings to match audio segments against a locally-stored speaker
-database. This falls under Annex III, Section 1(a): "AI systems
-intended to be used for biometric identification and categorisation
-of natural persons."
+database.
 
-However, the system is **exempt from most high-risk obligations**
-under Art. 6(3) because:
+### 3.1 Primary argument — this is verification, not identification
+
+Annex III, Section 1(a) covers **remote biometric identification
+systems** and expressly **excludes** "AI systems intended to be used for
+biometric verification whose sole purpose is to confirm that a specific
+natural person is the person he or she claims to be."
+
+Since v0.9.6 the subsystem is architecturally constrained to exactly
+that. `CrispasrSpeakerDB` is opened as a **closed roster**: the caller
+must declare, up front, the list of claimed participants
+(`expectedNames`) plus an explicit consent attestation
+(`consentAttested`); construction throws without the latter. Matching
+confirms a claimed participant. It is **never an open 1:N search**
+against the full profile database.
+
+CrisperWeaver derives that roster from consent records on disk: a
+profile without a persisted GDPR Art. 9(2)(a) consent record is excluded
+from the roster and can never be matched. Withdrawal of consent (erasing
+the record) therefore removes the speaker from matching automatically.
+
+On this basis the subsystem is **outside Annex III 1(a)** rather than
+being a high-risk system that benefits from a derogation.
+
+### 3.2 Secondary argument — Art. 6(3), and its limits
+
+Were a supervisory authority to characterise the subsystem as falling
+within Annex III 1(a) anyway, the Art. 6(3) derogation would be argued
+on these facts:
 
 1. **No remote biometric identification.** All processing occurs
    exclusively on the user's device. No biometric data is transmitted
@@ -103,6 +127,35 @@ under Art. 6(3) because:
    The system has no integration with any surveillance, law enforcement,
    or access control infrastructure.
 
+**Two caveats that the earlier revision of this document omitted:**
+
+- **Art. 6(3) is not self-executing.** A provider relying on the
+  derogation must *document* the assessment before placing the system on
+  the market, and — under Art. 49(2) — **register the system in the EU
+  database**. Invoking the derogation is not the same as escaping
+  registration. This obligation is currently **not discharged**; see §7.
+- **The derogation is void where the system performs profiling** of
+  natural persons. CrisperWeaver does not profile: it resolves a
+  diarisation label to a name and stores no behavioural, inferential, or
+  categorical attributes about any speaker.
+
+### 3.3 What is *not* claimed
+
+No emotion recognition and no biometric **categorisation** is performed.
+The Chatterbox `[angry]` / `[whispering]` tags in the synthesis screen
+are generation-side prosody controls — they steer TTS output and infer
+nothing about any person. Art. 50(3) is therefore not engaged on the
+emotion-recognition limb.
+
+## 3a. Free and open-source status (Art. 2(12))
+
+CrisperWeaver is released under AGPL-3.0. Art. 2(12) exempts AI systems
+released under free and open-source licences from parts of the
+Regulation — but that exemption **does not extend to Art. 50**, nor to
+prohibited practices or high-risk systems. The transparency obligations
+in §5 below apply in full and are not mitigated by the licence. This is
+recorded here to prevent the exemption being over-read.
+
 ## 4. Art. 5 Compliance Statement (Prohibited Practices)
 
 CrisperWeaver does **NOT** perform any of the practices prohibited
@@ -121,14 +174,76 @@ under Art. 5:
 
 ## 5. Art. 50 Compliance Summary (Transparency)
 
+### 5.1 Who is bound by what
+
+Art. 50 splits its duties between two roles, and CrisperWeaver occupies
+only one of them. Conflating the two — as the earlier revision of this
+document did — overstates what the software can discharge on the user's
+behalf.
+
+| Para | Binds | Who that is here |
+|---|---|---|
+| 50(1) interaction disclosure | **Provider** | CrisperWeaver |
+| 50(2) machine-readable marking of synthetic content | **Provider** | CrisperWeaver |
+| 50(3) emotion recognition / biometric categorisation notice | **Deployer** | n/a — not performed (§3.3) |
+| 50(4) deep fake + public-interest text disclosure | **Deployer** | **the end user**, not CrisperWeaver |
+
+CrisperWeaver cannot discharge a deployer's Art. 50(4) duty. What it
+does is make compliance the default and non-compliance deliberate: the
+beep disclaimer is applied automatically to every cloned and
+voice-converted output, and suppressing it requires a written
+attestation that is logged for audit.
+
+### 5.2 Implementation status
+
 | Obligation | Implementation | Status |
 |---|---|---|
-| Art. 50(1): Users informed of AI interaction | First-use transparency dialog | Done |
-| Art. 50(2): Machine-readable AI marking | Watermark + C2PA + metadata tags | Done |
-| Art. 50(4): Deep fake disclosure | Beep disclaimer + watermark + signing | Done |
+| Art. 50(1): Users informed of AI interaction | First-use transparency dialog (EN/DE/ZH) | Done |
+| Art. 50(2): Machine-readable AI marking — audio | Spread-spectrum watermark, verified post-embed by probing the PCM; C2PA COSE/X.509 manifest; WAV LIST/INFO + ID3v2 tags | Done |
+| Art. 50(2): Machine-readable AI marking — text | Transcript exports carry a synthetic-content disclosure by default; OCR output carries a disclosure on screen and on copy | Done |
+| Art. 50(4): Deep fake disclosure — voice cloning | Mandatory beep disclaimer; suppression requires a logged attestation | Done |
+| Art. 50(4): Deep fake disclosure — speech-to-speech | Same beep path via `voiceConverted`; `/v1/audio/s2s` consent-gated | Done |
 
-## 6. Document History
+## 6. Art. 4 — AI Literacy
+
+Art. 4 has applied since 2 February 2025 and obliges providers and
+deployers to take measures ensuring a sufficient level of AI literacy
+among staff and others operating the system on their behalf.
+
+CrisperWeaver is developed by a single maintainer with no staff, so the
+staff-training limb is inapplicable. The obligation is discharged toward
+users by:
+
+- the first-use transparency notice enumerating every AI subsystem in
+  use and stating that all processing is on-device;
+- `docs/AI_ACT_TECHNICAL.md` §"Instructions for use" (Art. 13), which
+  documents capabilities and known limitations;
+- explicit accuracy caveats where output is most likely to be
+  over-trusted — the OCR disclosure tells the user to verify before
+  relying on the text.
+
+## 7. Open Items
+
+| Item | Status |
+|---|---|
+| Art. 49(2) EU-database registration, if the §3.2 reading is ever the operative one | **Not done** — proceeding on the §3.1 verification analysis; revisit before the 2 Dec 2027 Annex III date |
+| Anti-impersonation policy / ToS for voice cloning | Not done (PLAN §13.3n) |
+| Third-party abuse-reporting channel | Not done (PLAN §13.3o) |
+| Adherence to the Code of Practice on Transparency of AI-generated Content | Not assessed — adherence would confer a presumption of conformity with Art. 50(2) |
+
+## 8. Applicable Dates
+
+| Provision | Applies from | Relevance |
+|---|---|---|
+| Art. 5 prohibited practices | 2 Feb 2025 | In force; none performed (§4) |
+| Art. 4 AI literacy | 2 Feb 2025 | In force (§6) |
+| **Art. 50 transparency** | **2 Aug 2026** | **In force.** Explicitly excluded from the Digital Omnibus deferral |
+| Art. 50(2) marking — systems already on market | 2 Dec 2026 | Grace period; v0.9.5 qualifies, but the marking is already implemented |
+| Annex III high-risk obligations | 2 Dec 2027 | Deferred by the Digital Omnibus from the original 2 Aug 2026 |
+
+## 9. Document History
 
 | Date | Change |
 |---|---|
 | 2026-07-16 | Initial risk classification document |
+| 2026-08-01 | Audit revision. Reframed speaker ID as biometric **verification** under the closed-roster API (§3.1) with Art. 6(3) demoted to a fallback argument and its registration/profiling caveats stated (§3.2). Added Art. 2(12) open-source scope note (§3a), provider/deployer split (§5.1), Art. 4 (§6), open items (§7), and post-Digital-Omnibus dates (§8). |
