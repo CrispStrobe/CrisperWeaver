@@ -628,6 +628,15 @@ class _SpeakerCmd extends _Base {
       ..addOption('titanet', help: 'TitaNet speaker-embedding GGUF.', mandatory: true)
       ..addOption('db', help: 'Speaker DB directory.', mandatory: true)
       ..addOption('name', help: 'Speaker name (enroll mode).')
+      ..addOption('expect',
+          help: 'Comma-separated roster of claimed participants to confirm '
+              'against (match mode). Defaults to --name. Matching is a '
+              'closed-roster confirmation, never an open 1:N search.')
+      ..addFlag('i-have-rights',
+          negatable: false,
+          help: 'Attest a lawful basis + explicit consent from every '
+              'enrolled person (GDPR Art. 9(2)(a)). Required — the '
+              'speaker DB refuses to open without it.')
       ..addOption('threshold', help: 'Match threshold.', defaultsTo: '0.7');
   }
   @override
@@ -647,15 +656,39 @@ class _SpeakerCmd extends _Base {
       stderr.writeln('libcrispasr dylib not resolvable (pass --lib).');
       return 1;
     }
+    // GDPR Art. 9(2)(a): biometric processing needs an explicit
+    // attestation. Mirrors CrispASR's own --i-have-rights gate.
+    if (argResults!['i-have-rights'] != true) {
+      stderr.writeln(
+          'Refusing to open the speaker DB: voice embeddings are biometric '
+          'data under GDPR Art. 9. Pass --i-have-rights to attest that you '
+          'have a lawful basis and explicit consent from every enrolled '
+          'person.');
+      return 1;
+    }
+    final nameOpt = argResults!['name'] as String?;
+    final expectOpt = argResults!['expect'] as String?;
+    final roster = (expectOpt ?? nameOpt ?? '').trim();
+    if (action == 'match' && roster.isEmpty) {
+      stderr.writeln(
+          'match requires --expect (or --name): the roster of claimed '
+          'participants to confirm against.');
+      return 1;
+    }
     final audio = crispasr.decodeAudioFile(_abs(rest[1]), libPath: lib);
     final titanet =
         crispasr.CrispasrTitaNet(dl, _abs(argResults!['titanet'] as String));
     try {
       final emb = titanet.embed(audio.samples);
-      final db = crispasr.CrispasrSpeakerDB(dl, _abs(argResults!['db'] as String));
+      final db = crispasr.CrispasrSpeakerDB(
+        dl,
+        _abs(argResults!['db'] as String),
+        expectedNames: roster,
+        consentAttested: true,
+      );
       try {
         if (action == 'enroll') {
-          final nm = argResults!['name'] as String?;
+          final nm = nameOpt;
           if (nm == null) usageException('--name required for enroll.');
           final ok = db.enroll(nm, emb);
           stdout.writeln(ok ? 'enrolled $nm' : 'enroll failed');

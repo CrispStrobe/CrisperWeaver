@@ -104,17 +104,53 @@ class SpeakerIdService {
   /// Names currently in the on-disk DB, sorted alphabetically. Reads
   /// the speakers directory directly rather than via the binding so
   /// the UI can list profiles without opening the TitaNet model.
+  ///
+  /// Only `.spk` profiles count. Without that filter the companion
+  /// `<name>.consent.json` records surface as phantom speakers named
+  /// `<name>.consent`, which would also poison the consent roster
+  /// built by [consentedSpeakers].
   Future<List<String>> listSpeakers() async {
     final dir = await _ensureDbDir();
     final names = <String>[];
     await for (final entity in dir.list()) {
       if (entity is! File) continue;
+      if (p.extension(entity.path) != '.spk') continue;
       final base = p.basenameWithoutExtension(entity.path);
       if (base.isEmpty) continue;
       names.add(base);
     }
     names.sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
     return names;
+  }
+
+  /// True when [name] has a persisted GDPR Art. 9(2)(a) consent record.
+  Future<bool> hasConsent(String name) async {
+    final dir = await _ensureDbDir();
+    return File(p.join(dir.path, '${name.trim()}.consent.json')).exists();
+  }
+
+  /// Enrolled speakers that carry a consent record — the closed roster
+  /// handed to `CrispasrSpeakerDB`. A profile without consent is never
+  /// matchable: no lawful basis, no biometric processing.
+  Future<List<String>> consentedSpeakers() async {
+    final all = await listSpeakers();
+    final out = <String>[];
+    for (final name in all) {
+      if (await hasConsent(name)) out.add(name);
+    }
+    return out;
+  }
+
+  /// Enrolled speakers *without* a consent record. Surfaced in the
+  /// speaker management screen so the user can either record consent
+  /// or erase the profile.
+  Future<List<String>> speakersMissingConsent() async {
+    final all = await listSpeakers();
+    final out = <String>[];
+    for (final name in all) {
+      if (!await hasConsent(name)) out.add(name);
+    }
+    return out;
   }
 
   /// Remove an enrolled speaker. Upstream's `CrispasrSpeakerDB` owns
@@ -170,6 +206,9 @@ class SpeakerIdService {
       'lawfulBasis': 'GDPR Art. 9(2)(a) — explicit consent',
       'storageLocation': 'on-device only',
     }));
+    // The match roster is derived from consent records at open time, so
+    // a newly consented speaker only becomes matchable after a reopen.
+    _closeHandles();
   }
 
   /// Export all stored data for [name] (GDPR Art. 20 data portability).
@@ -277,13 +316,33 @@ class SpeakerIdService {
       _embedder =
           crispasr.CrispasrSpeakerEmbedder(lib, 'auto', cacheDir: cacheDir);
       final dir = await _ensureDbDir();
-      _db = crispasr.CrispasrSpeakerDB(lib, dir.path);
+      // Closed-roster, consent-gated open (GDPR Art. 9). Upstream's
+      // SpeakerDB confirms *claimed* participants rather than running an
+      // open 1:N search — which is what keeps this biometric
+      // verification rather than identification. The roster is derived
+      // from consent records on disk, so a profile whose consent was
+      // withdrawn (record erased) silently drops out of matching.
+      final roster = await consentedSpeakers();
+      final unconsented = await speakersMissingConsent();
+      if (unconsented.isNotEmpty) {
+        Log.instance.w('speakers',
+            'excluding speakers without a consent record from the match roster',
+            fields: {'excluded': unconsented.join(',')});
+      }
+      _db = crispasr.CrispasrSpeakerDB(
+        lib,
+        dir.path,
+        expectedNames: roster.join(','),
+        consentAttested: true,
+      );
       Log.instance.i('speakers', 'opened SpeakerEmbedder + SpeakerDB',
           fields: {
             'embedder': _embedder!.name,
             'dim': _embedder!.dim,
             'dbDir': dir.path,
             'enrolled': _db!.count,
+            'roster': roster.length,
+            'excludedNoConsent': unconsented.length,
           });
       completer.complete();
     } catch (e, st) {
