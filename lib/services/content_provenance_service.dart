@@ -64,9 +64,34 @@ class ContentProvenanceService {
             }
           ],
         },
+        // Abuse-reporting channel. The recipient of a synthetic clip is
+        // the person most likely to spot misuse, and they generally have
+        // no idea what produced it. Carrying the channel *inside* the
+        // manifest means it travels with the file — a policy published
+        // only on a website is unreachable to someone holding a WAV.
+        {
+          '@type': 'crisperweaver.abuse-reporting',
+          'acceptable_use_policy': abuseReportingPolicyUrl,
+          'report_misuse': abuseReportingUrl,
+          'note':
+              'This audio was synthesised by CrisperWeaver. If it impersonates '
+              'you or someone you know without consent, report it at the URL '
+              'above. Voice cloning without the voice owner\'s consent is '
+              'prohibited by the acceptable-use policy.',
+        },
       ],
     };
   }
+
+  /// Where a recipient of CrisperWeaver-generated audio can report
+  /// misuse (EU AI Act Art. 50(4) — supporting the deployer's disclosure
+  /// duty by making the content self-describing).
+  static const String abuseReportingUrl =
+      'https://github.com/CrispStrobe/CrisperWeaver/issues/new?labels=abuse-report&template=abuse-report.md';
+
+  /// The acceptable-use policy the reporting channel enforces.
+  static const String abuseReportingPolicyUrl =
+      'https://github.com/CrispStrobe/CrisperWeaver/blob/main/ACCEPTABLE_USE.md';
 
   /// Encode [manifest] as a RIFF `c2pa` chunk suitable for appending
   /// to a WAV file. Returns the raw chunk bytes (4-byte ID + 4-byte

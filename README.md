@@ -383,6 +383,18 @@ Technical learnings collected during development (FFI quirks, dylib bundling, ma
 
 ---
 
+## Acceptable use & compliance
+
+CrisperWeaver can clone voices and identify speakers. Because everything runs on your device, there is no server-side moderation — and under the EU AI Act you are the **deployer** of these AI systems, so the disclosure duties are yours.
+
+- [`ACCEPTABLE_USE.md`](ACCEPTABLE_USE.md) — what voice cloning and speaker ID may be used for, the consent rules, and how to report misuse.
+- [`PRIVACY.md`](PRIVACY.md) — what is stored on device (including biometric voice embeddings) and your rights over it.
+- [`docs/AI_ACT_RISK.md`](docs/AI_ACT_RISK.md) · [`docs/DPIA.md`](docs/DPIA.md) · [`docs/AI_ACT_TECHNICAL.md`](docs/AI_ACT_TECHNICAL.md) — risk classification, data-protection impact assessment, Annex IV technical documentation.
+
+Every file the app synthesises is watermarked, C2PA-signed and metadata-tagged automatically; cloned and voice-converted output additionally carries an audible beep disclaimer. Two limits worth knowing: container metadata is stripped by re-encoding (the watermark survives), and audio under ~100 ms or digitally silent cannot carry a watermark at all — the app tells you when that happens rather than claiming a mark it did not make.
+
+**Received audio you believe impersonates someone?** [Report it here](https://github.com/CrispStrobe/CrisperWeaver/issues/new?labels=abuse-report&template=abuse-report.md). That address is embedded in the provenance manifest of every generated file, so it travels with the audio.
+
 ## License & author
 
 CrisperWeaver is **GNU AGPL-3.0-or-later**. See [`LICENSE`](LICENSE) for full text and the in-app *About* screen for the auto-aggregated third-party license list (`showLicensePage`).
