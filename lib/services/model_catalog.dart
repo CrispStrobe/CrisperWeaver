@@ -480,6 +480,8 @@ abstract final class ModelCatalog {
   static const List<String> langsUk = <String>['uk'];
   static const List<String> langsCs = <String>['cs'];
   static const List<String> langsEnZh = <String>['en', 'zh'];
+  static const List<String> langsJaEn = <String>['ja', 'en'];
+  static const List<String> langsRuEn = <String>['ru', 'en'];
   // The 25-language EU set Canary 1B-v2 + Parakeet TDT v3 advertise.
   // Per the upstream HF model cards: includes Maltese (mt), excludes
   // Norwegian (the EU25 ASR set uses Swedish for Scandinavia and
@@ -1459,6 +1461,133 @@ abstract final class ModelCatalog {
     // VoxCPM2 — openbmb/VoxCPM2 tokenizer-free diffusion AR TTS, 29 langs,
     // zero-shot (no codec companion needed). Q4_K is the practical default;
     // F16 reference sits in the same repo.
+    // GigaAM v3 — Russian ASR. The e2e revisions carry punctuation,
+    // casing and inverse text normalisation in the vocabulary; RNN-T is
+    // the accuracy pick (8.4% avg WER), CTC the faster one.
+    'gigaam-v3-e2e-rnnt-q8_0': ModelDefinition(
+      name: 'gigaam-v3-e2e-rnnt-q8_0',
+      displayName: 'GigaAM v3 e2e-RNNT (q8_0)',
+      fileName: 'gigaam-v3-e2e-rnnt-q8_0.gguf',
+      url:
+          'https://huggingface.co/cstr/gigaam-v3-GGUF/resolve/main/gigaam-v3-e2e-rnnt-q8_0.gguf',
+      sizeBytes: 248765312,
+      checksum: '',
+      description:
+          'GigaAM v3 Russian ASR (RNN-T) — punctuation + casing + ITN, 8.4% avg WER',
+      quantization: 'q8_0',
+      backend: 'gigaam',
+      kind: ModelKind.asr,
+      languages: langsRuEn,
+    ),
+    'gigaam-v3-e2e-rnnt-q4_k': ModelDefinition(
+      name: 'gigaam-v3-e2e-rnnt-q4_k',
+      displayName: 'GigaAM v3 e2e-RNNT (q4_k)',
+      fileName: 'gigaam-v3-e2e-rnnt-q4_k.gguf',
+      url:
+          'https://huggingface.co/cstr/gigaam-v3-GGUF/resolve/main/gigaam-v3-e2e-rnnt-q4_k.gguf',
+      sizeBytes: 154393472,
+      checksum: '',
+      description:
+          'GigaAM v3 Russian ASR (RNN-T, small) — punctuation + casing + ITN',
+      quantization: 'q4_k',
+      backend: 'gigaam',
+      kind: ModelKind.asr,
+      languages: langsRuEn,
+    ),
+    'gigaam-v3-e2e-ctc-q8_0': ModelDefinition(
+      name: 'gigaam-v3-e2e-ctc-q8_0',
+      displayName: 'GigaAM v3 e2e-CTC (q8_0)',
+      fileName: 'gigaam-v3-e2e-ctc-q8_0.gguf',
+      url:
+          'https://huggingface.co/cstr/gigaam-v3-GGUF/resolve/main/gigaam-v3-e2e-ctc-q8_0.gguf',
+      sizeBytes: 245483264,
+      checksum: '',
+      description:
+          'GigaAM v3 Russian ASR (CTC, faster) — punctuation + casing + ITN',
+      quantization: 'q8_0',
+      backend: 'gigaam',
+      kind: ModelKind.asr,
+      languages: langsRuEn,
+    ),
+    // MioTTS 0.6B — Qwen3 + MioCodec-v2 FSQ, 44.1 kHz. Self-contained
+    // (codec baked in); ja/en only.
+    'miotts-0.6b-q4_k': ModelDefinition(
+      name: 'miotts-0.6b-q4_k',
+      displayName: 'MioTTS 0.6B (q4_k)',
+      fileName: 'miotts-0.6b-q4_k.gguf',
+      url:
+          'https://huggingface.co/cstr/miotts-0.6b-GGUF/resolve/main/miotts-0.6b-q4_k.gguf',
+      sizeBytes: 526181408,
+      checksum: '',
+      description: 'MioTTS 0.6B — Qwen3 + MioCodec-v2 FSQ TTS, 44.1 kHz',
+      quantization: 'q4_k',
+      backend: 'miotts',
+      kind: ModelKind.tts,
+      languages: langsJaEn,
+    ),
+    'miotts-0.6b-q8_0': ModelDefinition(
+      name: 'miotts-0.6b-q8_0',
+      displayName: 'MioTTS 0.6B (q8_0)',
+      fileName: 'miotts-0.6b-q8_0.gguf',
+      url:
+          'https://huggingface.co/cstr/miotts-0.6b-GGUF/resolve/main/miotts-0.6b-q8_0.gguf',
+      sizeBytes: 830596128,
+      checksum: '',
+      description:
+          'MioTTS 0.6B — Qwen3 + MioCodec-v2 FSQ TTS, 44.1 kHz (recommended)',
+      quantization: 'q8_0',
+      backend: 'miotts',
+      kind: ModelKind.tts,
+      languages: langsJaEn,
+    ),
+    // MOSS-TTS-Local v1.5 — Qwen3-4B backbone; the codec is a separate
+    // 2.1 GB GGUF passed via --codec-model, so every quant carries it as
+    // a companion.
+    'moss-tts-local-v1.5-q4_k': ModelDefinition(
+      name: 'moss-tts-local-v1.5-q4_k',
+      displayName: 'MOSS-TTS-Local v1.5 (q4_k)',
+      fileName: 'moss-tts-local-v1.5-q4_k.gguf',
+      url:
+          'https://huggingface.co/cstr/moss-tts-local-v1.5-GGUF/resolve/main/moss-tts-local-v1.5-q4_k.gguf',
+      sizeBytes: 3883732480,
+      checksum: '',
+      description:
+          'MOSS-TTS-Local v1.5 — Qwen3-4B RQ-Transformer TTS, 48 kHz, multilingual',
+      quantization: 'q4_k',
+      backend: 'moss-tts-local',
+      kind: ModelKind.tts,
+      languages: langsAll,
+      companions: ['moss-tts-local-v1.5-codec'],
+    ),
+    'moss-tts-local-v1.5-q8_0': ModelDefinition(
+      name: 'moss-tts-local-v1.5-q8_0',
+      displayName: 'MOSS-TTS-Local v1.5 (q8_0)',
+      fileName: 'moss-tts-local-v1.5-q8_0.gguf',
+      url:
+          'https://huggingface.co/cstr/moss-tts-local-v1.5-GGUF/resolve/main/moss-tts-local-v1.5-q8_0.gguf',
+      sizeBytes: 5700390400,
+      checksum: '',
+      description:
+          'MOSS-TTS-Local v1.5 — Qwen3-4B RQ-Transformer TTS, 48 kHz (recommended)',
+      quantization: 'q8_0',
+      backend: 'moss-tts-local',
+      kind: ModelKind.tts,
+      languages: langsAll,
+      companions: ['moss-tts-local-v1.5-codec'],
+    ),
+    'moss-tts-local-v1.5-codec': ModelDefinition(
+      name: 'moss-tts-local-v1.5-codec',
+      displayName: 'MOSS-Audio-Tokenizer v2 (codec)',
+      fileName: 'moss-tts-local-v1.5-codec.gguf',
+      url:
+          'https://huggingface.co/cstr/moss-tts-local-v1.5-GGUF/resolve/main/moss-tts-local-v1.5-codec.gguf',
+      sizeBytes: 2125483072,
+      checksum: '',
+      description:
+          'MOSS-Audio-Tokenizer-v2 RVQ decoder — required companion for moss-tts-local',
+      backend: 'moss-tts-local',
+      kind: ModelKind.codec,
+    ),
     'voxcpm2-q4_k': ModelDefinition(
       name: 'voxcpm2-q4_k',
       displayName: 'VoxCPM2 (q4_k)',
@@ -4140,6 +4269,21 @@ abstract final class ModelCatalog {
       extension: '.bin',
       defaultLanguages: langsWhisper99,
     ),
+    // GigaAM v3 — 16-layer rotary Conformer (220M) + CTC or RNN-T head,
+    // the strongest open Russian ASR. Four revisions: the `e2e-*` pair
+    // emits punctuation + casing + ITN from its SentencePiece vocab, the
+    // bare `ctc`/`rnnt` pair emits lowercase Cyrillic with none of that.
+    // Prefer e2e — CrispASR suppresses auto-punctuation for the charwise
+    // revisions anyway (the auto-enabled FireRedPunc is a CN/EN model and
+    // injects full-width CJK punctuation into Russian).
+    'gigaam': BackendRepo(
+      backend: 'gigaam',
+      repoId: 'cstr/gigaam-v3-GGUF',
+      baseName: 'gigaam-v3',
+      displayPrefix: 'GigaAM v3',
+      description: 'Russian ASR (Conformer 220M) — 8.4% avg WER, punctuation + ITN',
+      defaultLanguages: langsRuEn,
+    ),
     'parakeet': BackendRepo(
       backend: 'parakeet',
       repoId: 'cstr/parakeet-tdt-0.6b-v3-GGUF',
@@ -4905,6 +5049,31 @@ abstract final class ModelCatalog {
       displayPrefix: 'MADLAD-400 3B-MT',
       description: 'T5 translator, 419 languages',
       kind: ModelKind.translate,
+      defaultLanguages: langsAll,
+    ),
+    // MioTTS 0.6B — Qwen3 LLM + MioCodec-v2 FSQ codec (25 Hz, 44.1 kHz
+    // out). Codec is baked into the model file; the repo's four
+    // `*.emb.gguf` speaker embeddings are the preset voices.
+    'miotts': BackendRepo(
+      backend: 'miotts',
+      repoId: 'cstr/miotts-0.6b-GGUF',
+      baseName: 'miotts-0.6b',
+      displayPrefix: 'MioTTS 0.6B',
+      description: 'Qwen3 + MioCodec-v2 FSQ TTS — Japanese/English, 44.1 kHz',
+      kind: ModelKind.tts,
+      defaultLanguages: langsJaEn,
+    ),
+    // MOSS-TTS-Local v1.5 — Qwen3-4B backbone + 1-layer RQ-Transformer
+    // emitting 12 RVQ codebooks/frame, decoded to 48 kHz by
+    // MOSS-Audio-Tokenizer-v2. Needs the separate codec GGUF
+    // (`--codec-model`), hence the companion wiring on each quant.
+    'moss-tts-local': BackendRepo(
+      backend: 'moss-tts-local',
+      repoId: 'cstr/moss-tts-local-v1.5-GGUF',
+      baseName: 'moss-tts-local-v1.5',
+      displayPrefix: 'MOSS-TTS-Local v1.5',
+      description: 'Qwen3-4B RQ-Transformer TTS — multilingual, 48 kHz',
+      kind: ModelKind.tts,
       defaultLanguages: langsAll,
     ),
     // VoxCPM2 — single-file diffusion AR TTS. Zero-shot synthesis (no codec

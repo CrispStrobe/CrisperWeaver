@@ -311,6 +311,44 @@ void main() {
         // backend:`parakeet`, so the bare `reazonspeech` dispatch string
         // carries no separate catalogue backend id.
         'reazonspeech',
+
+        // --- CrispASR 0.8.13+ backends CrisperWeaver deliberately does
+        // --- not surface. Each has a published GGUF, so this is a
+        // --- product scope decision, not an availability one. Cataloguing
+        // --- a model the app has no UI to run would put a multi-GB
+        // --- download behind a button that does nothing.
+
+        // Internal component, never user-selectable: the isolated
+        // AudioVAE encoder/decoder of VoxCPM2, used as a 16→48 kHz
+        // upscaler inside the voxcpm2-tts path.
+        'voxcpm2-vae',
+
+        // Speech restoration (16 kHz → restored 48 kHz) driven by the
+        // CLI's --s2s flag. CrisperWeaver's denoise surface is RNNoise
+        // (ServerService._handleDenoise) and its speech-to-speech path
+        // is an explicit allowlist of {lfm2-audio, mini-omni2}
+        // (synthesize_screen.dart `_s2sCapableBackends`), so sidon is
+        // unreachable from the app.
+        'sidon',
+
+        // Retrieval-based singing-voice conversion. Not on the S2S
+        // allowlist above. NOTE for whoever wires this up: RVC output is
+        // voice conversion, so it MUST go through TtsService.writeWav
+        // with `voiceConverted: true` to get the mandatory Art. 50(4)
+        // beep disclaimer — see PLAN §15.2g.
+        'rvc-svc',
+
+        // Music analysis / source separation. CrisperWeaver is a speech
+        // app: there is no ModelKind for beats, chords, pitch, stems or
+        // tablature, and no screen that consumes their output. They stay
+        // CLI-only until a music surface exists.
+        'beat-this',
+        'btc-chords',
+        'crepe',
+        'htdemucs',
+        'mel-band-roformer',
+        'piano-transcription',
+        'tabcnn',
       };
 
       final catalogued = <String>{
