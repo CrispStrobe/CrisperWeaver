@@ -1417,3 +1417,280 @@ Gap analysis performed 2026-07-16. CrisperWeaver currently uses CrispASR
       Files: `.github/workflows/ci.yml`,
       `.github/workflows/release.yml`,
       `.github/workflows/deploy-web.yml`
+
+---
+
+## 15. EU AI Act audit remediation (August 2026)
+
+Full audit performed 2026-08-01 against Regulation (EU) 2024/1689, after
+the §13 compliance sweep. The §13 architecture is sound; this section
+fixes the gaps between that design and the shipped code, plus stale
+legal analysis in `docs/`.
+
+**Regulatory timing that drives priority:** Art. 50 transparency applies
+from **2 August 2026** and was explicitly *excluded* from the Digital
+Omnibus deferral. Annex III high-risk slipped to **2 December 2027**, so
+the speaker-ID high-risk analysis is far less urgent than §13 assumed.
+A grace period to **2 December 2026** covers the Art. 50(2)
+machine-readable marking for systems already on market (v0.9.5 qualifies);
+Art. 50(4) deepfake disclosure has no such runway.
+
+### 15.1 Blocking — build + CI are broken
+
+- [x] **a. Adopt CrispASR's consent-gated SpeakerDB API.** Upstream
+      `origin/main` made `CrispasrSpeakerDB` a **closed-roster,
+      consent-gated** construct: `{required String expectedNames,
+      required bool consentAttested}`, throwing without consent.
+      Matching is now a *claimed-participant confirmation*, never an
+      open 1:N search — which is what keeps it biometric **verification**
+      rather than **identification** (materially better Annex III
+      posture). Five call sites don't compile; `flutter analyze` reports
+      10 errors and `test/synthetic_compliance_test.dart` cannot load, so
+      the entire compliance regression suite is silently not running.
+      Files: `lib/services/speaker_id_service.dart:280`,
+      `bin/crisperweaver.dart:655`,
+      `test/speaker_id_live_test.dart:119,126,159`
+
+      Design: build `expectedNames` from enrolled speakers that have a
+      consent record on disk. Speakers lacking one are excluded from the
+      roster and logged — no consent, no biometric matching. Handles are
+      closed after enroll/delete so the next open re-derives the roster.
+
+- [x] **b. Fix `listSpeakers()` extension filter.** It lists every file
+      in the speakers dir, so `Alice.consent.json` surfaces as a phantom
+      speaker `Alice.consent`. Filter to `.spk`. Blocks 15.1a (the roster
+      is derived from this list).
+      Files: `lib/services/speaker_id_service.dart:107`
+
+### 15.2 Art. 50 — transparency defects
+
+- [x] **c. Beep disclaimer never fires in the GUI (HIGH).**
+      `synthesize_screen.dart:588` and `:724` call `tts.writeWav(audio)`
+      with no `voiceRefPath`, so `isVoiceClone` is always false on the
+      app's primary path: no Art. 50(4) beep, no `[CONSENT]` audit entry.
+      The voice reaches `prepare(voiceName:)` but is never threaded to
+      `writeWav`. Only the server API path (`server_service.dart:529`)
+      passes it.
+      Files: `lib/screens/synthesize_screen.dart`
+
+- [x] **d. UI asserts a disclosure that did not happen (HIGH).**
+      `synthesize_screen.dart:854` renders `"...beep disclaimer + ..."`
+      whenever `selectedVoice != null`. Given 15.2c that claim is false —
+      a user relying on it ships undisclosed deepfake audio. The card
+      must reflect what was actually embedded, not what was intended.
+      Files: `lib/screens/synthesize_screen.dart`
+
+- [x] **e. Post-embed watermark verification is broken on the primary
+      path.** `tts_service.dart:737` verifies with
+      `AudioWatermarkService.detectWatermark()`, which is an **LSB-only**
+      detector. On the native path the LSB mark is never embedded, so it
+      always returns null → a permanent false "verification failed"
+      warning, and the Art. 50(2) marking is in truth never verified.
+      Use `SpreadSpectrumWatermark.detect()` for that path.
+      Files: `lib/services/tts_service.dart`
+
+- [x] **f. Watermark presence is inferred from symbol availability.**
+      `nativeWatermarked = CrispasrWatermark.isAvailable()`
+      (`tts_service.dart:699`) tests whether the *symbol* exists, not
+      whether embedding occurred. If the C-side auto-embed is ever
+      conditional, the Dart fallback is skipped and output ships
+      unmarked. Merge with 15.2e: verify with the correct detector, and
+      apply the Dart fallback when verification fails rather than when a
+      symbol is missing.
+      Files: `lib/services/tts_service.dart`
+
+- [x] **g. Speech-to-speech has no disclosure or consent gate.** S2S is
+      voice conversion — squarely Art. 50(4) deepfake territory — yet
+      `server_service.dart:1035` and `synthesize_screen.dart:724` pass no
+      `voiceRefPath`, and `/v1/audio/s2s` has no consent gate unlike
+      `/v1/audio/speech`. Add an explicit `voiceConverted` flag to
+      `writeWav` so the beep does not depend on a reference-file path.
+      Files: `lib/services/tts_service.dart`,
+      `lib/services/server_service.dart`,
+      `lib/screens/synthesize_screen.dart`
+
+- [x] **h. OCR output carries no AI marking.** Was §13.3p, still open.
+      Art. 50(2) marking arguably reaches generated text.
+      Files: `lib/services/ocr_service.dart`
+
+### 15.3 GDPR — biometric consent defects
+
+- [x] **i. Second enrollment path bypasses consent entirely.**
+      `transcription_output_widget.dart:1679` calls `svc.enroll()` with no
+      consent dialog and no `saveConsent()`. Only
+      `speaker_management_screen.dart:333` gates properly. Art. 9(2)(a)
+      basis is therefore missing on that path, and a later
+      `deleteSpeaker()` finds no consent record to erase.
+      Files: `lib/widgets/transcription_output_widget.dart`
+
+- [x] **j. Consent dialog addresses the wrong data subject.**
+      `speakerConsentBody` reads *"you give your explicit consent to the
+      processing of this biometric data"* — but when enrolling a meeting
+      participant the data subject is a **third party**, not the user.
+      Consent under Art. 9(2)(a) must come from the data subject. The
+      voice-clone wizard already models this correctly (*"I have explicit
+      consent from the voice owner"*); the speaker dialog must match, and
+      this is exactly what upstream's `consentAttested` expects.
+      Files: `lib/l10n/app_{en,de,zh}.arb`,
+      `lib/screens/speaker_management_screen.dart`
+
+### 15.4 Legal analysis gaps in `docs/`
+
+- [x] **k. Art. 6(3) exemption is incompletely stated.**
+      `AI_ACT_RISK.md` §3 claims the derogation but omits that it still
+      obliges the provider to document the assessment **and register in
+      the EU database (Art. 49(2))**, and that the derogation is void
+      where the system performs profiling. Also record that the
+      closed-roster API from 15.1a makes this **verification**, which is
+      carved out of Annex III 1(a) in the first place — a stronger
+      argument than the Art. 6(3) one currently made.
+
+- [x] **l. Art. 2(12) open-source exemption unmentioned.** Relevant for
+      AGPL-3.0, and the operative point is that it does **not** exempt
+      Art. 50.
+
+- [x] **m. Provider vs deployer roles are conflated.** Art. 50(1)/(2)
+      bind CrisperWeaver as provider; **50(3)/(4) bind the deployer** —
+      the end user. Docs imply the app discharges duties it cannot.
+
+- [x] **n. Art. 4 (AI literacy)** — in force since 2 Feb 2025, entirely
+      unaddressed.
+
+- [x] **o. Refresh timelines for the Digital Omnibus** across
+      `AI_ACT_RISK.md`, `AI_ACT_TECHNICAL.md`, `DPIA.md`. Note the
+      Code of Practice on Transparency of AI-generated Content
+      (adherence confers presumption of conformity).
+
+### 15.5 Verification
+
+- [x] **p. Regression tests** for: beep presence on cloned + converted
+      output, watermark verification using the correct detector, roster
+      excludes non-consented speakers, `listSpeakers` extension filter,
+      export disclosure defaults. Then `flutter analyze` + full
+      `flutter test` clean — capturing the *real* exit code, not a
+      pipeline tail's.
+
+### 15.6 Outcome (2026-08-01)
+
+All 16 items above are implemented. `flutter analyze`: **0 errors**
+(down from 10). Compliance suite: **62 pass** (up from 53 — and from
+*not loading at all*, which was the point of 15.1a). Full suite:
+**1181 pass, 103 skip, 2 fail**.
+
+Both remaining failures are pre-existing and unrelated to this section
+— verified by stashing these changes and re-running against a clean
+tree, where `backend_dispatch_test` does not even compile:
+
+- **`backend_dispatch_test` — catalogue drift.** The local CrispASR is
+  at v0.8.25 while this repo targets 0.8.12, and the newer engine
+  exposes 12 backends with no `ModelDefinition`: `beat-this`,
+  `btc-chords`, `crepe`, `htdemucs`, `mel-band-roformer`, `miotts`,
+  `moss-tts-local`, `piano-transcription`, `rvc-svc`, `sidon`,
+  `tabcnn`, `voxcpm2-vae`. This was masked until now by the compile
+  error. **CI is affected**: `CRISPASR_REF: main` means CI resolves the
+  same drifting engine. Fixing it means either cataloguing the 12
+  backends or adding them to the documented `engineOnly` set — and it
+  is the concrete argument for §14.4m (pin to release tags).
+
+- **`s12_integration_live_test`** — the §12.5 TADA group hand-rolled a
+  `markTestSkipped` instead of using the shared
+  `CrispModels.skipReason()` gate, so it ran on a plain `flutter test`
+  whenever the models happened to be on disk — precisely what
+  `CrispModels.enabled` exists to prevent (see its docstring). It also
+  called `decodeAudioFile` and `CrispASR()` **without `libPath:`**, so
+  they fell back to bare-name `libcrispasr.dylib` resolution and threw
+  even though the guard above had already proved a dylib existed.
+  **Fixed** (beyond the audit scope, but it was the sole red test in the
+  pre-push gate, and a permanently-red gate is a gate nobody reads):
+  both calls now pass the resolved `lib`, and the group uses
+  `skipReason(models: ['canary_aligner', 'whisper_tiny'])` like its
+  siblings.
+
+Neither blocks the Art. 50 deadline. Both are tracked separately.
+
+### 15.7 Catalogue drift resolved (2026-08-01)
+
+CrispASR 0.8.25 exposes 12 backends the catalogue didn't know about.
+Resolved by scope, not by bulk-cataloguing:
+
+- **Catalogued** (real published GGUFs, sizes verified against the HF
+  tree API — not estimated): `miotts` (`cstr/miotts-0.6b-GGUF`, q4_k +
+  q8_0, ja/en) and `moss-tts-local` (`cstr/moss-tts-local-v1.5-GGUF`,
+  q4_k + q8_0 + the required 2.1 GB codec companion, multilingual).
+  Both are TTS — the app's core surface, with UI that can already run
+  them.
+- **`engineOnly`** for the other 10, each with a documented reason:
+  `voxcpm2-vae` is an internal VoxCPM2 component; `sidon` (speech
+  restoration) and `rvc-svc` (voice conversion) are unreachable because
+  the app's denoise path is RNNoise and its S2S path is an explicit
+  `{lfm2-audio, mini-omni2}` allowlist; the 7 music backends
+  (`beat-this`, `btc-chords`, `crepe`, `htdemucs`,
+  `mel-band-roformer`, `piano-transcription`, `tabcnn`) have no
+  `ModelKind` and no screen that consumes their output.
+
+Plus **`gigaam`** (`cstr/gigaam-v3-GGUF`), which surfaced only on a
+later run — the shared CrispASR clone gets rebuilt by parallel workers,
+so the exposed-backend set moves even when its git HEAD does not.
+Catalogued as ASR (ru/en): the `e2e-rnnt` q8_0/q4_k and `e2e-ctc` q8_0
+revisions, which carry punctuation + casing + ITN in the SentencePiece
+vocab. The bare `ctc`/`rnnt` revisions are left to repo discovery —
+CrispASR suppresses auto-punctuation for them anyway, since the
+auto-enabled FireRedPunc is a CN/EN model that injects full-width CJK
+punctuation into Russian.
+
+Cataloguing a model the app cannot run would put a multi-GB download
+behind a button that does nothing — so scope, not availability, is the
+right axis here. **Compliance note left in the test:** if `rvc-svc` is
+ever surfaced it must route through `writeWav(voiceConverted: true)`
+for the Art. 50(4) beep.
+
+### 15.8 Marking robustness (2026-08-01)
+
+Prompted by a cross-project comparison (CrispTTS / CrispASR /
+Susurrus / CrisperWeaver). Two of its claims about CrisperWeaver were
+**out of date** — the primary mark is spread-spectrum, not LSB (LSB is
+a back-compat extra on the fallback path only), and opt-out has
+required an attestation since §13.2b. One was **correct and material**:
+`AudioWatermarkService.embedWatermark` returns its input unchanged
+below 4,608 samples (`audio_watermark_service.dart:40`) — a silent
+no-op.
+
+Measured the detector rather than reasoning about it:
+
+| Input | Clean | Watermarked |
+|---|---|---|
+| 20 ms (< 1 FFT frame) | 0.000 | **0.000** |
+| 100 ms | 0.469 | 0.906 |
+| 250 ms – 2 s | 0.406–0.500 | 0.781–0.875 |
+| digital silence, 2 s | 0.000 | **0.000** |
+| 0.01x amplitude, 2 s | — | 0.781 |
+
+So the 0.65 floor sits cleanly in the gap (clean tops out at 0.50,
+marked bottoms out at 0.78) and detection is level-invariant — quiet
+output is not falsely rejected. Sub-100 ms and silent output genuinely
+cannot carry a spectral watermark.
+
+Changes:
+
+- [x] **q. Marking outcome is now a value, not a log line.**
+      `MarkingStatus {watermarkVerified, watermarkConfidence,
+      c2paSigned}` with `robustMarkPresent`, exposed as
+      `TtsService.lastMarking`. Verification failure escalated from
+      `w` to `e`, plus a `[MARKING]` line when no robust mark landed
+      (mirrors the `[CONSENT]` audit convention).
+- [x] **r. The provenance card reports reality.** When the last output
+      could not be watermarked the card switches to an error style and
+      says so, instead of asserting a mark that isn't there — the same
+      class of bug as §15.2d.
+- [x] **s. Measured floor locked into tests.** Clean/marked gap
+      straddling 0.65, level invariance, and the two known-unmarkable
+      cases. Compliance suite: 53 → 66.
+
+**Deliberately NOT adopted: fail-closed (refusing to write unmarkable
+output).** CrisperWeaver's WAV path always carries a C2PA manifest plus
+LIST/INFO metadata, so output is never *un*marked — only marked by
+something a re-encode strips. Refusing to save a user's synthesis
+because it is 80 ms long trades a real usability failure for a
+marginal compliance gain. Escalate to a hard refusal only if MP3
+export lands (§13.3g), where a container genuinely can carry no
+manifest — that is the case CrispASR's watermark floor exists for.

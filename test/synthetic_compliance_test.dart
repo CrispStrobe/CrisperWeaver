@@ -6,6 +6,7 @@
 // on every CI host.
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -14,6 +15,8 @@ import 'package:crisper_weaver/constants/app_constants.dart';
 import 'package:crisper_weaver/engines/transcription_engine.dart';
 import 'package:crisper_weaver/services/audio_watermark_service.dart';
 import 'package:crisper_weaver/services/content_provenance_service.dart';
+import 'package:crisper_weaver/services/ocr_service.dart';
+import 'package:crisper_weaver/services/spread_spectrum_watermark.dart';
 import 'package:crisper_weaver/utils/file_utils.dart';
 
 // ---------------------------------------------------------------------------
@@ -729,6 +732,196 @@ void main() {
     test('watermark and disclosure are enabled', () {
       expect(AppConstants.enableAudioWatermark, isTrue);
       expect(AppConstants.enableSyntheticDisclosure, isTrue);
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // 14. Art. 50(2) marking — spread-spectrum detector contract
+  //
+  // TtsService decides whether the native C API already watermarked the
+  // PCM by *probing* it, rather than by checking whether the native
+  // symbol exists. These tests pin the detector behaviour that decision
+  // relies on: unmarked audio must read below the floor, marked audio at
+  // or above it. If this contract breaks, TtsService would either ship
+  // unmarked audio or double-mark every synthesis.
+  // -----------------------------------------------------------------------
+  group('Spread-spectrum watermark detector contract', () {
+    /// 2 s of 16 kHz noise-ish tone — long enough for several FFT frames.
+    Float32List signal({int n = 32000}) {
+      final pcm = Float32List(n);
+      for (var i = 0; i < n; i++) {
+        pcm[i] = 0.25 * sin(2 * pi * 220.0 * i / 16000.0) +
+            0.05 * sin(2 * pi * 1310.0 * i / 16000.0);
+      }
+      return pcm;
+    }
+
+    const floor = 0.65;
+
+    test('unwatermarked audio reads below the confidence floor', () {
+      final confidence = SpreadSpectrumWatermark.detect(signal());
+      expect(confidence, lessThan(floor),
+          reason: 'clean audio must not be mistaken for watermarked — '
+              'otherwise TtsService skips the fallback embed and ships '
+              'audio with no Art. 50(2) marking');
+    });
+
+    test('watermarked audio reads at or above the confidence floor', () {
+      final marked = SpreadSpectrumWatermark.embed(signal());
+      final confidence = SpreadSpectrumWatermark.detect(marked);
+      expect(confidence, greaterThanOrEqualTo(floor),
+          reason: 'freshly embedded watermark must verify, else every '
+              'synthesis logs a false verification failure');
+    });
+
+    test('detect is safe on too-short input', () {
+      expect(SpreadSpectrumWatermark.detect(Float32List(16)), 0.0);
+    });
+
+    // Measured 2026-08-01. These bound the 0.65 floor from both sides:
+    // if a future detector change narrows the gap between clean and
+    // marked audio, the floor stops discriminating and this fails.
+    test('clean/marked confidence gap straddles the 0.65 floor', () {
+      for (final ms in [100, 250, 500, 1000, 2000]) {
+        final n = (16000 * ms / 1000).round();
+        final clean = SpreadSpectrumWatermark.detect(signal(n: n));
+        final marked =
+            SpreadSpectrumWatermark.detect(SpreadSpectrumWatermark.embed(signal(n: n)));
+        expect(clean, lessThan(floor), reason: 'clean @${ms}ms = $clean');
+        expect(marked, greaterThanOrEqualTo(floor),
+            reason: 'marked @${ms}ms = $marked');
+      }
+    });
+
+    test('detection is level-invariant — quiet output is not rejected', () {
+      final quiet = Float32List.fromList(
+          signal().map((v) => v * 0.01).toList(growable: false));
+      expect(SpreadSpectrumWatermark.detect(SpreadSpectrumWatermark.embed(quiet)),
+          greaterThanOrEqualTo(floor),
+          reason: 'a 0.01x-amplitude synthesis is legitimate output and must '
+              'not be mistaken for unmarked');
+    });
+
+    // Known-unmarkable inputs. TtsService cannot fix these — a spectral
+    // watermark needs spectrum to modulate — so it must at least detect
+    // and report them rather than assert a mark that is not there.
+    test('digital silence cannot carry the watermark', () {
+      final silence = Float32List(32000);
+      expect(SpreadSpectrumWatermark.detect(SpreadSpectrumWatermark.embed(silence)),
+          lessThan(floor),
+          reason: 'silence has no spectrum to modulate — TtsService must '
+              'report this rather than claim the output is watermarked');
+    });
+
+    test('audio below one FFT frame cannot carry the watermark', () {
+      final tiny = signal(n: 320); // 20 ms
+      expect(SpreadSpectrumWatermark.detect(SpreadSpectrumWatermark.embed(tiny)),
+          lessThan(floor));
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // 15. Art. 50(2) marking — OCR output disclosure
+  // -----------------------------------------------------------------------
+  group('OCR AI-generated disclosure', () {
+    test('disclosure text names AI generation and urges verification', () {
+      expect(OcrResult.disclosure.toLowerCase(), contains('ai-generated'));
+      expect(OcrResult.disclosure.toLowerCase(), contains('verify'));
+    });
+
+    test('textWithDisclosure prefixes recognised text', () {
+      const r = OcrResult(text: r'\frac{1}{2}');
+      expect(r.textWithDisclosure, contains(OcrResult.disclosure));
+      expect(r.textWithDisclosure, endsWith(r'\frac{1}{2}'));
+    });
+
+    test('empty OCR result discloses nothing', () {
+      const r = OcrResult(text: '   ');
+      expect(r.textWithDisclosure, isEmpty,
+          reason: 'no recognised text means nothing to disclose');
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // 16. Consent-derived speaker roster
+  //
+  // SpeakerIdService opens CrispasrSpeakerDB as a closed roster built
+  // from consent records, so a profile without recorded consent is never
+  // matchable. These tests cover the on-disk selection logic without
+  // needing the native library.
+  // -----------------------------------------------------------------------
+  group('Consent-derived speaker roster', () {
+    late Directory tmp;
+
+    setUp(() async {
+      tmp = await Directory.systemTemp.createTemp('crisper_roster_test_');
+    });
+
+    tearDown(() async {
+      if (await tmp.exists()) await tmp.delete(recursive: true);
+    });
+
+    /// Mirrors SpeakerIdService.listSpeakers: `.spk` profiles only.
+    Future<List<String>> listSpeakers(Directory d) async {
+      final out = <String>[];
+      await for (final e in d.list()) {
+        if (e is! File) continue;
+        if (!e.path.endsWith('.spk')) continue;
+        final base = e.uri.pathSegments.last;
+        out.add(base.substring(0, base.length - '.spk'.length));
+      }
+      out.sort();
+      return out;
+    }
+
+    test('consent JSON files are not listed as speakers', () async {
+      await File('${tmp.path}/Alice.spk').writeAsBytes([1]);
+      await File('${tmp.path}/Alice.consent.json').writeAsString('{}');
+
+      final names = await listSpeakers(tmp);
+      expect(names, ['Alice']);
+      expect(names, isNot(contains('Alice.consent')),
+          reason: 'an unfiltered listing yields a phantom speaker named '
+              '"Alice.consent" that would also poison the roster');
+    });
+
+    test('roster excludes profiles without a consent record', () async {
+      await File('${tmp.path}/Alice.spk').writeAsBytes([1]);
+      await File('${tmp.path}/Alice.consent.json').writeAsString('{}');
+      await File('${tmp.path}/Bob.spk').writeAsBytes([1]);
+
+      final names = await listSpeakers(tmp);
+      final roster = <String>[];
+      final missing = <String>[];
+      for (final n in names) {
+        if (await File('${tmp.path}/$n.consent.json').exists()) {
+          roster.add(n);
+        } else {
+          missing.add(n);
+        }
+      }
+      expect(roster, ['Alice']);
+      expect(missing, ['Bob'],
+          reason: 'no consent record means no lawful basis, so Bob must '
+              'not be matchable');
+    });
+
+    test('erasing the consent record drops the speaker from the roster',
+        () async {
+      await File('${tmp.path}/Alice.spk').writeAsBytes([1]);
+      final consent = File('${tmp.path}/Alice.consent.json');
+      await consent.writeAsString('{}');
+      expect(await consent.exists(), isTrue);
+
+      // Withdrawal of consent (GDPR Art. 7(3)).
+      await consent.delete();
+
+      final roster = <String>[];
+      for (final n in await listSpeakers(tmp)) {
+        if (await File('${tmp.path}/$n.consent.json').exists()) roster.add(n);
+      }
+      expect(roster, isEmpty,
+          reason: 'withdrawal must take effect without further user action');
     });
   });
 }

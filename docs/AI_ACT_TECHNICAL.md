@@ -1,7 +1,7 @@
 # EU AI Act Technical Documentation (Annex IV)
 
 **Application:** CrisperWeaver
-**Date:** 2026-07-16
+**Date:** 2026-08-01 (revised; originally 2026-07-16)
 **Regulation:** Regulation (EU) 2024/1689, Annex IV
 
 ---
@@ -130,7 +130,14 @@ All data processing occurs on-device. The only network traffic is:
 ## 5. Risk Management (Annex IV, 5)
 
 See `docs/AI_ACT_RISK.md` for the full risk classification under
-Annex III and Art. 5.
+Annex III and Art. 5, including the provider/deployer split of the
+Art. 50 duties (§5.1 there) and the applicable dates (§8 there).
+
+**Applicable dates in short:** Art. 5 and Art. 4 have applied since
+2 Feb 2025. **Art. 50 transparency applies from 2 Aug 2026** and was
+excluded from the Digital Omnibus deferral. Annex III high-risk
+obligations were deferred to **2 Dec 2027**. A grace period to
+2 Dec 2026 covers Art. 50(2) marking for systems already on market.
 
 See `docs/DPIA.md` for the Data Protection Impact Assessment covering
 biometric data processing risks.
