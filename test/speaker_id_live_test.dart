@@ -116,14 +116,18 @@ void main() {
       final lib = DynamicLibrary.open(libPath!);
       final tmp = await Directory.systemTemp.createTemp('spkdb_');
       try {
-        final dbA = crispasr.CrispasrSpeakerDB(lib, tmp.path);
+        // Closed-roster open: the DB confirms claimed participants, so
+        // 'alice' has to be on the roster for dbB.match to resolve her.
+        final dbA = crispasr.CrispasrSpeakerDB(lib, tmp.path,
+            expectedNames: '', consentAttested: true);
         expect(dbA.count, 0, reason: 'fresh dir starts empty');
         final emb = _syntheticEmbedding(192, 1);
         expect(dbA.enroll('alice', emb), isTrue);
         dbA.close();
 
         // Re-open to verify the profile persisted across handles.
-        final dbB = crispasr.CrispasrSpeakerDB(lib, tmp.path);
+        final dbB = crispasr.CrispasrSpeakerDB(lib, tmp.path,
+            expectedNames: 'alice', consentAttested: true);
         expect(dbB.count, 1, reason: 'profile should survive reopen');
         final (name, score) = dbB.match(emb, threshold: 0.5);
         expect(name, 'alice',
@@ -156,7 +160,8 @@ void main() {
         expect(emb1.length, 192,
             reason: 'TitaNet should emit 192-d embeddings');
 
-        final db = crispasr.CrispasrSpeakerDB(lib, tmp.path);
+        final db = crispasr.CrispasrSpeakerDB(lib, tmp.path,
+            expectedNames: 'jfk', consentAttested: true);
         expect(db.enroll('jfk', emb1), isTrue);
 
         // Re-embed the same clip and match. Self-cosine on TitaNet
