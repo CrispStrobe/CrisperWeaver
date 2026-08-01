@@ -840,6 +840,73 @@ void main() {
       expect(r.textWithDisclosure, isEmpty,
           reason: 'no recognised text means nothing to disclose');
     });
+
+    test('music results get the OMR-specific wording', () {
+      const r = OcrResult(text: 'C4 E4 G4', isMusic: true);
+      expect(r.disclosureText, OcrResult.musicDisclosure);
+      expect(r.disclosureText.toLowerCase(), contains('sheet music'));
+      expect(r.textWithDisclosure, contains(OcrResult.musicDisclosure));
+    });
+
+    // §13.3p — these were catalogued but unreachable: isOcrModelFilename
+    // matched only the six text-OCR prefixes, so availableModels() never
+    // listed them and they could be downloaded but never run.
+    test('OMR models are recognised as OCR models', () {
+      for (final f in [
+        'smt-grandstaff-q8_0.gguf',
+        'smt-fp-grandstaff-q8_0.gguf',
+        'tromr-q8_0.gguf',
+        'flova-q4_k.gguf',
+        'transcoda-q8_0.gguf',
+      ]) {
+        expect(OcrService.isOcrModelFilename(f), isTrue, reason: f);
+        expect(OcrService.engineForModel(f)?.isMusic, isTrue, reason: f);
+      }
+    });
+
+    test('text OCR models are not flagged as music', () {
+      for (final f in ['pix2tex-q8_0.gguf', 'deepseek-ocr-q4_k.gguf']) {
+        expect(OcrService.isOcrModelFilename(f), isTrue, reason: f);
+        expect(OcrService.engineForModel(f)?.isMusic, isFalse, reason: f);
+      }
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // 17. Abuse-reporting channel travels with the audio (§13.3o)
+  // -----------------------------------------------------------------------
+  group('Abuse reporting in the provenance manifest', () {
+    test('manifest carries the reporting + policy URLs', () {
+      final m = ContentProvenanceService.buildManifest(
+        generator: 'CrisperWeaver',
+        generatorVersion: '0.9.6',
+      );
+      final assertions = (m['assertions'] as List).cast<Map>();
+      final abuse = assertions.firstWhere(
+          (a) => a['@type'] == 'crisperweaver.abuse-reporting',
+          orElse: () => throw StateError(
+              'no abuse-reporting assertion — a recipient holding only the '
+              'WAV would have no way to report misuse'));
+      expect(abuse['report_misuse'], contains('http'));
+      expect(abuse['acceptable_use_policy'], contains('ACCEPTABLE_USE'));
+      expect(abuse['note'], contains('consent'));
+    });
+
+    test('reporting assertion survives the WAV round-trip', () {
+      // 1 s of 16 kHz silence is enough — we only care about the chunk.
+      final wav = _buildRawWav(_sineWave(16000));
+      final out = ContentProvenanceService.injectIntoWav(
+        wav,
+        generator: 'CrisperWeaver',
+        generatorVersion: '0.9.6',
+      );
+      final back = ContentProvenanceService.extractFromWav(out);
+      expect(back, isNotNull);
+      final assertions = (back!['assertions'] as List).cast<Map>();
+      expect(
+          assertions.any((a) => a['@type'] == 'crisperweaver.abuse-reporting'),
+          isTrue);
+    });
   });
 
   // -----------------------------------------------------------------------

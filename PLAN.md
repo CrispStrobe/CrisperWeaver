@@ -1270,10 +1270,15 @@ deepfake/synthetic audio generation (TTS with voice cloning).
       updated from `'0.8.7'` to `'0.8.12'`.
       Files: `lib/engines/crispasr_engine.dart`
 
-- [ ] **g. C2PA signing for MP3 exports.** TTS output is WAV-only
-      currently; MP3 C2PA signing will be needed when MP3 export is
-      added. `CrispasrC2pa.sign` already supports `'audio/mpeg'`.
-      Blocked on: MP3 export feature.
+- [x] **g. C2PA signing for MP3 exports.** Re-verified 2026-08-01:
+      **not applicable**, MP3 is an *input* format only (decoded for
+      transcription) — there is no MP3 export path, hence no unmarked
+      MP3 output. The ID3v2 `AI_GENERATED` helper exists and
+      `CrispasrC2pa.sign` already accepts `'audio/mpeg'`, so the pieces
+      are in place if export is ever added. That is also the point to
+      revisit fail-closed marking (§15.8), since a container that cannot
+      carry a manifest leaves the watermark as the only mark.
+      Documented in `docs/AI_ACT_RISK.md` §7.4.
 
 - [x] **h. Server voice-clone consent gate.** Server TTS endpoint
       returns 403 when `voice` / `voice_file` is present but no
@@ -1325,19 +1330,45 @@ deepfake/synthetic audio generation (TTS with voice cloning).
 
 #### LOWER priority
 
-- [ ] **n. Anti-impersonation policy / Terms of Service.** Document
-      acceptable use of voice cloning. Consider a ToS that prohibits
-      impersonation of public figures without consent.
+- [x] **n. Anti-impersonation policy.** Created `ACCEPTABLE_USE.md`
+      v1.0: consent rules for cloning and voice conversion (fame is not
+      consent; consent to be recorded is not consent to be cloned;
+      consent that cannot be refused is absent), speaker-ID limits,
+      the deployer's Art. 50 disclosure duties, and an explicit
+      statement that the beep-override attestation exists for documented
+      decisions and is **not** a route to an undisclosed deepfake. Also
+      states the two marking limits plainly (metadata strips on
+      re-encode; sub-100 ms and silent audio cannot be watermarked).
+      Deliberately not framed as a ToS — AGPL-3.0 freedoms cannot be
+      conditioned on it, so it states the terms under which the project
+      supports use and puts the deployer on notice. Linked from README.
+      Files: `ACCEPTABLE_USE.md`, `README.md`
 
-- [ ] **o. Third-party abuse reporting.** A way for recipients of
-      CrisperWeaver-generated audio to report misuse (could be as
-      simple as contact info in the C2PA manifest or a URL in the
-      beep disclaimer metadata).
+- [x] **o. Third-party abuse reporting.** The recipient of a clip is
+      the likeliest person to spot misuse and has no idea what produced
+      it, so the channel is embedded **in the C2PA manifest of every
+      generated file** (`crisperweaver.abuse-reporting` assertion:
+      policy URL, reporting URL, plain-language note) and travels with
+      the audio. Backed by a GitHub issue template that is honest about
+      the limits — offline software with no accounts or kill switch can
+      confirm a watermark and harden marking, but cannot identify who
+      generated a file or take content down; urgent harm is redirected
+      to law enforcement and national DPAs.
+      Files: `lib/services/content_provenance_service.dart`,
+      `.github/ISSUE_TEMPLATE/abuse-report.md`, `README.md`
 
-- [ ] **p. Music/OMR engine Art. 50 marking.** When CrispEmbed OCR
-      engines are used, the output (recognized text/scores) should
-      carry a notice that it was AI-generated. Currently OCR output
-      has no disclosure flag.
+- [x] **p. Music/OMR engine Art. 50 marking.** OCR output disclosure
+      landed in §15.2h. Investigating the OMR half surfaced a live bug:
+      the 5 OMR models catalogued in §14.3i were **unreachable** —
+      `isOcrModelFilename` matches only the six text-OCR prefixes, and
+      `smt-grandstaff` / `tromr` / `flova` / `transcoda` match none, so
+      `availableModels()` never listed them. They could be downloaded
+      but never run. Added the OMR prefixes (CrispEmbed auto-detects the
+      architecture, so they dispatch through the same `CrispEmbedOcr`
+      path) and a music-specific disclosure — OMR emits symbolic
+      notation, where a misread is a wrong pitch rather than a typo.
+      Files: `lib/services/ocr_service.dart`,
+      `lib/widgets/transcription_output_widget.dart`
 
 - [x] **q. Automated compliance regression tests.** Extended from 14
       to 53 tests: added C2PA manifest build/inject/extract round-trip,
@@ -1410,13 +1441,29 @@ Gap analysis performed 2026-07-16. CrisperWeaver currently uses CrispASR
 
 ### 14.4 CI updates
 
-- [ ] **m. Pin CrispASR/CrispEmbed refs to tags.** CI workflows
-      currently pin to `main`. Consider pinning to release tags
-      (e.g. `v0.8.12`) for reproducible builds, with a scheduled
-      job to check for new upstream tags.
-      Files: `.github/workflows/ci.yml`,
-      `.github/workflows/release.yml`,
-      `.github/workflows/deploy-web.yml`
+- [x] **m. Pin CrispASR/CrispEmbed/glint refs to tags.** Pinned across
+      all three workflows: `CRISPASR_REF: v0.8.25`,
+      `CRISPEMBED_REF: v0.16.1`, `GLINT_REF: glint_audio-v0.11.0`.
+      §15.7 turned this from a nice-to-have into a real one — a `main`
+      pin had put the app 13 backends behind the engine and broke the
+      build outright.
+
+      Two traps found while doing it, both of which would have broken CI
+      worse than the drift did:
+      - **glint uses a per-package tag scheme.** The bare `vX.Y.Z` tags
+        are a stale legacy series — `v0.9.0` still carries Dart package
+        `0.1.0`, five minor versions behind. The correct tag is
+        `glint_audio-v0.11.0`.
+      - **Tag existence must be checked against the remote**, not the
+        local clone. Verified all three with `git ls-remote`, and that
+        each tag's Dart package version matches what the app builds
+        against locally.
+
+      Caveat recorded in the workflow comments: pinning the ref bounds
+      the *source*, not the artefact. §15.7's `gigaam` appeared while
+      CrispASR's git HEAD was unchanged, because a worker rebuilt the
+      dylib — so `backend_dispatch_test` remains the drift canary.
+      Files: `.github/workflows/{ci,release,deploy-web}.yml`
 
 ---
 
@@ -1694,3 +1741,39 @@ because it is 80 ms long trades a real usability failure for a
 marginal compliance gain. Escalate to a hard refusal only if MP3
 export lands (§13.3g), where a container genuinely can carry no
 manifest — that is the case CrispASR's watermark floor exists for.
+
+### 15.9 Remaining open items closed (2026-08-01)
+
+Everything in `docs/AI_ACT_RISK.md` §7 and the leftover §13.3 / §14.4
+items is now resolved — see §13.3g/n/o/p and §14.4m above, and §7.1–7.4
+of the risk document.
+
+Two of the five were **not** the paperwork exercises they looked like:
+
+- **§13.3p (OMR marking)** was really a dead-feature report. The five
+  OMR models catalogued in §14.3i could be downloaded but never run,
+  because `isOcrModelFilename` only matched the six text-OCR prefixes.
+  Marking output that could not be produced would have been theatre;
+  the fix was to make the engines reachable, then disclose.
+
+- **§14.4m (pin to tags)** nearly broke CI in a new way. glint's bare
+  `vX.Y.Z` tags are a stale legacy series — `v0.9.0` still carries Dart
+  package `0.1.0` — so the obvious pin would have shipped a package five
+  minor versions behind. Correct tag: `glint_audio-v0.11.0`. Tag
+  existence and each tag's package version were verified against the
+  **remote**, since a local-only tag would fail in CI and nowhere else.
+
+Two items resolved as **not applicable** rather than done, with the
+reasoning and re-open triggers recorded rather than the conclusion
+alone (`docs/AI_ACT_RISK.md` §7.3, §7.4): Art. 49(2) registration does
+not bite because the closed-roster design keeps the subsystem outside
+Annex III entirely, and MP3 C2PA signing has no subject because MP3 is
+an input-only format here.
+
+One item is **technically complete but organisationally open**: the
+Code of Practice on Transparency of AI-generated Content (final
+10 June 2026) is already satisfied on every technical limb, and on
+robustness arguably exceeded — but *signing* it is an act only the
+maintainer can perform. Adherence confers a presumption of conformity
+with Art. 50(2) and avoids individual assessment by market surveillance
+authorities, so it is worth doing; nothing in the code blocks it.
