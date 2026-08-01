@@ -1080,17 +1080,35 @@ class _TranscriptionOutputWidgetState
         builder: (ctx) => AlertDialog(
           title: Text(AppLocalizations.of(context).outputOcrImage),
           content: SingleChildScrollView(
-            child: SelectableText(
-              result.text.isEmpty
-                  ? 'No text recognized.'
-                  : result.text,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (result.text.isNotEmpty) ...[
+                  // EU AI Act Art. 50(2) — AI-generated text disclosure.
+                  Text(
+                    OcrResult.disclosure,
+                    style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                          fontStyle: FontStyle.italic,
+                          color: Theme.of(ctx).colorScheme.onSurfaceVariant,
+                        ),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+                SelectableText(
+                  result.text.isEmpty ? 'No text recognized.' : result.text,
+                ),
+              ],
             ),
           ),
           actions: [
             if (result.text.isNotEmpty)
               TextButton(
                 onPressed: () {
-                  Clipboard.setData(ClipboardData(text: result.text));
+                  // Copy carries the disclosure — once the text leaves the
+                  // app the surrounding UI no longer supplies context.
+                  Clipboard.setData(
+                      ClipboardData(text: result.textWithDisclosure));
                   ScaffoldMessenger.of(ctx).showSnackBar(
                     const SnackBar(content: Text('Copied to clipboard')),
                   );
@@ -1636,6 +1654,31 @@ class _TranscriptionOutputWidgetState
     final name = await _promptSpeakerName(speakerEnrollNameSeed(segment.speaker));
     if (name == null || name.trim().isEmpty) return;
 
+    // GDPR Art. 9(2)(a) — explicit consent before biometric processing.
+    // This path used to enroll with no consent gate and no consent
+    // record, which also meant the profile could never enter the
+    // consent-derived match roster.
+    if (!mounted) return;
+    final consented = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.speakerConsentTitle),
+        content: Text(l10n.speakerConsentBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(l10n.speakerConsentAgree),
+          ),
+        ],
+      ),
+    );
+    if (consented != true || !mounted) return;
+
     final svc = ref.read(speakerIdServiceProvider);
     if (!await svc.isAvailable) {
       messenger.showSnackBar(SnackBar(
@@ -1677,6 +1720,11 @@ class _TranscriptionOutputWidgetState
       }
       final pcm = Float32List.sublistView(decoded.samples, start, end);
       final ok = await svc.enroll(name.trim(), pcm);
+      if (ok) {
+        // Persist the consent record alongside the profile — without it
+        // the speaker stays off the match roster (GDPR Art. 9(2)(a)).
+        await svc.saveConsent(name.trim());
+      }
       if (!mounted) return;
       messenger.showSnackBar(SnackBar(
         content: Text(ok

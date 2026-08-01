@@ -2860,10 +2860,10 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get speakerConsentBody =>
-      '说话人注册会创建声纹嵌入（GDPR 第 9 条下的生物特征数据）。此数据仅存储在您的设备上，绝不传输。您可以随时从说话人管理界面删除您的说话人档案。\n\n继续操作即表示您明确同意处理此生物特征数据用于说话人识别。';
+      '说话人注册会创建声纹嵌入（GDPR 第 9 条下的生物特征数据）。此数据仅存储在您的设备上，绝不传输，并可随时从说话人管理界面删除。\n\n如果该声音不属于您本人，您必须在注册前获得该人的明确同意。只有具备同意记录的说话人才会参与匹配。\n\n继续操作即表示您确认该声音为您本人所有，或您已获得声音所有者的明确同意（GDPR 第 9(2)(a) 条）。';
 
   @override
-  String get speakerConsentAgree => '我同意';
+  String get speakerConsentAgree => '我确认';
 
   @override
   String get aboutSyntheticCompliance => '合成内容合规';
