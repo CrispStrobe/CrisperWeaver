@@ -226,10 +226,93 @@ users by:
 
 | Item | Status |
 |---|---|
-| Art. 49(2) EU-database registration, if the §3.2 reading is ever the operative one | **Not done** — proceeding on the §3.1 verification analysis; revisit before the 2 Dec 2027 Annex III date |
-| Anti-impersonation policy / ToS for voice cloning | Not done (PLAN §13.3n) |
-| Third-party abuse-reporting channel | Not done (PLAN §13.3o) |
-| Adherence to the Code of Practice on Transparency of AI-generated Content | Not assessed — adherence would confer a presumption of conformity with Art. 50(2) |
+| Anti-impersonation policy / acceptable use | **Done** — [`ACCEPTABLE_USE.md`](../ACCEPTABLE_USE.md) v1.0 |
+| Third-party abuse-reporting channel | **Done** — see §7.1 |
+| Code of Practice on Transparency of AI-generated Content | **Assessed** — see §7.2. Technically conformant; *signing* is an outstanding decision for the maintainer |
+| Art. 49(2) EU-database registration | **Not applicable** on the operative analysis — see §7.3 |
+| C2PA signing for MP3 exports | **Not applicable** — no MP3 export exists; see §7.4 |
+
+### 7.1 Abuse-reporting channel
+
+The recipient of a synthetic clip is the person most likely to notice
+misuse, and they typically have no idea what produced it. A policy
+published only on a website is unreachable to someone holding a WAV, so
+the reporting channel is embedded **in the C2PA manifest of every file
+the app generates** (`crisperweaver.abuse-reporting` assertion:
+acceptable-use policy URL, reporting URL, and a plain-language note).
+It therefore travels with the audio. A GitHub issue template backs the
+URL.
+
+The channel is deliberately honest about its limits. CrisperWeaver is
+offline software with no accounts, no servers and no kill switch: the
+project can confirm whether a file carries our watermark and manifest,
+help interpret that, and harden the marking — it **cannot** identify who
+generated a file, disable an installation, or take content down. The
+template says so up front and redirects urgent harm to law enforcement
+and national DPAs.
+
+### 7.2 Code of Practice on Transparency of AI-generated Content
+
+Final since 10 June 2026; adherence is voluntary while the underlying
+Art. 50 duties are binding. Signatories gain predictability and legal
+certainty across Member States and avoid individual compliance
+assessments by market surveillance authorities.
+
+Its core commitment — outputs marked in a machine-readable format and
+detectable as artificially generated, by means that are "effective,
+interoperable, robust and reliable as far as technically feasible" — is
+already met, and on the robustness limb arguably exceeded:
+
+| CoP expectation | CrisperWeaver |
+|---|---|
+| Machine-readable marking | C2PA manifest (COSE-signed where available) + WAV `LIST`/`INFO` + ID3v2 tags |
+| Detectable as AI-generated | Spread-spectrum watermark, **verified after embedding** by probing the PCM, not assumed |
+| Interoperable | C2PA is the industry standard; the watermark is cross-compatible with the CrispASR / CrispTTS detectors |
+| Robust | Watermark survives re-encoding; container metadata does not, and that limit is disclosed to users rather than glossed |
+| "As far as technically feasible" | Sub-100 ms and digitally silent audio cannot carry a spectral watermark; the app **reports** this instead of claiming a mark it did not make |
+
+**Outstanding:** signing the Code is an organisational act only the
+maintainer can perform. Nothing technical blocks it.
+
+### 7.3 Art. 49(2) registration
+
+Art. 49(2) obliges a provider who considers an **Annex III** system not
+high-risk under the Art. 6(3) derogation to register it in the EU
+database before placing it on the market.
+
+On the operative analysis (§3.1) the speaker-identification subsystem is
+biometric **verification**, which Annex III 1(a) expressly excludes — so
+it is not an Annex III system at all, Art. 6(3) is never reached, and
+Art. 49(2) does not bite. That is why this is marked *not applicable*
+rather than *not done*.
+
+This conclusion depends on the closed-roster architecture and fails if
+that changes. **Re-open registration if any of these become true:**
+
+- matching stops being roster-constrained (an open 1:N search over the
+  profile database);
+- the roster stops being consent-derived, so speakers can be matched
+  without a recorded lawful basis;
+- the subsystem is used to profile speakers rather than resolve a
+  diarisation label to a name;
+- the app gains a deployment context in Annex III terms (employment,
+  law enforcement, access control, education).
+
+Deadline if it ever applies: the Annex III obligations bind from
+**2 December 2027**.
+
+### 7.4 C2PA for MP3
+
+Carried over from PLAN §13.3g. Re-verified 2026-08-01: MP3 is an **input**
+format only — the app decodes it for transcription and there is no MP3
+export path, so there is no unmarked MP3 output to worry about. The
+ID3v2 `AI_GENERATED` helper exists and `CrispasrC2pa.sign` already
+accepts `audio/mpeg`, so the pieces are in place.
+
+If MP3 export is ever added, that is also the point to revisit
+**fail-closed** marking: unlike WAV, a container that cannot carry a
+manifest leaves the watermark as the only mark, which is precisely the
+case CrispASR's watermark floor exists for (PLAN §15.8).
 
 ## 8. Applicable Dates
 
