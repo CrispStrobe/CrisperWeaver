@@ -31,12 +31,29 @@ concurrency:
 
 env:
   FLUTTER_VERSION: "3.44.1"
+  # Pinned to release tags rather than `main` for reproducible builds.
+  #
+  # These are shared clones that parallel workers rebuild, and the drift
+  # is not hypothetical: on 2026-08-01 a `main` pin put the app 13
+  # backends behind the engine and broke the build outright when
+  # CrispasrSpeakerDB gained a required consent argument (PLAN §15.1a,
+  # §15.7). Worse, one of those backends appeared while CrispASR's git
+  # HEAD was UNCHANGED — a worker had rebuilt the dylib — so pinning the
+  # ref is necessary but not sufficient; it bounds the source, not the
+  # artefact.
+  #
+  # Bumping: raise the tag, run `flutter analyze` + the full test suite
+  # (backend_dispatch_test is the drift canary), catalogue any new
+  # backends or add them to its documented `engineOnly` set, then commit
+  # the bump on its own so a regression bisects cleanly.
   CRISPASR_REPO: CrispStrobe/CrispASR
-  CRISPASR_REF: main
+  CRISPASR_REF: v0.8.25
   CRISPEMBED_REPO: CrispStrobe/CrispEmbed
-  CRISPEMBED_REF: main
+  CRISPEMBED_REF: v0.16.1
   GLINT_REPO: CrispStrobe/glint
-  GLINT_REF: main
+  # NB glint uses a per-package tag scheme; the bare `vX.Y.Z` tags are a
+  # stale legacy series (v0.9.0 still carries Dart package 0.1.0).
+  GLINT_REF: glint_audio-v0.11.0
 
 jobs:
   build-macos:
