@@ -3,7 +3,12 @@ class AppConstants {
   static const String appName = 'CrisperWeaver';
   static const String appDescription =
       'Audio Transcription with Speaker Diarization';
-  static const String appVersion = '1.0.0';
+  /// Must match `version:` in pubspec.yaml — this is stamped into the
+  /// C2PA provenance manifest (`generatorVersion`) and the WAV `ISFT`
+  /// tag, so a stale value is a false provenance claim in exactly the
+  /// metadata auditors are asked to trust. It read '1.0.0' while the app
+  /// shipped 0.9.5. Guarded by app_version_test.dart.
+  static const String appVersion = '0.9.6';
   static const String appBuildNumber = '1';
 
   // Audio Processing Constants
