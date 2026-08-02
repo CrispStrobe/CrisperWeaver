@@ -1,8 +1,8 @@
 # EU AI Act Risk Classification — CrisperWeaver
 
-**Date:** 2026-08-04 (revised; originally 2026-07-16)
+**Date:** 2026-08-02 (revised; originally 2026-07-16)
 **Regulation:** Regulation (EU) 2024/1689 (EU AI Act)
-**Application:** CrisperWeaver v0.9.6+
+**Application:** CrisperWeaver v0.9.7+
 
 ---
 
@@ -133,7 +133,7 @@ Three points this subsystem raises that the others do not:
 | Annex III category | Would have been **1(c)**; not engaged, because the feature no longer exists |
 | Art. 50(3) applicability | **No** — nothing to disclose |
 | Risk level | **Out of scope** |
-| Enforcement | `EmotionInference` in `lib/utils/emotion_inference.dart` is a discard list plus the `strip` filter that applies it. **Every** engine that parses model text calls it — `CrispasrEngine` and `HfSpaceEngine`, the latter added 2026-08-04 after the filter was found living inside the former — so a listed tag never reaches segment metadata, the UI, or an export, and the CLI drops it on every output format. Pinned by `test/synthetic_compliance_test.dart`, including a test that asserts each engine calls it |
+| Enforcement | `EmotionInference` in `lib/utils/emotion_inference.dart` is a discard list plus the `strip` filter that applies it. **Every** engine that parses model text calls it — `CrispasrEngine` and `HfSpaceEngine`, the latter added 2026-08-02 after the filter was found living inside the former — so a listed tag never reaches segment metadata, the UI, or an export, and the CLI drops it on every output format. Pinned by `test/synthetic_compliance_test.dart`, including a test that asserts each engine calls it |
 
 **What was there, and why it went.** SenseVoice backends emit inline
 `<\|HAPPY\|>` / `<\|SAD\|>` / `<\|ANGRY\|>` / `<\|SURPRISED\|>` /
@@ -330,7 +330,7 @@ and would need the full §5.2 marking, not this carve-out.
 | Risk level | **Not high-risk** |
 | Mitigations | On-device; labels are positional (`Speaker 1`) until the user renames them; embeddings are transient and never written to disk |
 
-**Newly classified 2026-08-04; previously undocumented — and the omission
+**Newly classified 2026-08-02; previously undocumented — and the omission
 mattered more than §2.10's did.** Diarisation computes **TitaNet speaker
 embeddings** when re-clustering to a requested speaker count
 (`diarization_service.dart` §5.8.1), i.e. it derives the same vector type
@@ -366,7 +366,7 @@ is doing what §2.4 does, and it needs §2.4's consent gate.
 | Art. 50(2) applicability | **No** — the second subparagraph's carve-out applies |
 | Risk level | **Not high-risk, no marking duty of their own** |
 
-**Newly classified 2026-08-04; previously undocumented.** These are neural
+**Newly classified 2026-08-02; previously undocumented.** These are neural
 models operating on text and are therefore worth stating rather than
 assuming. Art. 50(2) exempts systems performing "an assistive function for
 standard editing" that do not substantially alter the input data or its
@@ -381,7 +381,7 @@ narrower than it sounds:
 - The **transcript they operate on** still carries whatever notice it earned.
   Chapter detection was the case that proved this: its export wrote chapter
   titles — verbatim transcript text — to a shared file with no notice at
-  all, while the neighbouring menu entry disclosed. Fixed 2026-08-04; see §5.2.
+  all, while the neighbouring menu entry disclosed. Fixed 2026-08-02; see §5.2.
 - Written-language ID classifies a *string*, not a speaker, so it is outside
   Art. 3(40) for the reasons §2.10 gives for the spoken case.
 
@@ -496,7 +496,7 @@ labels* and never of *fields that accept prompts*. The claim holds today
 because affective prompts are refused at the input, and the refusal is
 pinned by a test that reads the shipped locale strings.
 
-**And a fourth time, latently.** The 2026-08-04 audit found the discard
+**And a fourth time, latently.** The 2026-08-02 audit found the discard
 filter written out *inside* `CrispasrEngine` rather than at the app's
 boundary, so `HfSpaceEngine` — the cloud path, offered on every platform and
 the only engine on the web build — copied the remote server's text into
@@ -516,7 +516,7 @@ subsystem that assigns any category from voice, and it is outside
 Art. 3(40) and Art. 5(1)(g) for the reasons given there. Earlier revisions
 of this section stated the conclusion without having identified the
 subsystem it had to be true of. Diarisation, assessed at §2.12 on
-2026-08-04, is the one subsystem that *derives* biometric vectors outside
+2026-08-02, is the one subsystem that *derives* biometric vectors outside
 the consent-gated enrolment path; it is outside Art. 9 GDPR because it does
 not pursue identification, and that conclusion is conditional on the vectors
 staying transient.
@@ -588,11 +588,11 @@ attestation that is logged for audit.
 | Art. 50(4): Deep fake disclosure — speech-to-speech | Same beep path via `voiceConverted` / `_writeMarkedWav(deepfake: true)`; `/v1/audio/s2s` consent-gated; CLI `s2s` marked | Done |
 | Art. 50(3): Emotion recognition notice | Not applicable — the capability was removed rather than disclosed (§2.8), and the audio-Q&A route to it is refused at the input rather than disclosed (§2.9). Emotion tags are discarded at the engine's parse boundary and on every CLI output format | n/a |
 | Art. 50(2): Marking survives editing | Trim / cut / split carry the source C2PA manifest into the derived file as a `c2pa.edited` action and re-emit the LIST/INFO tags, instead of re-encoding a bare 44-byte WAV; MP3 re-encode carries ID3v2 provenance, and containers that cannot carry a manifest are logged as watermark-only | Done |
-| **Art. 50(2): Marking survives *persistence*** | `HistoryEntry.toJson` listed segment fields by hand and omitted `metadata`, so the `generated` flag died on save. Now round-tripped whole, with unencodable values dropped rather than thrown | Done (2026-08-04) |
-| Art. 50(2): Machine translation marked in the GUI | `CrispasrEngine` stamps `generated: translation`, so the GUI exporters reach the same conclusion the CLI and the HTTP server already reached from the request | Done (2026-08-04) |
-| Art. 50(2): Chapter exports | YouTube-format and Podcasting 2.0 chapter files carry the notice their segments earned | Done (2026-08-04) |
-| Art. 50(2): Cloud TTS output | `HfSpaceTtsService` probes remote output for a watermark and embeds one locally when absent, verifying the result | Done (2026-08-04) |
-| Annex III 1(c): emotion tags on every engine | The discard filter moved from inside `CrispasrEngine` to `EmotionInference.strip`, and the cloud engine now applies it on both of its parse paths | Done (2026-08-04) |
+| **Art. 50(2): Marking survives *persistence*** | `HistoryEntry.toJson` listed segment fields by hand and omitted `metadata`, so the `generated` flag died on save. Now round-tripped whole, with unencodable values dropped rather than thrown | Done (2026-08-02) |
+| Art. 50(2): Machine translation marked in the GUI | `CrispasrEngine` stamps `generated: translation`, so the GUI exporters reach the same conclusion the CLI and the HTTP server already reached from the request | Done (2026-08-02) |
+| Art. 50(2): Chapter exports | YouTube-format and Podcasting 2.0 chapter files carry the notice their segments earned | Done (2026-08-02) |
+| Art. 50(2): Cloud TTS output | `HfSpaceTtsService` probes remote output for a watermark and embeds one locally when absent, verifying the result | Done (2026-08-02) |
+| Annex III 1(c): emotion tags on every engine | The discard filter moved from inside `CrispasrEngine` to `EmotionInference.strip`, and the cloud engine now applies it on both of its parse paths | Done (2026-08-02) |
 
 **Scope note — every generating path, not just the GUI.** The audit of
 2026-08-02 found the marking pipeline was implemented on the Flutter side
@@ -626,7 +626,7 @@ claim was false for the one endpoint nobody re-read. The check that would
 have caught all four is the same: enumerate the *routes to a capability*,
 not the features.
 
-**The 2026-08-04 audit found a fifth, and it is the one that undoes the
+**The 2026-08-02 audit found a fifth, and it is the one that undoes the
 other four.** Every previous fix marked output correctly *at the moment it
 was produced*. None of them survived being written to disk:
 `HistoryEntry.toJson` enumerated segment fields by hand and `metadata` was
@@ -703,12 +703,12 @@ users by:
 | Art. 50(2) — audio-Q&A output marked as generated | **Done** (2026-08-03); see §2.9(b) |
 | Art. 50(2) — machine translation on `/v1/audio/transcriptions` | **Done** (2026-08-03); see §5.2 |
 | Classification of spoken-language ID and audio denoise | **Done** (2026-08-03) — §2.10, §2.11; both not high-risk |
-| Classification of diarisation and assistive text post-processing | **Done** (2026-08-04) — §2.12, §2.13; both not high-risk. §2.12 is the one that computes biometric vectors, and the conclusion depends on their staying transient |
-| Art. 50(2) — the `generated` flag surviving persistence | **Done** (2026-08-04); see §5.2. The defect that had silently undone the fourth audit's fix |
-| Art. 50(2) — machine translation marked in the GUI; chapter exports; cloud TTS | **Done** (2026-08-04); see §5.2 |
-| Annex III 1(c) — emotion-tag filter applied by every engine, not just `CrispasrEngine` | **Done** (2026-08-04). Was unreachable rather than live — the cloud model list offers no SenseVoice backend — but one list entry away; see §5.2 |
+| Classification of diarisation and assistive text post-processing | **Done** (2026-08-02) — §2.12, §2.13; both not high-risk. §2.12 is the one that computes biometric vectors, and the conclusion depends on their staying transient |
+| Art. 50(2) — the `generated` flag surviving persistence | **Done** (2026-08-02); see §5.2. The defect that had silently undone the fourth audit's fix |
+| Art. 50(2) — machine translation marked in the GUI; chapter exports; cloud TTS | **Done** (2026-08-02); see §5.2 |
+| Annex III 1(c) — emotion-tag filter applied by every engine, not just `CrispasrEngine` | **Done** (2026-08-02). Was unreachable rather than live — the cloud model list offers no SenseVoice backend — but one list entry away; see §5.2 |
 | C2PA signing for MP3 exports | **Done** — ID3v2 provenance on the MP3 path; AAC/Opus are watermark-only and warn. §7.4's "no MP3 export exists" was incorrect |
-| Art. 53 GPAI obligations for republished GGUFs | **Assessed** — mostly exempt, one limb to watch; see §7.5 |
+| Art. 53 GPAI obligations for the `cstr/*` account | **Partly open** — rewritten 2026-08-02 after an inventory. The conversion argument holds for 454 of 499 repos and is being written onto their cards; **44 derivative or self-trained repos need Art. 53(1)(c)+(d) and are outstanding**. §7.5's own re-open trigger had already fired when it was written |
 
 ### 7.1 Abuse-reporting channel
 
@@ -857,47 +857,90 @@ left as mark-and-warn while the path is UI-unreachable; revisit when it is
 wired up, because that is when the watermark floor (PLAN §15.8) starts
 carrying real weight on its own.
 
-### 7.5 Art. 53 — GPAI obligations for the republished GGUFs
+### 7.5 Art. 53 — GPAI obligations for the `cstr/*` HuggingFace account
 
 This concerns the maintainer rather than the app, but it arises from the
 same activity and is recorded here so it is not overlooked.
 
-The project converts third-party models to GGUF and publishes them under
-`cstr/*` on HuggingFace (`miotts`, `moss-tts-local`, `gigaam`,
-`titanet-large`, among others) so the catalogue has something to point at.
-Making a model available on the Union market can bring the entity doing so
-within the definition of a *provider* of that model, and quantisation plus
-format conversion is a modification — so the question is live rather than
-obviously inapplicable.
+**Rewritten 2026-08-02 after an inventory of the account, which the earlier
+revision of this section had never done.** That revision described the
+account as third-party speech models converted to GGUF, assessed it on that
+basis, and closed with "**Re-open this** if the project ever fine-tunes,
+merges, or distils a model rather than converting one." The trigger had
+already fired, years before the sentence was written. An enumeration of all
+499 model repos found:
 
-Assessment:
+| What it is | Repos | Who is the provider |
+|---|---|---|
+| Format conversion / quantisation of a **third party's** model | 428 | Upstream. The argument below holds |
+| Conversion of the **maintainer's own** derivative | 26 | Provider duties attach at the base model, not the conversion |
+| **Genuine derivative** — 27 mergekit merges, 7 LaserRMT modifications, 4 fine-tunes | 41 | **Plausibly the maintainer** |
+| **Trained from scratch by the maintainer** | 3 | **The maintainer**, without qualification |
+
+The last two rows are the point. `posformer-crohme-GGUF` is named like a
+conversion and its card says the weights were *retrained from scratch* on
+CROHME 2014 + MathWriting with the maintainer's own hyperparameters;
+`tab-labeler-onnx` documents a training run on GuitarSet; and
+`posformer-training-checkpoints` holds that run's checkpoints. Two further
+repos are mixed at file level (`truecaser-de`, `tabcnn-onnx`): converted
+upstream weights sitting beside weights trained here.
+
+**The conversion argument, which still governs 428 repos:**
 
 - **Art. 53(2) exempts free and open-source GPAI models** from the
   technical-documentation duties in 53(1)(a) and (b), provided the model is
   released under a licence allowing access, use, modification and
-  distribution, with parameters and architecture publicly available. The
-  republished GGUFs meet that; the exemption falls away only for models
-  with **systemic risk** (Art. 51: ~10²⁵ FLOP training compute), which
-  nothing in this catalogue approaches — these are 0.5–2 B parameter
-  speech models.
+  distribution, with parameters and architecture publicly available. These
+  repos meet that; the exemption falls away only for models with
+  **systemic risk** (Art. 51: ~10²⁵ FLOP training compute), which nothing
+  in this account approaches.
 - **What survives the exemption** is 53(1)(c) — a policy to comply with
   Union copyright law — and 53(1)(d) — a sufficiently detailed public
   summary of training content. Both attach to whoever counts as the
   model's provider.
-- **The strongest argument is that this project is not that provider.**
-  Format conversion changes the numeric representation, not the model:
-  no training, no fine-tuning, no change to architecture or capability.
-  The upstream research teams remain the providers, and the model cards
-  attribute upstream. A quantiser is closer to a distributor than to a
-  provider of a new model.
+- **For a pure conversion the maintainer is not that provider.** Format
+  conversion changes the numeric representation, not the model: no
+  training, no fine-tuning, no change to architecture or capability. The
+  upstream research teams remain the providers. A quantiser is closer to a
+  distributor than to a provider of a new model.
 
-That is an argument rather than a settled reading, so the practical step
-is cheap insurance: each republished repo's card should name the upstream
-model and licence, state that only quantisation/format conversion was
-applied, and point at the upstream training-data documentation. Where the
-upstream publishes no such summary, that gap should be visible rather than
-papered over. **Re-open this** if the project ever fine-tunes, merges, or
-distils a model rather than converting one.
+**For the 44 derivative and self-trained repos that argument is
+unavailable**, and stating it on their cards would be a false compliance
+claim rather than cheap insurance. Merging, LaserRMT rank reduction, ORPO
+fine-tuning and training from scratch all place a *new* model on the Union
+market. 53(1)(c) and 53(1)(d) survive the FOSS exemption and therefore
+attach. What exists today: the 27 merges each publish their mergekit config
+and constituent models, which is a real factual base for 53(1)(d) but is not
+a training-content summary; the 4 fine-tunes name a base and only one names
+its training set; **6 of the 7 LaserRMT repos have no card at all**, which
+is modified weights published with zero attribution. No repo states a
+copyright policy.
+
+Two obstacles to closing 53(1)(d) honestly, recorded rather than glossed:
+
+- **The merge lineage is broken.** 24 `cstr/*` models named as `base_model:`
+  no longer exist, so for several merges the chain cannot be reconstructed
+  by reading cards — `llama3.1-8b-spaetzle-v119` is built from four models
+  that are all gone. Either the lineage is rebuilt from local mergekit
+  configs or the cards should say the chain is not fully reconstructible.
+  Claiming a summary that cannot be traced would be worse than admitting
+  the gap.
+- **14 conversion repos have an unverified upstream** (13 without a card).
+  Nothing is written to those until the upstream is confirmed from the
+  weights or the upload history; an inferred provenance statement is the
+  precise failure this section exists to prevent.
+
+Status: the provenance block is being applied to the 428 + 26 conversion
+repos, which makes the argument above checkable on each card rather than
+asserted here. The 44 derivative and self-trained repos are **open** — they
+need a copyright policy and a training-content summary, hand-written per
+model, and no automated pass can produce those.
+
+**Re-open the conversion analysis** if a repo currently classified as a
+conversion turns out to carry weights that were trained, merged or modified
+here. The inventory found three such repos hiding behind conversion-shaped
+names, so the classification is evidence-based per repo rather than derived
+from the naming convention.
 
 ## 8. Applicable Dates
 
@@ -913,7 +956,7 @@ distils a model rather than converting one.
 
 | Date | Change |
 |---|---|
-| 2026-08-04 | **Fifth audit.** Found the fourth audit's central fix silently undone by persistence: `HistoryEntry.toJson` omitted segment `metadata`, so `generated: audio-qa` was discarded on save and a re-export from History labelled a language model's answer a transcript — as `.txt`, with no notice at all — while §5.2 and `AI_ACT_TECHNICAL.md` §5.1 both asserted the flag was persisted. Also found chapter exports writing transcript text to a shared file unmarked while the neighbouring menu entry disclosed, and machine translation marked by the CLI and the HTTP server but not by the GUI, because translation left no trace on the segments; both fixed at the engine, which now stamps the kind for every surface to read. Corrected the transcript disclosure, which told recipients the *speech* was synthetic. Moved the emotion-tag filter out of `CrispasrEngine` to `EmotionInference.strip` and applied it in `HfSpaceEngine`, which had been parsing remote text untouched (latent — no SenseVoice backend is offered on that route). Marked cloud TTS output, which returned remote audio unwatermarked and unprobed. Classified two previously undocumented subsystem groups: diarisation (§2.12 — the one that derives biometric vectors outside the consent gate) and assistive text post-processing (§2.13). Extended the Art. 50(1) notice, which had not enumerated audio Q&A, diarisation, spoken-language ID or denoise. Note also that the fourth audit's entries are dated 2026-08-03 throughout but were committed on 2026-08-02; the dates are left as written and the discrepancy recorded here rather than rewritten. |
+| 2026-08-02 | **Fifth audit.** Found the fourth audit's central fix silently undone by persistence: `HistoryEntry.toJson` omitted segment `metadata`, so `generated: audio-qa` was discarded on save and a re-export from History labelled a language model's answer a transcript — as `.txt`, with no notice at all — while §5.2 and `AI_ACT_TECHNICAL.md` §5.1 both asserted the flag was persisted. Also found chapter exports writing transcript text to a shared file unmarked while the neighbouring menu entry disclosed, and machine translation marked by the CLI and the HTTP server but not by the GUI, because translation left no trace on the segments; both fixed at the engine, which now stamps the kind for every surface to read. Corrected the transcript disclosure, which told recipients the *speech* was synthetic. Moved the emotion-tag filter out of `CrispasrEngine` to `EmotionInference.strip` and applied it in `HfSpaceEngine`, which had been parsing remote text untouched (latent — no SenseVoice backend is offered on that route). Marked cloud TTS output, which returned remote audio unwatermarked and unprobed. Classified two previously undocumented subsystem groups: diarisation (§2.12 — the one that derives biometric vectors outside the consent gate) and assistive text post-processing (§2.13). Extended the Art. 50(1) notice, which had not enumerated audio Q&A, diarisation, spoken-language ID or denoise. Note also that the fourth audit's entries are dated 2026-08-03 throughout but were committed on 2026-08-02; the dates are left as written and the discrepancy recorded here rather than rewritten. This entry was itself first drafted as 2026-08-04 and corrected to the actual date before release — flagging a date defect and then committing the same one would have been the more embarrassing of the two. Rounds three, four and five all landed on 2026-08-02. |
 | 2026-07-16 | Initial risk classification document |
 | 2026-08-01 | Audit revision. Reframed speaker ID as biometric **verification** under the closed-roster API (§3.1) with Art. 6(3) demoted to a fallback argument and its registration/profiling caveats stated (§3.2). Added Art. 2(12) open-source scope note (§3a), provider/deployer split (§5.1), Art. 4 (§6), open items (§7), and post-Digital-Omnibus dates (§8). |
 | 2026-08-03 | **Fourth audit.** Found the §2.8 re-open trigger had already fired: the audio-Q&A field shipped a placeholder in EN/DE/ZH recommending *"What's the speaker's tone?"* — the app suggesting the one prompt that re-acquires Annex III 1(c) (§2.9a). Closed at the input with `AffectivePromptGuard` (engine, HTTP server, CLI) rather than by disclosure, since Art. 5(1)(f) is a prohibition and no output filter can catch free prose; the defeatable nature of that control is stated rather than glossed. Also found Q&A answers labelled as *transcripts* by every export (§2.9b) and machine translation returned unmarked by `/v1/audio/transcriptions` while `/v1/translations` disclosed (§5.2) — the fourth instance of one duty implemented per-feature and missed per-route. Classified two previously undocumented subsystems, spoken-language ID (§2.10) and denoise (§2.11), both not high-risk. Corrected the SRT disclosure, which used WebVTT's `NOTE` syntax and was not valid SRT. |

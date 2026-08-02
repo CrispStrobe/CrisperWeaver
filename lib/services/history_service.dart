@@ -164,7 +164,7 @@ class HistoryEntry {
                   speaker: m['speaker'] as String?,
                   confidence: (m['confidence'] as num?)?.toDouble() ?? 1.0,
                   tags: ((m['tags'] as List?) ?? const []).cast<String>(),
-                  // Absent on entries written before 2026-08-04, which is
+                  // Absent on entries written before 2026-08-02, which is
                   // exactly the back-compat shape `speakerNames` already
                   // uses: missing reads as empty, and such an entry simply
                   // falls back to the transcript wording it had before.

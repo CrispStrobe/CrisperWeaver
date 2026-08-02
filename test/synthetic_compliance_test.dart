@@ -213,7 +213,7 @@ void main() {
       // depending on the player (fixed 2026-08-03).
       expect(out, startsWith('0\n00:00:00,000 --> 00:00:03,000\n'));
       // Asserted against the shared string, not a literal: the transcript
-      // wording changed on 2026-08-04 (it used to claim the *speech* was
+      // wording changed on 2026-08-02 (it used to claim the *speech* was
       // synthetic, which is false for a recording of a real person), and a
       // literal here is a second place to remember.
       expect(out, contains(FileUtils.disclosureFor(segs)));
@@ -1240,7 +1240,7 @@ void _thirdAuditTests() {
     });
 
     test('every engine that parses server text applies the filter', () {
-      // The 2026-08-04 audit found the filter living *inside*
+      // The 2026-08-02 audit found the filter living *inside*
       // `CrispasrEngine` rather than at the app's boundary, so the cloud
       // engine — offered on every platform, and the only engine on web —
       // copied the remote server's text into segments untouched. Nothing
@@ -1595,7 +1595,7 @@ void _thirdAuditTests() {
         );
 
     test('metadata round-trips through the history JSON', () {
-      // Until 2026-08-04 `toJson` listed the segment fields by hand and
+      // Until 2026-08-02 `toJson` listed the segment fields by hand and
       // `metadata` was not among them, so the flag died the moment a run was
       // saved. Everything downstream then read a language model's answer as
       // a transcript, and a `.txt` re-export carried no notice at all —
@@ -1638,7 +1638,7 @@ void _thirdAuditTests() {
       // Persisting `metadata` wholesale means any engine can put anything in
       // it. A throw inside `saveEntry` would lose the whole run — a worse
       // failure than the one this group fixes.
-      final seg = TranscriptionSegment(
+      const seg = TranscriptionSegment(
         text: 't',
         startTime: 0.0,
         endTime: 1.0,

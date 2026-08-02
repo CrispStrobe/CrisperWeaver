@@ -83,7 +83,7 @@ class ChapterDetectionService {
   /// EU AI Act Art. 50(2): chapter titles are verbatim transcript text, so
   /// this writes machine-produced content to a file the user then shares.
   /// [disclosure] carries the notice `NoteExportService` puts on the
-  /// neighbouring "export as YouTube chapters" action — the 2026-08-04 audit
+  /// neighbouring "export as YouTube chapters" action — the 2026-08-02 audit
   /// found this route, reached from the menu two entries away, writing the
   /// same shape of file with nothing on it. Pass the exporter's
   /// `disclosureFor(segments)` so a Q&A answer or a machine translation is

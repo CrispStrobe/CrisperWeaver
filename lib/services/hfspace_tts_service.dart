@@ -5,7 +5,7 @@
 // `crispasr_session_synthesize` inside the C API, and `TtsService.writeWav`
 // probes the PCM to confirm it rather than assuming it. Neither applies
 // here: the samples come off the wire from a server this app does not
-// control, and until the audit of 2026-08-04 this service handed them back
+// control, and until the audit of 2026-08-02 this service handed them back
 // as ordinary audio — no watermark, no probe, no provenance. Nothing in
 // `lib/` calls it yet, which is exactly the position `AudioEditService`
 // `exportEncoded` was in when `AI_ACT_RISK.md` §7.4 recorded that an
