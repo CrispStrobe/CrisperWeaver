@@ -133,7 +133,7 @@ Three points this subsystem raises that the others do not:
 | Annex III category | Would have been **1(c)**; not engaged, because the feature no longer exists |
 | Art. 50(3) applicability | **No** — nothing to disclose |
 | Risk level | **Out of scope** |
-| Enforcement | `EmotionInference` in `lib/utils/emotion_inference.dart` is a discard list plus the `strip` filter that applies it, and it is applied at **every parse boundary**: `CrispasrEngine._mapSessionSegments`, `HfSpaceEngine` (both routes, added 2026-08-02), and `workerSegmentFromMap` — the worker pool's boundary, added 2026-08-03 after the audit found it rebuilding every pooled segment untouched. The CLI drops the tags on every output format. Pinned by `test/synthetic_compliance_test.dart` |
+| Enforcement | `EmotionInference` in `lib/utils/emotion_inference.dart` is an **allow-list** (since 2026-08-03) plus the `strip` filter that applies it: only the seven known acoustic-event labels survive, so an affective tag nobody has enumerated — a new backend, a new SenseVoice release — is discarded rather than published. It is applied at **every parse boundary**: `CrispasrEngine._mapSessionSegments`, `HfSpaceEngine` (both routes, added 2026-08-02), and `workerSegmentFromMap` — the worker pool's boundary, added 2026-08-03 after the audit found it rebuilding every pooled segment untouched. The CLI drops the tags on every output format. Pinned by `test/synthetic_compliance_test.dart` |
 
 **What was there, and why it went.** SenseVoice backends emit inline
 `<\|HAPPY\|>` / `<\|SAD\|>` / `<\|ANGRY\|>` / `<\|SURPRISED\|>` /
@@ -180,8 +180,28 @@ state, and is not an inference about a natural person.
 
 **Re-opens if** any model's output is surfaced as an emotional, affective,
 or intent-bearing attribute of a speaker — including via a new backend, a
-plugin, or an LLM prompt that asks for tone or mood. The discard list is
-the control, and it only works for tags it names.
+plugin, or an LLM prompt that asks for tone or mood.
+
+**The "only works for tags it names" caveat no longer applies to this
+control** (2026-08-03). It was written when `strip` was a *deny*-list:
+it dropped the eight labels enumerated here and **kept everything else**, so
+a backend emitting `<|STRESSED|>` or `<|CONFIDENT|>` would have passed an
+affective inference straight into `metadata['sensevoice_tags']`, history and
+the JSON export, without a line of this app changing. "No emotion
+recognition" held only for as long as the list stayed ahead of the models —
+which is not a property anyone can maintain.
+
+`strip` now keeps **only** the seven known acoustic events and discards
+everything else, so an unrecognised tag fails closed. Behaviour is identical
+for every tag that exists today; the difference is entirely in what happens
+to one that does not. `test/compliance_boundaries_test.dart` asserts the
+polarity, because reverting it would be a one-character change with no
+visible symptom.
+
+The caveat still stands for `AffectivePromptGuard` (§2.9), which screens free
+text and has no closed vocabulary to allow-list against. That asymmetry is
+the point: where a closed vocabulary exists, fail closed; where it does not,
+say so plainly rather than implying the same strength.
 
 **And it fired a second time, on 2026-08-03, in the plainest way available:
 a second parse boundary that had never applied the filter at all.**
@@ -795,6 +815,29 @@ implementation rather than two that must agree. `test/synthetic_compliance_test.
 asserts the pool applies each control and that neither caller re-implements
 the precedence rule locally.
 
+**And the structural answer, finally attempted:
+`test/compliance_boundaries_test.dart`.** Every fix above was made at the site
+that was missing it, and every fix shipped with a test asserting *that site*
+was covered. Not one of those tests could see the next gap, because each was
+written in the shape of the defect it closed. Six rounds is enough evidence
+that the defect is not any individual call site but the absence of anything
+watching the set.
+
+That file enumerates every call site in `lib/` at four boundaries — content
+exits, segment construction from model text, ask-prompt entry, and the
+filter's own polarity — and compares them against a reviewed allow-list. A new
+or moved site fails CI with a note naming the duty and the section to read. It
+does not test behaviour and cannot tell whether a new site is correct; it
+guarantees only that nobody adds one *without being asked the question*. Given
+that all six findings were omissions rather than errors, that is the property
+worth buying. Its counting is deliberately brittle — brittleness is the
+mechanism.
+
+What it does not do, and what would be better: make the bypass impossible
+rather than merely detected, by routing every `CrispasrSession` through a
+single wrapper that applies the controls, with the raw constructor banned
+outside it. That is the real fix and it is not done.
+
 ### 5.3 Art. 50(5) — clarity and accessibility
 
 Art. 50(5) requires the information owed under 50(1)–(4) to be given "in a
@@ -854,7 +897,7 @@ users by:
 | Art. 50(2) — machine translation marked in the GUI; chapter exports; cloud TTS | **Done** (2026-08-02); see §5.2 |
 | Annex III 1(c) — emotion-tag filter applied by every engine, not just `CrispasrEngine` | **Done** (2026-08-02). Was unreachable rather than live — the cloud model list offers no SenseVoice backend — but one list entry away; see §5.2 |
 | C2PA signing for MP3 exports | **Done** — ID3v2 provenance on the MP3 path; AAC/Opus are watermark-only and warn. §7.4's "no MP3 export exists" was incorrect |
-| Art. 53 GPAI obligations for the `cstr/*` account | **Effectively closed — one card outstanding.** Verified against the live account 2026-08-03 (§7.5b): 34 repos need 53(1)(c)+(d) — 27 merges + 7 LaserRMT — and **33 already carry both sections**. The conversion argument does **not** hold for them (cards carry `merge`/`mergekit` tags; one says outright "trained by this repository's maintainer, not converted"), but Art. 53 binds providers of *GPAI models*, so the 3 narrow trained-from-scratch models are outside it entirely (§7.5a). Remaining: `cstr/Flora_7B-laser`, an 85-byte card. Deadline 2 August 2027 under Art. 111(3) |
+| Art. 53 GPAI obligations for the `cstr/*` account | **Closed** (2026-08-03) — see §7.5b. 34 repos carry the duty (27 merges + 7 LaserRMT); all 34 verified by re-fetch to hold explicit 53(1)(c) and 53(1)(d) sections. The last outstanding one, `cstr/Flora_7B-laser`, was published on 2026-08-03. The 3 narrow trained-from-scratch models are outside Art. 53 entirely — not GPAI under Art. 3(63) (§7.5a). Deadline had been 2 August 2027 under Art. 111(3); met early |
 
 ### 7.1 Abuse-reporting channel
 
@@ -1181,7 +1224,9 @@ The base is itself a merge (it ships `mergekit_config.yml`), so the applicable
 training content is that of *its* constituents. The card says so and declines
 to restate a chain it cannot verify.
 
-**Status: the Art. 53 item is closed once that card is published.** The
+**Status: closed 2026-08-03.** The card was published, and all 34 repositories
+were then re-fetched and checked to carry both an explicit `53(1)(c)` and an
+explicit `53(1)(d)` section. None is missing either. The
 remaining honest gaps are the ones §7.5 already names and which no card can
 close: 24 `cstr/*` models named as `base_model:` no longer exist, so several
 merge lineages are not fully reconstructible from cards alone, and the affected

@@ -95,8 +95,29 @@ class EmotionInference {
   /// The inline tag syntax SenseVoice-family backends emit.
   static final RegExp tagPattern = RegExp(r'<\|([A-Za-z_]+)\|>');
 
-  /// [input] with every inline tag removed, plus the non-emotion tags that
-  /// were in it.
+  /// [input] with every inline tag removed, plus the **acoustic event** tags
+  /// that were in it.
+  ///
+  /// **Allow-list, not deny-list — changed 2026-08-03, and the direction is
+  /// the whole point.** This used to drop tags on [tags] and keep everything
+  /// else, so an unrecognised tag survived into `keptTags`, then into
+  /// `metadata['sensevoice_tags']`, then into history and the JSON export. A
+  /// SenseVoice-family backend emitting `<|STRESSED|>` or `<|CONFIDENT|>` —
+  /// labels nobody has enumerated here — would therefore have shipped an
+  /// affective inference about a natural person through a filter whose entire
+  /// purpose is to stop exactly that, re-opening Annex III 1(c) without a
+  /// line of code changing.
+  ///
+  /// Keeping only [eventTags] inverts the failure direction: an unknown tag
+  /// is now discarded rather than published. Behaviour is identical for every
+  /// tag that exists today — the language and ITN markers SenseVoice also
+  /// emits (`<|zh|>`, `<|withitn|>`) were never read by anything; the sole
+  /// consumer of `sensevoice_tags` is the `audio_event` badge.
+  ///
+  /// This retires the caveat `AI_ACT_RISK.md` §2.8 and §3.3 both had to
+  /// state — *"the control only works for the terms it names"* — for this
+  /// control. It still holds for `AffectivePromptGuard`, which screens free
+  /// text and has no closed vocabulary to allow-list against.
   ///
   /// This exists because the filter used to be written out inline inside
   /// `CrispasrEngine`, which made it a property of *that engine* rather than
@@ -113,7 +134,9 @@ class EmotionInference {
     final kept = <String>[];
     for (final m in tagPattern.allMatches(input)) {
       final tag = m.group(1)!;
-      if (isEmotionTag(tag)) continue;
+      // Allow-list: anything not a known acoustic event is discarded,
+      // including emotion labels this file has never heard of.
+      if (!isEventTag(tag)) continue;
       kept.add(tag);
     }
     return (
