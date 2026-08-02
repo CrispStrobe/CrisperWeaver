@@ -24,6 +24,7 @@ import 'transcription_service.dart';
 import 'tts_service.dart';
 import 'vad_service.dart';
 import '../native/crispasr_import.dart' as crispasr;
+import '../utils/affective_prompt_guard.dart';
 import '../utils/ai_text_disclosure.dart';
 
 /// Local HTTP server exposing CrisperWeaver's services through an
@@ -255,6 +256,18 @@ class ServerService {
     final askPrompt = fields['ask']?.value ?? fields['ask_prompt']?.value;
     final targetLanguage = fields['target_language']?.value;
 
+    // EU AI Act Art. 5(1)(f) / Annex III 1(c): refuse audio-Q&A prompts that
+    // ask the model to infer a speaker's emotions or intent. The engine
+    // enforces this too — this check exists so the server answers 400 with a
+    // readable reason instead of surfacing an engine exception as a 500.
+    final affectiveTerm = AffectivePromptGuard.offendingTerm(askPrompt);
+    if (affectiveTerm != null) {
+      Log.instance.w('server', 'audio Q&A prompt refused (affective)',
+          fields: {'term': affectiveTerm});
+      return Response.badRequest(
+          body: AffectivePromptGuard.refusalMessage(affectiveTerm));
+    }
+
     final tx = ref.read(transcriptionServiceProvider);
     if (tx.currentEngine == null) {
       return Response.internalServerError(
@@ -295,22 +308,71 @@ class ServerService {
       }
     }
 
-    return _formatTranscriptionResponse(segments, responseFormat);
+    return _formatTranscriptionResponse(
+      segments,
+      responseFormat,
+      translated: translate ||
+          (targetLanguage != null && targetLanguage.trim().isNotEmpty),
+    );
   }
 
+  /// EU AI Act Art. 50(2) — render the transcription response, marking it
+  /// when what it carries is generated rather than transcribed.
+  ///
+  /// This endpoint does three jobs behind one route: it transcribes, it
+  /// translates (`translate` / `target_language`), and it answers questions
+  /// about the audio (`ask`). Only the first produces a record of speech.
+  /// Until the audit of 2026-08-03 all three returned the same unmarked
+  /// body with a hardcoded `"task": "transcribe"` — while `/v1/translations`,
+  /// the CLI and the GUI all disclosed. This was the one generating surface
+  /// nobody checked, and `AI_ACT_TECHNICAL.md` §1.4 asserted the opposite.
+  ///
+  /// [translated] comes from the request because translation leaves no trace
+  /// on the segments; the Q&A case is read off `isGenerated`, which the
+  /// engine stamps so it survives into history and later re-exports.
   Response _formatTranscriptionResponse(
-      List<TranscriptionSegment> segments, String fmt) {
+      List<TranscriptionSegment> segments, String fmt,
+      {bool translated = false}) {
+    final isQa = segments.any((s) => s.isGenerated);
+    final generated = isQa || translated;
+    final disclosure = isQa
+        ? AiTextDisclosure.audioQa
+        : translated
+            ? AiTextDisclosure.translation
+            : null;
+    final task = isQa
+        ? 'audio-qa'
+        : translated
+            ? 'translate'
+            : 'transcribe';
+    // Mirrors the audio endpoints' header so a client can detect generated
+    // content without parsing the body — the machine-readable half of the
+    // mark, with the disclosure text as the human-readable half.
+    final textHeaders = <String, String>{
+      'content-type': 'text/plain; charset=utf-8',
+      if (generated) 'x-content-ai-generated': 'true',
+    };
+    final jsonHeaders = <String, String>{
+      'content-type': 'application/json',
+      if (generated) 'x-content-ai-generated': 'true',
+    };
     switch (fmt.toLowerCase()) {
       case 'text':
         final text = segments.map((s) => s.text).join(' ').trim();
-        return Response.ok(text,
-            headers: const {'content-type': 'text/plain; charset=utf-8'});
+        return Response.ok(
+            disclosure == null
+                ? text
+                : AiTextDisclosure.attach(text, disclosure),
+            headers: textHeaders);
       case 'srt':
-        return Response.ok(_renderSrt(segments),
-            headers: const {'content-type': 'text/plain; charset=utf-8'});
+        return Response.ok(_renderSrt(segments, disclosure: disclosure),
+            headers: textHeaders);
       case 'vtt':
-        return Response.ok(_renderVtt(segments),
-            headers: const {'content-type': 'text/vtt; charset=utf-8'});
+        return Response.ok(_renderVtt(segments, disclosure: disclosure),
+            headers: {
+              ...textHeaders,
+              'content-type': 'text/vtt; charset=utf-8',
+            });
       case 'diarized_json':
         // §11.4 — Groups segments by speaker, matching CrispASR CLI's
         // --output-format diarized_json (#206).
@@ -325,14 +387,14 @@ class ServerService {
           });
         }
         final diarBody = jsonEncode({
-          'task': 'transcribe',
+          'task': task,
+          if (disclosure != null) '_disclosure': disclosure,
           'duration': segments.isEmpty
               ? 0.0
               : segments.last.endTime - segments.first.startTime,
           'speakers': speakers,
         });
-        return Response.ok(diarBody,
-            headers: const {'content-type': 'application/json'});
+        return Response.ok(diarBody, headers: jsonHeaders);
       case 'verbose_json':
       case 'json':
       default:
@@ -340,7 +402,8 @@ class ServerService {
         // return that shape — equivalent of `verbose_json` for
         // segments + `json` as the historical text-only field.
         final body = jsonEncode({
-          'task': 'transcribe',
+          'task': task,
+          if (disclosure != null) '_disclosure': disclosure,
           'language': null,
           'duration': segments.isEmpty
               ? 0.0
@@ -358,13 +421,20 @@ class ServerService {
               }
           ],
         });
-        return Response.ok(body,
-            headers: const {'content-type': 'application/json'});
+        return Response.ok(body, headers: jsonHeaders);
     }
   }
 
-  String _renderSrt(List<TranscriptionSegment> segs) {
+  String _renderSrt(List<TranscriptionSegment> segs, {String? disclosure}) {
     final buf = StringBuffer();
+    if (disclosure != null) {
+      // SRT has no comment syntax, so the notice ships as a real cue at
+      // 00:00:00 rather than as a bare line a parser would reject.
+      buf.writeln('0');
+      buf.writeln('00:00:00,000 --> 00:00:03,000');
+      buf.writeln(disclosure);
+      buf.writeln();
+    }
     for (var i = 0; i < segs.length; i++) {
       final s = segs[i];
       buf.writeln('${i + 1}');
@@ -375,8 +445,13 @@ class ServerService {
     return buf.toString();
   }
 
-  String _renderVtt(List<TranscriptionSegment> segs) {
-    final buf = StringBuffer()..writeln('WEBVTT')..writeln();
+  String _renderVtt(List<TranscriptionSegment> segs, {String? disclosure}) {
+    final buf = StringBuffer()..writeln('WEBVTT');
+    if (disclosure != null) {
+      buf.writeln();
+      buf.writeln('NOTE $disclosure');
+    }
+    buf.writeln();
     for (var i = 0; i < segs.length; i++) {
       final s = segs[i];
       buf.writeln('${_vttTime(s.startTime)} --> ${_vttTime(s.endTime)}');

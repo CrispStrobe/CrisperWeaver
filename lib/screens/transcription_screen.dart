@@ -2467,6 +2467,15 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
       } catch (e, st) {
         debugPrint('History save failed: $e\n$st');
       }
+    } on AffectivePromptException catch (e) {
+      // EU AI Act Art. 5(1)(f) / Annex III 1(c) refusal, not a failure —
+      // show the localised explanation and name the term so the user can
+      // rephrase, rather than dumping the engine's English log line. Falls
+      // back to the guard's own English message if the screen is gone: the
+      // refusal still has to be recorded, localised or not.
+      appStateNotifier.setError(mounted
+          ? AppLocalizations.of(context).askPromptRefusedAffective(e.term)
+          : e.message);
     } catch (e) {
       appStateNotifier.setError(e.toString());
     } finally {

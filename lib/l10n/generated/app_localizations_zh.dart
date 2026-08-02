@@ -1224,11 +1224,19 @@ class AppLocalizationsZh extends AppLocalizations {
   String get advancedAskPrompt => '提问音频（问答模式）';
 
   @override
-  String get advancedAskPromptHint => '例如：「摘要」或「说话人的语气如何？」';
+  String get advancedAskPromptHint => '例如：「摘要」或「做出了什么决定？」';
 
   @override
   String get advancedAskPromptHelper =>
-      '仅限 Voxtral / Qwen3-ASR。设置后，LLM 将回答您的问题而非生成逐字转录。留空则正常转录。';
+      '仅限 Voxtral / Qwen3-ASR。设置后，LLM 将回答您的问题而非生成逐字转录，且该回答在任何导出中都会标记为 AI 生成。留空则正常转录。涉及说话人情绪、心情、语气或意图的提问将被拒绝——参见使用规范。';
+
+  @override
+  String get askPromptRefusedAffectiveTitle => '提问被拒绝';
+
+  @override
+  String askPromptRefusedAffective(String term) {
+    return '该提问要求模型推断说话人的情绪或意图属性（匹配到「$term」）。从声音推断情绪属于欧盟《人工智能法案》所定义的情绪识别——在工作场所和学校中被禁止，在其他场合属于高风险。CrisperWeaver 不执行此类推断。请提问「说了什么」，而非「听起来如何」。';
+  }
 
   @override
   String get editAudioOpen => '在音频编辑器中打开';

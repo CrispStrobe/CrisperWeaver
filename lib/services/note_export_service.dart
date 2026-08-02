@@ -1,5 +1,6 @@
 import '../engines/transcription_engine.dart';
 import '../models/segment_tag.dart';
+import '../utils/ai_text_disclosure.dart';
 
 /// §5.25.14 — Export to note-taking tools.
 ///
@@ -23,6 +24,25 @@ class NoteExportService {
       'Machine-generated transcript — produced by AI speech recognition and '
       'not checked by a human. It may contain recognition errors.';
 
+  /// The notice appropriate to [segments].
+  ///
+  /// [disclosure] describes speech recognition, which is the wrong claim for
+  /// audio-Q&A output: those segments are a language model's answer, and
+  /// calling them a transcript tells the reader the words were spoken. The
+  /// 2026-08-03 audit found every format here asserting exactly that. Both
+  /// artefacts still leave through the same exporters, so the notice is
+  /// chosen per export rather than fixed.
+  static String disclosureFor(List<TranscriptionSegment> segments) =>
+      segments.any((s) => s.isGenerated)
+          ? AiTextDisclosure.audioQa
+          : disclosure;
+
+  /// Frontmatter/tag label matching [disclosureFor] — `transcript` is a
+  /// factual claim about the file's contents in Obsidian and Logseq, and
+  /// searching `type:transcript` should not surface generated answers.
+  static String _kindFor(List<TranscriptionSegment> segments) =>
+      segments.any((s) => s.isGenerated) ? 'ai-answer' : 'transcript';
+
   /// Export as Obsidian-flavoured Markdown with YAML frontmatter.
   ///
   /// Includes metadata (date, duration, speakers, model) in the
@@ -43,7 +63,7 @@ class NoteExportService {
     // YAML frontmatter
     buf.writeln('---');
     buf.writeln('title: "${_escapeYaml(title)}"');
-    buf.writeln('type: transcript');
+    buf.writeln('type: ${_kindFor(segments)}');
     if (date != null) buf.writeln('date: ${date.toIso8601String()}');
     if (duration != null) {
       buf.writeln(
@@ -58,12 +78,12 @@ class NoteExportService {
       }
     }
     buf.writeln('tags:');
-    buf.writeln('  - transcript');
+    buf.writeln('  - ${_kindFor(segments)}');
     buf.writeln('  - ai-generated');
-    buf.writeln('ai-notice: "${_escapeYaml(disclosure)}"');
+    buf.writeln('ai-notice: "${_escapeYaml(disclosureFor(segments))}"');
     buf.writeln('---');
     buf.writeln();
-    buf.writeln('> **Notice:** $disclosure');
+    buf.writeln('> **Notice:** ${disclosureFor(segments)}');
     buf.writeln();
 
     // Title
@@ -105,7 +125,7 @@ class NoteExportService {
           '*Transcribed: ${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}*');
     }
     buf.writeln();
-    buf.writeln('> **Notice:** $disclosure');
+    buf.writeln('> **Notice:** ${disclosureFor(segments)}');
     buf.writeln();
 
     String? currentSpeaker;
@@ -144,9 +164,9 @@ class NoteExportService {
     buf.writeln('  collapsed:: true');
     if (date != null) buf.writeln('  date:: ${date.toIso8601String()}');
     if (model != null) buf.writeln('  model:: $model');
-    buf.writeln('  type:: [[transcript]]');
+    buf.writeln('  type:: [[${_kindFor(segments)}]]');
     buf.writeln('  tags:: ai-generated');
-    buf.writeln('  ai-notice:: $disclosure');
+    buf.writeln('  ai-notice:: ${disclosureFor(segments)}');
 
     for (var i = 0; i < segments.length; i++) {
       final seg = segments[i];
@@ -173,7 +193,7 @@ class NoteExportService {
     // YouTube pastes this straight into a description box, which has no
     // comment syntax — so the notice has to be a visible line or nothing.
     final buf = StringBuffer();
-    buf.writeln('[$disclosure]');
+    buf.writeln('[${disclosureFor(segments)}]');
     buf.writeln();
     String? lastSpeaker;
     var count = 0;

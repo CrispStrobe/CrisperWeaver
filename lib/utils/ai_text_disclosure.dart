@@ -50,8 +50,27 @@ class AiTextDisclosure {
   static String attach(String text, String disclosure) =>
       text.trim().isEmpty ? '' : '[$disclosure]\n\n$text';
 
+  /// Audio Q&A ("ask the audio") answers. Voxtral / Qwen3-ASR answer the
+  /// user's question *instead of* transcribing, so the output is model-
+  /// authored prose that merely looks like a transcript — and it travels
+  /// through the transcript pipeline, where every downstream label said
+  /// "transcript" until the audit of 2026-08-03.
+  ///
+  /// Distinct wording from [summary] because the failure mode is different
+  /// again: a summary is grounded in a transcript the user can check, while
+  /// a Q&A answer is the only artefact produced, with nothing beside it to
+  /// check against.
+  static const String audioQa =
+      'AI-generated: an answer written by a language model from the audio, '
+      'not a transcript of what was said. It may assert things the '
+      'recording does not contain. Verify against the audio before relying '
+      'on it.';
+
   /// [attach] with the [summary] wording.
   static String forSummary(String text) => attach(text, summary);
+
+  /// [attach] with the [audioQa] wording.
+  static String forAudioQa(String text) => attach(text, audioQa);
 
   /// [attach] with the [translation] wording.
   static String forTranslation(String text) => attach(text, translation);

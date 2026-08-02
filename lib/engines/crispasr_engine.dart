@@ -15,6 +15,7 @@ import '../services/log_service.dart';
 import '../services/model_service.dart';
 import '../services/transcription_service.dart' show AdvancedTranscribeOptions;
 import '../services/transcription_worker_pool.dart';
+import '../utils/affective_prompt_guard.dart';
 import '../utils/emotion_inference.dart';
 
 /// Transcription engine backed by the CrispASR FFI package.
@@ -729,6 +730,22 @@ class CrispASREngine implements TranscriptionEngine {
     // prompt instead of producing a verbatim transcript. Always set
     // (including empty string) so a previous ask doesn't stick across
     // a switch back to normal mode.
+    //
+    // The prompt is screened *before* it reaches the model. An LLM asked
+    // for a speaker's tone or mood is an emotion recognition system under
+    // Art. 3(39), and its answer is free prose that no output filter can
+    // catch — unlike the SenseVoice `<|HAPPY|>` tags, which have a closed
+    // vocabulary and a parse boundary. So the control sits here, at the one
+    // point an ask prompt enters the engine. See `AffectivePromptGuard`.
+    final affectiveTerm = AffectivePromptGuard.offendingTerm(askPrompt);
+    if (affectiveTerm != null) {
+      Log.instance.w('crispasr', 'audio Q&A prompt refused (affective)',
+          fields: {'term': affectiveTerm});
+      throw AffectivePromptException(
+          AffectivePromptGuard.refusalMessage(affectiveTerm),
+          engineId,
+          affectiveTerm);
+    }
     if (_session != null) {
       try {
         _session!.setAsk(askPrompt ?? '');
@@ -1136,6 +1153,22 @@ class CrispASREngine implements TranscriptionEngine {
             );
           }
         }
+      }
+
+      // EU AI Act Art. 50(2): in audio-Q&A mode the backend answers the
+      // user's question instead of transcribing, so these segments hold
+      // model-authored prose, not a record of what was said. Flag them at
+      // the one point where both the prompt and the finished segments are
+      // in scope, so every downstream consumer — export, share, history
+      // re-export months later — can tell the two apart without having to
+      // know how the run was configured.
+      final isAudioQa = askPrompt != null && askPrompt.trim().isNotEmpty;
+      if (isAudioQa) {
+        segments = segments
+            .map((s) => s.copyWith(
+                  metadata: {...s.metadata, 'generated': 'audio-qa'},
+                ))
+            .toList();
       }
 
       onProgress?.call(0.95);

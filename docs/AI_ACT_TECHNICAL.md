@@ -1,7 +1,7 @@
 # EU AI Act Technical Documentation (Annex IV)
 
 **Application:** CrisperWeaver
-**Date:** 2026-08-02 (revised; originally 2026-07-16)
+**Date:** 2026-08-03 (revised; originally 2026-07-16)
 **Regulation:** Regulation (EU) 2024/1689, Annex IV
 
 ---
@@ -17,13 +17,27 @@ enables users to convert speech to text, generate speech from text,
 identify speakers in recordings, translate and summarise transcripts,
 and search their transcription history.
 
-**No emotion recognition is performed.** SenseVoice transcription backends
-emit inline emotion tags and the app rendered them as a per-segment badge
-until 2026-08-02; that made it an emotion recognition system under
-Art. 3(39) and an Annex III 1(c) high-risk system, so the capability was
-removed. The tags are now discarded at the engine's parse boundary and on
-every CLI output format. See `AI_ACT_RISK.md` §2.8 for the reasoning and
-the re-open trigger.
+**No emotion recognition is performed**, and this is enforced on two
+distinct routes because it was reached by two.
+
+- **Model-emitted tags.** SenseVoice transcription backends emit inline
+  emotion tags and the app rendered them as a per-segment badge until
+  2026-08-02; that made it an emotion recognition system under Art. 3(39)
+  and an Annex III 1(c) high-risk system, so the capability was removed.
+  The tags are discarded at the engine's parse boundary and on every CLI
+  output format. See `AI_ACT_RISK.md` §2.8.
+- **User-written prompts.** The audio-Q&A field passes a free-text question
+  to an instruct-tuned backend, and until 2026-08-03 its placeholder
+  recommended *"What's the speaker's tone?"* in all three shipped
+  languages. `AffectivePromptGuard` now refuses emotion, mood, prosody,
+  intent and veracity prompts at the engine, the HTTP server and the CLI.
+  See `AI_ACT_RISK.md` §2.9.
+
+The two controls are not equivalent and the difference is worth stating: the
+first is an absence, the second is a keyword filter over free text that a
+determined user can rephrase past. It is a control against the app
+*affording* emotion inference — which is what supplies intended purpose
+under Art. 3(39) — not a guarantee about every sentence a model can emit.
 
 ### 1.2 Provider
 
@@ -62,6 +76,16 @@ HTTP server (`server_service.dart`) and a Wyoming-protocol ASR socket.
 Generated output crossing either carries the same marking as the GUI's —
 `x-content-ai-generated` on generating endpoints, watermark and manifest
 in the audio bytes.
+
+**This claim was false when first written (2026-08-02) and is true as of
+2026-08-03.** `/v1/audio/transcriptions` also translates (`translate`,
+`target_language`) and answers questions (`ask`), and returned both
+unmarked under a hardcoded `"task": "transcribe"` — while the sibling
+`/v1/translations` set the header and a `_disclosure` field. The endpoint
+now marks all five response formats and reports the actual task. Recorded
+rather than silently fixed, because the claim was checked against the
+endpoints that looked like generators and not against the one whose name
+says "transcriptions".
 
 ## 2. Design Specifications (Annex IV, 2)
 
@@ -185,7 +209,9 @@ biometric data processing risks.
 | Transcript text disclosed to a third party | GDPR | Cloud LLM is opt-in and off by default; local model is the default path; flow disclosed in the first-use notice and `PRIVACY.md` §3.3 |
 | Transcription errors affecting decisions | Accuracy | Word-level confidence scores; user can verify and edit |
 | Model bias in ASR | Fairness | Multiple model families available; user chooses |
-| Emotion inference reaching a user or an export | Art. 5(1)(f), Annex III 1(c) | Capability removed. Emotion tags are discarded at the single point they enter the app (`CrispasrEngine`) and on every CLI output format, driven by one shared discard list and pinned by the compliance suite |
+| Emotion inference reaching a user or an export — model-emitted tags | Art. 5(1)(f), Annex III 1(c) | Capability removed. Emotion tags are discarded at the single point they enter the app (`CrispasrEngine`) and on every CLI output format, driven by one shared discard list and pinned by the compliance suite |
+| Emotion inference elicited by a user prompt | Art. 5(1)(f), Annex III 1(c) | `AffectivePromptGuard` refuses affective audio-Q&A prompts at the engine, the HTTP server and the CLI; a locale test asserts no shipped UI string suggests one. Defeatable by rephrasing — stated in `AI_ACT_RISK.md` §2.9, not claimed away |
+| Generated Q&A answers mistaken for transcripts | Art. 50(2) | Segments flagged `generated: audio-qa` at the engine, persisted with `metadata` so history re-exports still know; every export, the transcriptions endpoint and CLI stdout pick their disclosure from the flag |
 | Generated audio loses its mark when edited | Art. 50(2) | Trim/cut/split carry the C2PA manifest across as a `c2pa.edited` action and re-emit LIST/INFO; MP3 re-encode carries ID3v2; containers that cannot carry a manifest are logged as watermark-only |
 | Headless output escapes text marking | Art. 50(2) | CLI `translate` and `transcribe --translate` attach the shared `AiTextDisclosure`; suppression requires an explicit `--no-disclosure` |
 
@@ -223,7 +249,16 @@ biometric data processing risks.
   reference voice but is not identical.
 - CrisperWeaver does **not** infer emotions, mood, intent, or any other
   affective or personal attribute from a voice. Where a model emits such a
-  label, it is discarded rather than shown (`AI_ACT_RISK.md` §2.8).
+  label, it is discarded rather than shown (`AI_ACT_RISK.md` §2.8); where a
+  user asks for one via the audio-Q&A field, the prompt is refused rather
+  than answered (`AI_ACT_RISK.md` §2.9).
+- Audio Q&A ("ask the audio") produces a **language model's answer, not a
+  transcript**. It can assert things the recording does not contain, and
+  there is no transcript beside it to check against. Its output is marked
+  as AI-generated wherever it leaves the app.
+- Spoken-language identification classifies the audio, not the speaker; the
+  result is a decode hint and is never stored as an attribute of a person
+  (`AI_ACT_RISK.md` §2.10).
 
 ### 7.2 Intended Users
 
@@ -238,8 +273,10 @@ border control, employment decisions, or critical infrastructure.
 - Using speaker identification for unauthorized surveillance
   (mitigated by on-device-only architecture and Art. 5 compliance).
 - Inferring emotions to assess staff or students — **prohibited under
-  Art. 5(1)(f)**. Mitigated structurally rather than by policy: the app has
-  no emotion-inference output to misuse (`AI_ACT_RISK.md` §2.8).
+  Art. 5(1)(f)**. Mitigated structurally on the model-emitted route (no such
+  output exists, `AI_ACT_RISK.md` §2.8) and by an input-side refusal on the
+  prompt route (`AI_ACT_RISK.md` §2.9). The second is the weaker of the two
+  and is the one to re-examine if this document is ever relied on.
 - Relying on transcriptions for high-stakes decisions without human
   review (mitigated by confidence scores and user editing capability).
 
@@ -247,6 +284,7 @@ border control, employment decisions, or critical infrastructure.
 
 | Date | Change |
 |---|---|
+| 2026-08-03 | **Fourth audit.** Corrected §1.4, which claimed all generated output crossing the HTTP server was marked — `/v1/audio/transcriptions` returned machine translation and audio-Q&A answers bare. Rewrote §1.1 to cover both routes to emotion recognition and to state the difference in strength between the two controls. Added three rows to §5.1 (prompt-elicited emotion inference, Q&A answers mismarked as transcripts) and three limitations to §7.1. |
 | 2026-07-16 | Initial Annex IV technical documentation |
 | 2026-08-01 | Audit revision: applicable dates refreshed for the Digital Omnibus; §5 cross-referenced to the provider/deployer split in `AI_ACT_RISK.md` §5.1. (Recorded retrospectively — the 2026-08-02 audit found this row had been omitted when the revision was made.) |
 | 2026-08-02 | **Third audit.** Found a previously undeclared emotion-recognition capability (SenseVoice emotion badges); it was **removed** rather than disclosed, since Annex III 1(c) would have made it high-risk from 2 Dec 2027. §1.1, §7.1 and §7.3 now record the absence and how it is enforced. Added three rows to §5.1 covering the removal, provenance survival across edits, and CLI text marking. |

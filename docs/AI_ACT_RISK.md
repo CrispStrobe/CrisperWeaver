@@ -1,6 +1,6 @@
 # EU AI Act Risk Classification — CrisperWeaver
 
-**Date:** 2026-08-01 (revised; originally 2026-07-16)
+**Date:** 2026-08-03 (revised; originally 2026-07-16)
 **Regulation:** Regulation (EU) 2024/1689 (EU AI Act)
 **Application:** CrisperWeaver v0.9.6+
 
@@ -183,6 +183,143 @@ or intent-bearing attribute of a speaker — including via a new backend, a
 plugin, or an LLM prompt that asks for tone or mood. The discard list is
 the control, and it only works for tags it names.
 
+**This trigger fired on 2026-08-03, on the limb it names last.** The audit
+of that date found the audio-Q&A field shipping a placeholder — localised
+into all three supported languages — that recommended the prompt *"What's
+the speaker's tone?"*. See §2.9. The removal in this section was sound and
+remains in force for the SenseVoice path; what it did not survive was a
+second path, added for an unrelated feature, that reached the same
+capability by a different route and was never checked against this
+section. The trigger was written on 2026-08-02 and was met by code already
+in the tree on that date.
+
+### 2.9 Audio Q&A ("ask the audio")
+
+| Property | Value |
+|---|---|
+| Function | An instruct-tuned audio LLM (voxtral, qwen3-asr) **answers a user's free-text question about a recording** instead of transcribing it |
+| Annex III category | **Not listed — conditional on the input guard.** Would be **1(c)** for any prompt asking the model to infer a speaker's emotions or intentions |
+| Art. 50(2) applicability | **Yes** — the answer is model-authored prose, not a record of speech |
+| Risk level | **Not high-risk, subject to Art. 50(2)**, on the basis that affective prompts are refused rather than answered |
+| Mitigations | `AffectivePromptGuard` refuses emotion/intent prompts at the engine, the HTTP server and the CLI; output flagged `generated: audio-qa` at the engine and marked in every export, the transcriptions endpoint and CLI stdout |
+
+**Discovered 2026-08-03, and it is two findings rather than one.**
+
+**(a) The Annex III limb.** The feature is reached from Advanced Options and
+its placeholder text read, in EN, DE and ZH: *e.g. "Summarize" or "What's the
+speaker's tone?"*. An LLM asked that question and answering it from audio is
+inferring the emotional state of a natural person from biometric data —
+Art. 3(39), Annex III 1(c), and Art. 5(1)(f) outright where the recording
+comes from a workplace or a school.
+
+The severity is in the **placeholder**, not the field. §2.8 rejected the
+Art. 6(3) derogation for the SenseVoice badge because "the app parsed the
+tags deliberately, classified them with a dedicated helper, and rendered a
+labelled badge, which reads as intent". A shipped, translated hint
+*recommending* the tone prompt is intent on the same reasoning, and
+Art. 3(39) turns on the purpose a system is offered for. Two other things
+made it worse than the badge that was deleted for it: the badge was
+display-only, whereas a Q&A answer reaches exports, the share sheet and
+history; and `EmotionInference` cannot touch it, because that control matches
+a closed set of `<|HAPPY|>` literals at a parse boundary and an answer is
+free prose with neither.
+
+**Why the input and not the output.** There is no output-side control
+available here. An assertion about a speaker's mood is a sentence like any
+other, with no tag to discard and no boundary at which it is distinguishable.
+So the control moved to the prompt: `lib/utils/affective_prompt_guard.dart`
+refuses emotion, mood, prosody, intent and veracity terms across EN/DE/ZH,
+enforced in three places — `CrispasrEngine` (the single point an ask prompt
+enters the engine), `/v1/audio/transcriptions` (so the server answers 400
+with a reason rather than 500), and the CLI (before the decode, so a refused
+run costs nothing).
+
+**Refuse, not disclose.** Art. 50(3) was the wrong instrument: it binds
+deployers and presumes the system may lawfully run, whereas Art. 5(1)(f) is a
+prohibition the app cannot consent its way past and cannot context-detect.
+Outside those contexts the obligation is the Annex III 1(c) one that §2.8
+deleted a feature to avoid; answering the prompt and labelling the answer
+would have re-acquired it.
+
+**What is not claimed.** The guard is a keyword filter over a free-text
+field and a determined user can rephrase past it ("describe the prosody",
+"is the speaker being sincere" — both are on the list, but the list is
+finite). It is a control against the app *affording* emotion inference,
+which is what supplies intended purpose under Art. 3(39); it is not a
+guarantee that no model ever emits an affective sentence. Same honest limit
+as the discard list in §2.8: the control only works for the terms it names.
+
+**(b) The Art. 50(2) limb.** Q&A answers travelled the transcript pipeline,
+so every downstream label described them as speech recognition output —
+`NoteExportService` said "Machine-generated transcript — produced by AI
+speech recognition", `FileUtils` JSON said "AI-generated synthetic speech",
+Obsidian and Logseq tagged them `type: transcript`, and CLI `--ask` wrote
+them to stdout bare because the disclosure rule keyed on `--translate`
+alone. That is worse than an unmarked file: a reader who trusts the label
+reads a model's assertions about the audio as quotations from it. Segments
+now carry `generated: audio-qa` from the engine — persisted with the rest of
+`metadata`, so a re-export from history months later still knows — and every
+exit picks its wording from it.
+
+**Re-opens if** the guard is bypassed, a new generating surface reaches
+`setAsk` without passing through it, or any UI copy again suggests an
+affective prompt. The locale regression test in
+`test/synthetic_compliance_test.dart` asserts that no shipped
+`advancedAskPromptHint` trips the guard — that test exists because a
+placeholder is a recommendation, and a recommendation is how this returned.
+
+### 2.10 Spoken-Language Identification (LID)
+
+| Property | Value |
+|---|---|
+| Function | Detects the language of speech from audio to pick an ASR decode path (`lid_service.dart`; whisper LID, Silero 95-language, ECAPA voxlingua107) |
+| Annex III category | Not listed |
+| Art. 5(1)(g) applicability | **No** — language is not among the sensitive attributes that limb enumerates |
+| Risk level | **Not high-risk** |
+| Mitigations | On-device, ancillary to transcription, result is a decode hint and is not stored as an attribute of any person |
+
+**Newly classified 2026-08-03; previously undocumented.** §3.3 asserted
+flatly that "no biometric categorisation is performed" without this
+subsystem ever having been assessed — the same failure mode that hid the
+emotion badge for two audits, and worth recording as such even though the
+conclusion is benign.
+
+The assessment: Art. 3(40) reaches systems assigning natural persons to
+categories on the basis of **biometric data**, and Art. 3(34) scopes
+biometric data to processing that allows or confirms unique identification.
+Spoken-language ID does neither — it classifies the signal, not the speaker,
+and cannot single anyone out. Art. 5(1)(g)'s prohibition is in any case
+confined to deducing race, political opinions, trade-union membership,
+religious or philosophical beliefs, sex life or sexual orientation; language
+is not on that list, and the app draws no inference from the detected
+language beyond selecting a model. The result is a transient decode hint,
+never persisted against a speaker profile.
+
+**Re-opens if** a detected language is ever stored as an attribute of an
+enrolled speaker, or surfaced as a claim about a person rather than about a
+recording.
+
+### 2.11 Audio Enhancement (denoise)
+
+| Property | Value |
+|---|---|
+| Function | RNNoise speech enhancement (`/v1/audio/denoise`, CLI `denoise`) |
+| Art. 50(2) applicability | **No** — the second subparagraph's carve-out applies |
+| Risk level | **Not high-risk, no marking duty** |
+
+**Newly classified 2026-08-03; previously undocumented.** Art. 50(2) exempts
+systems performing "an assistive function for standard editing" that do not
+substantially alter the input data or its semantics. Noise suppression is the
+paradigm case: it removes non-speech energy and changes nothing about what
+was said. §2.7 already applied this reasoning to text cleanup and drew the
+boundary at rewriting; the same boundary is drawn here, and the output is
+correctly unmarked.
+
+**Re-opens if** the enhancement path ever gains a generative component —
+speech restoration, bandwidth extension, or any model that *synthesises*
+audio the microphone did not capture. That output would be synthetic content
+and would need the full §5.2 marking, not this carve-out.
+
 ## 3. Speaker Identification — Detailed Risk Assessment
 
 CrisperWeaver's speaker identification subsystem uses TitaNet voice
@@ -280,6 +417,22 @@ Art. 3(39). Any future audit of this section should check the ASR side as
 well as the synthesis side — checking only the latter is precisely how this
 was missed twice.
 
+**And a third time, by a third route.** The audit of 2026-08-03 found the
+claim false again — not on the synthesis side, not on the tag-parsing side,
+but in the audio-Q&A prompt, whose shipped placeholder recommended asking
+for the speaker's tone (§2.9). Direction was the right test and it was
+applied to the wrong surface: the question was asked of *models that emit
+labels* and never of *fields that accept prompts*. The claim holds today
+because affective prompts are refused at the input, and the refusal is
+pinned by a test that reads the shipped locale strings.
+
+**On biometric categorisation**, the claim is now backed by an assessment
+rather than an assertion: spoken-language identification (§2.10) is the one
+subsystem that assigns any category from voice, and it is outside
+Art. 3(40) and Art. 5(1)(g) for the reasons given there. Earlier revisions
+of this section stated the conclusion without having identified the
+subsystem it had to be true of.
+
 ## 3a. Free and open-source status (Art. 2(12))
 
 CrisperWeaver is released under AGPL-3.0. Art. 2(12) exempts AI systems
@@ -299,12 +452,14 @@ under Art. 5:
 - (c) No social scoring
 - (d) No individual risk assessment for criminal offending prediction
 - (e) No untargeted facial image scraping
-- (f) No emotion inference in workplace or educational contexts — the app
-  performs no emotion inference in **any** context since the capability was
-  removed on 2026-08-02 (§2.8). Between the SenseVoice backend being
-  catalogued and that date, the app could be pointed at this limb, and
-  nothing but the acceptable-use policy stood in the way; removal is what
-  makes this an absence rather than a restriction
+- (f) No emotion inference in workplace or educational contexts — the
+  SenseVoice capability was removed on 2026-08-02 (§2.8) and the audio-Q&A
+  route to the same inference was closed on 2026-08-03 (§2.9). Note the
+  difference in kind between the two controls: the first is an absence (the
+  code was deleted), the second is a **refusal at the input** over a
+  free-text field, which is a real control but a defeatable one. This limb
+  is therefore satisfied by design rather than by construction, and §2.9
+  states the limit plainly rather than claiming more
 - (g) No biometric categorisation for sensitive attributes (§3.3)
 - (h) **No real-time remote biometric identification in publicly
   accessible spaces** — all processing is on-device, user-initiated,
@@ -339,9 +494,11 @@ attestation that is logged for audit.
 | Art. 50(1): Users informed of AI interaction | First-use transparency dialog (EN/DE/ZH), enumerating every AI subsystem and which of them can use the network once enabled | Done |
 | Art. 50(2): Machine-readable AI marking — audio | Spread-spectrum watermark, verified post-embed by probing the PCM; C2PA COSE/X.509 manifest; WAV LIST/INFO + ID3v2 tags | Done |
 | Art. 50(2): Machine-readable AI marking — text | Transcript exports carry a synthetic-content disclosure by default; OCR, LLM summaries and translations carry one on screen and on copy; the HTTP translation endpoint sets `x-content-ai-generated` and a `_disclosure` field | Done |
+| Art. 50(2): Machine-readable AI marking — audio Q&A | Segments flagged `generated: audio-qa` at the engine and persisted with `metadata`; every export picks its wording from the flag; `/v1/audio/transcriptions` sets `x-content-ai-generated` + `_disclosure` + `"task": "audio-qa"`; CLI `--ask` attaches the disclosure | Done (2026-08-03) |
+| Art. 50(2): Marking of machine translation on the transcriptions endpoint | `/v1/audio/transcriptions` with `translate` / `target_language` returned bare text with a hardcoded `"task": "transcribe"`; now marked on all five response formats | Done (2026-08-03) |
 | Art. 50(4): Deep fake disclosure — voice cloning | Mandatory beep disclaimer; suppression requires a logged attestation. Applies on the GUI, server (`/v1/audio/speech`) and CLI (`synthesize --voice`) paths | Done |
 | Art. 50(4): Deep fake disclosure — speech-to-speech | Same beep path via `voiceConverted` / `_writeMarkedWav(deepfake: true)`; `/v1/audio/s2s` consent-gated; CLI `s2s` marked | Done |
-| Art. 50(3): Emotion recognition notice | Not applicable — the capability was removed rather than disclosed (§2.8). Emotion tags are discarded at the engine's parse boundary and on every CLI output format | n/a |
+| Art. 50(3): Emotion recognition notice | Not applicable — the capability was removed rather than disclosed (§2.8), and the audio-Q&A route to it is refused at the input rather than disclosed (§2.9). Emotion tags are discarded at the engine's parse boundary and on every CLI output format | n/a |
 | Art. 50(2): Marking survives editing | Trim / cut / split carry the source C2PA manifest into the derived file as a `c2pa.edited` action and re-emit the LIST/INFO tags, instead of re-encoding a bare 44-byte WAV; MP3 re-encode carries ID3v2 provenance, and containers that cannot carry a manifest are logged as watermark-only | Done |
 
 **Scope note — every generating path, not just the GUI.** The audit of
@@ -362,6 +519,19 @@ trimming a generated clip stripped the manifest and the LIST/INFO tags the
 app had itself written (fixed — provenance is carried across the edit). In
 both cases the watermark survived and the *machine-readable* mark did not,
 which is precisely the layer that container metadata is supposed to supply.
+
+**The 2026-08-03 audit found the same shape a fourth time**, and the pattern
+is now specific enough to name: each time, a duty was implemented on the
+surface where the feature was designed and missed on a surface that reached
+the same capability by another route. GUI first, then the CLI, then the edit
+path, and now the HTTP transcriptions endpoint — which discharged the text
+duty on `/v1/translations` while `/v1/audio/transcriptions?translate=true`
+produced the same machine-translated text unmarked, under a hardcoded
+`"task": "transcribe"`. `AI_ACT_TECHNICAL.md` §1.4 asserted that generated
+output crossing the server "carries the same marking as the GUI's"; that
+claim was false for the one endpoint nobody re-read. The check that would
+have caught all four is the same: enumerate the *routes to a capability*,
+not the features.
 
 ### 5.3 Art. 50(5) — clarity and accessibility
 
@@ -409,7 +579,11 @@ users by:
 | Third-party abuse-reporting channel | **Done** — see §7.1 |
 | Code of Practice on Transparency of AI-generated Content | **Closed — decided not to sign** (2026-08-02). Technically conformant on every limb; adherence declined while the generating surface is still moving. Reasoning and re-open triggers in §7.2 |
 | Art. 49(2) EU-database registration — speaker ID | **Not applicable** on the operative analysis — see §7.3 |
-| Annex III 1(c) — emotion recognition | **Closed — capability removed** (2026-08-02); see §2.8 |
+| Annex III 1(c) — emotion recognition (SenseVoice tags) | **Closed — capability removed** (2026-08-02); see §2.8 |
+| Annex III 1(c) — emotion recognition (audio-Q&A prompts) | **Closed — refused at the input** (2026-08-03); see §2.9. Note this is a defeatable control over a free-text field, not an absence of capability |
+| Art. 50(2) — audio-Q&A output marked as generated | **Done** (2026-08-03); see §2.9(b) |
+| Art. 50(2) — machine translation on `/v1/audio/transcriptions` | **Done** (2026-08-03); see §5.2 |
+| Classification of spoken-language ID and audio denoise | **Done** (2026-08-03) — §2.10, §2.11; both not high-risk |
 | C2PA signing for MP3 exports | **Done** — ID3v2 provenance on the MP3 path; AAC/Opus are watermark-only and warn. §7.4's "no MP3 export exists" was incorrect |
 | Art. 53 GPAI obligations for republished GGUFs | **Assessed** — mostly exempt, one limb to watch; see §7.5 |
 
@@ -618,5 +792,6 @@ distils a model rather than converting one.
 |---|---|
 | 2026-07-16 | Initial risk classification document |
 | 2026-08-01 | Audit revision. Reframed speaker ID as biometric **verification** under the closed-roster API (§3.1) with Art. 6(3) demoted to a fallback argument and its registration/profiling caveats stated (§3.2). Added Art. 2(12) open-source scope note (§3a), provider/deployer split (§5.1), Art. 4 (§6), open items (§7), and post-Digital-Omnibus dates (§8). |
+| 2026-08-03 | **Fourth audit.** Found the §2.8 re-open trigger had already fired: the audio-Q&A field shipped a placeholder in EN/DE/ZH recommending *"What's the speaker's tone?"* — the app suggesting the one prompt that re-acquires Annex III 1(c) (§2.9a). Closed at the input with `AffectivePromptGuard` (engine, HTTP server, CLI) rather than by disclosure, since Art. 5(1)(f) is a prohibition and no output filter can catch free prose; the defeatable nature of that control is stated rather than glossed. Also found Q&A answers labelled as *transcripts* by every export (§2.9b) and machine translation returned unmarked by `/v1/audio/transcriptions` while `/v1/translations` disclosed (§5.2) — the fourth instance of one duty implemented per-feature and missed per-route. Classified two previously undocumented subsystems, spoken-language ID (§2.10) and denoise (§2.11), both not high-risk. Corrected the SRT disclosure, which used WebVTT's `NOTE` syntax and was not valid SRT. |
 | 2026-08-02 | **Third audit.** Found the app performed **emotion recognition** (SenseVoice emotion tags rendered as a per-segment badge) — a subsystem §3.3 had expressly denied across two prior audits, because the claim was checked against the synthesis screen and never against the ASR engine. **The capability was removed** rather than disclosed: Annex III 1(c) would have brought high-risk obligations from 2 Dec 2027 for a badge nothing persisted. Rewrote §2.8 as a removal record with a re-open trigger, corrected §3.3 to explain why the no-emotion-recognition claim is true now for a different reason than before, and closed the Annex III limb of §7.3. Added §5.3 for the previously unaddressed Art. 50(5) accessibility clause. Corrected §7.4, which claimed no MP3 export path existed when `AudioEditService.exportEncoded` has one. Recorded the CLI text-disclosure and edit-strips-provenance gaps as fixed (§5.2). |
 | 2026-08-02 | Second audit. Corrected the inaccurate "no data is transmitted" claim in §1 and classified the previously unclassified LLM text subsystem (§2.7) — the only one whose data can leave the device. Recorded that Art. 50(2) text marking now covers LLM summaries and translations, not only OCR, and that the CLI is inside the marking scope (§5.2). Added the GPAI note (§7.5). Closed the Code of Practice item as a decision not to sign, with reasoning and re-open triggers (§7.2). |

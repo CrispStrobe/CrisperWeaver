@@ -7,8 +7,28 @@ import 'package:share_plus/share_plus.dart';
 
 import '../constants/app_constants.dart';
 import '../engines/transcription_engine.dart';
+import 'ai_text_disclosure.dart';
 
 class FileUtils {
+  /// EU AI Act Art. 50(2) — the notice text for [segments].
+  ///
+  /// Transcripts and audio-Q&A answers both leave through these exporters
+  /// but are not the same artefact, and until the audit of 2026-08-03 every
+  /// format called both "AI-generated synthetic speech". A model-authored
+  /// answer described as a record of speech is mismarked, not marked: a
+  /// reader who trusts the label reads assertions about the audio as
+  /// quotations from it.
+  static String disclosureFor(List<TranscriptionSegment> segments) =>
+      segments.any((s) => s.isGenerated)
+          ? AiTextDisclosure.audioQa
+          : 'This content contains AI-generated synthetic speech.';
+
+  /// Whether [segments] hold generated prose rather than transcribed speech
+  /// — the case where even a plain-text export has to carry a mark, since
+  /// there is no surrounding UI to supply the provenance.
+  static bool _isGenerated(List<TranscriptionSegment> segments) =>
+      segments.any((s) => s.isGenerated);
+
   static const String transcriptionsFolder = 'transcriptions';
   static const String modelsFolder = 'models';
   static const String audioFolder = 'audio';
@@ -110,7 +130,14 @@ class FileUtils {
     String content;
     switch (format) {
       case TranscriptFormat.txt:
-        content = text;
+        // Plain transcription of real speech carries no mark — Art. 50(2)
+        // reaches synthetic content, and a transcript is a record of what a
+        // person actually said. Audio-Q&A output is not that: it is model-
+        // authored prose, and `.txt` is the one format with no structure to
+        // hide a notice in, so it has to go in the body.
+        content = (syntheticDisclosure && _isGenerated(segments ?? []))
+            ? AiTextDisclosure.forAudioQa(text)
+            : text;
         break;
       case TranscriptFormat.srt:
         content = generateSrtContent(segments ?? [],
@@ -137,6 +164,28 @@ class FileUtils {
         content = generateMarkdownContent(segments ?? [],
             plainText: text, syntheticDisclosure: syntheticDisclosure);
         break;
+    }
+
+    // CSV / LRC / WTS have no notice slot of their own and carry no mark for
+    // an ordinary transcript. Generated prose still has to be marked in
+    // whatever format it leaves in, so it gets a leading comment line in the
+    // syntax each format tolerates — `#` for the WTS shell script, a bare
+    // first line for CSV, and an LRC `[re:]` metadata tag.
+    if (syntheticDisclosure && _isGenerated(segments ?? [])) {
+      const notice = AiTextDisclosure.audioQa;
+      switch (format) {
+        case TranscriptFormat.csv:
+          content = '# $notice\n$content';
+          break;
+        case TranscriptFormat.wts:
+          content = '# $notice\n$content';
+          break;
+        case TranscriptFormat.lrc:
+          content = '[re:$notice]\n$content';
+          break;
+        default:
+          break;
+      }
     }
 
     await file.writeAsString(content, encoding: utf8);
@@ -416,8 +465,13 @@ class FileUtils {
   }) {
     final buffer = StringBuffer();
     if (syntheticDisclosure) {
-      buffer.writeln(
-          'NOTE: This content contains AI-generated synthetic speech.');
+      // SRT has no comment syntax — `NOTE` is WebVTT's, and a bare line
+      // before cue 1 is a parse error or a swallowed disclosure depending
+      // on the player. Emitting the notice as a real cue at 00:00:00 is the
+      // only way it reliably reaches a human watching the subtitles.
+      buffer.writeln('0');
+      buffer.writeln('00:00:00,000 --> 00:00:03,000');
+      buffer.writeln(disclosureFor(segments));
       buffer.writeln();
     }
     for (int i = 0; i < segments.length; i++) {
@@ -439,8 +493,7 @@ class FileUtils {
     buffer.writeln('WEBVTT');
     if (syntheticDisclosure) {
       buffer.writeln();
-      buffer.writeln(
-          'NOTE AI-generated synthetic speech');
+      buffer.writeln('NOTE ${disclosureFor(segments)}');
     }
     buffer.writeln();
 
@@ -473,8 +526,8 @@ class FileUtils {
       return const JsonEncoder.withIndent('  ').convert(segList);
     }
     return const JsonEncoder.withIndent('  ').convert({
-      '_disclosure':
-          'AI-generated synthetic speech',
+      '_disclosure': disclosureFor(segments),
+      if (_isGenerated(segments)) '_content': 'audio-qa-answer',
       'segments': segList,
     });
   }
@@ -573,12 +626,10 @@ class FileUtils {
     bool syntheticDisclosure = true,
   }) {
     final buffer = StringBuffer();
-    buffer.writeln('# Transcript');
+    buffer.writeln(_isGenerated(segments) ? '# AI-generated answer' : '# Transcript');
     buffer.writeln();
     if (syntheticDisclosure) {
-      buffer.writeln(
-          '> **Notice:** This content contains AI-generated synthetic speech '
-          '(synthetic content).');
+      buffer.writeln('> **Notice:** ${disclosureFor(segments)}');
       buffer.writeln();
     }
     if (segments.isEmpty) {
