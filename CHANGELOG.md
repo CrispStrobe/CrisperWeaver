@@ -5,6 +5,73 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 
 ## [Unreleased]
 
+### Fixed — EU AI Act compliance audit (v0.9.6)
+
+A full audit against Regulation (EU) 2024/1689 found the §13 compliance
+architecture sound but several pieces not actually wired up. Art. 50
+transparency became applicable 2 August 2026.
+
+- **The deepfake beep disclaimer never fired in the app.** The reference
+  voice reached `prepare(voiceName:)` but was never passed to
+  `writeWav`, so cloned output shipped with no Art. 50(4) disclosure —
+  while the provenance card *told the user one had been applied*. Both
+  fixed; the card now reports what was actually embedded.
+- **Watermark verification verified nothing.** Presence was inferred
+  from whether a native symbol existed, and checked with an LSB detector
+  the native path never populates — so it warned on every synthesis
+  while confirming nothing. The PCM is now probed with the matching
+  detector, and the Dart fallback runs when verification fails rather
+  than when a symbol is missing.
+- **Speech-to-speech is now treated as a deepfake** (it is voice
+  conversion): same beep, same consent gate as `/v1/audio/speech`.
+- **Server consent gate defeated its own disclosure.** One field served
+  as both the mandatory consent attestation and the beep override, so
+  every compliant caller silently lost the disclaimer. Split into
+  `consent_attestation` (required) and `disclaimer_override_attestation`
+  (optional); the old field still works as consent.
+- **Speaker enrolment from a transcript segment bypassed consent**
+  entirely — no dialog, no record, so no lawful basis and nothing to
+  erase later. Now gated like the management screen.
+- **Consent wording addressed the wrong person.** It asked the *user* to
+  consent to processing *their* biometric data; when enrolling a meeting
+  participant the data subject is a third party. Now asks the user to
+  confirm the voice is their own or that they hold the owner's consent
+  (EN/DE/ZH).
+- **`appVersion` had drifted to `1.0.0`** while the app shipped 0.9.5 —
+  and that constant is stamped into the C2PA manifest and WAV `ISFT`
+  tag, so every generated file carried a false provenance claim. Now
+  guarded by a test.
+- Marking outcome is exposed as a value rather than a log line: when
+  audio cannot be watermarked (under ~100 ms, or silent — there is no
+  spectrum to modulate) the app says so instead of claiming a mark.
+
+### Added — acceptable use, abuse reporting, OMR (v0.9.6)
+
+- **`ACCEPTABLE_USE.md`** — consent rules for voice cloning and speaker
+  ID, the deployer's Art. 50 duties, and the limits of the automatic
+  marking (container metadata is stripped by re-encoding).
+- **Abuse reporting embedded in the C2PA manifest** of every generated
+  file, so it travels with the audio — the recipient of a synthetic clip
+  is the likeliest person to spot misuse and cannot reach a policy page
+  from a WAV.
+- **Optical music recognition now actually runs.** The five OMR models
+  in the catalogue were unreachable — the filename matcher only knew the
+  six text-OCR prefixes — so they could be downloaded but never used.
+- **New backends**: GigaAM v3 (Russian ASR, 8.4% avg WER, punctuation +
+  ITN), MioTTS 0.6B (ja/en), MOSS-TTS-Local v1.5 (multilingual, 48 kHz).
+- OCR and music-recognition output now carry an AI-generated notice, on
+  screen and on copy.
+
+### Changed — build reproducibility (v0.9.6)
+
+- CI pins CrispASR / CrispEmbed / glint to release tags instead of
+  `main`, which had drifted 13 backends ahead of the catalogue and broken
+  the build outright.
+- The Release workflow can no longer publish under a branch name — the
+  cause of a stray `main` tag and release that made
+  `git push origin main` ambiguous for everyone.
+
+
 ### Added — EU AI Act full compliance (§13)
 
 Complete EU AI Act compliance sweep with mandatory enforcement:
