@@ -1266,6 +1266,38 @@ void _thirdAuditTests() {
       expect(r.keptTags, ['BGM']);
       expect(r.keptTags.any(EmotionInference.isEmotionTag), isFalse);
     });
+
+    test('an unknown tag is discarded, not published', () {
+      // The filter is an allow-list as of 2026-08-03. Before that it dropped
+      // known emotion labels and kept everything else, so an affective tag
+      // this file has never heard of — a new SenseVoice-family release, a new
+      // backend — travelled into `metadata['sensevoice_tags']`, history and
+      // the JSON export. "No emotion recognition" then held only for as long
+      // as the list stayed ahead of the models.
+      final r = EmotionInference.strip(
+          '<|STRESSED|><|LAUGHTER|>Alles gut<|CONFIDENT|><|zh|>');
+      expect(r.text, 'Alles gut');
+      expect(r.keptTags, ['LAUGHTER'],
+          reason: 'only known acoustic events may survive');
+      for (final unknown in const ['STRESSED', 'CONFIDENT', 'zh']) {
+        expect(r.keptTags.contains(unknown), isFalse,
+            reason: '$unknown was published by a filter that had never heard '
+                'of it');
+      }
+    });
+
+    test('nothing is both an event and an emotion', () {
+      // The allow-list is only safe if the two vocabularies are disjoint —
+      // a label in both would be kept by `isEventTag` after `isEmotionTag`
+      // had already classified it as an inference about a person.
+      expect(
+          EmotionInference.eventTags
+              .map((e) => e.toUpperCase())
+              .toSet()
+              .intersection(
+                  EmotionInference.tags.map((e) => e.toUpperCase()).toSet()),
+          isEmpty);
+    });
   });
 
   group('Provenance survives an edit (Art. 50(2))', () {
