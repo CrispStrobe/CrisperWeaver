@@ -13,6 +13,7 @@ import '../services/log_service.dart';
 import '../services/model_service.dart';
 import '../services/settings_service.dart';
 import '../services/text_translation_service.dart';
+import '../utils/ai_text_disclosure.dart';
 
 /// Text-to-text translation via CrispASR's `crispasr_session_translate_text`.
 /// Mirrors the Synthesize screen's structure: pick a downloaded model,
@@ -316,8 +317,13 @@ class _TranslateScreenState extends ConsumerState<TranslateScreen> {
                         onPressed: _outputController.text.isEmpty
                             ? null
                             : () {
-                                Clipboard.setData(
-                                    ClipboardData(text: _outputController.text));
+                                // EU AI Act Art. 50(2): machine-translated
+                                // text is AI-generated, so the disclosure
+                                // goes on the clipboard with it — the
+                                // screen's context does not travel.
+                                Clipboard.setData(ClipboardData(
+                                    text: AiTextDisclosure.forTranslation(
+                                        _outputController.text)));
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(content: Text(l.copied)),
                                 );
@@ -338,6 +344,18 @@ class _TranslateScreenState extends ConsumerState<TranslateScreen> {
                       border: const OutlineInputBorder(),
                     ),
                   ),
+                  if (_outputController.text.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    // EU AI Act Art. 50(2) — on-screen disclosure.
+                    Text(
+                      AiTextDisclosure.translation,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            fontStyle: FontStyle.italic,
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                    ),
+                  ],
                   const SizedBox(height: 16),
                   ExpansionTile(
                     tilePadding: EdgeInsets.zero,

@@ -12,6 +12,7 @@ import '../services/cloud_llm_cleanup_service.dart';
 import '../services/local_llm_cleanup_service.dart';
 import '../services/settings_service.dart';
 import '../services/transcript_summarize_service.dart';
+import '../utils/ai_text_disclosure.dart';
 import '../utils/responsive.dart';
 
 /// §5.1.8 — dialog for meeting-style summarisation. Three
@@ -126,7 +127,12 @@ class _SummarizeDialogState extends ConsumerState<SummarizeDialog> {
   void _copyAll() {
     final r = _result;
     if (r == null) return;
-    Clipboard.setData(ClipboardData(text: r.rawMarkdown));
+    // EU AI Act Art. 50(2): the summary is LLM-generated text, so the
+    // disclosure travels with it. Once it is on the clipboard this dialog
+    // is no longer around to supply the provenance — same reasoning as the
+    // OCR copy path in transcription_output_widget.
+    Clipboard.setData(
+        ClipboardData(text: AiTextDisclosure.forSummary(r.rawMarkdown)));
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(AppLocalizations.of(context).outputAllCopied),
       duration: const Duration(seconds: 2),
@@ -273,6 +279,17 @@ class _SummarizeDialogState extends ConsumerState<SummarizeDialog> {
     }
     return ListView(
       children: [
+        // EU AI Act Art. 50(2) — on-screen disclosure for LLM-generated text.
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Text(
+            AiTextDisclosure.summary,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  fontStyle: FontStyle.italic,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+          ),
+        ),
         if (_includeAction)
           _SummarizeSection(
             heading: l.outputSummarizeKindActionItems,

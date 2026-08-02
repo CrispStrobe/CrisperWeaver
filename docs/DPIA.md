@@ -2,7 +2,7 @@
 
 **Regulation:** GDPR Art. 35
 **Application:** CrisperWeaver
-**Date:** 2026-08-01 (revised; originally 2026-07-16)
+**Date:** 2026-08-02 (revised; originally 2026-07-16)
 **Assessor:** CrisperWeaver development team
 
 ---
@@ -28,7 +28,14 @@ speaker profiles.
 ### 1.3 Context
 
 - All processing occurs exclusively on the user's personal device.
-- No data is transmitted to any server, cloud service, or third party.
+- **No biometric data is transmitted to any server, cloud service, or
+  third party** under any configuration. This holds even where the user
+  enables the app's two optional cloud features (transcription,
+  LLM cleanup/summarisation): those carry audio and transcript text
+  respectively, never speaker embeddings or voice profiles. The scoping
+  matters — an earlier revision stated the "no transmission" point
+  unqualified, which read as a claim about the whole app rather than
+  about the biometric processing this DPIA assesses.
 - The user has full control over enrollment, deletion, and export.
 - The app is not deployed in any workplace, educational, law
   enforcement, or public-space context by the developer.
@@ -83,7 +90,7 @@ the original audio.
 | Re-identification from embeddings | Very Low | Medium | Embeddings are lossy transforms; cannot reconstruct audio; no centralized database to match against |
 | Enrollment without subject consent | Medium | High | Consent gate in both GUI (wizard checkbox) and API (403 without attestation); consent record logged |
 | Use for surveillance or law enforcement | Very Low | Very High | App is consumer software with no integrations to surveillance systems; Art. 5 compliance documented |
-| Third-party voice cloning without consent | Medium | High | Voice clone wizard requires rights attestation; server requires consent_attestation; beep disclaimer mandatory |
+| Third-party voice cloning without consent | Medium | High | Rights attestation required on **every** cloning path — voice-clone wizard, voice-bake screen, and the CLI's `--i-have-rights`; server requires consent_attestation; beep disclaimer mandatory on all of them |
 | Data breach via device theft | Low | Medium | Standard device security (screen lock, encryption) is the user's responsibility; app does not add extra encryption layer |
 
 ### 3.2 Overall Risk Level
@@ -91,7 +98,18 @@ the original audio.
 **Moderate.** The primary risk is enrollment without the voice
 owner's explicit consent. This is mitigated by the consent dialog,
 consent records, and the voice-clone consent gate. The on-device-only
-architecture eliminates network-borne data breach risks.
+architecture for biometric data eliminates network-borne data breach
+risks for that category.
+
+Both audits that have run against this assessment found the same
+failure mode, and it is worth naming rather than burying: the gates
+themselves were sound, but a *parallel entry point* reached the same
+operation without passing through one. In August 2026 it was a second
+speaker-enrolment path (PLAN §15.3i); in the follow-up audit it was the
+voice-bake screen and the CLI, neither of which asked for a rights
+attestation while the wizard did. Consent architecture is only as good
+as its least-guarded entrance, so the review question for any new
+feature is not "does it have a gate" but "how many ways in are there".
 
 ## 4. Mitigations
 
@@ -157,3 +175,4 @@ This DPIA should be reviewed:
 |---|---|
 | 2026-07-16 | Initial DPIA |
 | 2026-08-01 | Audit revision: corrected the third-party data-subject assumption in §5; recorded the consent gate on every enrolment path and the consent-derived match roster. |
+| 2026-08-02 | Second audit: scoped the "no transmission" statement in §1.3 to biometric data and named the two optional cloud flows it does not cover; extended the cloning-consent mitigation to the voice-bake screen and CLI, which had no attestation; recorded the recurring parallel-entry-point failure mode in §3.2. |
