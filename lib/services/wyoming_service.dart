@@ -62,22 +62,46 @@ typedef WyomingTranscribeCallback = Future<String> Function(
 class WyomingService {
   ServerSocket? _server;
   final int port;
+
+  /// Interface to bind. Defaults to **loopback**, matching
+  /// `ServerService`'s `127.0.0.1`.
+  ///
+  /// This bound `InternetAddress.anyIPv4` until the audit of 2026-08-03,
+  /// which is every interface on the machine: any device on the same
+  /// network could have posted audio to this port and read back the
+  /// transcript. Nothing reached it — the provider below returns null and
+  /// no production code constructs this class — so it was latent, and
+  /// `AI_ACT_TECHNICAL.md` §1.4 described both of the app's own interfaces
+  /// as "bound to localhost" without anyone checking this one.
+  ///
+  /// Home Assistant normally runs on a different host, so a real
+  /// integration will need a non-loopback address. That is now a decision
+  /// the caller makes explicitly rather than the default it inherits.
+  final InternetAddress host;
   final String modelName;
   final WyomingTranscribeCallback onTranscribe;
 
   WyomingService({
     this.port = 10300,
+    InternetAddress? host,
     this.modelName = 'crispasr',
     required this.onTranscribe,
-  });
+  }) : host = host ?? InternetAddress.loopbackIPv4;
 
   bool get isRunning => _server != null;
 
   /// Start the Wyoming server.
   Future<void> start() async {
     if (_server != null) return;
-    _server = await ServerSocket.bind(InternetAddress.anyIPv4, port);
-    Log.instance.i('wyoming', 'listening on port $port');
+    _server = await ServerSocket.bind(host, port);
+    Log.instance.i('wyoming', 'listening on ${host.address}:$port');
+    if (!host.isLoopback) {
+      // Same posture as the watermark-verification and AAC/Opus warnings:
+      // the wider exposure is allowed, and it is recorded rather than silent.
+      Log.instance.w('wyoming',
+          'bound to a non-loopback address — this ASR endpoint is reachable '
+          'from the network at ${host.address}:$port');
+    }
     _server!.listen(_handleConnection);
   }
 

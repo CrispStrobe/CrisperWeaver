@@ -29,6 +29,7 @@ import 'dart:isolate';
 import 'dart:typed_data';
 
 import '../engines/transcription_engine.dart';
+import '../utils/affective_prompt_guard.dart';
 import '../widgets/advanced_options_widget.dart';
 import 'batch_queue_service.dart';
 import 'log_service.dart';
@@ -296,6 +297,32 @@ class TranscriptionWorkerPool {
     int chunkSeconds = 0,
     void Function(TranscriptionSegment seg)? onSegment,
   }) async {
+    // EU AI Act — the two duties `CrispasrEngine.transcribe` discharges
+    // before it touches a session have to be discharged here too, because
+    // this pool is reached *without* going through that method.
+    // `transcription_screen` dispatches to it directly for parallel batch
+    // jobs and for the A/B model comparison, so until 2026-08-03 those two
+    // paths ran with neither control:
+    //
+    //   • an affective ask prompt reached the model unrefused
+    //     (Art. 5(1)(f) / Annex III 1(c) — `AI_ACT_RISK.md` §2.9);
+    //   • the resulting Q&A answer or machine translation carried no
+    //     `generated` kind, so every export, history record, and the
+    //     clipboard called it a transcript (Art. 50(2) — §5.2).
+    //
+    // Both controls are idempotent, so the engine applying them as well on
+    // its own pool path is harmless. This is the choke point that covers
+    // every caller; the engine's copies cover its non-pool paths.
+    final affectiveTerm = AffectivePromptGuard.offendingTerm(askPrompt);
+    if (affectiveTerm != null) {
+      Log.instance.w('worker-pool', 'audio Q&A prompt refused (affective)',
+          fields: {'term': affectiveTerm});
+      throw AffectivePromptException(
+          AffectivePromptGuard.refusalMessage(affectiveTerm),
+          'crispasr',
+          affectiveTerm);
+    }
+
     final worker = await _acquire();
     if (worker == null) {
       throw TranscriptionWorkerException(
@@ -377,7 +404,14 @@ class TranscriptionWorkerPool {
         'hotwords': hotwords,
         'replyPort': replyReceive.sendPort,
       });
-      return await completer.future;
+      // Art. 50(2) — see the note at the top of this method. One rule,
+      // shared with `CrispasrEngine.transcribe`.
+      return GeneratedKind.stamp(
+          await completer.future,
+          GeneratedKind.forRequest(
+              askPrompt: askPrompt,
+              translate: translate,
+              targetLanguage: targetLanguage));
     } catch (e) {
       // Worker likely died mid-send — mark dead so the pool stops
       // routing to it. Re-throw so the drain loop knows the job

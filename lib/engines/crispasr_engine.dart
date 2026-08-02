@@ -1171,17 +1171,16 @@ class CrispASREngine implements TranscriptionEngine {
       // by the time anything is re-exported from History. Stamping it here
       // is what lets one rule serve all three surfaces. Q&A wins where both
       // apply: a translated answer is still an answer.
-      final isAudioQa = askPrompt != null && askPrompt.trim().isNotEmpty;
-      final isTranslated = translate ||
-          (targetLanguage != null && targetLanguage.trim().isNotEmpty);
-      if (isAudioQa || isTranslated) {
-        final kind = isAudioQa ? 'audio-qa' : 'translation';
-        segments = segments
-            .map((s) => s.copyWith(
-                  metadata: {...s.metadata, 'generated': kind},
-                ))
-            .toList();
-      }
+      //
+      // The rule moved to `GeneratedKind` on 2026-08-03, after the audit
+      // found `TranscriptionWorkerPool.dispatch` — reached directly by the
+      // batch and A/B paths — stamping nothing at all.
+      segments = GeneratedKind.stamp(
+          segments,
+          GeneratedKind.forRequest(
+              askPrompt: askPrompt,
+              translate: translate,
+              targetLanguage: targetLanguage));
 
       onProgress?.call(0.95);
       onProgress?.call(1.0);
@@ -1754,9 +1753,9 @@ class CrispASREngine implements TranscriptionEngine {
   // this engine drops them at the parse boundary so no emotion inference
   // about a natural person ever reaches segment metadata, the UI, or an
   // export. That is what keeps the app out of Annex III 1(c).
-  static bool _isEventTag(String t) =>
-      const {'SPEECH', 'BGM', 'LAUGHTER', 'APPLAUSE', 'NOISE', 'MUSIC', 'SINGING'}
-          .contains(t.toUpperCase());
+  // The event vocabulary moved to `EmotionInference.eventTags` on
+  // 2026-08-03 so the worker-pool parse boundary can classify identically.
+  static bool _isEventTag(String t) => EmotionInference.isEventTag(t);
 
   List<TranscriptionSegment> _mapSessionSegments(
     List<crispasr.SessionSegment> sessionSegments,
@@ -1810,9 +1809,14 @@ class CrispASREngine implements TranscriptionEngine {
       // this an emotion recognition system under Art. 3(39) and an
       // Annex III 1(c) high-risk system from 2 Dec 2027, for a per-segment
       // badge that no export even carried — so the feature was removed
-      // rather than documented. The filter is here, at the only point the
-      // tags enter the app, so there is one place to check rather than a
-      // duty spread across every consumer of `metadata`.
+      // rather than documented.
+      //
+      // This comment read "the filter is here, at the only point the tags
+      // enter the app" until 2026-08-03. There are three: this mapper,
+      // `HfSpaceEngine`, and `workerSegmentFromMap` — the worker pool's
+      // boundary, which every pooled segment crosses and which had no
+      // filter at all. Do not re-derive "the only point" from this call
+      // site; grep `EmotionInference.strip` instead.
       final stripped = EmotionInference.strip(s.text.trim());
       final segText = stripped.text;
       final svTags = stripped.keptTags;

@@ -133,7 +133,7 @@ Three points this subsystem raises that the others do not:
 | Annex III category | Would have been **1(c)**; not engaged, because the feature no longer exists |
 | Art. 50(3) applicability | **No** — nothing to disclose |
 | Risk level | **Out of scope** |
-| Enforcement | `EmotionInference` in `lib/utils/emotion_inference.dart` is a discard list plus the `strip` filter that applies it. **Every** engine that parses model text calls it — `CrispasrEngine` and `HfSpaceEngine`, the latter added 2026-08-02 after the filter was found living inside the former — so a listed tag never reaches segment metadata, the UI, or an export, and the CLI drops it on every output format. Pinned by `test/synthetic_compliance_test.dart`, including a test that asserts each engine calls it |
+| Enforcement | `EmotionInference` in `lib/utils/emotion_inference.dart` is a discard list plus the `strip` filter that applies it, and it is applied at **every parse boundary**: `CrispasrEngine._mapSessionSegments`, `HfSpaceEngine` (both routes, added 2026-08-02), and `workerSegmentFromMap` — the worker pool's boundary, added 2026-08-03 after the audit found it rebuilding every pooled segment untouched. The CLI drops the tags on every output format. Pinned by `test/synthetic_compliance_test.dart` |
 
 **What was there, and why it went.** SenseVoice backends emit inline
 `<\|HAPPY\|>` / `<\|SAD\|>` / `<\|ANGRY\|>` / `<\|SURPRISED\|>` /
@@ -182,6 +182,39 @@ state, and is not an inference about a natural person.
 or intent-bearing attribute of a speaker — including via a new backend, a
 plugin, or an LLM prompt that asks for tone or mood. The discard list is
 the control, and it only works for tags it names.
+
+**And it fired a second time, on 2026-08-03, in the plainest way available:
+a second parse boundary that had never applied the filter at all.**
+
+Segments do not always come back from `CrispasrEngine._mapSessionSegments`.
+When the **worker pool** is in use — the default for batch jobs, and the
+path `CrispasrEngine` itself takes whenever a pool is loaded — each segment
+crosses an isolate boundary as a plain map and is rebuilt on the main side
+by `workerSegmentFromMap`. That function copied `text` straight through.
+A SenseVoice `<|ANGRY|>` therefore reached the transcript, the UI, history
+and every export on the pooled route, which is to say: the capability this
+section says was deleted was still running, live, on a reachable path.
+
+This is worse than the `HfSpaceEngine` gap the fifth audit found, and the
+comparison is the point. That one was **latent** — no SenseVoice backend is
+offered on the cloud route, so nothing could exercise it. This one has no
+such protection: SenseVoice is a catalogued local backend and the pool is
+the default execution mode for batch.
+
+**Why the fifth audit's own test did not catch it.** That audit moved the
+filter to `EmotionInference.strip` and added a test asserting that *every
+engine parsing model text* calls it. The test passed, then and now:
+`CrispasrEngine` does call it — on its other mapper, forty lines from the
+one that does not. The test enumerated **engines**, and the pool is not an
+engine. `_mapSessionSegments` carries a comment stating the filter sits "at
+the only point the tags enter the app"; that sentence was written when it
+was true and stayed in place after a second point was added.
+
+The filter now runs in `workerSegmentFromMap`, and the acoustic-event
+vocabulary moved from a private helper inside `CrispasrEngine` to
+`EmotionInference.eventTags` so both boundaries classify identically —
+a private classification list is how one boundary ends up with no
+classification.
 
 **This trigger fired on 2026-08-03, on the limb it names last.** The audit
 of that date found the audio-Q&A field shipping a placeholder — localised
@@ -261,9 +294,27 @@ now carry `generated: audio-qa` from the engine — persisted with the rest of
 `metadata`, so a re-export from history months later still knows — and every
 exit picks its wording from it.
 
+**This re-open trigger also fired, on 2026-08-03, on its first limb.** The
+guard was described above as sitting at "the single point an ask prompt
+enters the engine". There were two points. `transcription_screen` dispatches
+to `TranscriptionWorkerPool` **directly** — bypassing
+`CrispasrEngine.transcribe` entirely — for parallel batch jobs
+(`_runJobOnPool`) and for the A/B model comparison, and it passes the user's
+`askPrompt` straight through. On that route an affective prompt reached the
+model unrefused: the Art. 5(1)(f) and Annex III 1(c) exposure this section
+was written to close, open on the app's *batch* path, which is the one most
+likely to be pointed at a folder of meeting recordings.
+
+The guard now runs in `TranscriptionWorkerPool.dispatch`, before a worker is
+even acquired, so it covers the screen's direct dispatches and the engine's
+pooled path alike. The engine keeps its own copy for its non-pooled routes.
+Note what the fix does *not* change: the guard is still a keyword filter with
+the limits stated below. What changed is that it is now applied everywhere,
+which is a different property from being strong.
+
 **Re-opens if** the guard is bypassed, a new generating surface reaches
-`setAsk` without passing through it, or any UI copy again suggests an
-affective prompt. The locale regression test in
+`setAsk` or `TranscriptionWorkerPool.dispatch` without passing through it,
+or any UI copy again suggests an affective prompt. The locale regression test in
 `test/synthetic_compliance_test.dart` asserts that no shipped
 `advancedAskPromptHint` trips the guard — that test exists because a
 placeholder is a recommendation, and a recommendation is how this returned.
@@ -590,6 +641,10 @@ attestation that is logged for audit.
 | Art. 50(2): Marking survives editing | Trim / cut / split carry the source C2PA manifest into the derived file as a `c2pa.edited` action and re-emit the LIST/INFO tags, instead of re-encoding a bare 44-byte WAV; MP3 re-encode carries ID3v2 provenance, and containers that cannot carry a manifest are logged as watermark-only | Done |
 | **Art. 50(2): Marking survives *persistence*** | `HistoryEntry.toJson` listed segment fields by hand and omitted `metadata`, so the `generated` flag died on save. Now round-tripped whole, with unencodable values dropped rather than thrown | Done (2026-08-02) |
 | Art. 50(2): Machine translation marked in the GUI | `CrispasrEngine` stamps `generated: translation`, so the GUI exporters reach the same conclusion the CLI and the HTTP server already reached from the request | Done (2026-08-02) |
+| **Art. 50(2): Marking on the worker-pool path** | The `generated` stamp lived in `CrispasrEngine.transcribe`. `TranscriptionWorkerPool.dispatch` is reached *without* it — directly by parallel batch jobs and the A/B comparison — and stamped nothing, so Q&A answers and machine translations produced in batch were labelled transcripts by every export, by history, and by the clipboard. The rule now lives in `GeneratedKind` and both callers use it | Done (2026-08-03) |
+| **Annex III 1(c): emotion filter at the pool boundary** | `workerSegmentFromMap` rebuilt every pooled segment with the model's text copied straight through, so SenseVoice emotion tags reached the UI and exports whenever the worker pool ran — the default for batch. Unlike the `HfSpaceEngine` gap of 2026-08-02 this was **live, not latent**. Filter applied at that boundary; event vocabulary moved to `EmotionInference.eventTags` so both boundaries classify alike | Done (2026-08-03) |
+| **Art. 5(1)(f): affective-prompt guard on the pool path** | Same bypass: the screen's direct `pool.dispatch` passed the user's ask prompt to the model unscreened. Guard moved into `dispatch`, ahead of worker acquisition | Done (2026-08-03) |
+| **Art. 50(2): Marking survives *Copy* and *Share*** | Five call sites handed transcript text to the clipboard or the share sheet with no notice — the transcription screen's Copy and Share, the output widget's copy-segment and copy-all, and History's Copy — while the Export button beside each of them marked the same bytes. All five now route through `FileUtils.withDisclosure`, which applies the `.txt` rule: a transcript stays bare, an audio-Q&A answer or a machine translation is marked | Done (2026-08-03) |
 | Art. 50(2): Chapter exports | YouTube-format and Podcasting 2.0 chapter files carry the notice their segments earned | Done (2026-08-02) |
 | Art. 50(2): Cloud TTS output | `HfSpaceTtsService` probes remote output for a watermark and embeds one locally when absent, verifying the result | Done (2026-08-02) |
 | Annex III 1(c): emotion tags on every engine | The discard filter moved from inside `CrispasrEngine` to `EmotionInference.strip`, and the cloud engine now applies it on both of its parse paths | Done (2026-08-02) |
@@ -652,6 +707,94 @@ kind, and everything downstream reads it. `test/synthetic_compliance_test.dart`
 pins the round-trip, both new disclosures, and the back-compat path for
 history files written before the fix.
 
+**The sixth audit found a sixth, and it is the plainest of the six.** Every
+one of the five above concerned an artefact that gets *written* — a file, a
+history record, an HTTP response, a line on stdout. So each fix was made where
+a writer lives, and the checks that followed each fix enumerated writers. The
+two exits that write nothing were never enumerated, and they are the two the
+user reaches first: **Copy** and **Share**.
+
+Five call sites handed transcript text to the OS bare — `_handleShareAction`'s
+`share` and `copy` on the transcription screen, `_copySegmentText` and
+`_copyAllText` in the output widget, and History's Copy button. Each sits
+immediately beside an Export control that marks the identical bytes, so the
+same audio-Q&A answer was a marked artefact if saved as `.txt` and an unmarked
+one if copied. The gap was not a wrong disclosure or a missing rule — the rule
+existed and was correct; `AiTextDisclosure.forKind` had been the single source
+of it since the fourth audit. These five simply never asked it anything.
+
+Two things make this worse than a plain omission rather than merely equal to
+one. First, the clipboard is the **weakest** exit, not the strongest: a `.txt`
+file at least persists a filename and a timestamp a recipient can interrogate,
+whereas pasted text arrives with nothing at all attached, which is precisely
+the situation Art. 50(2) exists to address. Second, the Art. 50(1) first-use
+notice told every user, in all three shipped languages, that *"AI-generated
+text carries a disclosure when you copy or export it"*. Half of that sentence
+was false when it was written. A transparency notice that overstates the
+transparency measures is a worse defect than a silent gap, because it induces
+the reliance the gap then disappoints.
+
+The rule now lives in `FileUtils.withDisclosure` and is the `.txt` rule
+exactly — an ordinary transcript stays bare, because Art. 50(2) reaches
+synthetic content and a record of what a person actually said is not that;
+generated prose is marked in whatever it leaves in. Copy-segment passes the
+single segment rather than the run, so lifting one answer out of a mixed
+transcript still carries the notice. `test/synthetic_compliance_test.dart`
+pins the rule and, separately, asserts that all five call sites route through
+it — a unit test on the helper cannot see call sites that never call it, which
+is the whole of what went wrong here.
+
+**The generalisation, after six.** "Enumerate the routes to a capability, not
+the features" was the right instruction and it kept being applied to too small
+a set, because *route* was read as *code path that produces an artefact*. The
+sixth audit's correction is that an exit does not have to produce anything: the
+clipboard, the share sheet, a socket, a paste buffer are all places content
+leaves, and none of them writes a file. The question that catches all six is
+**"where can this text end up outside the app?"** — not "what writes it".
+
+**And the seventh, found in the same pass, is the one that should worry a
+reader of this document most**, because it is not about an exit at all. Three
+compliance controls — the affective-prompt guard (§2.9), the emotion-tag
+discard (§2.8) and the `generated` stamp — were all implemented inside
+`CrispasrEngine.transcribe`, each documented as sitting at "the single point"
+or "the only point" its input enters the app. **None of those sentences was
+true.** `TranscriptionWorkerPool` is a second entry to the same native
+sessions, `transcription_screen` dispatches to it directly for parallel batch
+jobs and the A/B comparison, and `workerSegmentFromMap` is a second parse
+boundary that every pooled segment crosses — including the ones the engine
+itself produces when a pool is loaded. All three controls were absent there.
+
+The distinction from the six above: those were **duties** discharged on some
+surfaces and not others, and the fix each time was to reach the missing
+surface. This is a **chokepoint that was never a chokepoint**, asserted to be
+one in three separate places in this document, in the engine's own comments,
+and in a regression test that enumerated *engines* and therefore could never
+see it.
+
+There is a fourth assertion, and it is the one that would have turned an
+auditor away at the door. `transcription_screen` introduces the pool under a
+comment reading: *"The pool's `dispatch` is a bare `session.transcribe(samples)`
+— no VAD slicing, no resume offset routing, **no Q&A / translate** /
+beam-search / best-of … So pool eligibility is per-job: jobs that need any of
+those features fall through to the serial path."* Read at face value that
+closes two of the three limbs outright: no Q&A and no translation on the pool
+means no affective prompt and nothing to stamp. It is **stale**. `poolEligible`
+excludes exactly two things — a resume offset and `tdrz` — and `_runJobOnPool`
+passes `askPrompt`, `translate` and `targetLanguage` straight through. The
+capability grew and the comment did not. Worth recording because it is a
+distinct failure mode from the others here: not a control in the wrong place,
+but a *true-when-written* comment that later described the code as safer than
+it was, sitting exactly where someone checking would look first. The recurring instruction has to be extended accordingly: after
+locating the point a control sits at, the next question is **"what else
+reaches the thing this control is protecting?"** — here, the native session —
+rather than trusting the comment that says nothing does.
+
+The three controls now sit at the pool boundary as well, and the
+`generated`-kind rule was consolidated into `GeneratedKind` so there is one
+implementation rather than two that must agree. `test/synthetic_compliance_test.dart`
+asserts the pool applies each control and that neither caller re-implements
+the precedence rule locally.
+
 ### 5.3 Art. 50(5) — clarity and accessibility
 
 Art. 50(5) requires the information owed under 50(1)–(4) to be given "in a
@@ -705,10 +848,13 @@ users by:
 | Classification of spoken-language ID and audio denoise | **Done** (2026-08-03) — §2.10, §2.11; both not high-risk |
 | Classification of diarisation and assistive text post-processing | **Done** (2026-08-02) — §2.12, §2.13; both not high-risk. §2.12 is the one that computes biometric vectors, and the conclusion depends on their staying transient |
 | Art. 50(2) — the `generated` flag surviving persistence | **Done** (2026-08-02); see §5.2. The defect that had silently undone the fourth audit's fix |
+| Art. 50(2) — Copy and Share carrying the notice | **Done** (2026-08-03); see §5.2. Five exits that write no file and were therefore never enumerated by five audits that enumerated writers |
+| Annex III 1(c) / Art. 5(1)(f) / Art. 50(2) — the worker pool as a second engine boundary | **Done** (2026-08-03); see §2.8, §2.9, §5.2. The emotion filter, the affective-prompt guard and the `generated` stamp were all absent on the pooled path — **live, not latent**, and the default execution mode for batch jobs. The most serious finding of the six audits |
+| Wyoming ASR socket bound to every interface | **Done** (2026-08-03); see §7.6. Latent — the class has no production caller — but `AI_ACT_TECHNICAL.md` §1.4 asserted the opposite |
 | Art. 50(2) — machine translation marked in the GUI; chapter exports; cloud TTS | **Done** (2026-08-02); see §5.2 |
 | Annex III 1(c) — emotion-tag filter applied by every engine, not just `CrispasrEngine` | **Done** (2026-08-02). Was unreachable rather than live — the cloud model list offers no SenseVoice backend — but one list entry away; see §5.2 |
 | C2PA signing for MP3 exports | **Done** — ID3v2 provenance on the MP3 path; AAC/Opus are watermark-only and warn. §7.4's "no MP3 export exists" was incorrect |
-| Art. 53 GPAI obligations for the `cstr/*` account | **Partly open** — rewritten 2026-08-02 after an inventory. The conversion argument holds for 454 of 499 repos and is being written onto their cards; **44 derivative or self-trained repos need Art. 53(1)(c)+(d) and are outstanding**. §7.5's own re-open trigger had already fired when it was written |
+| Art. 53 GPAI obligations for the `cstr/*` account | **Partly open, and re-scoped 2026-08-03** (§7.5a). The conversion argument holds for 454 of 499 repos. It does **not** hold for the mergekit merges or the self-trained repos — checked against the live cards, which carry `merge`/`mergekit` tags and, in one case, the sentence "trained by this repository's maintainer, not converted". But Art. 53 binds providers of *GPAI models*: the ~41 LLM merges, LaserRMT modifications and fine-tunes need 53(1)(c)+(d); the 3 narrow trained-from-scratch models (math OCR, guitar-tab labelling) are not GPAI and need nothing. **Deadline 2 August 2027** under Art. 111(3), since these were placed on the market before 2 August 2025 |
 
 ### 7.1 Abuse-reporting channel
 
@@ -942,6 +1088,96 @@ here. The inventory found three such repos hiding behind conversion-shaped
 names, so the classification is evidence-based per repo rather than derived
 from the naming convention.
 
+#### 7.5a Re-checked 2026-08-03: "it's all conversions" does not hold
+
+The proposition that the account is only format conversions and quantisations
+was put again and checked against the live cards rather than against this
+document. It is refuted on both limbs, by the repositories' own metadata:
+
+- **`cstr/posformer-crohme-GGUF`** — the card reads *"retrained from scratch
+  on CROHME 2014"* and, under Provenance, *"These weights were trained by
+  this repository's maintainer, not converted from someone else's model."*
+- **The Spaetzle series** — `Spaetzle-v8-7b`, `-v12-7b`, `-v31-7b` and the
+  rest carry the tags `merge`, `mergekit`, `lazymergekit`, each with three or
+  more `base_model:` entries from unrelated third parties, and `-v31-7b`
+  additionally declares `base_model:finetune`. A mergekit merge of three
+  other people's models is a **new model placed on the Union market**. It is
+  not a change of numeric representation, which is the whole of what the
+  conversion argument in §7.5 rests on.
+
+So the count stands, but **the scope is narrower than §7.5 stated, in the
+maintainer's favour**, and the correction is worth making precisely:
+
+- **Art. 53 binds providers of *general-purpose AI models*** — Art. 3(63),
+  a model displaying significant generality and capable of competently
+  performing a wide range of distinct tasks. The 7B LLM merges, the LaserRMT
+  rank reductions and the ORPO fine-tunes are that.
+- **The three trained-from-scratch repos are not.** `posformer-crohme`
+  recognises handwritten mathematical expressions; `tab-labeler-onnx` labels
+  guitar tablature; `posformer-training-checkpoints` holds the former's
+  checkpoints. These are narrow, single-task models — AI systems, not GPAI —
+  so **Art. 53 does not reach them at all**, and §7.5's framing of them as
+  "the maintainer, without qualification" overstated the duty. They were the
+  most alarming row in that table and they are the one row that carries no
+  Art. 53 obligation.
+
+**What is genuinely open, then:** Art. 53(1)(c) — a copyright policy — and
+Art. 53(1)(d) — a public training-content summary on the AI Office template —
+for the ~41 LLM merges, LaserRMT modifications and fine-tunes. Both survive
+the Art. 53(2) FOSS exemption, which lifts only 53(1)(a) and (b).
+
+**And the deadline is not imminent.** Art. 111(3) gives GPAI models **placed
+on the market before 2 August 2025** until **2 August 2027** to comply. The
+Spaetzle merges date from 2024, so that is the operative date for essentially
+all of them — not 2 August 2025, which applies to models released after it.
+This was missing from §7.5 and is the single most useful fact in it: the work
+is real, it is bounded, and it is not late.
+
+The honest shape of that work: 53(1)(c) is one short published policy that can
+be identical across every repo. 53(1)(d) is per-model, but for a merge the
+truthful summary is the constituent models and their declared training data —
+which the mergekit configs already record — plus, where the chain is broken
+(24 `cstr/*` base models no longer exist), a statement that it is not fully
+reconstructible. §7.5 already says a claimed-but-untraceable summary would be
+worse than an admitted gap, and that remains the right call.
+
+### 7.6 The Wyoming ASR socket
+
+`AI_ACT_TECHNICAL.md` §1.4 described the app's two self-hosted interfaces —
+the OpenAI-compatible HTTP server and the Wyoming-protocol ASR socket — as
+"both bound to localhost and both off unless started by the user". The audit
+of 2026-08-03 checked that sentence for the first time. It was true of the
+HTTP server (`ServerService` defaults to `127.0.0.1`) and false of the
+Wyoming socket, which bound `InternetAddress.anyIPv4` — every interface on
+the machine, so any device on the same network could have submitted audio
+and read back the transcript.
+
+Two qualifications, both of which cut in the same direction as §7.4 did for
+the MP3 path:
+
+- **It is latent, not live.** `wyomingServiceProvider` returns null and no
+  production code constructs `WyomingService`; only the unit test does. The
+  socket cannot be opened by a shipped build.
+- **That is a reason to fix it, not to leave it.** §7.4 already settled this
+  question for `exportEncoded`: "a marking gap that exists only in
+  unreachable code is a gap waiting for the day someone wires a button to
+  it". The same holds for a bind address, and more sharply — wiring up a
+  feature is the moment nobody re-reads its defaults.
+
+The default is now `InternetAddress.loopbackIPv4`, with the interface a
+constructor parameter and a warning logged whenever it is non-loopback.
+Home Assistant normally runs on a different host, so a real integration will
+need to widen it; that is now an explicit decision rather than an inherited
+default.
+
+**What this is and is not.** It is not an Art. 50 defect — the socket
+transcribes and does not generate, so no marking duty attaches to it — and
+it is recorded here rather than in §5 for that reason. It is a defect in the
+**Annex IV technical documentation**, which stated a fact about the system
+that was not true, and a latent confidentiality exposure for audio the DPIA
+treats as processed exclusively on-device. Both matter: Annex IV is a
+description of the system, and a description nobody checks is an assertion.
+
 ## 8. Applicable Dates
 
 | Provision | Applies from | Relevance |
@@ -956,6 +1192,9 @@ from the naming convention.
 
 | Date | Change |
 |---|---|
+| 2026-08-03 | **Sixth audit — and its central finding is not an exit but a chokepoint that was never one.** Three compliance controls lived inside `CrispasrEngine.transcribe`, each documented here and in the code as sitting at "the single point" its input enters the app: the affective-prompt guard (§2.9), the emotion-tag discard (§2.8), and the Art. 50(2) `generated` stamp. `TranscriptionWorkerPool` is a second entry to the same native sessions — `transcription_screen` dispatches to it directly for parallel batch jobs and the A/B model comparison, and `workerSegmentFromMap` is a second parse boundary every pooled segment crosses — and **all three controls were absent there**. So on the pooled path, which is the default for batch: SenseVoice emotion tags reached the UI, history and exports; affective ask prompts reached the model unrefused; and Q&A answers and machine translations were labelled transcripts everywhere. Unlike the `HfSpaceEngine` gap of the fifth audit, none of this was latent — SenseVoice is a catalogued local backend. The fifth audit's own regression test passed throughout, because it enumerated *engines* and a worker pool is not an engine. All three controls now sit at the pool boundary; the acoustic-event vocabulary moved out of a private engine helper into `EmotionInference.eventTags`, and the generated-kind rule into `GeneratedKind`, so there is one implementation of each rather than two that must agree. |
+| 2026-08-03 | **Sixth audit, third finding (§7.5a).** The "the account is only conversions and quants" reading was put again and checked against the live HuggingFace cards rather than against this document. Refuted: `posformer-crohme-GGUF`'s card says the weights were *retrained from scratch* and were *"trained by this repository's maintainer, not converted from someone else's model"*, and the Spaetzle series carries `merge`/`mergekit`/`lazymergekit` tags with three-plus third-party `base_model:` entries each. But the re-check also **narrowed the duty in the maintainer's favour**: Art. 53 binds providers of *general-purpose* models under Art. 3(63), so the three narrow trained-from-scratch repos (handwritten-maths OCR, guitar-tab labelling) fall outside it entirely — §7.5 had listed them as the clearest case of provider duties attaching. What remains open is 53(1)(c)+(d) for the ~41 LLM merges, LaserRMT modifications and fine-tunes, with an **Art. 111(3) deadline of 2 August 2027** for models placed on the market before 2 August 2025 — a date §7.5 never stated. |
+| 2026-08-03 | **Sixth audit, second finding.** Generated text leaving the app unmarked through the two exits nobody had enumerated, because neither writes anything: **Copy and Share**. Five call sites — the transcription screen's share and copy, the output widget's copy-segment and copy-all, and History's Copy — handed audio-Q&A answers and machine translations to the clipboard or the share sheet bare, each sitting immediately beside an Export control that marked the identical bytes. The rule was correct and had been since the fourth audit; these five never invoked it. Worse than a silent gap, because the Art. 50(1) first-use notice promised in all three languages that "AI-generated text carries a disclosure when you **copy** or export it". Fixed at one helper (`FileUtils.withDisclosure`) applying the existing `.txt` rule, with a test that asserts the call sites route through it rather than only that the helper works. This narrows the standing instruction: "enumerate routes to a capability" had been read as "enumerate code paths that produce an artefact", and the right question is **where can this text end up outside the app**. Separately, found `AI_ACT_TECHNICAL.md` §1.4 asserting both self-hosted interfaces were localhost-bound while the Wyoming ASR socket bound `InternetAddress.anyIPv4` — latent, since no shipped build can construct it, and fixed by defaulting to loopback (§7.6). Re-verified the six subsystem classifications added by the third to fifth audits, the affective-prompt guard on all four entry points, the consent gate on both enrolment paths, and the audio marking chain; no further live defect found. |
 | 2026-08-02 | **Fifth audit.** Found the fourth audit's central fix silently undone by persistence: `HistoryEntry.toJson` omitted segment `metadata`, so `generated: audio-qa` was discarded on save and a re-export from History labelled a language model's answer a transcript — as `.txt`, with no notice at all — while §5.2 and `AI_ACT_TECHNICAL.md` §5.1 both asserted the flag was persisted. Also found chapter exports writing transcript text to a shared file unmarked while the neighbouring menu entry disclosed, and machine translation marked by the CLI and the HTTP server but not by the GUI, because translation left no trace on the segments; both fixed at the engine, which now stamps the kind for every surface to read. Corrected the transcript disclosure, which told recipients the *speech* was synthetic. Moved the emotion-tag filter out of `CrispasrEngine` to `EmotionInference.strip` and applied it in `HfSpaceEngine`, which had been parsing remote text untouched (latent — no SenseVoice backend is offered on that route). Marked cloud TTS output, which returned remote audio unwatermarked and unprobed. Classified two previously undocumented subsystem groups: diarisation (§2.12 — the one that derives biometric vectors outside the consent gate) and assistive text post-processing (§2.13). Extended the Art. 50(1) notice, which had not enumerated audio Q&A, diarisation, spoken-language ID or denoise. Note also that the fourth audit's entries are dated 2026-08-03 throughout but were committed on 2026-08-02; the dates are left as written and the discrepancy recorded here rather than rewritten. This entry was itself first drafted as 2026-08-04 and corrected to the actual date before release — flagging a date defect and then committing the same one would have been the more embarrassing of the two. Rounds three, four and five all landed on 2026-08-02. |
 | 2026-07-16 | Initial risk classification document |
 | 2026-08-01 | Audit revision. Reframed speaker ID as biometric **verification** under the closed-roster API (§3.1) with Art. 6(3) demoted to a fallback argument and its registration/profiling caveats stated (§3.2). Added Art. 2(12) open-source scope note (§3a), provider/deployer split (§5.1), Art. 4 (§6), open items (§7), and post-Digital-Omnibus dates (§8). |

@@ -23,6 +23,7 @@ import 'package:crisper_weaver/services/history_service.dart';
 import 'package:crisper_weaver/services/note_export_service.dart';
 import 'package:crisper_weaver/services/ocr_service.dart';
 import 'package:crisper_weaver/services/spread_spectrum_watermark.dart';
+import 'package:crisper_weaver/services/transcription_worker.dart';
 import 'package:crisper_weaver/utils/affective_prompt_guard.dart';
 import 'package:crisper_weaver/utils/ai_text_disclosure.dart';
 import 'package:crisper_weaver/utils/emotion_inference.dart';
@@ -1573,6 +1574,210 @@ void _thirdAuditTests() {
       final d = AiTextDisclosure.audioQa.toLowerCase();
       expect(d, contains('ai-generated'));
       expect(d, contains('not a transcript'));
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // The worker pool is a second engine boundary (Art. 5(1)(f),
+  // Annex III 1(c), Art. 50(2))
+  //
+  // `CrispasrEngine.transcribe` applies three compliance controls before and
+  // after it touches a session: the affective-prompt guard, the emotion-tag
+  // discard, and the `generated` stamp. `TranscriptionWorkerPool` is reached
+  // *without* going through that method — `transcription_screen` dispatches
+  // to it directly for parallel batch jobs and for the A/B model comparison —
+  // and applied none of the three until 2026-08-03.
+  // -----------------------------------------------------------------------
+  group('Worker pool applies the engine controls (Art. 50(2), Annex III 1(c))',
+      () {
+    test('the emotion filter runs at the pool parse boundary', () {
+      // Every segment coming back from a worker isolate is rebuilt here.
+      final seg = workerSegmentFromMap(const {
+        'text': '<|ANGRY|><|LAUGHTER|>Das ist unerhört.',
+        'startTime': 0.0,
+        'endTime': 2.0,
+      });
+      expect(seg.text, 'Das ist unerhört.');
+      expect(seg.metadata['sensevoice_tags'], ['LAUGHTER']);
+      // The classification must match the engine's mapper: events kept,
+      // emotions gone — and gone from metadata too, not merely from the text.
+      expect(seg.metadata['audio_event'], 'LAUGHTER');
+      expect(jsonEncode(seg.metadata).toUpperCase().contains('ANGRY'), isFalse,
+          reason: 'an emotion inference survived into segment metadata');
+    });
+
+    test('an ordinary segment gains no phantom tag metadata', () {
+      final seg = workerSegmentFromMap(const {
+        'text': 'Guten Morgen.',
+        'startTime': 0.0,
+        'endTime': 1.0,
+      });
+      expect(seg.text, 'Guten Morgen.');
+      expect(seg.metadata.containsKey('sensevoice_tags'), isFalse);
+      expect(seg.metadata.containsKey('audio_event'), isFalse);
+    });
+
+    test('both parse boundaries classify the same vocabulary', () {
+      // The event list was a private helper inside CrispasrEngine, which is
+      // part of why the pool boundary had no classification at all.
+      for (final t in EmotionInference.eventTags) {
+        expect(EmotionInference.isEventTag(t), isTrue);
+        expect(EmotionInference.isEmotionTag(t), isFalse,
+            reason: '$t is classified as both an event and an emotion');
+      }
+      for (final t in EmotionInference.tags) {
+        expect(EmotionInference.isEventTag(t), isFalse,
+            reason: '$t would be kept as an acoustic event');
+      }
+    });
+
+    test('the generated-kind rule has one implementation', () {
+      expect(GeneratedKind.forRequest(askPrompt: 'Summarize'), 'audio-qa');
+      expect(GeneratedKind.forRequest(translate: true), 'translation');
+      expect(GeneratedKind.forRequest(targetLanguage: 'de'), 'translation');
+      expect(GeneratedKind.forRequest(), isNull);
+      expect(GeneratedKind.forRequest(askPrompt: '   '), isNull,
+          reason: 'a blank ask is not a question');
+      // Q&A outranks translation — a translated answer is still an answer.
+      expect(
+          GeneratedKind.forRequest(askPrompt: 'Who spoke?', translate: true),
+          'audio-qa');
+    });
+
+    test('stamping preserves the rest of the metadata', () {
+      const segs = [
+        TranscriptionSegment(
+            text: 'x', startTime: 0, endTime: 1, metadata: {'backend': 'sv'}),
+      ];
+      final out = GeneratedKind.stamp(segs, 'audio-qa');
+      expect(out.first.generatedKind, 'audio-qa');
+      expect(out.first.metadata['backend'], 'sv');
+      expect(GeneratedKind.stamp(segs, null), same(segs));
+    });
+
+    test('the pool refuses affective prompts and stamps its output', () {
+      // The pool spawns real isolates, so the controls are asserted at the
+      // source. Both were absent, not wrong — a behavioural test on
+      // `dispatch` would have needed a worker to exist before it could fail.
+      final src =
+          File('lib/services/transcription_worker_pool.dart').readAsStringSync();
+      expect(src, contains('AffectivePromptGuard.offendingTerm'),
+          reason: 'the pool hands ask prompts to the model unscreened');
+      expect(src, contains('GeneratedKind.stamp'),
+          reason: 'pool output leaves without an Art. 50(2) kind');
+    });
+
+    test('the engine and the pool share the rule rather than copying it', () {
+      for (final path in const [
+        'lib/engines/crispasr_engine.dart',
+        'lib/services/transcription_worker_pool.dart',
+      ]) {
+        final src = File(path).readAsStringSync();
+        expect(src, contains('GeneratedKind.forRequest'), reason: path);
+        // The literals must not reappear alongside the shared call, which is
+        // how the two implementations drifted apart in the first place.
+        expect(src.contains("? 'audio-qa' : 'translation'"), isFalse,
+            reason: '$path re-implements the precedence rule');
+      }
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // The exits with no file to put a notice in (Art. 50(2))
+  //
+  // Every previous audit checked the surfaces that *write* something: the
+  // export formats, the note exporters, the HTTP responses, CLI stdout. The
+  // clipboard and the share sheet's text payload write nothing and were
+  // never checked, so Copy and Share handed a language model's answer to the
+  // OS bare while the Export button beside them marked the same bytes.
+  // -----------------------------------------------------------------------
+  group('Copy and Share carry the notice (Art. 50(2))', () {
+    const qa = [
+      TranscriptionSegment(
+        text: 'The team agreed to ship on Friday.',
+        startTime: 0,
+        endTime: 4,
+        metadata: {'generated': 'audio-qa'},
+      ),
+    ];
+    const translated = [
+      TranscriptionSegment(
+        text: 'Good morning everyone.',
+        startTime: 0,
+        endTime: 2,
+        metadata: {'generated': 'translation'},
+      ),
+    ];
+    const plain = [
+      TranscriptionSegment(
+          text: 'Hello world.', startTime: 0, endTime: 1, speaker: 'Alice'),
+    ];
+
+    test('a Q&A answer is marked as an answer', () {
+      final out = FileUtils.withDisclosure('The team agreed…', qa);
+      expect(out, contains(AiTextDisclosure.audioQa));
+      expect(out, contains('The team agreed…'));
+      expect(out.contains(NoteExportService.disclosure), isFalse,
+          reason: 'the clipboard calls a generated answer a transcript');
+    });
+
+    test('a machine translation is marked as a translation', () {
+      final out = FileUtils.withDisclosure('Good morning everyone.', translated);
+      expect(out, contains(AiTextDisclosure.translation));
+      expect(out.contains(AiTextDisclosure.audioQa), isFalse);
+    });
+
+    test('an ordinary transcript stays bare', () {
+      // Art. 50(2) reaches synthetic content. A record of what a person
+      // actually said is not that, and this matches the `.txt` export rule —
+      // the two must not drift, or Copy and Save-as disagree about the same
+      // artefact.
+      expect(FileUtils.withDisclosure('Hello world.', plain), 'Hello world.');
+    });
+
+    test('copying one answer out of a mixed run still marks it', () {
+      // `_copySegmentText` passes the single segment, not the whole run.
+      final mixed = [...plain, ...qa];
+      expect(FileUtils.withDisclosure(mixed.last.text, [mixed.last]),
+          contains(AiTextDisclosure.audioQa));
+      expect(FileUtils.withDisclosure(mixed.first.text, [mixed.first]),
+          isNot(contains(AiTextDisclosure.audioQa)));
+    });
+
+    test('the wording matches what the file exporters use', () {
+      // One rule, not a second one written for the clipboard.
+      expect(FileUtils.withDisclosure('x', qa),
+          contains(FileUtils.disclosureFor(qa)));
+    });
+
+    test('empty text yields empty output, not a bare notice', () {
+      expect(FileUtils.withDisclosure('', qa), isEmpty);
+    });
+
+    test('every clipboard and share-text exit routes through the rule', () {
+      // The defect was not a wrong disclosure — it was five call sites that
+      // never asked for one. A unit test on `withDisclosure` cannot see that,
+      // so this asserts the call sites exist, the same way the emotion-filter
+      // test asserts every engine calls `EmotionInference.strip`.
+      for (final path in const [
+        'lib/screens/transcription_screen.dart',
+        'lib/screens/history_screen.dart',
+        'lib/widgets/transcription_output_widget.dart',
+      ]) {
+        final src = File(path).readAsStringSync();
+        expect(src, contains('FileUtils.withDisclosure'),
+            reason: '$path hands transcript text out without the Art. 50(2) '
+                'notice');
+      }
+
+      // And no exit hands the raw joined transcript straight to the OS.
+      final screen =
+          File('lib/screens/transcription_screen.dart').readAsStringSync();
+      expect(screen.contains('text: appState.currentTranscription!'), isFalse,
+          reason: 'Share/Copy bypasses the disclosure again');
+      final history = File('lib/screens/history_screen.dart').readAsStringSync();
+      expect(history.contains('ClipboardData(text: entry.fullText)'), isFalse,
+          reason: 'History Copy bypasses the disclosure again');
     });
   });
 

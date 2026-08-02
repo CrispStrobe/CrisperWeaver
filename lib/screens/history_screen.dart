@@ -412,7 +412,11 @@ class _HistoryTile extends StatelessWidget {
                       icon: const Icon(Icons.copy, size: 16),
                       label: Text(AppLocalizations.of(context).historyCopy),
                       onPressed: () {
-                        Clipboard.setData(ClipboardData(text: entry.fullText));
+                        // Art. 50(2): the sibling Export buttons mark what
+                        // they write; Copy wrote the same bytes bare.
+                        Clipboard.setData(ClipboardData(
+                            text: FileUtils.withDisclosure(
+                                entry.fullText, entry.segments)));
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                               content:
