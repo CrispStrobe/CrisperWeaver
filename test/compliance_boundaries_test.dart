@@ -130,16 +130,43 @@ void main() {
   // (latent); round 6 found `workerSegmentFromMap` doing it on the pooled
   // path, which is the default for batch (live).
   // -----------------------------------------------------------------------
-  test('every segment-construction site is reviewed (Annex III 1(c))', () {
+  test('no engine builds a segment from model text by hand (Annex III 1(c))',
+      () {
+    // Since 2026-08-03 the filter lives on the destination type
+    // (`TranscriptionSegment.fromModelText`) rather than on any source, so
+    // the engines and the worker — the only code that sees raw model output —
+    // must not reach the plain constructor for it.
+    //
+    // Re-baselined when the factory landed. The previous version of this test
+    // counted raw constructions per file and fired on the refactor, which is
+    // what it is for: `crispasr_engine.dart` went 8 → 3 + 5 factory calls, and
+    // four of those five had been building segments from model text with no
+    // filter at all — the streamed-segment drain, the whisper mapper, and both
+    // halves of the streaming controller.
+    _expectAllowlist(
+      _scanLib([RegExp(r'TranscriptionSegment\.fromModelText\(')]),
+      const {
+        'lib/engines/crispasr_engine.dart': 5,
+        'lib/engines/hfspace_engine.dart': 2,
+        'lib/services/transcription_worker.dart': 1,
+        // The factory itself.
+        'lib/engines/transcription_engine.dart': 1,
+      },
+      'model-text segment construction(s)',
+      'A site that builds a segment from text a MODEL produced must use\n'
+          'TranscriptionSegment.fromModelText, which strips emotion tags. The\n'
+          'plain constructor is for segments that are already filtered —\n'
+          'offset shifts, punctuation restoration, history reloads.\n'
+          'See AI_ACT_RISK.md §2.8.',
+    );
+
     _expectAllowlist(
       _scanLib([RegExp(r'TranscriptionSegment\(')]),
       const {
-        // Parse model text → these call EmotionInference.strip.
-        'lib/engines/crispasr_engine.dart': 8,
-        'lib/engines/hfspace_engine.dart': 2,
-        'lib/services/transcription_worker.dart': 1,
-        // Rebuild or decorate segments that are already filtered.
-        'lib/engines/transcription_engine.dart': 2,
+        // Re-map already-filtered segments: offset shift, pool remap.
+        'lib/engines/crispasr_engine.dart': 3,
+        // The factory's own delegation, plus copyWith and GeneratedKind.
+        'lib/engines/transcription_engine.dart': 3,
         'lib/engines/mock_engine.dart': 1,
         'lib/main.dart': 1,
         'lib/services/aligner_service.dart': 1,
@@ -154,12 +181,11 @@ void main() {
         // Parse user-supplied subtitle files, not model output.
         'lib/utils/transcript_parsers.dart': 2,
       },
-      'segment construction(s)',
-      'If this site builds a segment from text a MODEL produced, the text must\n'
-          'pass through EmotionInference.strip first — otherwise an emotion tag\n'
-          'reaches the UI, history and exports, which is Annex III 1(c).\n'
-          'If it only rebuilds segments that were already filtered, it is fine;\n'
-          'update the count. See AI_ACT_RISK.md §2.8.',
+      'raw segment construction(s)',
+      'If this site builds a segment from text a MODEL produced, switch it to\n'
+          'TranscriptionSegment.fromModelText. If it only rebuilds segments that\n'
+          'were already filtered, it is fine — update the count.\n'
+          'See AI_ACT_RISK.md §2.8.',
     );
   });
 

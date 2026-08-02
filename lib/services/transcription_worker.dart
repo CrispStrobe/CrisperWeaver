@@ -52,7 +52,6 @@ import 'dart:typed_data';
 import '../native/crispasr_import.dart' as crispasr;
 
 import '../engines/transcription_engine.dart';
-import '../utils/emotion_inference.dart';
 
 class TranscriptionWorkerArgs {
   const TranscriptionWorkerArgs({
@@ -383,22 +382,12 @@ Map<String, Object?> _segmentToMap(crispasr.SessionSegment s) {
 /// `AI_ACT_RISK.md` §2.8.
 TranscriptionSegment workerSegmentFromMap(Map<String, Object?> m) {
   final rawWords = m['words'] as List?;
-  // Emotion tags are dropped; acoustic-event tags are kept and surfaced in
-  // metadata, matching `_mapSessionSegments` exactly — describing a
-  // recording is not inferring anything about a speaker.
-  final stripped = EmotionInference.strip((m['text'] as String? ?? '').trim());
-  final svTags = stripped.keptTags;
-  final event = svTags.where(EmotionInference.isEventTag);
-  return TranscriptionSegment(
-    text: stripped.text,
+  return TranscriptionSegment.fromModelText(
+    rawText: m['text'] as String? ?? '',
     startTime: (m['startTime'] as num?)?.toDouble() ?? 0.0,
     endTime: (m['endTime'] as num?)?.toDouble() ?? 0.0,
     speaker: m['speaker'] as String?,
     confidence: (m['confidence'] as num?)?.toDouble() ?? 1.0,
-    metadata: {
-      if (svTags.isNotEmpty) 'sensevoice_tags': svTags,
-      if (event.isNotEmpty) 'audio_event': event.first,
-    },
     words: rawWords == null
         ? null
         : [

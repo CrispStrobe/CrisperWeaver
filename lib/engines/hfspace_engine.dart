@@ -362,17 +362,14 @@ class HfSpaceEngine implements TranscriptionEngine {
       final segments = <TranscriptionSegment>[];
       for (final s in rawSegments) {
         if (s is! Map<String, dynamic>) continue;
-        final stripped = EmotionInference.strip((s['text'] as String?) ?? '');
-        final seg = TranscriptionSegment(
-          text: stripped.text,
+        final seg = TranscriptionSegment.fromModelText(
+          rawText: (s['text'] as String?) ?? '',
           startTime: (s['start'] as num?)?.toDouble() ?? 0.0,
           endTime: (s['end'] as num?)?.toDouble() ?? 0.0,
           confidence: (s['avg_logprob'] as num?)?.toDouble() ?? 1.0,
           speaker: s['speaker'] as String?,
           metadata: {
             'engine': engineId,
-            if (stripped.keptTags.isNotEmpty)
-              'sensevoice_tags': stripped.keptTags,
             // Art. 50(2): the server also translates when asked, and this
             // engine's caller passes the flag through. Stamp it so the
             // exporters describe the result as a translation rather than as
@@ -488,17 +485,14 @@ class HfSpaceEngine implements TranscriptionEngine {
       final segments = <TranscriptionSegment>[];
       for (final s in (raw['segments'] as List<dynamic>? ?? const [])) {
         if (s is! Map<String, dynamic>) continue;
-        final stripped = EmotionInference.strip((s['text'] as String?) ?? '');
-        final seg = TranscriptionSegment(
-          text: stripped.text,
+        final seg = TranscriptionSegment.fromModelText(
+          rawText: (s['text'] as String?) ?? '',
           startTime: (s['start'] as num?)?.toDouble() ?? 0.0,
           endTime: (s['end'] as num?)?.toDouble() ?? 0.0,
           confidence: (s['avg_logprob'] as num?)?.toDouble() ?? 1.0,
           speaker: s['speaker'] as String?,
           metadata: {
             'engine': engineId,
-            if (stripped.keptTags.isNotEmpty)
-              'sensevoice_tags': stripped.keptTags,
           },
         );
         segments.add(seg);
