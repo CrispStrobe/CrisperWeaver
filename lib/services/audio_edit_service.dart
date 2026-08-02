@@ -37,8 +37,13 @@ import 'dart:isolate';
 import 'dart:typed_data';
 
 import '../native/crispasr_import.dart' as crispasr;
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../constants/app_constants.dart';
+import '../utils/marked_wav.dart';
+import 'audio_watermark_service.dart';
+import 'content_provenance_service.dart';
 import 'glint_codec_service.dart';
 import 'log_service.dart';
 
@@ -84,6 +89,12 @@ class AudioEditService {
   /// 16 kHz mono buffer is ~230 MB).
   final Map<String, DecodedSource> _cache = {};
 
+  /// C2PA manifests probed off source files, keyed by absolute path.
+  /// A null *value* means "probed, carries none" — distinct from an absent
+  /// key, so a source without provenance is not re-probed on every part of
+  /// a multi-output [split].
+  final Map<String, Map<String, dynamic>?> _provenanceCache = {};
+
   Future<DecodedSource> decode(String absolutePath) async {
     final cached = _cache[absolutePath];
     if (cached != null) return cached;
@@ -106,8 +117,11 @@ class AudioEditService {
   void invalidate([String? path]) {
     if (path == null) {
       _cache.clear();
+      _provenanceCache.clear();
     } else {
       _cache.remove(path);
+      _provenanceCache.remove(path);
+      _provenanceCache.remove(File(path).absolute.path);
     }
   }
 
@@ -130,7 +144,8 @@ class AudioEditService {
     final slice = (lo == 0 && hi == src.samples.length)
         ? src.samples
         : Float32List.sublistView(src.samples, lo, hi);
-    return _writeWav(destinationPath, slice, src.sampleRate);
+    return _writeWav(destinationPath, slice, src.sampleRate,
+        sourcePath: sourcePath, editAction: 'trim');
   }
 
   /// Export the decoded source — optionally just the `[startSec, endSec)`
@@ -158,7 +173,7 @@ class AudioEditService {
         samples = Float32List.sublistView(src.samples, lo, hi);
       }
     }
-    return const GlintCodecService().encodePcmToFile(
+    final encoded = await const GlintCodecService().encodePcmToFile(
       samples,
       channels: 1, // decode() yields mono
       sampleRate: src.sampleRate,
@@ -166,6 +181,36 @@ class AudioEditService {
       destinationPath: destinationPath,
       bitrateKbps: bitrateKbps,
     );
+
+    // EU AI Act Art. 50(2) on the compressed path. `AI_ACT_RISK.md` §7.4
+    // said "no MP3 export exists" — true of the UI, which never wired this
+    // up, but false of the service, and a marking gap that only exists in
+    // unreachable code is still a gap waiting for the day someone reaches
+    // it. MP3 can carry ID3v2 provenance; AAC and Opus cannot here, so on
+    // those the watermark in the samples is the only surviving mark and we
+    // say so rather than let it pass silently.
+    final provenance =
+        await _sourceProvenance(File(sourcePath).absolute.path);
+    if (provenance == null) return encoded;
+
+    final (model, voice) = ContentProvenanceService.modelAndVoiceOf(provenance);
+    if (format.extension == 'mp3') {
+      final tagged = AudioWatermarkService.injectMp3Metadata(
+        await encoded.readAsBytes(),
+        modelName: model,
+        voiceId: voice,
+      );
+      await encoded.writeAsBytes(tagged, flush: true);
+      Log.instance.i('audio-edit', 'carried AI provenance into MP3 ID3v2',
+          fields: {'dest': destinationPath});
+    } else {
+      Log.instance.w('audio-edit',
+          'encoded AI-generated audio to a container that cannot carry a '
+          'provenance manifest — only the spread-spectrum watermark marks '
+          'this output (EU AI Act Art. 50(2))',
+          fields: {'format': format.extension, 'dest': destinationPath});
+    }
+    return encoded;
   }
 
   /// §5.1.5 — emit `source` minus every region in `regions` as
@@ -179,7 +224,8 @@ class AudioEditService {
   }) async {
     final src = await decode(sourcePath);
     if (regions.isEmpty) {
-      return _writeWav(destinationPath, src.samples, src.sampleRate);
+      return _writeWav(destinationPath, src.samples, src.sampleRate,
+          sourcePath: sourcePath, editAction: 'cut');
     }
     // Normalise: clamp + sort + merge overlapping.
     final ranges = regions
@@ -213,7 +259,8 @@ class AudioEditService {
     final raw = out.takeBytes();
     final nFrames = raw.length ~/ 4;
     final spliced = Float32List.view(raw.buffer, raw.offsetInBytes, nFrames);
-    return _writeWav(destinationPath, spliced, src.sampleRate);
+    return _writeWav(destinationPath, spliced, src.sampleRate,
+        sourcePath: sourcePath, editAction: 'cut');
   }
 
   /// §5.1.5 — split `source` at every `splitPoint`, emitting
@@ -239,7 +286,8 @@ class AudioEditService {
     for (final p in pts) {
       final slice = Float32List.sublistView(src.samples, cursor, p);
       out.add(await _writeWav(
-          destinationBuilder(partIndex), slice, src.sampleRate));
+          destinationBuilder(partIndex), slice, src.sampleRate,
+          sourcePath: sourcePath, editAction: 'split'));
       partIndex++;
       cursor = p;
     }
@@ -247,8 +295,8 @@ class AudioEditService {
     // file covering the whole source).
     final tail =
         Float32List.sublistView(src.samples, cursor, src.samples.length);
-    out.add(
-        await _writeWav(destinationBuilder(partIndex), tail, src.sampleRate));
+    out.add(await _writeWav(destinationBuilder(partIndex), tail, src.sampleRate,
+        sourcePath: sourcePath, editAction: 'split'));
     return out;
   }
 
@@ -260,15 +308,117 @@ class AudioEditService {
   // ---------------------------------------------------------------
 
   Future<File> _writeWav(
-      String destinationPath, Float32List samples, int sampleRate) async {
+      String destinationPath, Float32List samples, int sampleRate,
+      {String? sourcePath, String editAction = 'edit'}) async {
     final dir = File(destinationPath).parent;
     if (!await dir.exists()) await dir.create(recursive: true);
-    final bytes = _encodeWav(samples, sampleRate);
+
+    // EU AI Act Art. 50(2): if the source carries a provenance manifest,
+    // the derived file has to keep it. Decoding to PCM and re-encoding a
+    // bare 44-byte header used to drop the manifest and the LIST/INFO tags
+    // outright — the app stripping marking the app itself had written.
+    // The watermark survives regardless (it lives in the samples), so this
+    // restores the machine-readable half rather than the robust half.
+    final source = sourcePath == null
+        ? null
+        : await _sourceProvenance(File(sourcePath).absolute.path);
+
+    Uint8List bytes;
+    if (source == null) {
+      bytes = _encodeWav(samples, sampleRate);
+    } else {
+      final (model, voice) =
+          ContentProvenanceService.modelAndVoiceOf(source);
+      // MarkedWav restores the LIST/INFO tags; the manifest below restores
+      // the C2PA claim, carrying the original creation action plus a record
+      // of this edit rather than asserting the clip was generated just now.
+      bytes = MarkedWav.encode(
+        samples,
+        sampleRate,
+        generatorVersion: AppConstants.appVersion,
+        modelName: model,
+        voiceId: voice,
+      );
+      bytes = ContentProvenanceService.injectManifestIntoWav(
+        bytes,
+        ContentProvenanceService.deriveEditedManifest(
+          source,
+          editAction: editAction,
+          generator: 'CrisperWeaver',
+          generatorVersion: AppConstants.appVersion,
+        ),
+      );
+      Log.instance.i('audio-edit',
+          'carried AI provenance across $editAction',
+          fields: {'model': model ?? 'unknown', 'dest': destinationPath});
+    }
+
     final file = File(destinationPath);
     await file.writeAsBytes(bytes, flush: true);
     Log.instance.i('audio-edit',
         'wrote ${samples.length} samples to $destinationPath');
     return file;
+  }
+
+  /// The C2PA manifest on [absolutePath], or null when the file is not a
+  /// WAV or carries none. Cached alongside the decoded-PCM cache.
+  ///
+  /// Walks the RIFF chunk table with a [RandomAccessFile] instead of
+  /// reading the file in: an hour of 16 kHz mono is ~115 MB, and the
+  /// common case is a plain recording with no manifest at all, so slurping
+  /// it to answer "no" would make every trim pay for the check.
+  ///
+  /// Visible for testing because the edit operations that use it all go
+  /// through the CrispASR decoder, so a test of the marking behaviour
+  /// would otherwise need the dylib and be skipped on CI — which is how
+  /// the gap this fixes survived two audits.
+  @visibleForTesting
+  Future<Map<String, dynamic>?> sourceProvenance(String absolutePath) =>
+      _sourceProvenance(absolutePath);
+
+  Future<Map<String, dynamic>?> _sourceProvenance(String absolutePath) async {
+    if (_provenanceCache.containsKey(absolutePath)) {
+      return _provenanceCache[absolutePath];
+    }
+    Map<String, dynamic>? manifest;
+    RandomAccessFile? raf;
+    try {
+      raf = await File(absolutePath).open();
+      final header = await raf.read(12);
+      if (header.length == 12 &&
+          String.fromCharCodes(header.sublist(0, 4)) == 'RIFF' &&
+          String.fromCharCodes(header.sublist(8, 12)) == 'WAVE') {
+        final length = await raf.length();
+        var offset = 12;
+        while (offset + 8 <= length) {
+          await raf.setPosition(offset);
+          final head = await raf.read(8);
+          if (head.length < 8) break;
+          final id = String.fromCharCodes(head.sublist(0, 4));
+          final size = ByteData.sublistView(Uint8List.fromList(head))
+              .getUint32(4, Endian.little);
+          if (id == 'c2pa') {
+            if (offset + 8 + size <= length) {
+              manifest = ContentProvenanceService.decodeManifestPayload(
+                  await raf.read(size));
+            }
+            break;
+          }
+          // Chunk sizes are padded to an even boundary.
+          offset += 8 + size + (size.isOdd ? 1 : 0);
+        }
+      }
+    } catch (e) {
+      // A source we cannot read provenance from is treated as carrying
+      // none — the edit still succeeds, it just cannot preserve a mark it
+      // could not find. Logged so it is not silent.
+      Log.instance.w('audio-edit', 'provenance probe failed',
+          fields: {'path': absolutePath, 'err': e.toString()});
+    } finally {
+      await raf?.close();
+    }
+    _provenanceCache[absolutePath] = manifest;
+    return manifest;
   }
 
   /// Pure encoder — pulled out so it's unit-testable without

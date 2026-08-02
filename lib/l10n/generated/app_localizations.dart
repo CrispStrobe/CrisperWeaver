@@ -4993,7 +4993,7 @@ abstract class AppLocalizations {
   /// No description provided for @aiTransparencyBody.
   ///
   /// In en, this message translates to:
-  /// **'CrisperWeaver uses artificial intelligence systems for:\n\n• Speech recognition (ASR) — converting audio to text\n• Speech synthesis (TTS) — generating spoken audio from text\n• Speaker identification — biometric voice matching\n• Document analysis (OCR) — recognizing text in images\n• Text generation — translation, summarisation, and transcript cleanup by language models\n• Semantic search — AI-powered content retrieval\n\nBy default everything runs on your device and nothing is sent anywhere. Some features are off until you switch them on and then do use the network: model downloads, optional cloud transcription, and optional cloud summarisation or cleanup, which send the text or audio concerned to the provider you configure. Speaker profiles and voice recordings never leave your device.\n\nAI-generated audio is automatically watermarked and signed with machine-readable provenance metadata, and AI-generated text carries a disclosure when you copy or export it (EU AI Act Art. 50).\n\nFor details, see the About screen and PRIVACY.md.'**
+  /// **'CrisperWeaver uses artificial intelligence systems for:\n\n• Speech recognition (ASR) — converting audio to text\n• Speech synthesis (TTS) — generating spoken audio from text\n• Speaker identification — biometric voice matching\n• Emotion recognition — some transcription models (SenseVoice) infer a speaker\'s emotional state from their voice and show it as a label\n• Document analysis (OCR) — recognizing text in images\n• Text generation — translation, summarisation, and transcript cleanup by language models\n• Semantic search — AI-powered content retrieval\n\nEmotion labels are inferences, not observations. If you use them, you must tell the people in the recording (EU AI Act Art. 50(3)), and inferring emotions in the workplace or in education is prohibited outright (Art. 5(1)(f)).\n\nBy default everything runs on your device and nothing is sent anywhere. Some features are off until you switch them on and then do use the network: model downloads, optional cloud transcription, and optional cloud summarisation or cleanup, which send the text or audio concerned to the provider you configure. Speaker profiles and voice recordings never leave your device.\n\nAI-generated audio is automatically watermarked and signed with machine-readable provenance metadata, and AI-generated text carries a disclosure when you copy or export it (EU AI Act Art. 50).\n\nFor details, see the About screen and PRIVACY.md.'**
   String get aiTransparencyBody;
 
   /// No description provided for @aiTransparencyWebNote.
@@ -5007,6 +5007,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'I understand'**
   String get aiTransparencyAcknowledge;
+
+  /// No description provided for @emotionInferenceNoticeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Emotion recognition applied'**
+  String get emotionInferenceNoticeTitle;
+
+  /// No description provided for @emotionInferenceNoticeBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Emotion labels below are inferred by an AI model from voice characteristics. They are probabilistic guesses, not observations, and are frequently wrong. Under the EU AI Act (Art. 50(3)) you must inform the people in this recording that emotion recognition is being applied to them. Inferring emotions in the workplace or in education is prohibited outright (Art. 5(1)(f)).'**
+  String get emotionInferenceNoticeBody;
+
+  /// No description provided for @emotionInferenceBadgeTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'AI-inferred emotion — a guess from voice, often wrong. You must tell the people recorded (EU AI Act Art. 50(3)).'**
+  String get emotionInferenceBadgeTooltip;
+
+  /// No description provided for @emotionInferenceBadgeSemantics.
+  ///
+  /// In en, this message translates to:
+  /// **'AI-inferred emotion label: {emotion}. This is a probabilistic guess, not an observation.'**
+  String emotionInferenceBadgeSemantics(String emotion);
 
   /// No description provided for @historySearchSemanticTooltip.
   ///

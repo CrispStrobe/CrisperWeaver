@@ -313,19 +313,97 @@ class _TranscriptionOutputWidgetState
       return _buildNoSearchResults();
     }
 
+    // EU AI Act Art. 50(3): when any segment carries an emotion inference,
+    // the transcript is the output of an emotion recognition system and
+    // the user has to be told — both that the labels are guesses and that
+    // the duty to inform the recorded people is theirs, not ours.
+    //
+    // Deliberately not a one-time dismissible dialog like the Art. 50(1)
+    // first-use notice: every new recording exposes a different set of
+    // natural persons, so the disclosure belongs next to the inferences
+    // rather than in a box the user clicked away once, months ago.
+    final hasEmotionInference = widget.segments.any((s) {
+      final e = s.metadata['emotion'];
+      return e is String && e.isNotEmpty;
+    });
+
     // §5.25.12 — wrap with keyboard listener for J/K/Space/Enter/Tab nav
     return KeyboardListener(
       focusNode: _transcriptFocusNode,
       onKeyEvent: (event) => _handleTranscriptKeyEvent(event, filteredSegments),
-      child: ListView.builder(
-      controller: _scrollController,
-      padding: const EdgeInsets.all(8),
-      itemCount: filteredSegments.length,
-      itemBuilder: (context, index) {
-        final segment = filteredSegments[index];
-        return _buildSegmentCard(segment, index);
-      },
-    ));
+      child: Column(
+        children: [
+          if (hasEmotionInference) _buildEmotionInferenceNotice(),
+          Expanded(
+            child: ListView.builder(
+              controller: _scrollController,
+              padding: const EdgeInsets.all(8),
+              itemCount: filteredSegments.length,
+              itemBuilder: (context, index) {
+                final segment = filteredSegments[index];
+                return _buildSegmentCard(segment, index);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// EU AI Act Art. 50(3) disclosure for emotion recognition output.
+  ///
+  /// Wrapped in [Semantics] as a live region so a screen reader announces
+  /// it rather than leaving the warning to whoever happens to look at an
+  /// orange box — Art. 50(5) requires the Art. 50 information to conform
+  /// to applicable accessibility requirements.
+  Widget _buildEmotionInferenceNotice() {
+    final l = AppLocalizations.of(context);
+    final scheme = Theme.of(context).colorScheme;
+    return Semantics(
+      liveRegion: true,
+      label: '${l.emotionInferenceNoticeTitle}. ${l.emotionInferenceNoticeBody}',
+      child: Container(
+        width: double.infinity,
+        margin: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: scheme.errorContainer,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: scheme.error.withValues(alpha: 0.4)),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.psychology_outlined,
+                size: 18, color: scheme.onErrorContainer),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    l.emotionInferenceNoticeTitle,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: scheme.onErrorContainer,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    l.emotionInferenceNoticeBody,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: scheme.onErrorContainer,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildSegmentCard(TranscriptionSegment segment, int index) {
@@ -405,21 +483,46 @@ class _TranscriptionOutputWidgetState
                   ],
 
                   // §10 — SenseVoice emotion badge.
+                  //
+                  // This is an emotion *inference* about a natural person
+                  // drawn from their voice, which makes it an Art. 50(3)
+                  // matter rather than a neutral badge like `lang` above.
+                  // The banner at the top of the list carries the full
+                  // disclosure; here we attach the short form so the
+                  // warning travels with the label itself, and a Semantics
+                  // annotation so a screen-reader user learns it is a
+                  // guess (Art. 50(5) — the information has to conform to
+                  // applicable accessibility requirements, which a bare
+                  // colour-coded chip does not).
                   if (segment.metadata['emotion'] case final String emo
                       when emo.isNotEmpty) ...[
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Colors.orange.shade100,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        _emotionLabel(emo),
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: Colors.orange.shade800,
-                          fontWeight: FontWeight.bold,
+                    Tooltip(
+                      message:
+                          AppLocalizations.of(context)
+                              .emotionInferenceBadgeTooltip,
+                      child: Semantics(
+                        label: AppLocalizations.of(context)
+                            .emotionInferenceBadgeSemantics(
+                                _emotionLabel(emo)),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.shade100,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            // The '~' prefix marks the label as inferred
+                            // rather than observed, so the hedge survives
+                            // a screenshot — which is how these badges
+                            // most often leave the app.
+                            '~${_emotionLabel(emo)}',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.orange.shade800,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
                       ),
                     ),

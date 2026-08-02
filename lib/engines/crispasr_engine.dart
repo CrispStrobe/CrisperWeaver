@@ -15,6 +15,7 @@ import '../services/log_service.dart';
 import '../services/model_service.dart';
 import '../services/transcription_service.dart' show AdvancedTranscribeOptions;
 import '../services/transcription_worker_pool.dart';
+import '../utils/emotion_inference.dart';
 
 /// Transcription engine backed by the CrispASR FFI package.
 ///
@@ -1702,9 +1703,12 @@ class CrispASREngine implements TranscriptionEngine {
   }
 
   // §10 SenseVoice tag classification helpers.
-  static bool _isEmotionTag(String t) =>
-      const {'HAPPY', 'SAD', 'ANGRY', 'NEUTRAL', 'EMO_UNKNOWN', 'SURPRISED', 'FEARFUL', 'DISGUSTED'}
-          .contains(t.toUpperCase());
+  //
+  // The emotion set lives in `EmotionInference` rather than here: emitting
+  // `metadata['emotion']` is what makes this an Art. 50(3) emotion
+  // recognition system, so the widgets that must disclose it and the
+  // compliance suite that must pin it need the same definition.
+  static bool _isEmotionTag(String t) => EmotionInference.isEmotionTag(t);
   static bool _isEventTag(String t) =>
       const {'SPEECH', 'BGM', 'LAUGHTER', 'APPLAUSE', 'NOISE', 'MUSIC', 'SINGING'}
           .contains(t.toUpperCase());

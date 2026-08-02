@@ -9,15 +9,20 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'package:flutter/widgets.dart' show Locale;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:crisper_weaver/constants/app_constants.dart';
 import 'package:crisper_weaver/engines/transcription_engine.dart';
+import 'package:crisper_weaver/l10n/generated/app_localizations.dart';
+import 'package:crisper_weaver/services/audio_edit_service.dart';
 import 'package:crisper_weaver/services/audio_watermark_service.dart';
 import 'package:crisper_weaver/services/content_provenance_service.dart';
+import 'package:crisper_weaver/services/note_export_service.dart';
 import 'package:crisper_weaver/services/ocr_service.dart';
 import 'package:crisper_weaver/services/spread_spectrum_watermark.dart';
 import 'package:crisper_weaver/utils/ai_text_disclosure.dart';
+import 'package:crisper_weaver/utils/emotion_inference.dart';
 import 'package:crisper_weaver/utils/file_utils.dart';
 import 'package:crisper_weaver/utils/marked_wav.dart';
 
@@ -1111,6 +1116,241 @@ void main() {
       final b = MarkedWav.encode(marked, 24000, generatorVersion: '1.0.0');
       expect(b.length, greaterThan(44 + marked.length * 2));
       expect(SpreadSpectrumWatermark.detect(marked), greaterThanOrEqualTo(0.65));
+    });
+  });
+
+  _thirdAuditTests();
+}
+
+// ---------------------------------------------------------------------------
+// Third audit (2026-08-02): emotion recognition, provenance across edits,
+// CLI text disclosure, note-export marking consistency.
+// ---------------------------------------------------------------------------
+
+void _thirdAuditTests() {
+  group('Emotion recognition (Art. 50(3))', () {
+    test('every SenseVoice emotion label counts as an inference', () {
+      // The engine's `metadata['emotion']` is populated from exactly this
+      // set. Widening the model's vocabulary without widening this set
+      // would ship an undisclosed inference — which is the bug the
+      // 2026-08-02 audit found, in the form of the whole feature being
+      // undeclared.
+      for (final t in const [
+        'HAPPY', 'SAD', 'ANGRY', 'NEUTRAL',
+        'EMO_UNKNOWN', 'SURPRISED', 'FEARFUL', 'DISGUSTED',
+      ]) {
+        expect(EmotionInference.isEmotionTag(t), isTrue, reason: t);
+      }
+    });
+
+    test('tag matching is case-insensitive', () {
+      // Backends emit `<|HAPPY|>` and `<|Happy|>` interchangeably; a
+      // case-sensitive check would silently stop disclosing on one of them.
+      expect(EmotionInference.isEmotionTag('Happy'), isTrue);
+      expect(EmotionInference.isEmotionTag('angry'), isTrue);
+    });
+
+    test('acoustic event tags are not emotion inferences', () {
+      // Classifying laughter as an audio event says nothing about anyone's
+      // inner state. Over-claiming here would put an Art. 50(3) warning on
+      // transcripts that never ran an inference.
+      for (final t in const [
+        'SPEECH', 'BGM', 'LAUGHTER', 'APPLAUSE', 'NOISE', 'MUSIC', 'SINGING',
+      ]) {
+        expect(EmotionInference.isEmotionTag(t), isFalse, reason: t);
+      }
+    });
+
+    test('the disclosure names the inference, the duty and the prohibition',
+        () {
+      final d = EmotionInference.disclosure.toLowerCase();
+      expect(d, contains('inferred'));
+      expect(d, contains('50(3)'));
+      expect(d, contains('5(1)(f)'));
+      // The hedge matters as much as the citation: the label is a guess.
+      expect(d, anyOf(contains('guess'), contains('probabilistic')));
+    });
+
+    test('the Art. 5(1)(f) warning stands alone for narrow surfaces', () {
+      final w = EmotionInference.prohibitedContextWarning.toLowerCase();
+      expect(w, contains('workplace'));
+      expect(w, contains('education'));
+      expect(w, contains('prohibited'));
+    });
+
+    test('the first-use notice enumerates emotion recognition', () async {
+      // Art. 50(1) requires informing the user which AI systems they are
+      // interacting with. The notice listed six subsystems and omitted this
+      // one, in all three locales.
+      for (final locale in const [Locale('en'), Locale('de'), Locale('zh')]) {
+        final l = await AppLocalizations.delegate.load(locale);
+        expect(
+          l.aiTransparencyBody.toLowerCase(),
+          anyOf(contains('emotion'), contains('情绪')),
+          reason: 'locale ${locale.languageCode}',
+        );
+      }
+    });
+  });
+
+  group('Provenance survives an edit (Art. 50(2))', () {
+    /// A WAV as TtsService would write one: PCM + LIST/INFO + manifest.
+    Uint8List generatedWav() {
+      final pcm = Float32List.fromList(
+          List<double>.generate(4800, (i) => sin(i * 0.05) * 0.4));
+      return ContentProvenanceService.injectIntoWav(
+        MarkedWav.encode(pcm, 24000,
+            generatorVersion: '9.9.9',
+            modelName: 'kokoro-82m',
+            voiceId: 'af_heart'),
+        generator: 'CrisperWeaver',
+        generatorVersion: '9.9.9',
+        modelName: 'kokoro-82m',
+        voiceId: 'af_heart',
+      );
+    }
+
+    test('the source manifest names the model and voice', () {
+      final m = ContentProvenanceService.extractFromWav(generatedWav())!;
+      expect(ContentProvenanceService.modelAndVoiceOf(m),
+          ('kokoro-82m', 'af_heart'));
+    });
+
+    test('a derived manifest keeps the original creation claim', () {
+      // The whole point: a trimmed clip must still say a TTS model made it.
+      // Replacing the claim with a fresh one would assert CrisperWeaver
+      // generated the trimmed file just now, losing the model attribution.
+      final src = ContentProvenanceService.extractFromWav(generatedWav())!;
+      final derived = ContentProvenanceService.deriveEditedManifest(
+        src,
+        editAction: 'trim',
+        generator: 'CrisperWeaver',
+        generatorVersion: '9.9.9',
+      );
+      final actions = derived['actions'] as List;
+      expect(actions.first['action'], 'c2pa.created');
+      expect(actions.last['action'], 'c2pa.edited');
+      expect(actions.last['parameters']['name'], 'trim');
+      expect(ContentProvenanceService.modelAndVoiceOf(derived),
+          ('kokoro-82m', 'af_heart'));
+    });
+
+    test('the derived manifest round-trips through a re-encoded WAV', () {
+      // This is the composition AudioEditService._writeWav performs.
+      final src = ContentProvenanceService.extractFromWav(generatedWav())!;
+      final trimmedPcm = Float32List.fromList(
+          List<double>.generate(2400, (i) => sin(i * 0.05) * 0.4));
+      final out = ContentProvenanceService.injectManifestIntoWav(
+        MarkedWav.encode(trimmedPcm, 24000,
+            generatorVersion: '9.9.9',
+            modelName: 'kokoro-82m',
+            voiceId: 'af_heart'),
+        ContentProvenanceService.deriveEditedManifest(
+          src,
+          editAction: 'trim',
+          generator: 'CrisperWeaver',
+          generatorVersion: '9.9.9',
+        ),
+      );
+      final recovered = ContentProvenanceService.extractFromWav(out);
+      expect(recovered, isNotNull);
+      expect(ContentProvenanceService.modelAndVoiceOf(recovered!),
+          ('kokoro-82m', 'af_heart'));
+      // And the abuse-reporting channel rides along, so a recipient of the
+      // trimmed clip can still find where to report it.
+      expect(jsonEncode(recovered),
+          contains(ContentProvenanceService.abuseReportingUrl));
+    });
+
+    test('the editor probe finds a manifest on a generated WAV', () async {
+      final dir = await Directory.systemTemp.createTemp('cw-prov-');
+      addTearDown(() => dir.delete(recursive: true));
+      final f = File('${dir.path}/gen.wav')..writeAsBytesSync(generatedWav());
+      final found = await AudioEditService().sourceProvenance(f.path);
+      expect(found, isNotNull);
+      expect(ContentProvenanceService.modelAndVoiceOf(found!).$1, 'kokoro-82m');
+    });
+
+    test('the probe reports none for a plain recording', () async {
+      // A human recording must not acquire an AI provenance claim by being
+      // trimmed — over-marking is its own compliance failure.
+      final dir = await Directory.systemTemp.createTemp('cw-prov-');
+      addTearDown(() => dir.delete(recursive: true));
+      final pcm = Float32List.fromList(
+          List<double>.generate(2400, (i) => sin(i * 0.05) * 0.4));
+      final f = File('${dir.path}/rec.wav')..writeAsBytesSync(_buildRawWav(pcm));
+      expect(await AudioEditService().sourceProvenance(f.path), isNull);
+    });
+
+    test('the probe survives a non-WAV file without throwing', () async {
+      final dir = await Directory.systemTemp.createTemp('cw-prov-');
+      addTearDown(() => dir.delete(recursive: true));
+      final f = File('${dir.path}/notes.txt')..writeAsStringSync('not audio');
+      expect(await AudioEditService().sourceProvenance(f.path), isNull);
+    });
+  });
+
+  group('CLI text disclosure (Art. 50(2))', () {
+    // The CLI writes generated text to stdout, which no widget test reaches
+    // and no unit test imports. Round two brought the CLI inside the *audio*
+    // marking scope and left `translate` emitting a bare line — so this
+    // guards the wiring at the source level, which is the only level that
+    // sees it.
+    final cli = File('bin/crisperweaver.dart').readAsStringSync();
+
+    test('the CLI imports the shared disclosure strings', () {
+      expect(cli, contains("import 'package:crisper_weaver/utils/ai_text_disclosure.dart'"));
+    });
+
+    test('translate attaches the translation disclosure', () {
+      expect(cli, contains('AiTextDisclosure.translation'));
+      expect(cli, contains('_writeDisclosedText'));
+    });
+
+    test('suppressing the disclosure requires an explicit flag', () {
+      // Disclosure is the default; `--no-disclosure` is the opt-out, the
+      // same direction as FileUtils.saveTranscription's syntheticDisclosure.
+      expect(cli, contains("addFlag('no-disclosure'"));
+      expect(cli, contains("negatable: false"));
+    });
+
+    test('transcribe warns when the model inferred emotions', () {
+      expect(cli, contains('EMOTION-RECOGNITION'));
+      expect(cli, contains('EmotionInference.disclosure'));
+    });
+  });
+
+  group('Note exports mark consistently', () {
+    final segments = [
+      const TranscriptionSegment(
+          text: 'hello there', startTime: 0.0, endTime: 1.5, speaker: 'Ana'),
+    ];
+
+    test('every format carries the notice', () {
+      // Obsidian carried an `ai-generated` YAML tag while Notion, Logseq and
+      // the YouTube chapters carried nothing — same transcript, same share
+      // sheet, different marking.
+      final outputs = {
+        'obsidian': NoteExportService.toObsidian(
+            segments: segments, title: 'T'),
+        'notion': NoteExportService.toNotion(segments: segments, title: 'T'),
+        'logseq': NoteExportService.toLogseq(segments: segments, title: 'T'),
+        'chapters': NoteExportService.toYouTubeChapters(segments: segments),
+      };
+      outputs.forEach((name, out) {
+        expect(out, contains(NoteExportService.disclosure), reason: name);
+      });
+    });
+
+    test('the notice says machine-generated and unreviewed', () {
+      final d = NoteExportService.disclosure.toLowerCase();
+      expect(d, contains('machine-generated'));
+      expect(d, contains('not checked by a human'));
+    });
+
+    test('the transcript itself still survives the notice', () {
+      expect(NoteExportService.toNotion(segments: segments, title: 'T'),
+          contains('hello there'));
     });
   });
 }
