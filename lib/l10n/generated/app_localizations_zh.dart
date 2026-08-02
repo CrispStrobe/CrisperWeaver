@@ -2880,7 +2880,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get aiTransparencyBody =>
-      'CrisperWeaver 使用人工智能系统进行：\n\n• 语音识别 (ASR) — 将音频转换为文本\n• 语音合成 (TTS) — 从文本生成语音音频\n• 说话人识别 — 生物特征语音匹配\n• 文档分析 (OCR) — 识别图像中的文字\n• 文本生成 — 由语言模型进行翻译、摘要和转录稿整理\n• 语义搜索 — AI 驱动的内容检索\n\n默认情况下，所有处理均在您的设备上运行，不会发送任何数据。部分功能默认关闭，启用后会使用网络：模型下载、可选的云端转录，以及可选的云端摘要或整理功能，它们会将相关文本或音频发送至您所配置的服务商。说话人档案和语音录音永远不会离开您的设备。\n\nAI 生成的音频会自动添加水印并签署机器可读的来源元数据；AI 生成的文本在复制或导出时会附带披露声明（欧盟AI法案第50条）。\n\n详情请参见关于页面及 PRIVACY.md。';
+      'CrisperWeaver 使用人工智能系统进行：\n\n• 语音识别 (ASR) — 将音频转换为文本\n• 语音合成 (TTS) — 从文本生成语音音频\n• 说话人识别 — 生物特征语音匹配\n• 情绪识别 — 部分转录模型（SenseVoice）会从语音中推断说话人的情绪状态并以标签显示\n• 文档分析 (OCR) — 识别图像中的文字\n• 文本生成 — 由语言模型进行翻译、摘要和转录稿整理\n• 语义搜索 — AI 驱动的内容检索\n\n情绪标签是推断结果，而非观察结果。如果您使用该功能，必须告知录音中的当事人（欧盟AI法案第50条第3款）；在工作场所或教育机构中推断情绪则被完全禁止（第5条第1款(f)项）。\n\n默认情况下，所有处理均在您的设备上运行，不会发送任何数据。部分功能默认关闭，启用后会使用网络：模型下载、可选的云端转录，以及可选的云端摘要或整理功能，它们会将相关文本或音频发送至您所配置的服务商。说话人档案和语音录音永远不会离开您的设备。\n\nAI 生成的音频会自动添加水印并签署机器可读的来源元数据；AI 生成的文本在复制或导出时会附带披露声明（欧盟AI法案第50条）。\n\n详情请参见关于页面及 PRIVACY.md。';
 
   @override
   String get aiTransparencyWebNote =>
@@ -2888,6 +2888,22 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get aiTransparencyAcknowledge => '我了解';
+
+  @override
+  String get emotionInferenceNoticeTitle => '已应用情绪识别';
+
+  @override
+  String get emotionInferenceNoticeBody =>
+      '以下情绪标签由 AI 模型根据语音特征推断得出。它们是概率性的推测而非观察结果，且经常出错。根据欧盟AI法案第50条第3款，您必须告知本录音中的当事人正在对其应用情绪识别。在工作场所或教育机构中推断情绪被完全禁止（第5条第1款(f)项）。';
+
+  @override
+  String get emotionInferenceBadgeTooltip =>
+      'AI 推断的情绪 — 基于语音的推测，经常出错。您必须告知被录音的当事人（欧盟AI法案第50条第3款）。';
+
+  @override
+  String emotionInferenceBadgeSemantics(String emotion) {
+    return 'AI 推断的情绪标签：$emotion。这是概率性推测，而非观察结果。';
+  }
 
   @override
   String get historySearchSemanticTooltip => '语义搜索（已激活）';

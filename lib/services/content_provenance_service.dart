@@ -148,6 +148,109 @@ class ContentProvenanceService {
     return out;
   }
 
+  /// Parse the payload of a `c2pa` RIFF chunk into a manifest.
+  ///
+  /// Split out of [extractFromWav] so a caller that walks the chunk table
+  /// itself — `AudioEditService`, which refuses to read a 100 MB recording
+  /// into memory just to discover it has no manifest — can decode the
+  /// payload without duplicating the padding and error handling.
+  static Map<String, dynamic>? decodeManifestPayload(List<int> payload) {
+    // Trim the trailing null bytes RIFF pads odd-length chunks with.
+    var end = payload.length;
+    while (end > 0 && payload[end - 1] == 0) {
+      end--;
+    }
+    if (end == 0) return null;
+    try {
+      final decoded = jsonDecode(
+          utf8.decode(payload.sublist(0, end), allowMalformed: true));
+      return decoded is Map<String, dynamic> ? decoded : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Inject an already-built [manifest] into [wavBytes], rather than
+  /// composing a fresh one as [injectIntoWav] does.
+  ///
+  /// This is what carrying provenance across an edit needs: the derived
+  /// file must keep the *original* claim (which model, which voice, when)
+  /// plus a record of the edit — not a new claim asserting CrisperWeaver
+  /// generated the trimmed file just now.
+  static Uint8List injectManifestIntoWav(
+    Uint8List wavBytes,
+    Map<String, dynamic> manifest,
+  ) {
+    if (wavBytes.length < 44) return wavBytes;
+    final chunk = encodeAsRiffChunk(manifest);
+    final out = Uint8List(wavBytes.length + chunk.length);
+    out.setRange(0, wavBytes.length, wavBytes);
+    out.setRange(wavBytes.length, out.length, chunk);
+    ByteData.view(out.buffer).setUint32(4, out.length - 8, Endian.little);
+    return out;
+  }
+
+  /// Derive a manifest for a file produced by editing one that already
+  /// carried [source] provenance.
+  ///
+  /// C2PA models this as an ingredient relationship: the derived asset
+  /// keeps the original claim and appends an action describing what was
+  /// done to it. So a trimmed clip of AI-generated speech still says "this
+  /// came from a TTS model", which is the fact Art. 50(2) cares about, and
+  /// additionally says it was trimmed.
+  ///
+  /// Before this existed, `AudioEditService` decoded to PCM and re-encoded
+  /// a bare 44-byte WAV, silently dropping the manifest and the LIST/INFO
+  /// tags the app had just written — the app stripping its own marking.
+  /// The spread-spectrum watermark survived (it lives in the samples), so
+  /// the robust mark held; this restores the machine-readable one.
+  static Map<String, dynamic> deriveEditedManifest(
+    Map<String, dynamic> source, {
+    required String editAction,
+    required String generator,
+    required String generatorVersion,
+    DateTime? timestamp,
+  }) {
+    final ts = timestamp ?? DateTime.now();
+    final derived = Map<String, dynamic>.from(source);
+    final actions = <dynamic>[
+      ...(source['actions'] is List
+          ? source['actions'] as List
+          : const <dynamic>[]),
+      {
+        'action': 'c2pa.edited',
+        'softwareAgent': '$generator/$generatorVersion',
+        'when': ts.toUtc().toIso8601String(),
+        'parameters': {'name': editAction},
+      },
+    ];
+    derived['actions'] = actions;
+    return derived;
+  }
+
+  /// Whether [wavBytes] carries a provenance manifest naming AI-generated
+  /// media — i.e. whether an edit of it has something to preserve.
+  static bool hasAiProvenance(Uint8List wavBytes) =>
+      extractFromWav(wavBytes) != null;
+
+  /// The `model` / `voice` parameters recorded in [manifest]'s first
+  /// `c2pa.created` action, so a derived file can re-emit the same
+  /// LIST/INFO tags. Returns `(null, null)` when absent.
+  static (String?, String?) modelAndVoiceOf(Map<String, dynamic> manifest) {
+    final actions = manifest['actions'];
+    if (actions is! List) return (null, null);
+    for (final a in actions) {
+      if (a is! Map) continue;
+      if (a['action'] != 'c2pa.created') continue;
+      final params = a['parameters'];
+      if (params is! Map) continue;
+      final model = params['model'];
+      final voice = params['voice'];
+      return (model is String ? model : null, voice is String ? voice : null);
+    }
+    return (null, null);
+  }
+
   /// Extract and parse a C2PA manifest from [wavBytes] if present.
   /// Returns null if no `c2pa` chunk is found.
   static Map<String, dynamic>? extractFromWav(Uint8List wavBytes) {
@@ -162,19 +265,7 @@ class ContentProvenanceService {
       if (id == 'c2pa') {
         final end = offset + 8 + size;
         if (end > wavBytes.length) return null;
-        // Trim trailing null bytes from RIFF padding before JSON parse.
-        var payloadEnd = end;
-        while (payloadEnd > offset + 8 && wavBytes[payloadEnd - 1] == 0) {
-          payloadEnd--;
-        }
-        final json = utf8.decode(
-            wavBytes.sublist(offset + 8, payloadEnd),
-            allowMalformed: true);
-        try {
-          return jsonDecode(json) as Map<String, dynamic>;
-        } catch (_) {
-          return null;
-        }
+        return decodeManifestPayload(wavBytes.sublist(offset + 8, end));
       }
       // Advance to next chunk (size padded to even boundary).
       offset += 8 + size + (size.isOdd ? 1 : 0);

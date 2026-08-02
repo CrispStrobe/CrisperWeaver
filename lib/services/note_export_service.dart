@@ -9,6 +9,20 @@ import '../models/segment_tag.dart';
 class NoteExportService {
   NoteExportService._();
 
+  /// Machine-processed-content notice carried by every format here.
+  ///
+  /// Strictly this is over-compliance: a transcript of real speech is not
+  /// "synthetic text" under EU AI Act Art. 50(2), which is why nothing
+  /// forces a mark onto it. But `FileUtils.saveTranscription` has always
+  /// disclosed by default, and these exports write straight to disk and
+  /// hand off to the share sheet without going through it — so before the
+  /// 2026-08-02 audit an Obsidian export carried an `ai-generated` tag and
+  /// a Notion export of the same transcript carried nothing at all. The
+  /// mark is cheap; the inconsistency is what looks like an oversight.
+  static const String disclosure =
+      'Machine-generated transcript — produced by AI speech recognition and '
+      'not checked by a human. It may contain recognition errors.';
+
   /// Export as Obsidian-flavoured Markdown with YAML frontmatter.
   ///
   /// Includes metadata (date, duration, speakers, model) in the
@@ -46,7 +60,10 @@ class NoteExportService {
     buf.writeln('tags:');
     buf.writeln('  - transcript');
     buf.writeln('  - ai-generated');
+    buf.writeln('ai-notice: "${_escapeYaml(disclosure)}"');
     buf.writeln('---');
+    buf.writeln();
+    buf.writeln('> **Notice:** $disclosure');
     buf.writeln();
 
     // Title
@@ -88,6 +105,8 @@ class NoteExportService {
           '*Transcribed: ${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}*');
     }
     buf.writeln();
+    buf.writeln('> **Notice:** $disclosure');
+    buf.writeln();
 
     String? currentSpeaker;
     for (var i = 0; i < segments.length; i++) {
@@ -126,6 +145,8 @@ class NoteExportService {
     if (date != null) buf.writeln('  date:: ${date.toIso8601String()}');
     if (model != null) buf.writeln('  model:: $model');
     buf.writeln('  type:: [[transcript]]');
+    buf.writeln('  tags:: ai-generated');
+    buf.writeln('  ai-notice:: $disclosure');
 
     for (var i = 0; i < segments.length; i++) {
       final seg = segments[i];
@@ -149,7 +170,11 @@ class NoteExportService {
     required List<TranscriptionSegment> segments,
     int maxChapters = 50,
   }) {
+    // YouTube pastes this straight into a description box, which has no
+    // comment syntax — so the notice has to be a visible line or nothing.
     final buf = StringBuffer();
+    buf.writeln('[$disclosure]');
+    buf.writeln();
     String? lastSpeaker;
     var count = 0;
 

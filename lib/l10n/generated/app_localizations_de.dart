@@ -2994,7 +2994,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get aiTransparencyBody =>
-      'CrisperWeaver verwendet Systeme der Künstlichen Intelligenz für:\n\n• Spracherkennung (ASR) — Umwandlung von Audio in Text\n• Sprachsynthese (TTS) — Erzeugung gesprochener Audiodaten aus Text\n• Sprecheridentifikation — biometrischer Stimmabgleich\n• Dokumentenanalyse (OCR) — Texterkennung in Bildern\n• Textgenerierung — Übersetzung, Zusammenfassung und Transkript-Bereinigung durch Sprachmodelle\n• Semantische Suche — KI-gestützte Inhaltssuche\n\nStandardmäßig läuft alles auf Ihrem Gerät und es werden keine Daten übertragen. Einige Funktionen sind zunächst deaktiviert und nutzen nach dem Einschalten das Netzwerk: Modell-Downloads, optionale Cloud-Transkription sowie optionale Cloud-Zusammenfassung oder -Bereinigung, die den betreffenden Text bzw. das Audio an den von Ihnen konfigurierten Anbieter senden. Sprecherprofile und Sprachaufnahmen verlassen Ihr Gerät nie.\n\nKI-generierte Audiodaten werden automatisch mit Wasserzeichen versehen und mit maschinenlesbaren Herkunftsmetadaten signiert; KI-generierter Text trägt beim Kopieren oder Exportieren einen Hinweis (EU AI Act Art. 50).\n\nWeitere Informationen finden Sie im Info-Bildschirm und in PRIVACY.md.';
+      'CrisperWeaver verwendet Systeme der Künstlichen Intelligenz für:\n\n• Spracherkennung (ASR) — Umwandlung von Audio in Text\n• Sprachsynthese (TTS) — Erzeugung gesprochener Audiodaten aus Text\n• Sprecheridentifikation — biometrischer Stimmabgleich\n• Emotionserkennung — manche Transkriptionsmodelle (SenseVoice) leiten aus der Stimme den Gefühlszustand der sprechenden Person ab und zeigen ihn als Kennzeichnung an\n• Dokumentenanalyse (OCR) — Texterkennung in Bildern\n• Textgenerierung — Übersetzung, Zusammenfassung und Transkript-Bereinigung durch Sprachmodelle\n• Semantische Suche — KI-gestützte Inhaltssuche\n\nEmotionskennzeichnungen sind Schlussfolgerungen, keine Beobachtungen. Wenn Sie sie nutzen, müssen Sie die aufgenommenen Personen darüber informieren (EU-KI-Verordnung Art. 50 Abs. 3); das Ableiten von Emotionen am Arbeitsplatz und in Bildungseinrichtungen ist ausnahmslos verboten (Art. 5 Abs. 1 lit. f).\n\nStandardmäßig läuft alles auf Ihrem Gerät und es werden keine Daten übertragen. Einige Funktionen sind zunächst deaktiviert und nutzen nach dem Einschalten das Netzwerk: Modell-Downloads, optionale Cloud-Transkription sowie optionale Cloud-Zusammenfassung oder -Bereinigung, die den betreffenden Text bzw. das Audio an den von Ihnen konfigurierten Anbieter senden. Sprecherprofile und Sprachaufnahmen verlassen Ihr Gerät nie.\n\nKI-generierte Audiodaten werden automatisch mit Wasserzeichen versehen und mit maschinenlesbaren Herkunftsmetadaten signiert; KI-generierter Text trägt beim Kopieren oder Exportieren einen Hinweis (EU AI Act Art. 50).\n\nWeitere Informationen finden Sie im Info-Bildschirm und in PRIVACY.md.';
 
   @override
   String get aiTransparencyWebNote =>
@@ -3002,6 +3002,22 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get aiTransparencyAcknowledge => 'Verstanden';
+
+  @override
+  String get emotionInferenceNoticeTitle => 'Emotionserkennung angewendet';
+
+  @override
+  String get emotionInferenceNoticeBody =>
+      'Die untenstehenden Emotionskennzeichnungen werden von einem KI-Modell aus Stimmmerkmalen abgeleitet. Es handelt sich um probabilistische Vermutungen, nicht um Beobachtungen, und sie sind häufig falsch. Nach der EU-KI-Verordnung (Art. 50 Abs. 3) müssen Sie die in dieser Aufnahme erfassten Personen darüber informieren, dass Emotionserkennung auf sie angewendet wird. Das Ableiten von Emotionen am Arbeitsplatz und in Bildungseinrichtungen ist ausnahmslos verboten (Art. 5 Abs. 1 lit. f).';
+
+  @override
+  String get emotionInferenceBadgeTooltip =>
+      'KI-abgeleitete Emotion — eine Vermutung anhand der Stimme, oft falsch. Sie müssen die aufgenommenen Personen informieren (EU-KI-Verordnung Art. 50 Abs. 3).';
+
+  @override
+  String emotionInferenceBadgeSemantics(String emotion) {
+    return 'KI-abgeleitete Emotionskennzeichnung: $emotion. Dies ist eine probabilistische Vermutung, keine Beobachtung.';
+  }
 
   @override
   String get historySearchSemanticTooltip => 'Semantische Suche (aktiv)';

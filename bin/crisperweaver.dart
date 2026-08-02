@@ -19,6 +19,7 @@ import 'dart:ffi';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:args/args.dart';
 import 'package:args/command_runner.dart';
 import 'package:crispasr/crispasr.dart' as crispasr;
 import 'package:path/path.dart' as p;
@@ -27,6 +28,8 @@ import 'package:crisper_weaver/constants/app_constants.dart';
 import 'package:crisper_weaver/services/audio_watermark_service.dart';
 import 'package:crisper_weaver/services/content_provenance_service.dart';
 import 'package:crisper_weaver/services/spread_spectrum_watermark.dart';
+import 'package:crisper_weaver/utils/ai_text_disclosure.dart';
+import 'package:crisper_weaver/utils/emotion_inference.dart';
 import 'package:crisper_weaver/utils/marked_wav.dart';
 
 String? _resolveLib(String? explicit) {
@@ -175,6 +178,33 @@ Uint8List _wav(Float32List pcm, int sampleRate) {
   return bytes.toBytes();
 }
 
+/// Write AI-*generated text* to stdout with its EU AI Act Art. 50(2)
+/// disclosure attached, matching what the GUI puts on the clipboard and what
+/// `/v1/audio/translations` returns in its `_disclosure` field.
+///
+/// The 2026-08-02 audit brought the CLI inside the *audio* marking scope but
+/// left the text half behind: `translate` wrote a bare line to stdout while
+/// every other surface disclosed. `ai_text_disclosure.dart` was already
+/// pure-Dart specifically so the CLI could reach it — it just never did.
+///
+/// Disclosure is the default and [suppress] is an explicit opt-out, the same
+/// direction of travel as `FileUtils.saveTranscription`'s
+/// `syntheticDisclosure`. Suppression is for piping into another tool that
+/// will do its own marking, not for shipping unmarked text to a human.
+void _writeDisclosedText(String text, String disclosure,
+    {required bool suppress}) {
+  stdout.writeln(suppress ? text : AiTextDisclosure.attach(text, disclosure));
+}
+
+/// Adds the `--no-disclosure` opt-out to commands that emit generated text.
+void _addDisclosureFlag(ArgParser p) {
+  p.addFlag('no-disclosure',
+      negatable: false,
+      help: 'Omit the EU AI Act Art. 50(2) AI-generated-text disclosure from '
+          'stdout. For piping into a tool that marks the output itself — not '
+          'for handing unmarked machine-generated text to a person.');
+}
+
 abstract class _Base extends Command<int> {
   _Base() {
     argParser.addOption('lib', help: 'Path to libcrispasr dylib/so.');
@@ -231,6 +261,7 @@ class _TranscribeCmd extends _Base {
       ..addFlag('vad', help: 'Enable Silero VAD pre-filtering.')
       ..addOption('vad-model', help: 'Path to VAD GGUF (auto-detected if omitted).')
       ..addOption('ask', help: 'Audio Q&A prompt (instruct LLM backends).');
+    _addDisclosureFlag(argParser);
   }
   @override
   String get name => 'transcribe';
@@ -291,7 +322,31 @@ class _TranscribeCmd extends _Base {
       try { session.setPunctuation(true); } catch (_) {}
 
       final segs = session.transcribe(audio.samples, language: lang);
+
+      // Art. 50(2). Plain transcription of real speech is not synthetic
+      // text and needs no mark — but asking for a *translation* makes the
+      // output machine-generated, exactly as it does in the GUI's translate
+      // screen and on `/v1/audio/translations`.
+      final translated = (argResults!['translate'] as bool) ||
+          (targetLang != null && targetLang.isNotEmpty);
+      final noDisclosure = argResults!['no-disclosure'] as bool;
+      final disclose = translated && !noDisclosure;
+
+      // Art. 50(3). SenseVoice writes `<|HAPPY|>`-style emotion inferences
+      // inline; the GUI strips them into a disclosed badge, but the CLI
+      // passes the raw text through, so the warning has to be raised here.
+      // stderr, not stdout — the inference is already in the payload and
+      // corrupting a piped transcript to say so would be its own bug.
+      if (segs.any((s) => _hasEmotionTag(s.text))) {
+        stderr.writeln('[EMOTION-RECOGNITION] This model inferred speakers\' '
+            'emotional states from their voices and tagged them inline. '
+            '${EmotionInference.disclosure}');
+      }
+
       if (argResults!['srt'] as bool) {
+        if (disclose) {
+          stdout.writeln('NOTE: ${AiTextDisclosure.translation}\n');
+        }
         var i = 1;
         for (final s in segs) {
           stdout.writeln(i++);
@@ -300,6 +355,9 @@ class _TranscribeCmd extends _Base {
         }
       } else if (argResults!['vtt'] as bool) {
         stdout.writeln('WEBVTT\n');
+        if (disclose) {
+          stdout.writeln('NOTE ${AiTextDisclosure.translation}\n');
+        }
         for (final s in segs) {
           stdout.writeln('${_vts(s.start)} --> ${_vts(s.end)}');
           stdout.writeln('${s.text.trim()}\n');
@@ -315,13 +373,26 @@ class _TranscribeCmd extends _Base {
           }
         }
       } else {
-        stdout.writeln(segs.map((s) => s.text.trim()).join(' ').trim());
+        final joined = segs.map((s) => s.text.trim()).join(' ').trim();
+        if (disclose) {
+          _writeDisclosedText(joined, AiTextDisclosure.translation,
+              suppress: false);
+        } else {
+          stdout.writeln(joined);
+        }
       }
     } finally {
       session.close();
     }
     return 0;
   }
+
+  /// Whether [text] carries an inline SenseVoice emotion tag, e.g.
+  /// `<|HAPPY|>`. Shares [EmotionInference]'s tag set with the engine so
+  /// the CLI and the GUI agree on what counts as an emotion inference.
+  static bool _hasEmotionTag(String text) => RegExp(r'<\|([A-Za-z_]+)\|>')
+      .allMatches(text)
+      .any((m) => EmotionInference.isEmotionTag(m.group(1)!));
 
   String _ts(double sec) {
     final ms = (sec * 1000).round();
@@ -430,6 +501,7 @@ class _TranslateCmd extends _Base {
       ..addOption('model', abbr: 'm', help: 'Translation GGUF.', mandatory: true)
       ..addOption('from', help: 'Source language code.', defaultsTo: 'en')
       ..addOption('to', abbr: 't', help: 'Target language code.', mandatory: true);
+    _addDisclosureFlag(argParser);
   }
   @override
   String get name => 'translate';
@@ -445,7 +517,10 @@ class _TranslateCmd extends _Base {
       final out = session.translateText(
           text, argResults!['from'] as String, argResults!['to'] as String);
       if (out == null) { stderr.writeln('translation failed'); return 1; }
-      stdout.writeln(out);
+      // Art. 50(2): machine translation generates text — it is not the
+      // "assistive function for standard editing" carve-out.
+      _writeDisclosedText(out, AiTextDisclosure.translation,
+          suppress: argResults!['no-disclosure'] as bool);
     } finally {
       session.close();
     }
