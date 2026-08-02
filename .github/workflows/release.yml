@@ -10,9 +10,14 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Tag to build (e.g. v0.1.0). If omitted, uses the current HEAD."
-        required: false
-        default: ""
+        description: "Tag to build (e.g. v0.9.5). Must be an existing v* tag."
+        # REQUIRED. When this was optional, dispatching without it made
+        # `inputs.tag || github.ref_name` fall back to the BRANCH name, and
+        # action-gh-release happily created a release tagged `main` with
+        # full artefacts (2026-07-10). That also left a `main` tag on the
+        # remote, which makes `git push origin main` fail with
+        # "src refspec main matches more than one".
+        required: true
 
 # Single static concurrency group across every release run, including
 # different tags. Pushing v0.6.38 while v0.6.37 is still building
@@ -56,8 +61,34 @@ env:
   GLINT_REF: glint_audio-v0.11.0
 
 jobs:
+  # Fail fast rather than publishing a release under a branch name. Belt
+  # and braces alongside the required input above: this also catches an
+  # explicit dispatch with a bad tag, or a future trigger change.
+  validate-tag:
+    name: Validate release tag
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.resolve.outputs.tag }}
+    steps:
+      - id: resolve
+        shell: bash
+        run: |
+          TAG="${{ inputs.tag || github.ref_name }}"
+          echo "resolved tag: $TAG"
+          case "$TAG" in
+            v*) ;;
+            *)
+              echo "::error::Refusing to release '$TAG' — release tags must match v* ." \
+                   "A branch name here means the tag input was omitted and github.ref_name" \
+                   "leaked through, which is how the stray 'main' release was created."
+              exit 1
+              ;;
+          esac
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
   build-macos:
     name: macOS (.app.zip)
+    needs: validate-tag
     runs-on: macos-latest
     # CrispASR grew large enough (Zonos, TADA-TTS, …) that an unbounded
     # `--parallel` build OOM-killed the 7 GB M1 runner mid-compile (exit 143
@@ -175,6 +206,7 @@ jobs:
 
   build-linux:
     name: Linux (.tar.gz bundle)
+    needs: validate-tag
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -336,6 +368,7 @@ jobs:
 
   build-android:
     name: Android APK (real ASR, arm64)
+    needs: validate-tag
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -706,6 +739,7 @@ jobs:
   # verified end-to-end (first release in which we attempt it).
   build-ios:
     name: iOS IPA (unsigned, sideload-ready)
+    needs: validate-tag
     # macos-26 ships Xcode 26 (iOS 26.1 SDK). device_info_plus 13.1.0 calls
     # -[NSProcessInfo isiOSAppOnVision] under @available(iOS 26.1) — it needs
     # the 26.1 SDK to *compile* (the selector is undeclared on macos-latest's
@@ -1000,6 +1034,7 @@ jobs:
   # learn that here, not during a user install.
   build-windows:
     name: Windows (.zip)
+    needs: validate-tag
     runs-on: windows-latest
     permissions:
       contents: write
