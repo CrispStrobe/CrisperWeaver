@@ -1272,11 +1272,19 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get advancedAskPromptHint =>
-      'z. B. „Zusammenfassen\" oder „Wie klingt der Sprecher?\"';
+      'z. B. „Zusammenfassen\" oder „Was wurde beschlossen?\"';
 
   @override
   String get advancedAskPromptHelper =>
-      'Nur Voxtral / Qwen3-ASR. Wenn gesetzt, ANTWORTET das LLM auf deine Frage, statt eine wortgetreue Transkription zu liefern. Leer lassen für normale Transkription.';
+      'Nur Voxtral / Qwen3-ASR. Wenn gesetzt, ANTWORTET das LLM auf deine Frage, statt eine wortgetreue Transkription zu liefern; die Antwort wird bei jedem Export als KI-generiert gekennzeichnet. Leer lassen für normale Transkription. Fragen nach Emotionen, Stimmung, Tonfall oder Absicht einer sprechenden Person werden abgelehnt — siehe Nutzungsrichtlinie.';
+
+  @override
+  String get askPromptRefusedAffectiveTitle => 'Eingabe abgelehnt';
+
+  @override
+  String askPromptRefusedAffective(String term) {
+    return 'Diese Frage verlangt vom Modell, ein emotionales oder absichtsbezogenes Merkmal einer sprechenden Person abzuleiten (Treffer: \"$term\"). Das Ableiten von Emotionen aus der Stimme ist Emotionserkennung im Sinne des EU AI Act — am Arbeitsplatz und in Bildungseinrichtungen verboten, sonst hochriskant. CrisperWeaver tut dies nicht. Frage danach, was gesagt wurde, nicht danach, wie es geklungen hat.';
+  }
 
   @override
   String get editAudioOpen => 'Im Audio-Editor öffnen';

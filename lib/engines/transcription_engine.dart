@@ -169,6 +169,42 @@ class TranscriptionSegment {
     this.tags = const [],
   });
 
+  /// EU AI Act Art. 50(2) — whether this segment holds AI-*generated* prose
+  /// rather than a record of speech.
+  ///
+  /// True for audio-Q&A ("ask the audio") output, where an instruct-tuned
+  /// backend answers the user's question instead of transcribing. Set by
+  /// `CrispasrEngine.transcribe`, persisted in history JSON with the rest of
+  /// [metadata], and read by every export path to pick the right disclosure
+  /// — a Q&A answer labelled "machine-generated transcript" is marked, but
+  /// marked as the wrong thing.
+  bool get isGenerated => metadata['generated'] != null;
+
+  /// Copy with selected fields replaced. Added for the Art. 50(2) generated
+  /// flag; `metadata` is replaced wholesale, not merged, so callers spread
+  /// the original explicitly when they mean to add a key.
+  TranscriptionSegment copyWith({
+    String? text,
+    double? startTime,
+    double? endTime,
+    String? speaker,
+    double? confidence,
+    List<TranscriptionWord>? words,
+    Map<String, dynamic>? metadata,
+    List<String>? tags,
+  }) {
+    return TranscriptionSegment(
+      text: text ?? this.text,
+      startTime: startTime ?? this.startTime,
+      endTime: endTime ?? this.endTime,
+      speaker: speaker ?? this.speaker,
+      confidence: confidence ?? this.confidence,
+      words: words ?? this.words,
+      metadata: metadata ?? this.metadata,
+      tags: tags ?? this.tags,
+    );
+  }
+
   String get formattedTime {
     final start = _formatTime(startTime);
     final end = _formatTime(endTime);
@@ -254,4 +290,18 @@ class TranscriptionException extends EngineException {
 class GenericEngineException extends EngineException {
   const GenericEngineException(super.message, super.engineId,
       [super.originalError]);
+}
+
+/// Raised when an audio-Q&A prompt asks the model to infer an emotional,
+/// affective, or intent-bearing attribute of a speaker.
+///
+/// A distinct type rather than a [TranscriptionException] so callers can
+/// tell a compliance refusal apart from a transcription failure — the UI
+/// shows a different message and offers no retry, because retrying the same
+/// prompt is exactly what must not happen. See `AffectivePromptGuard`.
+class AffectivePromptException extends EngineException {
+  /// The term that tripped the guard, so the caller can name it.
+  final String term;
+
+  const AffectivePromptException(super.message, super.engineId, this.term);
 }

@@ -764,8 +764,13 @@
   "advancedHotwordsUnsupported": "Das aktive Backend unterstützt keine Hotword-Erkennung. Wechsle zu einem LLM-Backend oder Whisper, um diese Funktion zu aktivieren.",
 
   "advancedAskPrompt": "Audio fragen (Q&A-Modus)",
-  "advancedAskPromptHint": "z. B. „Zusammenfassen\" oder „Wie klingt der Sprecher?\"",
-  "advancedAskPromptHelper": "Nur Voxtral / Qwen3-ASR. Wenn gesetzt, ANTWORTET das LLM auf deine Frage, statt eine wortgetreue Transkription zu liefern. Leer lassen für normale Transkription.",
+  "advancedAskPromptHint": "z. B. „Zusammenfassen\" oder „Was wurde beschlossen?\"",
+  "advancedAskPromptHelper": "Nur Voxtral / Qwen3-ASR. Wenn gesetzt, ANTWORTET das LLM auf deine Frage, statt eine wortgetreue Transkription zu liefern; die Antwort wird bei jedem Export als KI-generiert gekennzeichnet. Leer lassen für normale Transkription. Fragen nach Emotionen, Stimmung, Tonfall oder Absicht einer sprechenden Person werden abgelehnt — siehe Nutzungsrichtlinie.",
+  "askPromptRefusedAffectiveTitle": "Eingabe abgelehnt",
+  "askPromptRefusedAffective": "Diese Frage verlangt vom Modell, ein emotionales oder absichtsbezogenes Merkmal einer sprechenden Person abzuleiten (Treffer: \"{term}\"). Das Ableiten von Emotionen aus der Stimme ist Emotionserkennung im Sinne des EU AI Act — am Arbeitsplatz und in Bildungseinrichtungen verboten, sonst hochriskant. CrisperWeaver tut dies nicht. Frage danach, was gesagt wurde, nicht danach, wie es geklungen hat.",
+  "@askPromptRefusedAffective": {
+    "placeholders": { "term": { "type": "String" } }
+  },
 
   "voiceCloneOpenTooltip": "Stimme klonen…",
   "voiceCloneTitle": "Stimm-Klon-Assistent",

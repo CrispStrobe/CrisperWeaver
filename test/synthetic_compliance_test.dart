@@ -21,6 +21,7 @@ import 'package:crisper_weaver/services/content_provenance_service.dart';
 import 'package:crisper_weaver/services/note_export_service.dart';
 import 'package:crisper_weaver/services/ocr_service.dart';
 import 'package:crisper_weaver/services/spread_spectrum_watermark.dart';
+import 'package:crisper_weaver/utils/affective_prompt_guard.dart';
 import 'package:crisper_weaver/utils/ai_text_disclosure.dart';
 import 'package:crisper_weaver/utils/emotion_inference.dart';
 import 'package:crisper_weaver/utils/file_utils.dart';
@@ -205,9 +206,28 @@ void main() {
   group('Export disclosure — SRT', () {
     test('default includes AI disclosure notice (Art. 50)', () {
       final out = FileUtils.generateSrtContent(segs);
-      expect(out, startsWith('NOTE:'));
+      // The notice is cue 0, not a bare `NOTE:` line — SRT has no comment
+      // syntax, so the old form was a parse error or a dropped disclosure
+      // depending on the player (fixed 2026-08-03).
+      expect(out, startsWith('0\n00:00:00,000 --> 00:00:03,000\n'));
       expect(out, contains('AI-generated synthetic speech'));
       expect(out, contains('Alice: Hello world.'));
+    });
+
+    test('the notice is a parseable cue, not a bare line', () {
+      final out = FileUtils.generateSrtContent(segs);
+      // Every non-blank block must start with an integer index followed by
+      // a timing line — the property a bare `NOTE:` prefix broke.
+      final blocks = out
+          .trim()
+          .split(RegExp(r'\n\s*\n'))
+          .where((b) => b.trim().isNotEmpty);
+      for (final b in blocks) {
+        final lines = b.trim().split('\n');
+        expect(int.tryParse(lines.first.trim()), isNotNull,
+            reason: 'block does not start with a cue index: $b');
+        expect(lines[1], contains(' --> '), reason: 'no timing line in: $b');
+      }
     });
 
     test('explicit opt-out suppresses notice', () {
@@ -221,7 +241,8 @@ void main() {
     test('default includes AI disclosure NOTE (Art. 50)', () {
       final out = FileUtils.generateVttContent(segs);
       expect(out, startsWith('WEBVTT\n'));
-      expect(out, contains('NOTE AI-generated synthetic speech'));
+      expect(out, contains('NOTE '));
+      expect(out, contains('AI-generated synthetic speech'));
     });
 
     test('explicit opt-out suppresses NOTE', () {
@@ -711,7 +732,8 @@ void main() {
 
     test('VTT default includes NOTE', () {
       final out = FileUtils.generateVttContent(segs);
-      expect(out, contains('NOTE AI-generated'));
+      expect(out, contains('NOTE '));
+      expect(out, contains('AI-generated'));
     });
 
     test('JSON default includes _disclosure', () {
@@ -1379,4 +1401,146 @@ void _thirdAuditTests() {
           contains('hello there'));
     });
   });
+
+  // -----------------------------------------------------------------------
+  // Audio Q&A — affective prompts refused, answers marked as generated
+  //
+  // `askPrompt` hands a free-text question to an instruct-tuned audio LLM,
+  // which answers it instead of transcribing. Two distinct duties fall out
+  // of that, and the audit of 2026-08-03 found both unmet: the prompt is a
+  // route to emotion recognition that no output filter can close
+  // (Art. 5(1)(f) / Annex III 1(c)), and the answer is generated text that
+  // every downstream label called a transcript (Art. 50(2)).
+  // -----------------------------------------------------------------------
+  group('Audio Q&A — affective prompt guard (Art. 5(1)(f), Annex III 1(c))', () {
+    test('refuses the prompt the UI itself used to suggest', () {
+      // The shipped placeholder read "e.g. \"Summarize\" or \"What's the
+      // speaker's tone?\"" in EN/DE/ZH — the app recommending the one
+      // question that would re-acquire an Annex III 1(c) obligation.
+      expect(AffectivePromptGuard.isAffective("What's the speaker's tone?"),
+          isTrue);
+      expect(AffectivePromptGuard.isAffective('Wie ist die Stimmung des Sprechers?'),
+          isTrue);
+      expect(AffectivePromptGuard.isAffective('说话人的语气如何？'), isTrue);
+    });
+
+    test('no shipped locale suggests an affective prompt', () async {
+      // The regression that matters: this is how the capability came back
+      // after being deleted. A placeholder is a recommendation.
+      for (final locale in const [Locale('en'), Locale('de'), Locale('zh')]) {
+        final l = await AppLocalizations.delegate.load(locale);
+        expect(AffectivePromptGuard.isAffective(l.advancedAskPromptHint),
+            isFalse,
+            reason: 'ask-prompt hint for ${locale.languageCode} suggests an '
+                'emotion-inference prompt');
+      }
+    });
+
+    test('catches emotion, intent and veracity across languages', () {
+      const refused = [
+        'How does the speaker feel? describe their emotion',
+        'Is the caller angry',
+        'summarise the mood of the meeting',
+        'was the witness lying',
+        'what is the speaker\'s intent',
+        'Klingt der Sprecher wütend?',
+        '说话人是否生气？',
+      ];
+      for (final p in refused) {
+        expect(AffectivePromptGuard.isAffective(p), isTrue, reason: p);
+      }
+    });
+
+    test('ordinary questions are not refused', () {
+      const allowed = [
+        'Summarize',
+        'What was decided?',
+        'List the action items',
+        'Who spoke first?',
+        'What was the deadline mentioned',
+        'Was wurde beschlossen?',
+        '做出了什么决定？',
+        '',
+        null,
+      ];
+      for (final p in allowed) {
+        expect(AffectivePromptGuard.isAffective(p), isFalse, reason: '$p');
+      }
+    });
+
+    test('word terms match on boundaries, not substrings', () {
+      // `sad` must not fire on `saddle`, or the guard becomes noise the
+      // user learns to route around.
+      expect(AffectivePromptGuard.isAffective('what did they say about the saddle'),
+          isFalse);
+      expect(AffectivePromptGuard.isAffective('list the attendees'), isFalse);
+    });
+
+    test('the refusal names the term and cites why', () {
+      final term = AffectivePromptGuard.offendingTerm('what is their mood');
+      expect(term, 'mood');
+      final msg = AffectivePromptGuard.refusalMessage(term!);
+      expect(msg, contains('mood'));
+      expect(msg, contains('Art. 3(39)'));
+      expect(msg, contains('Art. 5(1)(f)'));
+    });
+  });
+
+  group('Audio Q&A — output marked as generated (Art. 50(2))', () {
+    const qaSegs = [
+      TranscriptionSegment(
+        text: 'The team agreed to ship on Friday.',
+        startTime: 0,
+        endTime: 4,
+        metadata: {'generated': 'audio-qa'},
+      ),
+    ];
+    const plainSegs = [
+      TranscriptionSegment(
+          text: 'Hello world.', startTime: 0, endTime: 1, speaker: 'Alice'),
+    ];
+
+    test('isGenerated distinguishes an answer from a transcript', () {
+      expect(qaSegs.first.isGenerated, isTrue);
+      expect(plainSegs.first.isGenerated, isFalse);
+    });
+
+    test('the flag survives copyWith', () {
+      // It has to reach history and later re-exports, not just this run.
+      expect(qaSegs.first.copyWith(text: 'x').isGenerated, isTrue);
+    });
+
+    test('every structured export names it an answer, not a transcript', () {
+      final outs = {
+        'srt': FileUtils.generateSrtContent(qaSegs),
+        'vtt': FileUtils.generateVttContent(qaSegs),
+        'json': FileUtils.generateJsonContent(qaSegs),
+        'md': FileUtils.generateMarkdownContent(qaSegs),
+        'obsidian': NoteExportService.toObsidian(segments: qaSegs, title: 'T'),
+        'notion': NoteExportService.toNotion(segments: qaSegs, title: 'T'),
+        'logseq': NoteExportService.toLogseq(segments: qaSegs, title: 'T'),
+        'chapters': NoteExportService.toYouTubeChapters(segments: qaSegs),
+      };
+      outs.forEach((name, out) {
+        expect(out, contains(AiTextDisclosure.audioQa), reason: name);
+        // The transcript wording must NOT be applied to generated prose —
+        // mismarking is what the audit found, not absence of a mark.
+        expect(out.contains(NoteExportService.disclosure), isFalse,
+            reason: '$name calls a generated answer a transcript');
+      });
+    });
+
+    test('a real transcript keeps the transcript wording', () {
+      final out = NoteExportService.toObsidian(segments: plainSegs, title: 'T');
+      expect(out, contains(NoteExportService.disclosure));
+      expect(out.contains(AiTextDisclosure.audioQa), isFalse);
+    });
+
+    test('the Q&A notice says answer, not transcript', () {
+      final d = AiTextDisclosure.audioQa.toLowerCase();
+      expect(d, contains('ai-generated'));
+      expect(d, contains('not a transcript'));
+    });
+  });
+
 }

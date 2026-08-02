@@ -28,6 +28,7 @@ import 'package:crisper_weaver/constants/app_constants.dart';
 import 'package:crisper_weaver/services/audio_watermark_service.dart';
 import 'package:crisper_weaver/services/content_provenance_service.dart';
 import 'package:crisper_weaver/services/spread_spectrum_watermark.dart';
+import 'package:crisper_weaver/utils/affective_prompt_guard.dart';
 import 'package:crisper_weaver/utils/ai_text_disclosure.dart';
 import 'package:crisper_weaver/utils/emotion_inference.dart';
 import 'package:crisper_weaver/utils/marked_wav.dart';
@@ -274,6 +275,17 @@ class _TranscribeCmd extends _Base {
     final modelPath = argResults!['model'] as String;
     final rest = argResults!.rest;
     if (rest.isEmpty) { usageException('Pass an audio file path.'); }
+    // EU AI Act Art. 5(1)(f) / Annex III 1(c): refuse audio-Q&A prompts
+    // asking the model to infer a speaker's emotions or intent. Checked here,
+    // before the decode and the model load, so a refused run costs nothing
+    // and cannot be mistaken for a transcription failure. The engine and the
+    // HTTP server enforce the same list.
+    final affectiveTerm =
+        AffectivePromptGuard.offendingTerm(argResults!['ask'] as String?);
+    if (affectiveTerm != null) {
+      stderr.writeln(AffectivePromptGuard.refusalMessage(affectiveTerm));
+      return 2;
+    }
     final audio = crispasr.decodeAudioFile(File(rest.first).absolute.path, libPath: lib);
     final backend = argResults!['backend'] as String?;
     final session = crispasr.CrispasrSession.open(
@@ -327,10 +339,21 @@ class _TranscribeCmd extends _Base {
       // text and needs no mark — but asking for a *translation* makes the
       // output machine-generated, exactly as it does in the GUI's translate
       // screen and on `/v1/audio/translations`.
+      //
+      // So does `--ask`: in Q&A mode the backend answers the question
+      // instead of transcribing, so stdout carries a language model's prose
+      // and not a record of what anyone said. The 2026-08-02 audit brought
+      // the CLI inside the text-marking scope but keyed the rule on
+      // translation alone, so `--ask` output kept going out bare.
       final translated = (argResults!['translate'] as bool) ||
           (targetLang != null && targetLang.isNotEmpty);
+      final isQa = ask != null && ask.trim().isNotEmpty;
       final noDisclosure = argResults!['no-disclosure'] as bool;
-      final disclose = translated && !noDisclosure;
+      final disclose = (translated || isQa) && !noDisclosure;
+      // Q&A wins the wording: it is the stronger claim, and a translated
+      // answer is still an answer.
+      final disclosureText =
+          isQa ? AiTextDisclosure.audioQa : AiTextDisclosure.translation;
 
       // SenseVoice writes `<|HAPPY|>`-style emotion inferences inline.
       // The app does not do emotion recognition — surfacing those made it
@@ -339,7 +362,12 @@ class _TranscribeCmd extends _Base {
       // an inference about a natural person through to stdout.
       if (argResults!['srt'] as bool) {
         if (disclose) {
-          stdout.writeln('NOTE: ${AiTextDisclosure.translation}\n');
+          // SRT has no comment directive — `NOTE` is WebVTT's, and a bare
+          // line before cue 1 is a parse error or a silently dropped
+          // disclosure depending on the player. Ship it as a real cue.
+          stdout.writeln('0');
+          stdout.writeln('00:00:00,000 --> 00:00:03,000');
+          stdout.writeln('$disclosureText\n');
         }
         var i = 1;
         for (final s in segs) {
@@ -350,7 +378,7 @@ class _TranscribeCmd extends _Base {
       } else if (argResults!['vtt'] as bool) {
         stdout.writeln('WEBVTT\n');
         if (disclose) {
-          stdout.writeln('NOTE ${AiTextDisclosure.translation}\n');
+          stdout.writeln('NOTE $disclosureText\n');
         }
         for (final s in segs) {
           stdout.writeln('${_vts(s.start)} --> ${_vts(s.end)}');
@@ -369,8 +397,7 @@ class _TranscribeCmd extends _Base {
       } else {
         final joined = segs.map((s) => _noEmotion(s.text)).join(' ').trim();
         if (disclose) {
-          _writeDisclosedText(joined, AiTextDisclosure.translation,
-              suppress: false);
+          _writeDisclosedText(joined, disclosureText, suppress: false);
         } else {
           stdout.writeln(joined);
         }

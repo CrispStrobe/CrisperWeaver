@@ -120,11 +120,26 @@ scoring, and real-time remote biometric identification in public spaces.
 
 ### 5.1 Emotion inference
 
-CrisperWeaver does not infer emotions. Some transcription models
-(SenseVoice) emit emotion labels alongside the transcript; the app
-discards them rather than showing them, so there is no emotion output to
-misuse. This is enforced in the code, not by this policy — see
-`docs/AI_ACT_RISK.md` §2.8.
+CrisperWeaver does not infer emotions, and blocks the two routes by which
+it otherwise could.
+
+**Model-emitted labels.** Some transcription models (SenseVoice) emit
+emotion labels alongside the transcript; the app discards them rather than
+showing them, so there is no emotion output to misuse. Enforced in the
+code, not by this policy — see `docs/AI_ACT_RISK.md` §2.8.
+
+**Prompts you write.** The audio-Q&A field ("ask the audio") passes your
+question to a language model that answers it from the recording. Questions
+asking what a speaker *felt*, *meant*, or *intended* — their tone, mood,
+emotional state, sincerity, or truthfulness — **are refused**, in the app,
+on the local HTTP server and in the CLI. Ask what was said, not how it
+sounded.
+
+That refusal is a keyword filter over a free-text field, and we will not
+pretend it is airtight: a rephrased prompt can get past it. **Doing so
+deliberately is a violation of this policy**, and in a workplace or
+educational setting it is a violation of Art. 5(1)(f) regardless of what
+this policy says. The filter marks the boundary; it does not police it.
 
 If you extract those labels yourself by other means, using them **to
 assess, monitor, screen or evaluate employees, job applicants, students or

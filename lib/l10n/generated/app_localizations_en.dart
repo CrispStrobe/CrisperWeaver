@@ -1260,11 +1260,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get advancedAskPromptHint =>
-      'e.g. \"Summarize\" or \"What\'s the speaker\'s tone?\"';
+      'e.g. \"Summarize\" or \"What was decided?\"';
 
   @override
   String get advancedAskPromptHelper =>
-      'Voxtral / Qwen3-ASR only. When set, the LLM ANSWERS your question instead of producing a verbatim transcript. Leave empty for normal transcription.';
+      'Voxtral / Qwen3-ASR only. When set, the LLM ANSWERS your question instead of producing a verbatim transcript, and the answer is marked as AI-generated wherever it is exported. Leave empty for normal transcription. Questions about a speaker\'s emotions, mood, tone, or intent are refused — see Acceptable Use.';
+
+  @override
+  String get askPromptRefusedAffectiveTitle => 'Prompt refused';
+
+  @override
+  String askPromptRefusedAffective(String term) {
+    return 'This question asks the model to infer an emotional or intent-bearing attribute of a speaker (matched \"$term\"). Inferring emotions from a voice is emotion recognition under the EU AI Act — prohibited in workplaces and schools, and high-risk elsewhere. CrisperWeaver does not do it. Ask about what was said rather than how the speaker sounded.';
+  }
 
   @override
   String get editAudioOpen => 'Open in audio editor';

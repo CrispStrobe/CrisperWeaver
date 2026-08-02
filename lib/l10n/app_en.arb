@@ -554,8 +554,13 @@
   "advancedTargetLanguageNone": "No translation (verbatim)",
   "advancedTargetLanguageHelper": "Visible only for translation-capable backends (Canary, Voxtral, Qwen3, Cohere, Whisper). Leave at \"No translation\" for verbatim transcription.",
   "advancedAskPrompt": "Ask the audio (Q&A mode)",
-  "advancedAskPromptHint": "e.g. \"Summarize\" or \"What's the speaker's tone?\"",
-  "advancedAskPromptHelper": "Voxtral / Qwen3-ASR only. When set, the LLM ANSWERS your question instead of producing a verbatim transcript. Leave empty for normal transcription.",
+  "advancedAskPromptHint": "e.g. \"Summarize\" or \"What was decided?\"",
+  "advancedAskPromptHelper": "Voxtral / Qwen3-ASR only. When set, the LLM ANSWERS your question instead of producing a verbatim transcript, and the answer is marked as AI-generated wherever it is exported. Leave empty for normal transcription. Questions about a speaker's emotions, mood, tone, or intent are refused — see Acceptable Use.",
+  "askPromptRefusedAffectiveTitle": "Prompt refused",
+  "askPromptRefusedAffective": "This question asks the model to infer an emotional or intent-bearing attribute of a speaker (matched \"{term}\"). Inferring emotions from a voice is emotion recognition under the EU AI Act — prohibited in workplaces and schools, and high-risk elsewhere. CrisperWeaver does not do it. Ask about what was said rather than how the speaker sounded.",
+  "@askPromptRefusedAffective": {
+    "placeholders": { "term": { "type": "String" } }
+  },
   "editAudioOpen": "Open in audio editor",
   "editAudioTitle": "Edit audio",
   "editAudioLoadFailed": "Couldn't decode audio: {error}",
