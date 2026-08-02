@@ -1704,11 +1704,11 @@ class CrispASREngine implements TranscriptionEngine {
 
   // §10 SenseVoice tag classification helpers.
   //
-  // The emotion set lives in `EmotionInference` rather than here: emitting
-  // `metadata['emotion']` is what makes this an Art. 50(3) emotion
-  // recognition system, so the widgets that must disclose it and the
-  // compliance suite that must pin it need the same definition.
-  static bool _isEmotionTag(String t) => EmotionInference.isEmotionTag(t);
+  // Emotion tags are *discarded here* rather than classified — see
+  // `EmotionInference`. SenseVoice still emits `<|HAPPY|>` and friends;
+  // this engine drops them at the parse boundary so no emotion inference
+  // about a natural person ever reaches segment metadata, the UI, or an
+  // export. That is what keeps the app out of Annex III 1(c).
   static bool _isEventTag(String t) =>
       const {'SPEECH', 'BGM', 'LAUGHTER', 'APPLAUSE', 'NOISE', 'MUSIC', 'SINGING'}
           .contains(t.toUpperCase());
@@ -1757,17 +1757,26 @@ class CrispASREngine implements TranscriptionEngine {
               words.length;
 
       // §10 — SenseVoice emits inline tags: <|HAPPY|>, <|Speech|>,
-      // <|BGM|>, <|Laughter|>, etc. Strip them from display text and
-      // surface in metadata so the UI can show emotion/event badges.
+      // <|BGM|>, <|Laughter|>, etc. All of them are stripped from the
+      // display text; the *acoustic event* ones are surfaced in metadata
+      // so the UI can badge them.
+      //
+      // Emotion tags are dropped and never recorded. Surfacing them made
+      // this an emotion recognition system under Art. 3(39) and an
+      // Annex III 1(c) high-risk system from 2 Dec 2027, for a per-segment
+      // badge that no export even carried — so the feature was removed
+      // rather than documented. The filter is here, at the only point the
+      // tags enter the app, so there is one place to check rather than a
+      // duty spread across every consumer of `metadata`.
       var segText = s.text.trim();
       final svTags = <String>[];
       final tagPattern = RegExp(r'<\|([A-Za-z_]+)\|>');
       for (final m in tagPattern.allMatches(segText)) {
-        svTags.add(m.group(1)!);
+        final tag = m.group(1)!;
+        if (EmotionInference.isEmotionTag(tag)) continue;
+        svTags.add(tag);
       }
-      if (svTags.isNotEmpty) {
-        segText = segText.replaceAll(tagPattern, '').trim();
-      }
+      segText = segText.replaceAll(tagPattern, '').trim();
 
       final seg = TranscriptionSegment(
         text: segText,
@@ -1781,7 +1790,6 @@ class CrispASREngine implements TranscriptionEngine {
           'segmentIndex': i,
           'backend': _session?.backend,
           if (svTags.isNotEmpty) 'sensevoice_tags': svTags,
-          if (svTags.any(_isEmotionTag)) 'emotion': svTags.firstWhere(_isEmotionTag),
           if (svTags.any(_isEventTag)) 'audio_event': svTags.firstWhere(_isEventTag),
         },
       );

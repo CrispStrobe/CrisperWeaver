@@ -115,31 +115,23 @@ No consent makes these acceptable: child sexual abuse material; content
 promoting terrorism or mass violence; targeted harassment; disinformation
 designed to interfere with an election or a public-health response;
 evading sanctions or export controls; or any use prohibited under EU AI
-Act Art. 5 — notably social scoring and real-time remote biometric
-identification in public spaces.
+Act Art. 5 — notably emotion inference in workplaces or schools, social
+scoring, and real-time remote biometric identification in public spaces.
 
-### 5.1 Emotion recognition — the one you can actually reach
+### 5.1 Emotion inference
 
-The item above that this app can genuinely be pointed at is **emotion
-inference in workplaces and schools**, so it gets its own paragraph rather
-than a mention in a list.
+CrisperWeaver does not infer emotions. Some transcription models
+(SenseVoice) emit emotion labels alongside the transcript; the app
+discards them rather than showing them, so there is no emotion output to
+misuse. This is enforced in the code, not by this policy — see
+`docs/AI_ACT_RISK.md` §2.8.
 
-Some transcription models (SenseVoice) infer a speaker's emotional state
-from their voice and CrisperWeaver displays it as a per-segment label.
-Using that **to assess, monitor, screen or evaluate employees, job
-applicants, students or trainees is prohibited outright** under EU AI Act
-Art. 5(1)(f). This is a ban, not a consent requirement: asking the people
-concerned does not make it lawful, and neither does an internal policy or
-an employment contract. The narrow exception in Art. 5(1)(f) is for
-medical or safety purposes, and it is narrower than it sounds.
-
-Outside those contexts, if you use the emotion labels at all you must tell
-the people in the recording that emotion recognition is being applied to
-them (Art. 50(3)). That duty is yours as the deployer — the app shows you
-the disclosure, but it cannot inform anyone on your behalf.
-
-Treat the labels as what they are: probabilistic guesses that are wrong
-often enough that no decision about a person should rest on one.
+If you extract those labels yourself by other means, using them **to
+assess, monitor, screen or evaluate employees, job applicants, students or
+trainees is prohibited outright** under EU AI Act Art. 5(1)(f). That is a
+ban rather than a consent requirement: asking the people concerned does not
+make it lawful, and neither does an internal policy or an employment
+contract.
 
 ## 6. Reporting misuse
 

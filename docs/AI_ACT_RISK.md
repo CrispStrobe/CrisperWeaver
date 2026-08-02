@@ -125,52 +125,63 @@ Three points this subsystem raises that the others do not:
   the disclosure is attached at every point where text leaves the app
   rather than only where it is displayed.
 
-### 2.8 Emotion Recognition (SenseVoice transcription backends)
+### 2.8 Emotion Recognition — **removed** (2026-08-02)
 
 | Property | Value |
 |---|---|
-| Function | Infers a speaker's emotional state from their voice and displays it as a per-segment label. SenseVoice emits inline `<\|HAPPY\|>` / `<\|SAD\|>` / `<\|ANGRY\|>` / `<\|SURPRISED\|>` / `<\|FEARFUL\|>` / `<\|DISGUSTED\|>` / `<\|NEUTRAL\|>` tags; the engine parses them into `metadata['emotion']` and the transcript widget renders a badge |
-| Art. 3(39) | **Yes** — inferring emotions of natural persons on the basis of biometric data (voice) |
-| Annex III category | **1(c)** — emotion recognition systems |
-| Art. 50(3) applicability | **Yes** — deployer must inform exposed natural persons |
-| Art. 5(1)(f) | **Prohibited** in workplace and education contexts, in force since 2 Feb 2025 |
-| Risk level | **High-risk under Annex III 1(c)** from 2 Dec 2027; Art. 50(3) transparency applies now |
-| Mitigations | Art. 50(3) disclosure banner rendered above any transcript containing an inference, per-badge tooltip + screen-reader annotation, `~` prefix marking the label as inferred, first-use notice enumerates the subsystem, CLI warns on stderr, acceptable-use policy prohibits the Art. 5(1)(f) contexts |
+| Function | **None.** The app performs no emotion recognition |
+| Annex III category | Would have been **1(c)**; not engaged, because the feature no longer exists |
+| Art. 50(3) applicability | **No** — nothing to disclose |
+| Risk level | **Out of scope** |
+| Enforcement | `EmotionInference.isEmotionTag` in `lib/utils/emotion_inference.dart` is a discard list; `CrispasrEngine` drops every listed tag at the parse boundary, before it can reach segment metadata, the UI, or an export, and the CLI drops it on every output format. Pinned by `test/synthetic_compliance_test.dart` |
 
-**This subsystem was undeclared until the audit of 2026-08-02.** §3.3 of this
-document previously read "No emotion recognition and no biometric
-categorisation is performed", and concluded Art. 50(3) was not engaged. That
-was true of the Chatterbox `[angry]` / `[whispering]` tags on the
-*generation* side — which is all the earlier analysis looked at — and false
-of the SenseVoice *recognition* side, which had been shipping since the
-backend was catalogued. The error is recorded rather than quietly corrected
-because the two previous audits both re-read §3.3 and both missed it: the
-claim was checked against the synthesis screen and never against the ASR
+**What was there, and why it went.** SenseVoice backends emit inline
+`<\|HAPPY\|>` / `<\|SAD\|>` / `<\|ANGRY\|>` / `<\|SURPRISED\|>` /
+`<\|FEARFUL\|>` / `<\|DISGUSTED\|>` / `<\|NEUTRAL\|>` tags alongside the
+transcript. The engine parsed them into `metadata['emotion']` and the
+transcript widget rendered a per-segment badge. That is inferring the
+emotional state of a natural person from biometric data — an emotion
+recognition system under Art. 3(39), listed at Annex III **1(c)**.
+
+**This subsystem was undeclared until the audit of 2026-08-02.** §3.3 of
+this document read "No emotion recognition and no biometric categorisation
+is performed" and concluded Art. 50(3) was not engaged. That was true of
+the Chatterbox `[angry]` / `[whispering]` tags on the *generation* side —
+which is all the earlier analysis looked at — and false of the SenseVoice
+*recognition* side, which had been shipping since the backend was
+catalogued. The error is recorded rather than quietly corrected because
+two previous audits both re-read §3.3 and both missed it: the claim was
+being checked against the synthesis screen and never against the ASR
 engine.
 
-Three consequences follow, and they are not the same obligation:
+**Why removal rather than compliance.** Art. 50(3) transparency was the
+cheap part and was in fact implemented first. The expensive part is
+Annex III 1(c), which has no verification-style carve-out to fall outside
+of: from 2 Dec 2027 it brings risk management, logging, human oversight and
+conformity assessment, plus Art. 49(2) EU-database registration if the
+Art. 6(3) derogation were relied on — and the derogation argument was weak
+here, because the app parsed the tags deliberately, classified them with a
+dedicated helper, and rendered a labelled badge, which reads as intent.
 
-- **Art. 50(3) binds the deployer**, like 50(4) does — the user running the
-  app over a recording must inform the people in it. CrisperWeaver cannot
-  discharge that duty for them, so it does what it does for deep fakes:
-  makes the inference impossible to miss and states whose duty it is. The
-  disclosure is deliberately *not* a one-time dismissible dialog — every
-  new recording exposes a different set of natural persons.
-- **Art. 5(1)(f) is a prohibition, not a consent question.** Inferring
-  emotions in the workplace or in education institutions is banned outright
-  (narrow medical/safety exception aside), and consent does not cure it.
-  [`ACCEPTABLE_USE.md`](../ACCEPTABLE_USE.md) §5 prohibits it; the app
-  cannot detect the context and does not claim to.
-- **Annex III 1(c) makes this a high-risk system** from 2 Dec 2027, which
-  re-opens the Art. 49(2) registration question — see §7.3, whose "not
-  applicable" conclusion was reasoned solely about speaker identification.
+Set against that: the badge was display-only. It never reached an export, a
+share payload, or a history record. Art. 5(1)(f) compounded the imbalance —
+inferring emotions in workplaces and schools is prohibited outright, the
+app cannot detect deployment context, and a policy line was the only
+control available for a feature that shipped enabled.
 
-**Scope limits worth stating.** The inference is display-only: it is held in
-segment metadata and is not written into any export, share payload, or
-history record, so it does not travel off-device or outlive the session. It
-is also confined to SenseVoice backends — no other ASR model in the
-catalogue emits emotion tags. Neither fact changes the classification; both
-bound the exposure.
+A permanent high-risk obligation for a per-segment badge that nothing
+persisted was not a trade worth making, so the feature was deleted.
+
+**What is *not* removed.** SenseVoice remains a fully supported
+transcription backend. Its acoustic *event* tags (`SPEECH`, `BGM`,
+`LAUGHTER`, `APPLAUSE`, …) are still parsed and badged: classifying
+laughter as an audio event describes the recording, not the speaker's inner
+state, and is not an inference about a natural person.
+
+**Re-opens if** any model's output is surfaced as an emotional, affective,
+or intent-bearing attribute of a speaker — including via a new backend, a
+plugin, or an LLM prompt that asks for tone or mood. The discard list is
+the control, and it only works for tags it names.
 
 ## 3. Speaker Identification — Detailed Risk Assessment
 
@@ -249,17 +260,25 @@ sensitive attributes — race, political opinion, trade-union membership,
 religion, sex life, sexual orientation — from anyone's biometric data.
 Art. 5(1)(g) is not engaged.
 
-**Emotion recognition, by contrast, *is* performed** — see §2.8. Earlier
-revisions of this section denied it on the strength of the Chatterbox
-`[angry]` / `[whispering]` tags being generation-side prosody controls.
-That much remains true: those tags steer TTS output and infer nothing about
-any person. But the recognition side exists independently, in the SenseVoice
-ASR backends, and Art. 50(3) *is* engaged on that limb.
+**No emotion recognition is performed either** — but that claim now holds
+for a different reason than earlier revisions of this section supposed, and
+the difference matters if anyone re-derives it.
 
-The distinction to keep hold of is direction. A tag that *tells the model
-how to sound* is a rendering instruction. A tag that *reports how the
+Those revisions rested the claim on the Chatterbox `[angry]` /
+`[whispering]` tags being generation-side prosody controls. That much
+remains true: they steer TTS output and infer nothing about any person. But
+it was never the whole picture — the SenseVoice ASR backends were running
+emotion inference on the recognition side, and the claim was false in
+practice from the day that backend was catalogued until 2026-08-02, when
+the feature was removed (§2.8). It is true today because the capability was
+deleted, not because it never existed.
+
+The distinction to keep hold of is **direction**. A tag that *tells the
+model how to sound* is a rendering instruction. A tag that *reports how the
 speaker sounded* is an inference about a natural person. Only the second is
-Art. 3(39), and the app does both.
+Art. 3(39). Any future audit of this section should check the ASR side as
+well as the synthesis side — checking only the latter is precisely how this
+was missed twice.
 
 ## 3a. Free and open-source status (Art. 2(12))
 
@@ -280,16 +299,12 @@ under Art. 5:
 - (c) No social scoring
 - (d) No individual risk assessment for criminal offending prediction
 - (e) No untargeted facial image scraping
-- (f) **Emotion inference is technically possible** (§2.8) and is
-  **prohibited in workplace and education contexts**. This is the one
-  Art. 5 limb the software can be pointed at rather than being structurally
-  incapable of, so it is stated as a restriction rather than an absence:
-  the app performs no context detection, cannot tell a staff meeting from a
-  family recording, and does not pretend otherwise. The prohibition is
-  carried by [`ACCEPTABLE_USE.md`](../ACCEPTABLE_USE.md) §5 and repeated in
-  the in-app Art. 50(3) disclosure, the first-use notice, and the CLI
-  warning. Users deploying it in those contexts breach Art. 5 on their own
-  account
+- (f) No emotion inference in workplace or educational contexts — the app
+  performs no emotion inference in **any** context since the capability was
+  removed on 2026-08-02 (§2.8). Between the SenseVoice backend being
+  catalogued and that date, the app could be pointed at this limb, and
+  nothing but the acceptable-use policy stood in the way; removal is what
+  makes this an absence rather than a restriction
 - (g) No biometric categorisation for sensitive attributes (§3.3)
 - (h) **No real-time remote biometric identification in publicly
   accessible spaces** — all processing is on-device, user-initiated,
@@ -308,27 +323,25 @@ behalf.
 |---|---|---|
 | 50(1) interaction disclosure | **Provider** | CrisperWeaver |
 | 50(2) machine-readable marking of synthetic content | **Provider** | CrisperWeaver |
-| 50(3) emotion recognition notice | **Deployer** | **the end user** — the subsystem exists (§2.8); biometric categorisation is not performed (§3.3) |
+| 50(3) emotion recognition / biometric categorisation notice | **Deployer** | n/a — emotion recognition removed (§2.8), no biometric categorisation (§3.3) |
 | 50(4) deep fake + public-interest text disclosure | **Deployer** | **the end user**, not CrisperWeaver |
 
-CrisperWeaver cannot discharge a deployer's Art. 50(3) or 50(4) duty. What
-it does is make compliance the default and non-compliance deliberate: the
+CrisperWeaver cannot discharge a deployer's Art. 50(4) duty. What it
+does is make compliance the default and non-compliance deliberate: the
 beep disclaimer is applied automatically to every cloned and
 voice-converted output, and suppressing it requires a written
-attestation that is logged for audit; the emotion-recognition disclosure is
-rendered above every transcript that contains an inference and cannot be
-dismissed.
+attestation that is logged for audit.
 
 ### 5.2 Implementation status
 
 | Obligation | Implementation | Status |
 |---|---|---|
-| Art. 50(1): Users informed of AI interaction | First-use transparency dialog (EN/DE/ZH), enumerating every AI subsystem — including emotion recognition since the 2026-08-02 audit — and which of them can use the network once enabled | Done |
+| Art. 50(1): Users informed of AI interaction | First-use transparency dialog (EN/DE/ZH), enumerating every AI subsystem and which of them can use the network once enabled | Done |
 | Art. 50(2): Machine-readable AI marking — audio | Spread-spectrum watermark, verified post-embed by probing the PCM; C2PA COSE/X.509 manifest; WAV LIST/INFO + ID3v2 tags | Done |
 | Art. 50(2): Machine-readable AI marking — text | Transcript exports carry a synthetic-content disclosure by default; OCR, LLM summaries and translations carry one on screen and on copy; the HTTP translation endpoint sets `x-content-ai-generated` and a `_disclosure` field | Done |
 | Art. 50(4): Deep fake disclosure — voice cloning | Mandatory beep disclaimer; suppression requires a logged attestation. Applies on the GUI, server (`/v1/audio/speech`) and CLI (`synthesize --voice`) paths | Done |
 | Art. 50(4): Deep fake disclosure — speech-to-speech | Same beep path via `voiceConverted` / `_writeMarkedWav(deepfake: true)`; `/v1/audio/s2s` consent-gated; CLI `s2s` marked | Done |
-| Art. 50(3): Emotion recognition notice | Non-dismissible banner above any transcript carrying an inference, stating the labels are guesses, that informing the recorded people is the user's duty, and that workplace/education use is prohibited; per-badge tooltip and `Semantics` annotation; `~` prefix on the label; CLI warns on stderr | Done |
+| Art. 50(3): Emotion recognition notice | Not applicable — the capability was removed rather than disclosed (§2.8). Emotion tags are discarded at the engine's parse boundary and on every CLI output format | n/a |
 | Art. 50(2): Marking survives editing | Trim / cut / split carry the source C2PA manifest into the derived file as a `c2pa.edited` action and re-emit the LIST/INFO tags, instead of re-encoding a bare 44-byte WAV; MP3 re-encode carries ID3v2 provenance, and containers that cannot carry a manifest are logged as watermark-only | Done |
 
 **Scope note — every generating path, not just the GUI.** The audit of
@@ -361,7 +374,6 @@ second clause at all.
 | Disclosure | Timing | Accessibility |
 |---|---|---|
 | 50(1) first-use notice | Blocking dialog on first launch, before any use | Native `AlertDialog` — traversable and readable by the platform screen reader; scrollable so it is not truncated on small displays |
-| 50(3) emotion notice | Rendered above the transcript, whenever an inference is present | `Semantics(liveRegion: true)` so it is announced rather than merely drawn; the badge itself carries a `Semantics` label and a tooltip, and a `~` prefix so the hedge survives in a screenshot rather than depending on colour |
 | 50(4) beep disclaimer | Prepended to the audio | Audible only — **deliberately redundant** with the C2PA manifest and container tags, which are the channel available to a deaf recipient or an automated checker |
 | 50(2) text disclosure | Prefixed to the text itself | Plain text, so it inherits whatever the reading tool provides |
 
@@ -397,7 +409,7 @@ users by:
 | Third-party abuse-reporting channel | **Done** — see §7.1 |
 | Code of Practice on Transparency of AI-generated Content | **Closed — decided not to sign** (2026-08-02). Technically conformant on every limb; adherence declined while the generating surface is still moving. Reasoning and re-open triggers in §7.2 |
 | Art. 49(2) EU-database registration — speaker ID | **Not applicable** on the operative analysis — see §7.3 |
-| Art. 49(2) / Annex III 1(c) — emotion recognition | **Open, decision deferred to 2 Dec 2027, default is removal** — see §2.8 and §7.3 |
+| Annex III 1(c) — emotion recognition | **Closed — capability removed** (2026-08-02); see §2.8 |
 | C2PA signing for MP3 exports | **Done** — ID3v2 provenance on the MP3 path; AAC/Opus are watermark-only and warn. §7.4's "no MP3 export exists" was incorrect |
 | Art. 53 GPAI obligations for republished GGUFs | **Assessed** — mostly exempt, one limb to watch; see §7.5 |
 
@@ -490,46 +502,23 @@ biometric **verification**, which Annex III 1(a) expressly excludes — so
 it is not an Annex III system at all, Art. 6(3) is never reached, and
 Art. 49(2) does not bite.
 
-**That reasoning covers only speaker identification.** The audit of
-2026-08-02 found a second Annex III subsystem the earlier analysis never
-considered: emotion recognition (§2.8) is listed at Annex III **1(c)**,
-with no verification-style carve-out to fall outside of. So the status of
-this item is now split:
+**A second Annex III subsystem briefly existed and was removed.** The audit
+of 2026-08-02 found emotion recognition (§2.8), listed at Annex III
+**1(c)** with no verification-style carve-out to fall outside of. Rather
+than argue the Art. 6(3) derogation — which would have required documenting
+the assessment before placing on the market *and* registering under
+Art. 49(2), since invoking the derogation is not an escape from
+registration — the capability was **deleted**. Annex III 1(c) is therefore
+not engaged, and no registration question arises from it.
 
 | Subsystem | Annex III | Registration |
 |---|---|---|
 | Speaker identification | Outside 1(a) — verification (§3.1) | Not applicable |
-| Emotion recognition | **Within 1(c)** | **Open — see below** |
+| Emotion recognition | Removed 2026-08-02 (§2.8) | Not applicable |
 
-For emotion recognition the question is not whether Annex III is engaged
-but which route out of it applies, and that has to be settled before
-2 Dec 2027 rather than assumed:
-
-- **Art. 6(3) derogation.** The candidate limb is 6(3)(a) — a narrow
-  procedural task — or the argument that the feature is a display artefact
-  of a transcription model rather than a system *intended* for emotion
-  recognition. The intended-purpose argument is genuinely weak here: the
-  app parses the tags deliberately, classifies them with a dedicated
-  helper, and renders a labelled badge. Deliberate surfacing looks like
-  intent. If the derogation is relied on, Art. 6(3) requires the assessment
-  to be **documented before placing on the market** and the system
-  **registered under Art. 49(2)** — invoking the derogation is not an
-  escape from registration.
-- **Removal.** Dropping the badge and the `metadata['emotion']` field
-  entirely — while keeping the SenseVoice backend for transcription and
-  discarding the emotion tags on parse — takes the app outside Annex III
-  1(c) altogether and moots the question. This is the cheaper option and
-  the one to prefer unless the feature earns its keep before the deadline,
-  because the alternative is carrying high-risk-system obligations
-  (risk management, logging, human oversight, conformity assessment) for a
-  per-segment badge that no export even records.
-
-**Decision deferred, deadline 2 Dec 2027, default is removal.** Revisit at
-the next audit; do not let it arrive undecided.
-
-The speaker-identification conclusion additionally depends on the
-closed-roster architecture and fails if that changes. **Re-open
-registration for that subsystem if any of these become true:**
+The speaker-identification conclusion depends on the closed-roster
+architecture and fails if that changes. **Re-open registration for that
+subsystem if any of these become true:**
 
 - matching stops being roster-constrained (an open 1:N search over the
   profile database);
@@ -617,11 +606,11 @@ distils a model rather than converting one.
 
 | Provision | Applies from | Relevance |
 |---|---|---|
-| Art. 5 prohibited practices | 2 Feb 2025 | In force. None performed; Art. 5(1)(f) is a *use restriction* on the emotion-recognition subsystem rather than an absence (§4) |
+| Art. 5 prohibited practices | 2 Feb 2025 | In force; none performed (§4). The Art. 5(1)(f) exposure closed when emotion recognition was removed (§2.8) |
 | Art. 4 AI literacy | 2 Feb 2025 | In force (§6) |
 | **Art. 50 transparency** | **2 Aug 2026** | **In force.** Explicitly excluded from the Digital Omnibus deferral |
 | Art. 50(2) marking — systems already on market | 2 Dec 2026 | Grace period; v0.9.5 qualifies, but the marking is already implemented |
-| Annex III high-risk obligations | 2 Dec 2027 | Deferred by the Digital Omnibus from the original 2 Aug 2026. **Now live for this app** via emotion recognition at Annex III 1(c) — §7.3 |
+| Annex III high-risk obligations | 2 Dec 2027 | Deferred by the Digital Omnibus from the original 2 Aug 2026. Not engaged: no Annex III system remains after the removal in §2.8 |
 
 ## 9. Document History
 
@@ -629,5 +618,5 @@ distils a model rather than converting one.
 |---|---|
 | 2026-07-16 | Initial risk classification document |
 | 2026-08-01 | Audit revision. Reframed speaker ID as biometric **verification** under the closed-roster API (§3.1) with Art. 6(3) demoted to a fallback argument and its registration/profiling caveats stated (§3.2). Added Art. 2(12) open-source scope note (§3a), provider/deployer split (§5.1), Art. 4 (§6), open items (§7), and post-Digital-Omnibus dates (§8). |
-| 2026-08-02 | **Third audit.** Found the app performs **emotion recognition** (SenseVoice) — a subsystem §3.3 had expressly denied across two prior audits. Added §2.8, rewrote §3.3 to separate generation-side prosody tags from recognition-side inference, restated Art. 5(1)(f) as a use restriction rather than an absence (§4), added the Art. 50(3) row to §5.1/§5.2, and split §7.3 so Annex III 1(c) is tracked separately from speaker ID with a deferred decision and a default of removal. Added §5.3 for the previously unaddressed Art. 50(5) accessibility clause. Corrected §7.4, which claimed no MP3 export path existed when `AudioEditService.exportEncoded` has one. Recorded the CLI text-disclosure and edit-strips-provenance gaps as fixed (§5.2). |
+| 2026-08-02 | **Third audit.** Found the app performed **emotion recognition** (SenseVoice emotion tags rendered as a per-segment badge) — a subsystem §3.3 had expressly denied across two prior audits, because the claim was checked against the synthesis screen and never against the ASR engine. **The capability was removed** rather than disclosed: Annex III 1(c) would have brought high-risk obligations from 2 Dec 2027 for a badge nothing persisted. Rewrote §2.8 as a removal record with a re-open trigger, corrected §3.3 to explain why the no-emotion-recognition claim is true now for a different reason than before, and closed the Annex III limb of §7.3. Added §5.3 for the previously unaddressed Art. 50(5) accessibility clause. Corrected §7.4, which claimed no MP3 export path existed when `AudioEditService.exportEncoded` has one. Recorded the CLI text-disclosure and edit-strips-provenance gaps as fixed (§5.2). |
 | 2026-08-02 | Second audit. Corrected the inaccurate "no data is transmitted" claim in §1 and classified the previously unclassified LLM text subsystem (§2.7) — the only one whose data can leave the device. Recorded that Art. 50(2) text marking now covers LLM summaries and translations, not only OCR, and that the CLI is inside the marking scope (§5.2). Added the GPAI note (§7.5). Closed the Code of Practice item as a decision not to sign, with reasoning and re-open triggers (§7.2). |

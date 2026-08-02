@@ -17,13 +17,13 @@ enables users to convert speech to text, generate speech from text,
 identify speakers in recordings, translate and summarise transcripts,
 and search their transcription history.
 
-Certain transcription backends (SenseVoice) additionally **infer the
-speaker's emotional state from their voice** and display it as a
-per-segment label. This is an emotion recognition system within
-Art. 3(39) and an Annex III 1(c) system; it is documented in
-`AI_ACT_RISK.md` §2.8, was undeclared until the audit of 2026-08-02, and
-its high-risk status carries a decision deadline of 2 Dec 2027
-(`AI_ACT_RISK.md` §7.3).
+**No emotion recognition is performed.** SenseVoice transcription backends
+emit inline emotion tags and the app rendered them as a per-segment badge
+until 2026-08-02; that made it an emotion recognition system under
+Art. 3(39) and an Annex III 1(c) high-risk system, so the capability was
+removed. The tags are now discarded at the engine's parse boundary and on
+every CLI output format. See `AI_ACT_RISK.md` §2.8 for the reasoning and
+the re-open trigger.
 
 ### 1.2 Provider
 
@@ -185,8 +185,7 @@ biometric data processing risks.
 | Transcript text disclosed to a third party | GDPR | Cloud LLM is opt-in and off by default; local model is the default path; flow disclosed in the first-use notice and `PRIVACY.md` §3.3 |
 | Transcription errors affecting decisions | Accuracy | Word-level confidence scores; user can verify and edit |
 | Model bias in ASR | Fairness | Multiple model families available; user chooses |
-| Emotion inference treated as fact | Art. 50(3) | Non-dismissible disclosure banner above any transcript carrying an inference; `~` prefix and tooltip on the badge; screen-reader annotation; CLI stderr warning. The label is stated as a probabilistic guess wherever it appears |
-| Emotion inference in a prohibited context | Art. 5(1)(f) | Prohibition stated in the acceptable-use policy, the first-use notice and the in-app disclosure. The app cannot detect deployment context and does not claim to — the restriction is on the deployer |
+| Emotion inference reaching a user or an export | Art. 5(1)(f), Annex III 1(c) | Capability removed. Emotion tags are discarded at the single point they enter the app (`CrispasrEngine`) and on every CLI output format, driven by one shared discard list and pinned by the compliance suite |
 | Generated audio loses its mark when edited | Art. 50(2) | Trim/cut/split carry the C2PA manifest across as a `c2pa.edited` action and re-emit LIST/INFO; MP3 re-encode carries ID3v2; containers that cannot carry a manifest are logged as watermark-only |
 | Headless output escapes text marking | Art. 50(2) | CLI `translate` and `transcribe --translate` attach the shared `AiTextDisclosure`; suppression requires an explicit `--no-disclosure` |
 
@@ -222,12 +221,9 @@ biometric data processing risks.
 - Speaker identification is probabilistic; false matches are possible.
 - Voice cloning produces synthetic audio that may closely resemble the
   reference voice but is not identical.
-- **Emotion labels are inferences, not observations, and are frequently
-  wrong.** Voice-based emotion recognition degrades sharply across
-  speakers, languages, recording conditions, and any affect the model was
-  not trained on; a `NEUTRAL` label most often means "no determination"
-  rather than a calm speaker. Treating a label as a finding about a person
-  is the primary foreseeable misuse of this feature.
+- CrisperWeaver does **not** infer emotions, mood, intent, or any other
+  affective or personal attribute from a voice. Where a model emits such a
+  label, it is discarded rather than shown (`AI_ACT_RISK.md` §2.8).
 
 ### 7.2 Intended Users
 
@@ -241,10 +237,9 @@ border control, employment decisions, or critical infrastructure.
   (mitigated by consent gate, watermark, and beep disclaimer).
 - Using speaker identification for unauthorized surveillance
   (mitigated by on-device-only architecture and Art. 5 compliance).
-- Using emotion recognition to assess staff or students — **prohibited
-  under Art. 5(1)(f)**, not merely discouraged (mitigated by the
-  acceptable-use policy and the in-app disclosure; the app cannot detect
-  the context and enforces nothing technically).
+- Inferring emotions to assess staff or students — **prohibited under
+  Art. 5(1)(f)**. Mitigated structurally rather than by policy: the app has
+  no emotion-inference output to misuse (`AI_ACT_RISK.md` §2.8).
 - Relying on transcriptions for high-stakes decisions without human
   review (mitigated by confidence scores and user editing capability).
 
@@ -254,5 +249,5 @@ border control, employment decisions, or critical infrastructure.
 |---|---|
 | 2026-07-16 | Initial Annex IV technical documentation |
 | 2026-08-01 | Audit revision: applicable dates refreshed for the Digital Omnibus; §5 cross-referenced to the provider/deployer split in `AI_ACT_RISK.md` §5.1. (Recorded retrospectively — the 2026-08-02 audit found this row had been omitted when the revision was made.) |
-| 2026-08-02 | **Third audit.** Added the previously undeclared emotion-recognition subsystem to §1.1, its accuracy limitation to §7.1 and its Art. 5(1)(f) misuse case to §7.3. Added four rows to §5.1 covering emotion disclosure, the prohibited-context restriction, provenance survival across edits, and CLI text marking. |
+| 2026-08-02 | **Third audit.** Found a previously undeclared emotion-recognition capability (SenseVoice emotion badges); it was **removed** rather than disclosed, since Annex III 1(c) would have made it high-risk from 2 Dec 2027. §1.1, §7.1 and §7.3 now record the absence and how it is enforced. Added three rows to §5.1 covering the removal, provenance survival across edits, and CLI text marking. |
 | 2026-08-02 | Second audit. Corrected version and engine pins in §1.3, which had drifted three releases; added the LLM text subsystem and the localhost server/Wyoming interfaces to §1.4; replaced hard-coded test counts with pointers in §3.2/§6.3; added text-marking, cloud-disclosure and every-cloning-path rows to §5.1. |
