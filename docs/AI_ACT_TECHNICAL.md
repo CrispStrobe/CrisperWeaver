@@ -39,8 +39,16 @@ determined user can rephrase past. It is a control against the app
 *affording* emotion inference — which is what supplies intended purpose
 under Art. 3(39) — not a guarantee about every sentence a model can emit.
 
-**Corrected again 2026-08-03, and the correction is larger than the last
-one.** Both bullets above describe a control at a single point — "the
+**Corrected again 2026-08-03, and the correction is structural.** The
+model-emitted-tag control no longer sits at any parse boundary. It sits on
+`TranscriptionSegment.fromModelText`, the only supported way to build a
+segment from model output — because seven successive attempts to enumerate
+the parse boundaries each missed one, most recently four sites inside
+`CrispasrEngine` itself. A control on the destination cannot be skipped by a
+source nobody thought of. The prompt-side control has no equivalent and
+remains per-entry-point; that asymmetry is stated at `AI_ACT_RISK.md` §5.2.
+
+Both bullets above describe a control at a single point — "the
 engine's parse boundary" and "the engine". Neither was a single point.
 `TranscriptionWorkerPool` reaches the same native sessions without going
 through `CrispasrEngine.transcribe`, and `workerSegmentFromMap` rebuilds
@@ -257,6 +265,7 @@ biometric data processing risks.
 | Cloud TTS returning unmarked audio | Art. 50(2) | `HfSpaceTtsService` probes remote output for a watermark and embeds one locally when absent, verifying the result rather than assuming it |
 | Generated audio loses its mark when edited | Art. 50(2) | Trim/cut/split carry the C2PA manifest across as a `c2pa.edited` action and re-emit LIST/INFO; MP3 re-encode carries ID3v2; containers that cannot carry a manifest are logged as watermark-only |
 | Headless output escapes text marking | Art. 50(2) | CLI `translate` and `transcribe --translate` attach the shared `AiTextDisclosure`; suppression requires an explicit `--no-disclosure` |
+| **Model text reaching a segment unfiltered by a route nobody enumerated** | Annex III 1(c) | The emotion filter was applied at each *source* of model text, and seven attempts to enumerate those sources missed one. It now lives on the *destination*: `TranscriptionSegment.fromModelText` is the only supported way to build a segment from model output. Completeness no longer depends on knowing where text comes from. The four sites this found — the streamed-segment drain, the whisper mapper, and both halves of the streaming controller — were all inside `CrispasrEngine`, and the drain reads from a free function, so the session wrapper originally planned would not have covered it |
 | **The worker pool as a second, unguarded engine boundary** | Art. 5(1)(f), Annex III 1(c), Art. 50(2) | The emotion-tag discard, the affective-prompt guard and the `generated` stamp all lived in `CrispasrEngine.transcribe` and were absent from `TranscriptionWorkerPool`, which `transcription_screen` dispatches to directly for parallel batch jobs and the A/B comparison. Live, not latent — the pool is the default for batch and SenseVoice is a catalogued local backend. All three now sit at the pool boundary; `EmotionInference.eventTags` and `GeneratedKind` exist so each rule has one implementation. See `AI_ACT_RISK.md` §2.8, §2.9, §5.2 |
 | **Generated text escaping via Copy or Share** | Art. 50(2) | The five exits that hand text to the OS rather than writing a file — Copy and Share on the transcription screen, copy-segment and copy-all in the output widget, Copy in History — route through `FileUtils.withDisclosure`. Found unmarked by the 2026-08-03 audit, which is the first to have enumerated exits that write nothing. The first-use notice's promise that "AI-generated text carries a disclosure when you copy or export it" was half false until then |
 | An Annex IV claim nobody checked | Annex IV | §1.4 described both self-hosted interfaces as localhost-bound; the Wyoming socket bound every interface. Latent (no production caller), fixed by defaulting to loopback and logging any wider bind. See `AI_ACT_RISK.md` §7.6 |
@@ -338,6 +347,7 @@ border control, employment decisions, or critical infrastructure.
 
 | Date | Change |
 |---|---|
+| 2026-08-03 | **Sixth audit, structural fix.** §1.1 described the emotion filter as covering "the engine's parse boundary". Seven attempts to enumerate those boundaries have now each missed one — the latest four found inside `CrispasrEngine` itself while building a session wrapper, including the streamed-segment drain that puts interim text in the live UI. The filter moved to the destination type (`TranscriptionSegment.fromModelText`), so it no longer depends on that enumeration being right. §1.1 and §5.1 updated; the planned session wrapper was abandoned as a weaker fix, reasoning in `AI_ACT_RISK.md` §5.2. |
 | 2026-08-03 | **Sixth audit, central finding.** Corrected §1.1, which described the emotion filter and the affective-prompt guard as each sitting at a single entry point; the worker pool is a second one for both, and had neither. Added the corresponding §5.1 row. This was live rather than latent and is the most serious defect the six audits have found. |
 | 2026-08-03 | **Sixth audit.** Corrected §1.4, which described both self-hosted interfaces as bound to localhost when the Wyoming socket bound every interface — latent, since no shipped build can construct it, but an Annex IV statement of fact that was not a fact. Added two rows to §5.1: generated text leaving unmarked via Copy and Share on five call sites, and the §1.4 defect itself. The Copy/Share finding is the sixth instance of the recurring pattern and narrows its statement — five audits enumerated *writers*, and the clipboard and share sheet write nothing. See `AI_ACT_RISK.md` §5.2 and §7.6. |
 | 2026-08-02 | **Fifth audit.** Corrected §1.1, which described the emotion filter as sitting at "the engine's parse boundary" when it sat inside one of three engines. Added six rows to §5.1 — the largest being that the fourth audit's `generated` flag was discarded on save, so every claim about history re-exports was false. Added §7.1 limitations for machine translation and diarisation. See `AI_ACT_RISK.md` §9 for the full finding list, and §2.12/§2.13 there for the two newly classified subsystem groups. |

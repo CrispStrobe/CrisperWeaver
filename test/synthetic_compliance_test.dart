@@ -1249,14 +1249,45 @@ void _thirdAuditTests() {
       // offer a SenseVoice backend; one line added there would have
       // re-created the Annex III 1(c) exposure §2.8 deleted a feature to
       // avoid. This test is the reason that stays true.
+      //
+      // Rewritten 2026-08-03. This used to assert each engine *calls*
+      // `EmotionInference.strip`, which passed while `workerSegmentFromMap`
+      // and four sites inside `CrispasrEngine` built segments from model text
+      // with no filter — the assertion was satisfied by one call site per
+      // file. The filter now lives on the destination type, so the check is
+      // that no engine reaches the raw constructor for model text.
       for (final path in const [
         'lib/engines/crispasr_engine.dart',
         'lib/engines/hfspace_engine.dart',
+        'lib/services/transcription_worker.dart',
       ]) {
         final src = File(path).readAsStringSync();
-        expect(src, contains('EmotionInference.strip'),
+        expect(src, contains('TranscriptionSegment.fromModelText'),
             reason: '$path parses model text without the emotion filter');
       }
+    });
+
+    test('the factory strips and records events in one step', () {
+      final seg = TranscriptionSegment.fromModelText(
+        rawText: '<|ANGRY|><|LAUGHTER|>Das ist unerhört.',
+        startTime: 0,
+        endTime: 2,
+      );
+      expect(seg.text, 'Das ist unerhört.');
+      expect(seg.metadata['audio_event'], 'LAUGHTER');
+      expect(jsonEncode(seg.metadata).toUpperCase().contains('ANGRY'), isFalse);
+    });
+
+    test('the factory preserves caller metadata', () {
+      final seg = TranscriptionSegment.fromModelText(
+        rawText: 'Guten Morgen.',
+        startTime: 0,
+        endTime: 1,
+        metadata: const {'engine': 'crispasr', 'backend': 'sensevoice'},
+      );
+      expect(seg.metadata['engine'], 'crispasr');
+      expect(seg.metadata['backend'], 'sensevoice');
+      expect(seg.metadata.containsKey('audio_event'), isFalse);
     });
 
     test('the filter drops emotion tags and keeps acoustic events', () {

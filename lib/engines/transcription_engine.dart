@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import '../services/model_service.dart';
 import '../services/transcription_service.dart' show AdvancedTranscribeOptions;
+import '../utils/emotion_inference.dart';
 
 /// Abstract interface for all transcription engines
 abstract class TranscriptionEngine {
@@ -168,6 +169,58 @@ class TranscriptionSegment {
     this.metadata = const {},
     this.tags = const [],
   });
+
+  /// **The only supported way to build a segment from text a model produced.**
+  ///
+  /// Strips SenseVoice-family inline tags from [rawText] and records the
+  /// surviving acoustic-event labels in `metadata`. Emotion labels — and, since
+  /// the filter became an allow-list, anything else it does not recognise — are
+  /// discarded and never reach the segment. See `AI_ACT_RISK.md` §2.8.
+  ///
+  /// **Why a factory rather than a wrapper around the session.** Six audits
+  /// placed this filter at "the parse boundary" and each time found another
+  /// one: `CrispasrEngine._mapSessionSegments` had it, `HfSpaceEngine` did not
+  /// (round 5), `workerSegmentFromMap` did not (round 6), and enumerating call
+  /// sites to build a guarded-session wrapper turned up four more inside
+  /// `CrispasrEngine` alone — the streamed-segment drain, the whisper mapper,
+  /// and both halves of the streaming controller. A wrapper around
+  /// `CrispasrSession` would not have covered the first of those, because it
+  /// reads from a free function (`drainStreamedSegments`) rather than from the
+  /// session object.
+  ///
+  /// The filter therefore sits on the *destination type* instead of on any
+  /// source. Every route to a segment ends here, whatever it read from, so
+  /// "which parse boundaries are there?" — the question six audits kept
+  /// answering incompletely — stops being a question anyone has to get right.
+  factory TranscriptionSegment.fromModelText({
+    required String rawText,
+    required double startTime,
+    required double endTime,
+    String? speaker,
+    double confidence = 1.0,
+    List<TranscriptionWord>? words,
+    Map<String, dynamic> metadata = const {},
+    List<String> tags = const [],
+  }) {
+    final stripped = EmotionInference.strip(rawText.trim());
+    // Post-allow-list, every surviving tag is an acoustic event by
+    // construction; `audio_event` is the one the UI badges.
+    final events = stripped.keptTags;
+    return TranscriptionSegment(
+      text: stripped.text,
+      startTime: startTime,
+      endTime: endTime,
+      speaker: speaker,
+      confidence: confidence,
+      words: words,
+      metadata: {
+        ...metadata,
+        if (events.isNotEmpty) 'sensevoice_tags': events,
+        if (events.isNotEmpty) 'audio_event': events.first,
+      },
+      tags: tags,
+    );
+  }
 
   /// EU AI Act Art. 50(2) — whether this segment holds AI-*generated* prose
   /// rather than a record of speech.

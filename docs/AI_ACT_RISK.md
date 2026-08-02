@@ -203,6 +203,35 @@ text and has no closed vocabulary to allow-list against. That asymmetry is
 the point: where a closed vocabulary exists, fail closed; where it does not,
 say so plainly rather than implying the same strength.
 
+**And a third time, four hours later, while building the fix for the
+second.** Enumerating every call site in order to wrap the CrispASR session
+turned up **four more** unfiltered constructions, all inside
+`CrispasrEngine` — the file every audit had treated as the one place that
+got this right:
+
+- the **streamed-segment drain** (`crispasr.drainStreamedSegments()`), which
+  pushes interim segments to the live transcript view during an ordinary
+  transcription — so emotion tags were visible in the UI until the final
+  mapped segments replaced them;
+- `_mapWhisperSegments`, benign in practice (whisper emits no such tags) but
+  a model-text parse site with no filter;
+- both halves of the streaming controller, `session.feed()` and
+  `session.flush()`.
+
+The first of those is why the planned fix changed shape. A wrapper around
+`CrispasrSession` — the obvious structural answer, and the one recorded at
+§5.2 as outstanding — **would not have caught it**, because it reads from a
+free function rather than from the session object. Any control placed on a
+*source* has the same defect: it is only as complete as the enumeration of
+sources, and six audits had now got that enumeration wrong six times.
+
+So the filter moved to the **destination type**.
+`TranscriptionSegment.fromModelText` is the only supported way to build a
+segment from model output; it strips, records the surviving acoustic events,
+and cannot be skipped by a route nobody thought of, because every route ends
+at a `TranscriptionSegment`. The question "which parse boundaries are there?"
+stops being one anyone has to answer correctly.
+
 **And it fired a second time, on 2026-08-03, in the plainest way available:
 a second parse boundary that had never applied the filter at all.**
 
@@ -833,10 +862,31 @@ that all six findings were omissions rather than errors, that is the property
 worth buying. Its counting is deliberately brittle — brittleness is the
 mechanism.
 
-What it does not do, and what would be better: make the bypass impossible
-rather than merely detected, by routing every `CrispasrSession` through a
-single wrapper that applies the controls, with the raw constructor banned
-outside it. That is the real fix and it is not done.
+**The session wrapper was attempted and abandoned for something better.**
+The plan recorded here was to route every `CrispasrSession` through one
+guarded wrapper. Enumerating the call sites to build it immediately found
+four more unfiltered constructions (§2.8), one of which reads from
+`crispasr.drainStreamedSegments()` — a free function, not a session method.
+A session wrapper would have shipped with that gap still open, and would have
+looked like a structural guarantee while being one more incomplete
+enumeration of sources.
+
+The filter therefore moved to the **destination type** instead:
+`TranscriptionSegment.fromModelText` is the single supported way to build a
+segment from model output. This is stronger than the wrapper in the way that
+matters — it does not depend on knowing where text comes from, only on where
+it goes, and everything goes to a `TranscriptionSegment`. It is weaker in one
+way, stated rather than glossed: nothing forces a *new* call site to choose
+the factory over the plain constructor. That is what the tripwire covers, and
+the two are complements rather than alternatives.
+
+The same reasoning was **not** applied to the affective-prompt guard, and the
+asymmetry is deliberate. A prompt has no single destination type to attach a
+control to; it goes into a session setter. Its four entry points — engine,
+pool, HTTP server, CLI — are each guarded individually, and the tripwire
+watches for a fifth. That is a weaker guarantee than the segment filter now
+has, and it is the right place to look first when this document is next
+audited.
 
 ### 5.3 Art. 50(5) — clarity and accessibility
 
@@ -1283,6 +1333,7 @@ description of the system, and a description nobody checks is an assertion.
 
 | Date | Change |
 |---|---|
+| 2026-08-03 | **Sixth audit, fifth finding — found while building the fix for the first.** Enumerating call sites to wrap the CrispASR session turned up **four more** unfiltered model-text constructions, all inside `CrispasrEngine`, the file every audit treated as the one that got this right: the streamed-segment drain (interim segments pushed to the live transcript view, so emotion tags were briefly visible in the UI), `_mapWhisperSegments`, and both halves of the streaming controller. The first of those reads from a *free function*, `drainStreamedSegments()`, not from the session — so the planned session wrapper would have shipped with the gap still open while looking like a structural guarantee. The filter therefore moved to the **destination type**: `TranscriptionSegment.fromModelText` is now the only supported way to build a segment from model output, so completeness no longer depends on enumerating sources. Seven attempts to place this control at "the parse boundary" is the evidence that no such single boundary exists on the source side. The same move is not available for the affective-prompt guard, which has no destination type; that asymmetry is stated at §5.2 as the weakest remaining control. |
 | 2026-08-03 | **Sixth audit — and its central finding is not an exit but a chokepoint that was never one.** Three compliance controls lived inside `CrispasrEngine.transcribe`, each documented here and in the code as sitting at "the single point" its input enters the app: the affective-prompt guard (§2.9), the emotion-tag discard (§2.8), and the Art. 50(2) `generated` stamp. `TranscriptionWorkerPool` is a second entry to the same native sessions — `transcription_screen` dispatches to it directly for parallel batch jobs and the A/B model comparison, and `workerSegmentFromMap` is a second parse boundary every pooled segment crosses — and **all three controls were absent there**. So on the pooled path, which is the default for batch: SenseVoice emotion tags reached the UI, history and exports; affective ask prompts reached the model unrefused; and Q&A answers and machine translations were labelled transcripts everywhere. Unlike the `HfSpaceEngine` gap of the fifth audit, none of this was latent — SenseVoice is a catalogued local backend. The fifth audit's own regression test passed throughout, because it enumerated *engines* and a worker pool is not an engine. All three controls now sit at the pool boundary; the acoustic-event vocabulary moved out of a private engine helper into `EmotionInference.eventTags`, and the generated-kind rule into `GeneratedKind`, so there is one implementation of each rather than two that must agree. |
 | 2026-08-03 | **Sixth audit, fourth finding (§7.5b).** Checked the Art. 53 item against the live account rather than against this document, which had described it as broadly outstanding. It is nearly finished: of the 34 repositories where the conversion argument is unavailable (27 merges + 7 LaserRMT), **33 already carry explicit 53(1)(c) and 53(1)(d) sections** from the 2026-08-02 sweep, each with the base model verified from `config.json` rather than inferred from the repo name. §7.5's "6 of the 7 LaserRMT repos have no card at all" was true when written and is stale. One repository was missed by that sweep — `cstr/Flora_7B-laser`, whose whole card was an 85-byte sentence — which is the same per-item-rather-than-per-class gap this document keeps recording, this time in the documentation work itself. Its licence was checked against the base before writing (both `cc-by-sa-4.0`, so no relicensing issue), and its base was read from the weights' own `_name_or_path`. |
 | 2026-08-03 | **Sixth audit, third finding (§7.5a).** The "the account is only conversions and quants" reading was put again and checked against the live HuggingFace cards rather than against this document. Refuted: `posformer-crohme-GGUF`'s card says the weights were *retrained from scratch* and were *"trained by this repository's maintainer, not converted from someone else's model"*, and the Spaetzle series carries `merge`/`mergekit`/`lazymergekit` tags with three-plus third-party `base_model:` entries each. But the re-check also **narrowed the duty in the maintainer's favour**: Art. 53 binds providers of *general-purpose* models under Art. 3(63), so the three narrow trained-from-scratch repos (handwritten-maths OCR, guitar-tab labelling) fall outside it entirely — §7.5 had listed them as the clearest case of provider duties attaching. What remains open is 53(1)(c)+(d) for the ~41 LLM merges, LaserRMT modifications and fine-tunes, with an **Art. 111(3) deadline of 2 August 2027** for models placed on the market before 2 August 2025 — a date §7.5 never stated. |

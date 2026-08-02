@@ -16,7 +16,6 @@ import '../services/model_service.dart';
 import '../services/transcription_service.dart' show AdvancedTranscribeOptions;
 import '../services/transcription_worker_pool.dart';
 import '../utils/affective_prompt_guard.dart';
-import '../utils/emotion_inference.dart';
 
 /// Transcription engine backed by the CrispASR FFI package.
 ///
@@ -1018,8 +1017,16 @@ class CrispASREngine implements TranscriptionEngine {
                   if (onSegment != null) {
                     final streamed = crispasr.drainStreamedSegments();
                     for (final ss in streamed) {
-                      onSegment(TranscriptionSegment(
-                        text: ss.text,
+                      // Interim segments straight from the decoder. These
+                      // went to the UI unfiltered until 2026-08-03, so a
+                      // SenseVoice `<|ANGRY|>` was visible in the live
+                      // transcript until the final mapped segments replaced
+                      // it. §2.8 deleted a display-only badge for exactly
+                      // that, and this read from a free function rather than
+                      // from the session — which is why it survived every
+                      // audit that enumerated parse boundaries.
+                      onSegment(TranscriptionSegment.fromModelText(
+                        rawText: ss.text,
                         startTime: ss.start,
                         endTime: ss.end,
                       ));
@@ -1727,8 +1734,8 @@ class CrispASREngine implements TranscriptionEngine {
             .toList();
       }
 
-      final seg = TranscriptionSegment(
-        text: s.text.trim(),
+      final seg = TranscriptionSegment.fromModelText(
+        rawText: s.text,
         startTime: s.start,
         endTime: s.end,
         confidence: confidence,
@@ -1753,10 +1760,6 @@ class CrispASREngine implements TranscriptionEngine {
   // this engine drops them at the parse boundary so no emotion inference
   // about a natural person ever reaches segment metadata, the UI, or an
   // export. That is what keeps the app out of Annex III 1(c).
-  // The event vocabulary moved to `EmotionInference.eventTags` on
-  // 2026-08-03 so the worker-pool parse boundary can classify identically.
-  static bool _isEventTag(String t) => EmotionInference.isEventTag(t);
-
   List<TranscriptionSegment> _mapSessionSegments(
     List<crispasr.SessionSegment> sessionSegments,
     void Function(TranscriptionSegment segment)? onSegment,
@@ -1817,12 +1820,8 @@ class CrispASREngine implements TranscriptionEngine {
       // boundary, which every pooled segment crosses and which had no
       // filter at all. Do not re-derive "the only point" from this call
       // site; grep `EmotionInference.strip` instead.
-      final stripped = EmotionInference.strip(s.text.trim());
-      final segText = stripped.text;
-      final svTags = stripped.keptTags;
-
-      final seg = TranscriptionSegment(
-        text: segText,
+      final seg = TranscriptionSegment.fromModelText(
+        rawText: s.text,
         startTime: s.start,
         endTime: s.end,
         confidence: segConfidence,
@@ -1832,8 +1831,6 @@ class CrispASREngine implements TranscriptionEngine {
           'model': _currentModelId,
           'segmentIndex': i,
           'backend': _session?.backend,
-          if (svTags.isNotEmpty) 'sensevoice_tags': svTags,
-          if (svTags.any(_isEventTag)) 'audio_event': svTags.firstWhere(_isEventTag),
         },
       );
       segments.add(seg);
@@ -1933,8 +1930,8 @@ class CrispASREngine implements TranscriptionEngine {
         try {
           final update = session.feed(chunk);
           if (update != null && update.text.isNotEmpty) {
-            controller.add(TranscriptionSegment(
-              text: update.text.trim(),
+            controller.add(TranscriptionSegment.fromModelText(
+              rawText: update.text,
               startTime: update.start,
               endTime: update.end,
               confidence: 1.0,
@@ -1955,8 +1952,8 @@ class CrispASREngine implements TranscriptionEngine {
         try {
           final last = session.flush();
           if (last != null && last.text.isNotEmpty) {
-            controller.add(TranscriptionSegment(
-              text: last.text.trim(),
+            controller.add(TranscriptionSegment.fromModelText(
+              rawText: last.text,
               startTime: last.start,
               endTime: last.end,
               confidence: 1.0,
