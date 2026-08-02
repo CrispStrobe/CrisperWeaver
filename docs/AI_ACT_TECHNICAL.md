@@ -1,7 +1,7 @@
 # EU AI Act Technical Documentation (Annex IV)
 
 **Application:** CrisperWeaver
-**Date:** 2026-08-04 (revised; originally 2026-07-16)
+**Date:** 2026-08-02 (revised; originally 2026-07-16)
 **Regulation:** Regulation (EU) 2024/1689, Annex IV
 
 ---
@@ -39,7 +39,7 @@ determined user can rephrase past. It is a control against the app
 *affording* emotion inference — which is what supplies intended purpose
 under Art. 3(39) — not a guarantee about every sentence a model can emit.
 
-**Corrected 2026-08-04.** The tag filter was described above as covering "the
+**Corrected 2026-08-02.** The tag filter was described above as covering "the
 engine's parse boundary", singular, and that is what it was: the code lived
 inside `CrispasrEngine`. `HfSpaceEngine` — the cloud path, offered on every
 platform and the only engine in the web build — parsed the remote server's
@@ -56,7 +56,7 @@ Open-source project maintained at
 
 ### 1.3 Version
 
-Current release: v0.9.6 (build 76).
+Current release: v0.9.7 (build 77).
 Engine dependencies, pinned to release tags in CI (`.github/workflows/`)
 rather than tracking a moving branch: CrispASR v0.8.25, CrispEmbed
 v0.16.1, glint_audio v0.11.0.
@@ -222,7 +222,7 @@ biometric data processing risks.
 | Emotion inference reaching a user or an export — model-emitted tags | Art. 5(1)(f), Annex III 1(c) | Capability removed. Emotion tags are discarded at the single point they enter the app (`CrispasrEngine`) and on every CLI output format, driven by one shared discard list and pinned by the compliance suite |
 | Emotion inference elicited by a user prompt | Art. 5(1)(f), Annex III 1(c) | `AffectivePromptGuard` refuses affective audio-Q&A prompts at the engine, the HTTP server and the CLI; a locale test asserts no shipped UI string suggests one. Defeatable by rephrasing — stated in `AI_ACT_RISK.md` §2.9, not claimed away |
 | Generated Q&A answers mistaken for transcripts | Art. 50(2) | Segments flagged `generated: audio-qa` at the engine; every export, the transcriptions endpoint and CLI stdout pick their disclosure from the flag |
-| **A mark that does not survive being saved** | Art. 50(2) | `HistoryEntry` round-trips segment `metadata` through the history JSON. Written as already-true above until 2026-08-04, when the audit found `toJson` enumerating segment fields by hand with `metadata` not among them — so the flag died on save and a re-export from History called an answer a transcript. Pinned by a round-trip test, a back-compat test for older history files, and a test that an unencodable value is dropped rather than thrown |
+| **A mark that does not survive being saved** | Art. 50(2) | `HistoryEntry` round-trips segment `metadata` through the history JSON. Written as already-true above until 2026-08-02, when the audit found `toJson` enumerating segment fields by hand with `metadata` not among them — so the flag died on save and a re-export from History called an answer a transcript. Pinned by a round-trip test, a back-compat test for older history files, and a test that an unencodable value is dropped rather than thrown |
 | Machine translation mistaken for a transcript | Art. 50(2) | `CrispasrEngine` stamps `generated: translation`, so the GUI exporters reach what the CLI and the HTTP server already read off the request. Exports say "machine translation", not "produced by AI speech recognition" |
 | A transcript export implying the recording was faked | Art. 50(2) | The transcript notice said the content "contains AI-generated synthetic speech" — false for a recording of a real person, and in the direction that misleads. Both exporters now use the same "machine-generated transcript" wording |
 | Chapter exports escaping the notice | Art. 50(2) | Chapter titles are verbatim transcript text written to a shared file; the YouTube and Podcasting 2.0 exports carry the notice their segments earned |
@@ -307,7 +307,7 @@ border control, employment decisions, or critical infrastructure.
 
 | Date | Change |
 |---|---|
-| 2026-08-04 | **Fifth audit.** Corrected §1.1, which described the emotion filter as sitting at "the engine's parse boundary" when it sat inside one of three engines. Added six rows to §5.1 — the largest being that the fourth audit's `generated` flag was discarded on save, so every claim about history re-exports was false. Added §7.1 limitations for machine translation and diarisation. See `AI_ACT_RISK.md` §9 for the full finding list, and §2.12/§2.13 there for the two newly classified subsystem groups. |
+| 2026-08-02 | **Fifth audit.** Corrected §1.1, which described the emotion filter as sitting at "the engine's parse boundary" when it sat inside one of three engines. Added six rows to §5.1 — the largest being that the fourth audit's `generated` flag was discarded on save, so every claim about history re-exports was false. Added §7.1 limitations for machine translation and diarisation. See `AI_ACT_RISK.md` §9 for the full finding list, and §2.12/§2.13 there for the two newly classified subsystem groups. |
 | 2026-08-03 | **Fourth audit.** Corrected §1.4, which claimed all generated output crossing the HTTP server was marked — `/v1/audio/transcriptions` returned machine translation and audio-Q&A answers bare. Rewrote §1.1 to cover both routes to emotion recognition and to state the difference in strength between the two controls. Added three rows to §5.1 (prompt-elicited emotion inference, Q&A answers mismarked as transcripts) and three limitations to §7.1. |
 | 2026-07-16 | Initial Annex IV technical documentation |
 | 2026-08-01 | Audit revision: applicable dates refreshed for the Digital Omnibus; §5 cross-referenced to the provider/deployer split in `AI_ACT_RISK.md` §5.1. (Recorded retrospectively — the 2026-08-02 audit found this row had been omitted when the revision was made.) |

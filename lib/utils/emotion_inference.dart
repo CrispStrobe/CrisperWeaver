@@ -75,7 +75,7 @@ class EmotionInference {
   ///
   /// This exists because the filter used to be written out inline inside
   /// `CrispasrEngine`, which made it a property of *that engine* rather than
-  /// of the app. The audit of 2026-08-04 found `HfSpaceEngine` — the cloud
+  /// of the app. The audit of 2026-08-02 found `HfSpaceEngine` — the cloud
   /// path, offered on every platform and the only engine on web — copying
   /// the server's text into segments verbatim, with no tag handling at all.
   /// Nothing reachable exercised it, because the cloud model list happens

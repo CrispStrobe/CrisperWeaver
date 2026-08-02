@@ -2,7 +2,7 @@
 
 **Regulation:** GDPR Art. 35
 **Application:** CrisperWeaver
-**Date:** 2026-08-04 (revised; originally 2026-07-16)
+**Date:** 2026-08-02 (revised; originally 2026-07-16)
 **Assessor:** CrisperWeaver development team
 
 ---
@@ -23,7 +23,7 @@ speaker profiles.
 - **Data types:** Voice embeddings (256-dimensional float vectors
   derived from audio via TitaNet), stored as `.spk` files.
 - **A second, transient population of the same vector type.** Scoped
-  explicitly on 2026-08-04, having previously been left out. Speaker
+  explicitly on 2026-08-02, having previously been left out. Speaker
   **diarisation** also derives TitaNet embeddings — one per segment, for
   *every* speaker in any recording the user processes, enrolled or not,
   consented or not — when re-clustering to a requested speaker count. Two
@@ -191,7 +191,7 @@ This DPIA should be reviewed:
 
 | Date | Change |
 |---|---|
-| 2026-08-04 | **Third audit.** Scoped §1.2 to the transient TitaNet embeddings derived by **diarisation**, which two prior revisions omitted entirely while assessing the enrolment path in detail — the same failure mode §3.2 already names, one level up: the question asked was "is the gate sound?" and never "what else derives this vector?". Added the corresponding risk row to §3.1, framed as an assumption to keep true rather than a fact already secured, since the Art. 9 analysis depends on it. |
+| 2026-08-02 | **Third audit.** Scoped §1.2 to the transient TitaNet embeddings derived by **diarisation**, which two prior revisions omitted entirely while assessing the enrolment path in detail — the same failure mode §3.2 already names, one level up: the question asked was "is the gate sound?" and never "what else derives this vector?". Added the corresponding risk row to §3.1, framed as an assumption to keep true rather than a fact already secured, since the Art. 9 analysis depends on it. |
 | 2026-07-16 | Initial DPIA |
 | 2026-08-01 | Audit revision: corrected the third-party data-subject assumption in §5; recorded the consent gate on every enrolment path and the consent-derived match roster. |
 | 2026-08-02 | Second audit: scoped the "no transmission" statement in §1.3 to biometric data and named the two optional cloud flows it does not cover; extended the cloning-consent mitigation to the voice-bake screen and CLI, which had no attestation; recorded the recurring parallel-entry-point failure mode in §3.2. |

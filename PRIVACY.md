@@ -1,7 +1,7 @@
 # Privacy Policy — CrisperWeaver
 
 **Effective date:** 2026-07-10
-**Last updated:** 2026-08-04
+**Last updated:** 2026-08-02
 
 CrisperWeaver is an offline-first audio transcription and speech
 synthesis app. This policy explains what data the app accesses, how
@@ -159,7 +159,7 @@ profile, documenting: speaker name, consent timestamp, purpose,
 lawful basis, and storage location.
 
 **One thing that is deliberately not gated, and why** (added
-2026-08-04; earlier revisions said the dialog appeared before "any
+2026-08-02; earlier revisions said the dialog appeared before "any
 biometric processing", which was too broad). **Speaker diarisation** —
 working out who spoke when, without naming anyone — computes the same
 kind of voice vector for every speaker in a recording, whether or not

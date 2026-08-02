@@ -5,6 +5,8 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 
 ## [Unreleased]
 
+## [0.9.7] — 2026-08-02
+
 ### Fixed — EU AI Act audit, round 5
 
 Round 4 marked audio-Q&A answers as generated so no export could call them
@@ -93,6 +95,8 @@ generating surface nobody had thought of as a generating surface.
 - **`PRIVACY.md` did not mention the cloud LLM.** New §3.3 documents what
   is sent, to whom, that the receiving provider's policy governs it, and
   that a transcript can carry personal data about people other than you.
+
+## [0.9.6] — 2026-08-02
 
 ### Fixed — EU AI Act compliance audit (v0.9.6)
 
