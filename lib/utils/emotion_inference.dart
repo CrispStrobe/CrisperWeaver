@@ -67,6 +67,31 @@ class EmotionInference {
   /// through.
   static bool isEmotionTag(String tag) => tags.contains(tag.toUpperCase());
 
+  /// SenseVoice **acoustic event** labels, which are kept.
+  ///
+  /// The distinction this class exists to draw: an event tag describes the
+  /// recording ("there is laughter in this audio"), while an emotion tag
+  /// asserts something about a natural person's inner state. Only the second
+  /// is Art. 3(39).
+  ///
+  /// Lives here rather than in an engine because both parse boundaries — the
+  /// engine's mapper and the worker pool's — have to classify the same
+  /// vocabulary the same way. It was a private helper in `CrispasrEngine`
+  /// until 2026-08-03, which is part of why the pool boundary had no
+  /// classification at all.
+  static const Set<String> eventTags = {
+    'SPEECH',
+    'BGM',
+    'LAUGHTER',
+    'APPLAUSE',
+    'NOISE',
+    'MUSIC',
+    'SINGING',
+  };
+
+  /// Whether [tag] is an acoustic event label, and therefore keepable.
+  static bool isEventTag(String tag) => eventTags.contains(tag.toUpperCase());
+
   /// The inline tag syntax SenseVoice-family backends emit.
   static final RegExp tagPattern = RegExp(r'<\|([A-Za-z_]+)\|>');
 

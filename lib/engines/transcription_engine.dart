@@ -315,3 +315,47 @@ class AffectivePromptException extends EngineException {
 
   const AffectivePromptException(super.message, super.engineId, this.term);
 }
+
+/// EU AI Act Art. 50(2) — the one rule for deciding whether a decode
+/// produced *generated prose* rather than a record of speech, and stamping
+/// the segments accordingly.
+///
+/// This was written twice before it was written once. `CrispasrEngine`
+/// stamped its own output from the fifth audit onward, and the worker pool —
+/// which `transcription_screen` dispatches to directly for parallel batch
+/// jobs and the A/B comparison — stamped nothing, so the same run produced
+/// marked segments on one path and unmarked segments on the other. Two
+/// copies of a compliance rule is one copy too many; both call this.
+class GeneratedKind {
+  GeneratedKind._();
+
+  /// The kind owed by a request, or null for an ordinary transcript.
+  ///
+  /// Q&A wins over translation where both apply: a translated answer is
+  /// still an answer, and that is the stronger claim to make about the text.
+  static String? forRequest({
+    String? askPrompt,
+    bool translate = false,
+    String? targetLanguage,
+  }) {
+    if (askPrompt != null && askPrompt.trim().isNotEmpty) return 'audio-qa';
+    if (translate) return 'translation';
+    if (targetLanguage != null && targetLanguage.trim().isNotEmpty) {
+      return 'translation';
+    }
+    return null;
+  }
+
+  /// [segments] with [kind] stamped into `metadata['generated']`, or
+  /// unchanged when [kind] is null.
+  static List<TranscriptionSegment> stamp(
+    List<TranscriptionSegment> segments,
+    String? kind,
+  ) =>
+      kind == null
+          ? segments
+          : segments
+              .map((s) =>
+                  s.copyWith(metadata: {...s.metadata, 'generated': kind}))
+              .toList();
+}

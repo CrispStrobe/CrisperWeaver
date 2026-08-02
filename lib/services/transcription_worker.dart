@@ -52,6 +52,7 @@ import 'dart:typed_data';
 import '../native/crispasr_import.dart' as crispasr;
 
 import '../engines/transcription_engine.dart';
+import '../utils/emotion_inference.dart';
 
 class TranscriptionWorkerArgs {
   const TranscriptionWorkerArgs({
@@ -365,14 +366,39 @@ Map<String, Object?> _segmentToMap(crispasr.SessionSegment s) {
 /// Main-side helper to rebuild a [TranscriptionSegment] from the
 /// over-the-wire map. The drain loop calls this when it receives a
 /// `segment` or `done` message from a worker.
+///
+/// **This is the pool's parse boundary, and it is where the emotion-tag
+/// discard belongs.** `CrispasrEngine._mapSessionSegments` calls
+/// `EmotionInference.strip` under a comment saying the filter sits "at the
+/// only point the tags enter the app". There were two: every segment that
+/// comes back from a worker isolate arrives here instead, and arrived
+/// untouched until 2026-08-03 — so a SenseVoice `<|ANGRY|>` reached the
+/// transcript, the UI, history and every export whenever the worker pool
+/// was in use, which is the default for batch jobs.
+///
+/// The 2026-08-02 audit had moved this filter out of `CrispasrEngine` and
+/// added a test asserting every *engine* that parses model text calls it.
+/// That test passed throughout: the engine does call it, on its other
+/// mapper. The pool is not an engine, so nothing looked. See
+/// `AI_ACT_RISK.md` §2.8.
 TranscriptionSegment workerSegmentFromMap(Map<String, Object?> m) {
   final rawWords = m['words'] as List?;
+  // Emotion tags are dropped; acoustic-event tags are kept and surfaced in
+  // metadata, matching `_mapSessionSegments` exactly — describing a
+  // recording is not inferring anything about a speaker.
+  final stripped = EmotionInference.strip((m['text'] as String? ?? '').trim());
+  final svTags = stripped.keptTags;
+  final event = svTags.where(EmotionInference.isEventTag);
   return TranscriptionSegment(
-    text: m['text'] as String? ?? '',
+    text: stripped.text,
     startTime: (m['startTime'] as num?)?.toDouble() ?? 0.0,
     endTime: (m['endTime'] as num?)?.toDouble() ?? 0.0,
     speaker: m['speaker'] as String?,
     confidence: (m['confidence'] as num?)?.toDouble() ?? 1.0,
+    metadata: {
+      if (svTags.isNotEmpty) 'sensevoice_tags': svTags,
+      if (event.isNotEmpty) 'audio_event': event.first,
+    },
     words: rawWords == null
         ? null
         : [

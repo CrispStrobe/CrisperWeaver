@@ -2584,13 +2584,19 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
         : null;
 
     // §5.23 Q2 v2 N-way session pool: opt-in slider gated on a
-    // memory pre-flight. The pool's `dispatch` is a bare
-    // `session.transcribe(samples)` — no VAD slicing, no resume
-    // offset routing, no Q&A / translate / beam-search / best-of
-    // (those need engine plumbing that lives on the main isolate).
-    // So pool eligibility is per-job: jobs that need any of those
-    // features fall through to the serial path below, while
-    // "vanilla transcribe" jobs run in parallel on the pool.
+    // memory pre-flight. Pool eligibility is per-job — see
+    // `poolEligible`, which today excludes resume-offset jobs and
+    // tdrz, and nothing else.
+    //
+    // This comment used to add "no Q&A / translate / beam-search /
+    // best-of", which was true when the pool did only a bare
+    // `session.transcribe(samples)` and false by the time the sticky
+    // setter protocol landed: `_runJobOnPool` passes `askPrompt`,
+    // `translate` and `targetLanguage` straight through. The 2026-08-03
+    // compliance audit found the stale version standing in for the
+    // eligibility check nobody re-read — so the rule is stated as a
+    // pointer to the predicate rather than as a list that can rot.
+    // See `AI_ACT_RISK.md` §5.2.
     final pool = await _maybeSpawnWorkerPool(adv: adv);
     if (pool != null) {
       // Aggregate batch view (§5.23 Q2 v2 option (a)): one
@@ -3226,13 +3232,17 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
   }
 
   void _handleShareAction(String action, AppState appState) {
+    // Art. 50(2): Copy and Share hand text to the OS with no file to carry a
+    // notice, so the notice goes in the text. A plain transcript is unmarked;
+    // an audio-Q&A answer or a machine translation is not a transcript.
+    final marked = FileUtils.withDisclosure(
+        appState.currentTranscription ?? '', appState.segments);
     switch (action) {
       case 'share':
-        SharePlus.instance
-            .share(ShareParams(text: appState.currentTranscription!));
+        SharePlus.instance.share(ShareParams(text: marked));
         break;
       case 'copy':
-        Clipboard.setData(ClipboardData(text: appState.currentTranscription!));
+        Clipboard.setData(ClipboardData(text: marked));
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
               content: Text(AppLocalizations.of(context)

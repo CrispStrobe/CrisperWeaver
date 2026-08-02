@@ -20,6 +20,7 @@ import '../services/ocr_service.dart';
 import '../services/scan_preprocess_service.dart';
 import '../services/speaker_id_service.dart';
 import '../utils/file_picker_util.dart' show pickFilesRobust;
+import '../utils/file_utils.dart';
 import '../l10n/generated/app_localizations.dart';
 import '../main.dart'
     show
@@ -1231,7 +1232,11 @@ class _TranscriptionOutputWidgetState
     final text =
         _showSpeakers && spk != null ? '$spk: ${segment.text}' : segment.text;
 
-    Clipboard.setData(ClipboardData(text: text));
+    // Art. 50(2): the notice is owed by the segment being copied, not by the
+    // run it came from — copying one answer out of a mixed transcript still
+    // puts model-authored prose on the clipboard.
+    Clipboard.setData(
+        ClipboardData(text: FileUtils.withDisclosure(text, [segment])));
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(AppLocalizations.of(context).outputSegmentCopied),
@@ -1243,7 +1248,8 @@ class _TranscriptionOutputWidgetState
   void _copyAllText() {
     final text = widget.currentTranscription ?? '';
     if (text.isNotEmpty) {
-      Clipboard.setData(ClipboardData(text: text));
+      Clipboard.setData(ClipboardData(
+          text: FileUtils.withDisclosure(text, widget.segments)));
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(AppLocalizations.of(context).outputAllCopied),

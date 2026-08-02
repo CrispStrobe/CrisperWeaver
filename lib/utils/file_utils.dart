@@ -46,6 +46,29 @@ class FileUtils {
   static bool _isGenerated(List<TranscriptionSegment> segments) =>
       segments.any((s) => s.isGenerated);
 
+  /// [text] carrying the Art. 50(2) notice [segments] earned, for the exits
+  /// that have **no file to put it in** — the clipboard and the share sheet's
+  /// text payload.
+  ///
+  /// Same rule as the `.txt` branch of [saveTranscription]: an ordinary
+  /// transcript is a record of what a person actually said and Art. 50(2)
+  /// does not reach it, while an audio-Q&A answer or a machine translation is
+  /// model-authored prose and has to be marked in whatever it leaves in.
+  ///
+  /// This exists because the duty was discharged on every surface that writes
+  /// a *file* and on none of the five that hand text straight to the OS. The
+  /// three previous audits each named a version of that shape — one duty
+  /// implemented per feature and missed per route — and the routes missed
+  /// here are the shortest ones in the app: Copy and Share.
+  static String withDisclosure(
+    String text,
+    List<TranscriptionSegment> segments, {
+    bool syntheticDisclosure = AppConstants.enableSyntheticDisclosure,
+  }) =>
+      syntheticDisclosure && _isGenerated(segments)
+          ? AiTextDisclosure.attach(text, disclosureFor(segments))
+          : text;
+
   static const String transcriptionsFolder = 'transcriptions';
   static const String modelsFolder = 'models';
   static const String audioFolder = 'audio';
