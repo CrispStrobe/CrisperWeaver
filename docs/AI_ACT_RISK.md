@@ -854,7 +854,7 @@ users by:
 | Art. 50(2) — machine translation marked in the GUI; chapter exports; cloud TTS | **Done** (2026-08-02); see §5.2 |
 | Annex III 1(c) — emotion-tag filter applied by every engine, not just `CrispasrEngine` | **Done** (2026-08-02). Was unreachable rather than live — the cloud model list offers no SenseVoice backend — but one list entry away; see §5.2 |
 | C2PA signing for MP3 exports | **Done** — ID3v2 provenance on the MP3 path; AAC/Opus are watermark-only and warn. §7.4's "no MP3 export exists" was incorrect |
-| Art. 53 GPAI obligations for the `cstr/*` account | **Partly open, and re-scoped 2026-08-03** (§7.5a). The conversion argument holds for 454 of 499 repos. It does **not** hold for the mergekit merges or the self-trained repos — checked against the live cards, which carry `merge`/`mergekit` tags and, in one case, the sentence "trained by this repository's maintainer, not converted". But Art. 53 binds providers of *GPAI models*: the ~41 LLM merges, LaserRMT modifications and fine-tunes need 53(1)(c)+(d); the 3 narrow trained-from-scratch models (math OCR, guitar-tab labelling) are not GPAI and need nothing. **Deadline 2 August 2027** under Art. 111(3), since these were placed on the market before 2 August 2025 |
+| Art. 53 GPAI obligations for the `cstr/*` account | **Effectively closed — one card outstanding.** Verified against the live account 2026-08-03 (§7.5b): 34 repos need 53(1)(c)+(d) — 27 merges + 7 LaserRMT — and **33 already carry both sections**. The conversion argument does **not** hold for them (cards carry `merge`/`mergekit` tags; one says outright "trained by this repository's maintainer, not converted"), but Art. 53 binds providers of *GPAI models*, so the 3 narrow trained-from-scratch models are outside it entirely (§7.5a). Remaining: `cstr/Flora_7B-laser`, an 85-byte card. Deadline 2 August 2027 under Art. 111(3) |
 
 ### 7.1 Abuse-reporting channel
 
@@ -1141,6 +1141,52 @@ which the mergekit configs already record — plus, where the chain is broken
 reconstructible. §7.5 already says a claimed-but-untraceable summary would be
 worse than an admitted gap, and that remains the right call.
 
+#### 7.5b Verified against the live account, 2026-08-03: 33 of 34 are done
+
+§7.5 and §7.5a both describe this work as outstanding. **It is very nearly
+finished**, and the two sections were reasoning from the state of the account
+on 2026-08-02 rather than from the account.
+
+Enumerated via the Hub API: 499 model repos, 44 carrying `merge` / `mergekit` /
+`lazymergekit` tags, of which 13 are GGUF quants of the maintainer's own
+merges. Removing those and the `int4-inc` / `mlx-4bit` quants leaves **27
+distinct merges**, plus **7 LaserRMT repos** — 34 repositories where the
+conversion argument is unavailable and Art. 53(1)(c)+(d) attach.
+
+Every one of the 34 now carries a `README.md`. **33 of them carry explicit
+Art. 53(1)(c) and 53(1)(d) sections**, written during the 2026-08-02 sweep,
+each recording the base model verified from the repo's own `config.json`
+rather than inferred from its name. §7.5's "6 of the 7 LaserRMT repos have no
+card at all" was true when written and is no longer true.
+
+**One repository was outstanding:** `cstr/Flora_7B-laser`, created 2024-03-18,
+whose entire card was the line *"experimental laserRMT version of
+ResplendentAI/Flora_7B"* — 85 bytes, no copyright policy, no training-content
+statement, no architecture record. It was missed by the sweep that fixed its
+six siblings, which is the same per-item-rather-than-per-class gap this
+document keeps recording, appearing here in the documentation work itself.
+
+Two facts checked before writing its card, because a provenance claim that is
+merely plausible is the failure §7.5 exists to prevent:
+
+- the base is recorded in the repo's own `config.json` as
+  `_name_or_path: ResplendentAI/Flora_7B` — confirmed from the weights, not
+  read off the repository name;
+- both repositories declare `cc-by-sa-4.0`, so this one redistributes under
+  the terms it received. That check matters because three unrelated `cstr/*`
+  repos were found relicensing non-commercial upstreams as permissive; this
+  is not one of them.
+
+The base is itself a merge (it ships `mergekit_config.yml`), so the applicable
+training content is that of *its* constituents. The card says so and declines
+to restate a chain it cannot verify.
+
+**Status: the Art. 53 item is closed once that card is published.** The
+remaining honest gaps are the ones §7.5 already names and which no card can
+close: 24 `cstr/*` models named as `base_model:` no longer exist, so several
+merge lineages are not fully reconstructible from cards alone, and the affected
+cards say that rather than inventing a chain.
+
 ### 7.6 The Wyoming ASR socket
 
 `AI_ACT_TECHNICAL.md` §1.4 described the app's two self-hosted interfaces —
@@ -1193,6 +1239,7 @@ description of the system, and a description nobody checks is an assertion.
 | Date | Change |
 |---|---|
 | 2026-08-03 | **Sixth audit — and its central finding is not an exit but a chokepoint that was never one.** Three compliance controls lived inside `CrispasrEngine.transcribe`, each documented here and in the code as sitting at "the single point" its input enters the app: the affective-prompt guard (§2.9), the emotion-tag discard (§2.8), and the Art. 50(2) `generated` stamp. `TranscriptionWorkerPool` is a second entry to the same native sessions — `transcription_screen` dispatches to it directly for parallel batch jobs and the A/B model comparison, and `workerSegmentFromMap` is a second parse boundary every pooled segment crosses — and **all three controls were absent there**. So on the pooled path, which is the default for batch: SenseVoice emotion tags reached the UI, history and exports; affective ask prompts reached the model unrefused; and Q&A answers and machine translations were labelled transcripts everywhere. Unlike the `HfSpaceEngine` gap of the fifth audit, none of this was latent — SenseVoice is a catalogued local backend. The fifth audit's own regression test passed throughout, because it enumerated *engines* and a worker pool is not an engine. All three controls now sit at the pool boundary; the acoustic-event vocabulary moved out of a private engine helper into `EmotionInference.eventTags`, and the generated-kind rule into `GeneratedKind`, so there is one implementation of each rather than two that must agree. |
+| 2026-08-03 | **Sixth audit, fourth finding (§7.5b).** Checked the Art. 53 item against the live account rather than against this document, which had described it as broadly outstanding. It is nearly finished: of the 34 repositories where the conversion argument is unavailable (27 merges + 7 LaserRMT), **33 already carry explicit 53(1)(c) and 53(1)(d) sections** from the 2026-08-02 sweep, each with the base model verified from `config.json` rather than inferred from the repo name. §7.5's "6 of the 7 LaserRMT repos have no card at all" was true when written and is stale. One repository was missed by that sweep — `cstr/Flora_7B-laser`, whose whole card was an 85-byte sentence — which is the same per-item-rather-than-per-class gap this document keeps recording, this time in the documentation work itself. Its licence was checked against the base before writing (both `cc-by-sa-4.0`, so no relicensing issue), and its base was read from the weights' own `_name_or_path`. |
 | 2026-08-03 | **Sixth audit, third finding (§7.5a).** The "the account is only conversions and quants" reading was put again and checked against the live HuggingFace cards rather than against this document. Refuted: `posformer-crohme-GGUF`'s card says the weights were *retrained from scratch* and were *"trained by this repository's maintainer, not converted from someone else's model"*, and the Spaetzle series carries `merge`/`mergekit`/`lazymergekit` tags with three-plus third-party `base_model:` entries each. But the re-check also **narrowed the duty in the maintainer's favour**: Art. 53 binds providers of *general-purpose* models under Art. 3(63), so the three narrow trained-from-scratch repos (handwritten-maths OCR, guitar-tab labelling) fall outside it entirely — §7.5 had listed them as the clearest case of provider duties attaching. What remains open is 53(1)(c)+(d) for the ~41 LLM merges, LaserRMT modifications and fine-tunes, with an **Art. 111(3) deadline of 2 August 2027** for models placed on the market before 2 August 2025 — a date §7.5 never stated. |
 | 2026-08-03 | **Sixth audit, second finding.** Generated text leaving the app unmarked through the two exits nobody had enumerated, because neither writes anything: **Copy and Share**. Five call sites — the transcription screen's share and copy, the output widget's copy-segment and copy-all, and History's Copy — handed audio-Q&A answers and machine translations to the clipboard or the share sheet bare, each sitting immediately beside an Export control that marked the identical bytes. The rule was correct and had been since the fourth audit; these five never invoked it. Worse than a silent gap, because the Art. 50(1) first-use notice promised in all three languages that "AI-generated text carries a disclosure when you **copy** or export it". Fixed at one helper (`FileUtils.withDisclosure`) applying the existing `.txt` rule, with a test that asserts the call sites route through it rather than only that the helper works. This narrows the standing instruction: "enumerate routes to a capability" had been read as "enumerate code paths that produce an artefact", and the right question is **where can this text end up outside the app**. Separately, found `AI_ACT_TECHNICAL.md` §1.4 asserting both self-hosted interfaces were localhost-bound while the Wyoming ASR socket bound `InternetAddress.anyIPv4` — latent, since no shipped build can construct it, and fixed by defaulting to loopback (§7.6). Re-verified the six subsystem classifications added by the third to fifth audits, the affective-prompt guard on all four entry points, the consent gate on both enrolment paths, and the audio marking chain; no further live defect found. |
 | 2026-08-02 | **Fifth audit.** Found the fourth audit's central fix silently undone by persistence: `HistoryEntry.toJson` omitted segment `metadata`, so `generated: audio-qa` was discarded on save and a re-export from History labelled a language model's answer a transcript — as `.txt`, with no notice at all — while §5.2 and `AI_ACT_TECHNICAL.md` §5.1 both asserted the flag was persisted. Also found chapter exports writing transcript text to a shared file unmarked while the neighbouring menu entry disclosed, and machine translation marked by the CLI and the HTTP server but not by the GUI, because translation left no trace on the segments; both fixed at the engine, which now stamps the kind for every surface to read. Corrected the transcript disclosure, which told recipients the *speech* was synthetic. Moved the emotion-tag filter out of `CrispasrEngine` to `EmotionInference.strip` and applied it in `HfSpaceEngine`, which had been parsing remote text untouched (latent — no SenseVoice backend is offered on that route). Marked cloud TTS output, which returned remote audio unwatermarked and unprobed. Classified two previously undocumented subsystem groups: diarisation (§2.12 — the one that derives biometric vectors outside the consent gate) and assistive text post-processing (§2.13). Extended the Art. 50(1) notice, which had not enumerated audio Q&A, diarisation, spoken-language ID or denoise. Note also that the fourth audit's entries are dated 2026-08-03 throughout but were committed on 2026-08-02; the dates are left as written and the discrepancy recorded here rather than rewritten. This entry was itself first drafted as 2026-08-04 and corrected to the actual date before release — flagging a date defect and then committing the same one would have been the more embarrassing of the two. Rounds three, four and five all landed on 2026-08-02. |
