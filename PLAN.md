@@ -784,10 +784,17 @@ From CrispASR HISTORY (May–Jun 2026), not yet in CrisperWeaver:
 - [x] Wyoming protocol server (Home Assistant) (#172) — shipped §12.8h
 - [x] Local TTS speaker playback (#173) — preview button on speaker dropdown
 - [x] Global-scope diarization (pyannote/sherpa) (#110) — `diarizeFullAudio()` method
-- [x] SenseVoice emotion/event tags — parsed from `<|HAPPY|>` etc. in
-      transcript text, stripped from display, surfaced as `emotion` /
-      `audio_event` in segment metadata + orange/teal badges in
+- [x] SenseVoice **event** tags — parsed from `<|BGM|>`, `<|Laughter|>`
+      etc. in transcript text, stripped from display, surfaced as
+      `audio_event` in segment metadata + a teal badge in
       TranscriptionOutputWidget.
+      **Emotion tags were removed 2026-08-02** (audit round 3): surfacing
+      `<|HAPPY|>` as an `emotion` field + badge made the app an emotion
+      recognition system under EU AI Act Art. 3(39) and an Annex III 1(c)
+      high-risk system from 2 Dec 2027. They are now discarded at the parse
+      boundary in `CrispasrEngine` and on every CLI output format, driven by
+      the discard list in `lib/utils/emotion_inference.dart`. Reasoning and
+      re-open trigger: `docs/AI_ACT_RISK.md` §2.8.
 - [x] Paraformer-zh — live test added (`paraformer_zh_live_test.dart`).
       Already in catalog; now validated end-to-end.
 - [x] WMT21 translation — live test added to `translation_live_test.dart`

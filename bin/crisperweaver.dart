@@ -332,17 +332,11 @@ class _TranscribeCmd extends _Base {
       final noDisclosure = argResults!['no-disclosure'] as bool;
       final disclose = translated && !noDisclosure;
 
-      // Art. 50(3). SenseVoice writes `<|HAPPY|>`-style emotion inferences
-      // inline; the GUI strips them into a disclosed badge, but the CLI
-      // passes the raw text through, so the warning has to be raised here.
-      // stderr, not stdout — the inference is already in the payload and
-      // corrupting a piped transcript to say so would be its own bug.
-      if (segs.any((s) => _hasEmotionTag(s.text))) {
-        stderr.writeln('[EMOTION-RECOGNITION] This model inferred speakers\' '
-            'emotional states from their voices and tagged them inline. '
-            '${EmotionInference.disclosure}');
-      }
-
+      // SenseVoice writes `<|HAPPY|>`-style emotion inferences inline.
+      // The app does not do emotion recognition — surfacing those made it
+      // an Annex III 1(c) high-risk system — so `_noEmotion` drops them on
+      // the way out, exactly as `CrispasrEngine` does, rather than passing
+      // an inference about a natural person through to stdout.
       if (argResults!['srt'] as bool) {
         if (disclose) {
           stdout.writeln('NOTE: ${AiTextDisclosure.translation}\n');
@@ -351,7 +345,7 @@ class _TranscribeCmd extends _Base {
         for (final s in segs) {
           stdout.writeln(i++);
           stdout.writeln('${_ts(s.start)} --> ${_ts(s.end)}');
-          stdout.writeln('${s.text.trim()}\n');
+          stdout.writeln('${_noEmotion(s.text)}\n');
         }
       } else if (argResults!['vtt'] as bool) {
         stdout.writeln('WEBVTT\n');
@@ -360,7 +354,7 @@ class _TranscribeCmd extends _Base {
         }
         for (final s in segs) {
           stdout.writeln('${_vts(s.start)} --> ${_vts(s.end)}');
-          stdout.writeln('${s.text.trim()}\n');
+          stdout.writeln('${_noEmotion(s.text)}\n');
         }
       } else if (argResults!['word-timestamps'] as bool) {
         for (final s in segs) {
@@ -369,11 +363,11 @@ class _TranscribeCmd extends _Base {
               stdout.writeln('${w.start.toStringAsFixed(3)}\t${w.end.toStringAsFixed(3)}\t${w.text}');
             }
           } else {
-            stdout.writeln('${s.start.toStringAsFixed(3)}\t${s.end.toStringAsFixed(3)}\t${s.text.trim()}');
+            stdout.writeln('${s.start.toStringAsFixed(3)}\t${s.end.toStringAsFixed(3)}\t${_noEmotion(s.text)}');
           }
         }
       } else {
-        final joined = segs.map((s) => s.text.trim()).join(' ').trim();
+        final joined = segs.map((s) => _noEmotion(s.text)).join(' ').trim();
         if (disclose) {
           _writeDisclosedText(joined, AiTextDisclosure.translation,
               suppress: false);
@@ -387,12 +381,21 @@ class _TranscribeCmd extends _Base {
     return 0;
   }
 
-  /// Whether [text] carries an inline SenseVoice emotion tag, e.g.
-  /// `<|HAPPY|>`. Shares [EmotionInference]'s tag set with the engine so
-  /// the CLI and the GUI agree on what counts as an emotion inference.
-  static bool _hasEmotionTag(String text) => RegExp(r'<\|([A-Za-z_]+)\|>')
-      .allMatches(text)
-      .any((m) => EmotionInference.isEmotionTag(m.group(1)!));
+  /// [text] with any inline SenseVoice emotion tag removed.
+  ///
+  /// The app performs no emotion recognition: surfacing `<|HAPPY|>` and
+  /// friends made it an Annex III 1(c) high-risk system, so they are
+  /// dropped at every output boundary. Shares [EmotionInference]'s tag set
+  /// with `CrispasrEngine` so the CLI and the GUI cannot disagree about
+  /// what an emotion inference is.
+  ///
+  /// Acoustic *event* tags (`<|BGM|>`, `<|Laughter|>`) are left alone —
+  /// they describe the recording, not the speaker's inner state.
+  static String _noEmotion(String text) => text
+      .replaceAllMapped(
+          RegExp(r'<\|([A-Za-z_]+)\|>'),
+          (m) => EmotionInference.isEmotionTag(m.group(1)!) ? '' : m.group(0)!)
+      .trim();
 
   String _ts(double sec) {
     final ms = (sec * 1000).round();

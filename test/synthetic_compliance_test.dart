@@ -1128,13 +1128,17 @@ void main() {
 // ---------------------------------------------------------------------------
 
 void _thirdAuditTests() {
-  group('Emotion recognition (Art. 50(3))', () {
-    test('every SenseVoice emotion label counts as an inference', () {
-      // The engine's `metadata['emotion']` is populated from exactly this
-      // set. Widening the model's vocabulary without widening this set
-      // would ship an undisclosed inference — which is the bug the
-      // 2026-08-02 audit found, in the form of the whole feature being
-      // undeclared.
+  group('No emotion recognition (Annex III 1(c) stays out of scope)', () {
+    // The app rendered a SenseVoice emotion badge until the 2026-08-02
+    // audit, which made it an emotion recognition system under Art. 3(39)
+    // and an Annex III 1(c) high-risk system from 2 Dec 2027. The feature
+    // was removed rather than disclosed. These tests pin the removal: they
+    // fail if an inference about a natural person can reach the app again.
+
+    test('every SenseVoice emotion label is on the discard list', () {
+      // Widening a model's emotion vocabulary without widening this set
+      // would silently re-create the exposure — the tag would flow through
+      // the filter and land back in segment metadata.
       for (final t in const [
         'HAPPY', 'SAD', 'ANGRY', 'NEUTRAL',
         'EMO_UNKNOWN', 'SURPRISED', 'FEARFUL', 'DISGUSTED',
@@ -1143,17 +1147,17 @@ void _thirdAuditTests() {
       }
     });
 
-    test('tag matching is case-insensitive', () {
+    test('matching is case-insensitive', () {
       // Backends emit `<|HAPPY|>` and `<|Happy|>` interchangeably; a
-      // case-sensitive check would silently stop disclosing on one of them.
+      // case-sensitive check would let one spelling through the filter.
       expect(EmotionInference.isEmotionTag('Happy'), isTrue);
       expect(EmotionInference.isEmotionTag('angry'), isTrue);
     });
 
-    test('acoustic event tags are not emotion inferences', () {
-      // Classifying laughter as an audio event says nothing about anyone's
-      // inner state. Over-claiming here would put an Art. 50(3) warning on
-      // transcripts that never ran an inference.
+    test('acoustic event tags are kept', () {
+      // Classifying laughter as an audio event describes the recording,
+      // not the speaker's inner state. Over-filtering here would delete a
+      // feature that was never a compliance problem.
       for (final t in const [
         'SPEECH', 'BGM', 'LAUGHTER', 'APPLAUSE', 'NOISE', 'MUSIC', 'SINGING',
       ]) {
@@ -1161,35 +1165,50 @@ void _thirdAuditTests() {
       }
     });
 
-    test('the disclosure names the inference, the duty and the prohibition',
-        () {
-      final d = EmotionInference.disclosure.toLowerCase();
-      expect(d, contains('inferred'));
-      expect(d, contains('50(3)'));
-      expect(d, contains('5(1)(f)'));
-      // The hedge matters as much as the citation: the label is a guess.
-      expect(d, anyOf(contains('guess'), contains('probabilistic')));
+    test('the engine drops emotion tags and keeps event tags', () {
+      // Mirrors CrispasrEngine._mapSessionSegments' filter. The engine
+      // itself needs the FFI session type, so the behaviour is pinned on
+      // the shared predicate that drives it.
+      const raw = '<|HAPPY|><|BGM|>the meeting starts now<|ANGRY|>';
+      final kept = RegExp(r'<\|([A-Za-z_]+)\|>')
+          .allMatches(raw)
+          .map((m) => m.group(1)!)
+          .where((t) => !EmotionInference.isEmotionTag(t))
+          .toList();
+      expect(kept, ['BGM']);
+      expect(kept.any(EmotionInference.isEmotionTag), isFalse);
     });
 
-    test('the Art. 5(1)(f) warning stands alone for narrow surfaces', () {
-      final w = EmotionInference.prohibitedContextWarning.toLowerCase();
-      expect(w, contains('workplace'));
-      expect(w, contains('education'));
-      expect(w, contains('prohibited'));
-    });
-
-    test('the first-use notice enumerates emotion recognition', () async {
-      // Art. 50(1) requires informing the user which AI systems they are
-      // interacting with. The notice listed six subsystems and omitted this
-      // one, in all three locales.
+    test('no emotion strings survive anywhere in the UI vocabulary',
+        () async {
+      // The disclosure strings were added and then removed with the
+      // feature; their presence would mean a surface still displays an
+      // inference. Checked in every locale because the notice is the one
+      // place a subsystem gets enumerated for Art. 50(1).
       for (final locale in const [Locale('en'), Locale('de'), Locale('zh')]) {
         final l = await AppLocalizations.delegate.load(locale);
-        expect(
-          l.aiTransparencyBody.toLowerCase(),
-          anyOf(contains('emotion'), contains('情绪')),
-          reason: 'locale ${locale.languageCode}',
-        );
+        final body = l.aiTransparencyBody.toLowerCase();
+        expect(body, isNot(contains('emotion')),
+            reason: 'locale ${locale.languageCode}');
+        expect(body, isNot(contains('emotionserkennung')),
+            reason: 'locale ${locale.languageCode}');
+        expect(body, isNot(contains('情绪')),
+            reason: 'locale ${locale.languageCode}');
       }
+    });
+
+    test('neither the engine nor the widget records an emotion field', () {
+      // A source guard, because the alternative needs a live SenseVoice
+      // model: `metadata['emotion']` is the exact key the badge read, and
+      // its absence is what keeps the app outside Annex III 1(c).
+      final engine =
+          File('lib/engines/crispasr_engine.dart').readAsStringSync();
+      final widget =
+          File('lib/widgets/transcription_output_widget.dart').readAsStringSync();
+      expect(engine, isNot(contains("'emotion':")));
+      expect(widget, isNot(contains("metadata['emotion']")));
+      // The filter that replaced it must still be there.
+      expect(engine, contains('EmotionInference.isEmotionTag'));
     });
   });
 
@@ -1314,9 +1333,16 @@ void _thirdAuditTests() {
       expect(cli, contains("negatable: false"));
     });
 
-    test('transcribe warns when the model inferred emotions', () {
-      expect(cli, contains('EMOTION-RECOGNITION'));
-      expect(cli, contains('EmotionInference.disclosure'));
+    test('transcribe strips emotion tags from every output format', () {
+      // The CLI passes raw segment text through, so without this it would
+      // print `<|HAPPY|>` inline while the GUI drops it — the app doing
+      // emotion recognition on one surface and not the other.
+      expect(cli, contains('_noEmotion'));
+      expect(cli, contains('EmotionInference.isEmotionTag'));
+      expect(cli, isNot(contains('EMOTION-RECOGNITION')));
+      // All four output shapes go through the stripper, not just the
+      // default one: plain, SRT, VTT and word-timestamps.
+      expect('_noEmotion('.allMatches(cli).length, greaterThanOrEqualTo(4));
     });
   });
 
