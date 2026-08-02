@@ -1792,6 +1792,9 @@ diverging later is a worse position than never signing — and the benefit
 mainly accrues to providers who expect to be assessed. Nothing in the
 code blocks it either way; Art. 50 itself is met regardless.
 
+**Decided 2026-08-02: not signing, for now.** See §16.7 — the item is
+closed as a decision rather than left hanging as an open action.
+
 ### 15.10 Speaker-DB verification audit + empty-roster bug (2026-08-01)
 
 Prompted by a direct challenge — *does the speaker DB do 1:N biometric
@@ -1849,3 +1852,210 @@ the feature** — the design already survived this scrutiny upstream, and
 1191 green tests, and every one of these bugs sat underneath that,
 because the failing paths are all gated behind a dylib the default suite
 skips. Compiling is not evidence that an FFI boundary works.
+
+---
+
+## 16. EU AI Act audit round 2 (2026-08-02)
+
+Second full audit, run the day Art. 50 became enforceable. §15 fixed the
+gaps between the §13 design and the shipped audio pipeline; this round
+looked at everything §15 did **not** treat as in scope, and that turned
+out to be where the remaining gaps were.
+
+**The pattern in one line:** the compliance work had been read as an
+*audio* problem solved on the *Flutter* path. Three of the four code
+findings are the same mistake from different angles — a generating
+surface that no one thought of as a generating surface.
+
+### 16.1 Art. 50(2) — text was never marked
+
+- [x] **a. LLM output left the app bare.** `summarize_dialog.dart:129`
+      copied the raw model markdown to the clipboard and
+      `translate_screen.dart` copied the translation, neither disclosed
+      — while `AI_ACT_RISK.md` §5.2 recorded text marking as **Done** on
+      the strength of OCR and transcript exports alone. The project had
+      already articulated the right rule at
+      `transcription_output_widget.dart:1110` ("once the text leaves the
+      app the surrounding UI no longer supplies context"); it just was
+      not applied to the LLM features.
+      New: `lib/utils/ai_text_disclosure.dart`, attached on screen and
+      on copy in both surfaces.
+
+- [x] **b. `/v1/translations` was the only generating endpoint with no
+      marking.** The three audio endpoints all set
+      `x-content-ai-generated: true`; the text one set nothing. Now sets
+      the header plus a `_disclosure` field, matching the `_disclosure`
+      key the JSON transcript export already uses.
+
+      **Scope call, recorded deliberately:** cleanup is *not* marked.
+      Art. 50(2) carves out systems performing "an assistive function for
+      standard editing" that do not substantially alter the input or its
+      semantics, which is what the deterministic toggles do. Checked
+      rather than assumed for the *LLM* cleanup pass too: its system
+      prompt pins it to "preserve the speaker's words, meaning, and
+      language", "never paraphrase, expand, or summarise", "never add
+      information not present in the input" — inside the carve-out. That
+      makes the prompt a compliance boundary: loosen it toward rewriting
+      and the output needs marking. Recorded in `AI_ACT_RISK.md` §2.7 so
+      the next person to edit that prompt knows what it is load-bearing
+      for. Marking cleanup anyway would dilute the signal on output that
+      genuinely is generated.
+
+### 16.2 Art. 50(4) + GDPR Art. 9 — parallel entry points
+
+- [x] **c. The voice-bake screen had no consent gate.**
+      `voice_bake_screen.dart` (routed at `main.dart:486`, reachable
+      from a button at `synthesize_screen.dart:803`) baked a voicepack
+      from any WAV with no rights attestation, while the voice-clone
+      wizard next to it gated properly. This is §15.3i's finding
+      exactly, one release later, applied to cloning instead of
+      enrolment. Gate added, mirroring the wizard, with a `[CONSENT]`
+      audit line and the attestation reset on every new WAV pick.
+
+      Practical exposure was narrow — the screen shells out to Python
+      plus a CrispASR checkout, so it does not run on most installs.
+      The gate gap was real regardless: "hard to reach" is not a
+      control.
+
+- [x] **d. The CLI bypassed the marking pipeline entirely.**
+      `bin/crisperweaver.dart` wrote bare 44-byte WAVs from **both**
+      `synthesize` and `s2s`: no Art. 50(4) beep even with `--voice`, no
+      C2PA manifest, no `LIST`/`INFO` provenance, no post-embed
+      verification, no consent gate. Only the C-side auto-embedded
+      watermark survived, unverified. `s2s` is voice conversion — the
+      case §15.2g fixed on the GUI and server while the CLI kept
+      shipping unmarked.
+
+      Fixed by extraction rather than duplication: the WAV+provenance
+      encoder moved to `lib/utils/marked_wav.dart` (pure Dart, since a
+      `dart run` entrypoint has no Flutter bindings) and both
+      `TtsService._floatPcmToWavBytes` and the new CLI
+      `_writeMarkedWav` delegate to it. Two implementations of the same
+      marking is how they drift; one is how they cannot.
+
+      The CLI now also **refuses** to clone without `--i-have-rights`
+      (exit 2) rather than warning — a headless flag that only prints a
+      warning is a flag nobody reads — and takes
+      `--disclaimer-override` for the same attestation-logged beep
+      suppression the server API has.
+
+### 16.3 Documentation that no longer matched the software
+
+- [x] **e. "No data is sent to external servers" was false.** The
+      first-use Art. 50(1) notice said it in all three locales, and
+      `AI_ACT_RISK.md` §1 repeated it — untrue once BYOK cloud cleanup
+      or summarisation is on, which posts transcript text to whatever
+      OpenAI-compatible endpoint the user configures. The notice also
+      omitted LLM text generation from its subsystem list. Both
+      corrected; the notice now distinguishes the on-device default
+      from the opt-in network features and states that speaker profiles
+      and recordings never leave the device under any setting.
+
+- [x] **f. `PRIVACY.md` never mentioned the cloud LLM at all** — it
+      claimed "the only network traffic is model downloads and optional
+      cloud transcription". New §3.3 documents what is sent, to whom,
+      that the receiving provider's policy governs it, and that a
+      transcript can carry personal data about people who are not the
+      user. The in-app settings help text had been honest about this all
+      along; the policy simply had not caught up.
+
+- [x] **g. The LLM subsystem had no risk classification.**
+      `AI_ACT_RISK.md` §2 enumerated six subsystems and omitted the only
+      text-*generating* one — and the only one whose data can leave the
+      device. Added as §2.7.
+
+- [x] **h. Annex IV drift.** §1.3 still said v0.9.1 / CrispASR 0.8.12
+      (actual: v0.9.6, engines pinned to v0.8.25 / v0.16.1 / v0.11.0 per
+      §14.4m); §3.2 and §6.3 quoted test counts that had moved three
+      times; §1.4 omitted the LLM endpoint and the localhost server /
+      Wyoming interfaces; and §8's history table had **no row for the
+      2026-08-01 revision** even though the header claimed one. Fixed,
+      with the missing row recorded retrospectively rather than quietly
+      backfilled. Hard-coded counts replaced by pointers — a number in
+      prose goes stale faster than the suite does.
+
+- [x] **i. GPAI exposure assessed** (`AI_ACT_RISK.md` §7.5). The project
+      republishes quantised GGUFs under `cstr/*`, and making a model
+      available on the Union market can bring you within the definition
+      of its provider. Assessment: Art. 53(2) exempts free/open-source
+      models from 53(1)(a)-(b) absent systemic risk, which these 0.5–2 B
+      speech models are nowhere near; the copyright-policy and
+      training-data-summary limbs survive, but the stronger argument is
+      that format conversion is not model provision at all. Cheap
+      insurance recorded rather than a conclusion asserted.
+
+### 16.4 Verification
+
+- [x] **j. Regression tests.** 12 added to
+      `test/synthetic_compliance_test.dart`: text-disclosure wording and
+      shape (including that summary and translation wordings are
+      distinct, that empty input discloses nothing, and that the model
+      output survives verbatim after the disclosure), plus the shared
+      `MarkedWav` contract — RIFF validity with the appended chunk,
+      provenance field presence, `LIST` positioned after `data`, and
+      independence from the watermark layer.
+      Compliance suite: **71 → 83**.
+
+### 16.5 What this audit did *not* find
+
+Recorded because a clean result is evidence too, and because re-deriving
+it next time is wasted work:
+
+- The Art. 50(4) beep is genuinely mandatory across GUI TTS, S2S, and
+  both server endpoints, with attestation-gated suppression that is
+  logged. §15.2c–g held up under re-reading.
+- Watermark verification uses the correct spread-spectrum detector, and
+  the measured 0.65 floor from §15.8 is locked into tests.
+- The speaker DB is closed-roster and consent-derived, and the C side
+  physically drops off-roster profiles before matching. §15.10's
+  verification-not-identification analysis stands.
+- `HfSpaceTtsService` looks like an unmarked cloud-TTS path but is dead
+  code — referenced only by its own tests, wired into no screen. Worth
+  knowing before someone "fixes" it into the UI, where it *would* need
+  the marking pipeline.
+
+### 16.6 The standing lesson
+
+§15.10 ended with "compiling is not evidence that an FFI boundary
+works". This round's version: **a compliance control is only as strong
+as its least-guarded entry point.** Every code finding here was a second
+door into an operation whose front door was properly gated — a second
+clipboard path, a second cloning screen, a second synthesis entrypoint.
+The useful review question for any new surface is not "does this have a
+gate" but "how many ways in are there, and does each one pass through
+it".
+
+### 16.7 Code of Practice — decided not to sign (2026-08-02)
+
+The last item left open by §15.9 is now closed, as a decision rather than
+an action. **CrisperWeaver will not sign the Code of Practice on
+Transparency of AI-generated Content for now.**
+
+The reason is the one thing about this project that is not going to
+settle soon: the generating surface keeps moving. Adherence is an
+ongoing commitment across whatever the software becomes, not an
+attestation about today's build — and the two audits in §15 and §16
+between them pulled an entire LLM text subsystem into the marking scope,
+brought the CLI inside it, and closed consent gates on screens that did
+not exist a few releases earlier. Binding a moving target to a fixed set
+of measures buys the worse of both positions: diverging after signing
+reads as breaking a commitment, where a non-signatory is simply assessed
+on the merits.
+
+The upside would have been the ability to *demonstrate* compliance and
+have enforcement focus on adherence monitoring rather than individual
+assessment by each national authority. That mainly matters to providers
+who expect to be assessed — not an AGPL project with no accounts, no
+servers, and no commercial deployment.
+
+What this costs, stated plainly: the technical measures have to stand on
+their own rather than by reference to the Code. They do — every limb is
+met and robustness is arguably exceeded (§15.8) — and **Art. 50 binds
+and is satisfied either way**. The Code is a route to showing
+compliance, not a source of the obligation.
+
+Revisit if the generating surface stabilises, if the project gains a
+commercial or institutional deployment, or if a market surveillance
+authority makes contact. Signing stays open at any time; the
+22 July 2026 cutoff affected the initial-signatories listing only.
+Recorded in `docs/AI_ACT_RISK.md` §7.2 with the same re-open triggers.

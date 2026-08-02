@@ -17,7 +17,9 @@ import 'package:crisper_weaver/services/audio_watermark_service.dart';
 import 'package:crisper_weaver/services/content_provenance_service.dart';
 import 'package:crisper_weaver/services/ocr_service.dart';
 import 'package:crisper_weaver/services/spread_spectrum_watermark.dart';
+import 'package:crisper_weaver/utils/ai_text_disclosure.dart';
 import 'package:crisper_weaver/utils/file_utils.dart';
+import 'package:crisper_weaver/utils/marked_wav.dart';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -989,6 +991,126 @@ void main() {
       }
       expect(roster, isEmpty,
           reason: 'withdrawal must take effect without further user action');
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Art. 50(2) — AI-generated *text* disclosure.
+  //
+  // The 2026-08-02 audit found the marking duty had been read as an audio
+  // duty: OCR output carried a disclosure, but LLM summaries and machine
+  // translations left the app bare — on the clipboard, and over the HTTP
+  // translation endpoint, which was the only generating endpoint not
+  // setting `x-content-ai-generated`.
+  // -------------------------------------------------------------------------
+  group('AI-generated text disclosure (Art. 50(2))', () {
+    test('summary disclosure names AI generation and urges verification', () {
+      final d = AiTextDisclosure.summary.toLowerCase();
+      expect(d, contains('ai-generated'));
+      expect(d, contains('verify'));
+    });
+
+    test('translation disclosure names AI generation and urges verification',
+        () {
+      final d = AiTextDisclosure.translation.toLowerCase();
+      expect(d, contains('ai-generated'));
+      expect(d, contains('verify'));
+    });
+
+    test('summary and translation wording are distinct', () {
+      // Different failure modes: a summary drops content, a translation
+      // distorts meaning. Identical wording would be a copy-paste smell.
+      expect(AiTextDisclosure.summary,
+          isNot(equals(AiTextDisclosure.translation)));
+    });
+
+    test('attach prefixes the text with a bracketed disclosure', () {
+      final out = AiTextDisclosure.forSummary('- ship the thing');
+      expect(out, startsWith('['));
+      expect(out, contains(AiTextDisclosure.summary));
+      expect(out, endsWith('- ship the thing'));
+    });
+
+    test('empty or whitespace-only text discloses nothing', () {
+      // A bare disclosure on an empty clipboard is noise, not compliance.
+      expect(AiTextDisclosure.forSummary(''), isEmpty);
+      expect(AiTextDisclosure.forTranslation('   \n '), isEmpty);
+    });
+
+    test('the original text survives verbatim after the disclosure', () {
+      const body = 'Zeile eins\nZeile zwei';
+      final out = AiTextDisclosure.forTranslation(body);
+      expect(out.endsWith(body), isTrue,
+          reason: 'the disclosure must be additive — a consumer stripping '
+              'the first paragraph gets exactly the model output back');
+    });
+
+    test('matches the shape OcrResult already established', () {
+      // Both leave the app through the clipboard and can land side by side.
+      final ocr = const OcrResult(text: 'x').textWithDisclosure;
+      final llm = AiTextDisclosure.forSummary('x');
+      expect(ocr.startsWith('['), isTrue);
+      expect(llm.startsWith('['), isTrue);
+      expect(ocr.endsWith('x'), isTrue);
+      expect(llm.endsWith('x'), isTrue);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // MarkedWav — the WAV encoder shared by TtsService and the CLI.
+  //
+  // Extracted during the 2026-08-02 audit: `bin/crisperweaver.dart` wrote a
+  // bare 44-byte header, so headless `synthesize` / `s2s` output carried no
+  // provenance chunk at all. Sharing the encoder is what stops the two
+  // paths drifting apart again, so these tests pin the shared contract.
+  // -------------------------------------------------------------------------
+  group('MarkedWav provenance encoder', () {
+    Float32List tone(int n) => Float32List.fromList(
+        List<double>.generate(n, (i) => sin(2 * pi * 440 * i / 24000) * 0.5));
+
+    test('produces a valid RIFF/WAVE container', () {
+      final b = MarkedWav.encode(tone(2400), 24000, generatorVersion: '0.0.0');
+      expect(String.fromCharCodes(b.sublist(0, 4)), 'RIFF');
+      expect(String.fromCharCodes(b.sublist(8, 12)), 'WAVE');
+      final declared =
+          ByteData.view(b.buffer).getUint32(4, Endian.little);
+      expect(declared, b.length - 8,
+          reason: 'RIFF size must cover the appended LIST chunk too');
+    });
+
+    test('carries the AI-generated provenance fields', () {
+      final b = MarkedWav.encode(tone(2400), 24000,
+          generatorVersion: '9.9.9', modelName: 'kokoro', voiceId: 'af_heart');
+      final ascii = String.fromCharCodes(b.where((c) => c >= 32 && c < 127));
+      expect(ascii, contains('LIST'));
+      expect(ascii, contains('INFO'));
+      expect(ascii, contains('CrisperWeaver 9.9.9'));
+      expect(ascii, contains('AI-generated synthetic speech'));
+      expect(ascii, contains('kokoro'));
+      expect(ascii, contains('voice:af_heart'));
+    });
+
+    test('the LIST chunk sits after the data chunk', () {
+      // Legacy parsers stop reading at `data`; provenance must not displace
+      // the PCM they expect to find there.
+      final b = MarkedWav.encode(tone(1200), 24000, generatorVersion: '1.0.0');
+      final ascii = String.fromCharCodes(b.map((c) => c & 0x7F));
+      expect(ascii.indexOf('LIST'), greaterThan(ascii.indexOf('data')));
+    });
+
+    test('omits the voice field when there is no voice', () {
+      final b = MarkedWav.encode(tone(1200), 24000, generatorVersion: '1.0.0');
+      final ascii = String.fromCharCodes(b.where((c) => c >= 32 && c < 127));
+      expect(ascii, isNot(contains('voice:')));
+    });
+
+    test('survives a watermark round-trip', () {
+      // The container marking and the robust mark are independent layers;
+      // encoding must not disturb the PCM the detector reads.
+      final marked = SpreadSpectrumWatermark.embed(tone(48000));
+      final b = MarkedWav.encode(marked, 24000, generatorVersion: '1.0.0');
+      expect(b.length, greaterThan(44 + marked.length * 2));
+      expect(SpreadSpectrumWatermark.detect(marked), greaterThanOrEqualTo(0.65));
     });
   });
 }

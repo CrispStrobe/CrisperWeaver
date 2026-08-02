@@ -4993,8 +4993,14 @@ abstract class AppLocalizations {
   /// No description provided for @aiTransparencyBody.
   ///
   /// In en, this message translates to:
-  /// **'CrisperWeaver uses artificial intelligence systems for:\n\n• Speech recognition (ASR) — converting audio to text\n• Speech synthesis (TTS) — generating spoken audio from text\n• Speaker identification — biometric voice matching\n• Document analysis (OCR) — recognizing text in images\n• Semantic search — AI-powered content retrieval\n\nAll processing runs on your device. No data is sent to external servers. AI-generated audio is automatically watermarked and signed with machine-readable provenance metadata (EU AI Act Art. 50).\n\nFor details, see the About screen.'**
+  /// **'CrisperWeaver uses artificial intelligence systems for:\n\n• Speech recognition (ASR) — converting audio to text\n• Speech synthesis (TTS) — generating spoken audio from text\n• Speaker identification — biometric voice matching\n• Document analysis (OCR) — recognizing text in images\n• Text generation — translation, summarisation, and transcript cleanup by language models\n• Semantic search — AI-powered content retrieval\n\nBy default everything runs on your device and nothing is sent anywhere. Some features are off until you switch them on and then do use the network: model downloads, optional cloud transcription, and optional cloud summarisation or cleanup, which send the text or audio concerned to the provider you configure. Speaker profiles and voice recordings never leave your device.\n\nAI-generated audio is automatically watermarked and signed with machine-readable provenance metadata, and AI-generated text carries a disclosure when you copy or export it (EU AI Act Art. 50).\n\nFor details, see the About screen and PRIVACY.md.'**
   String get aiTransparencyBody;
+
+  /// No description provided for @aiTransparencyWebNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Note for this web version: unlike the desktop and mobile apps, the browser build has no on-device engine. Speech recognition and synthesis run on a remote CrispASR server, so the audio you submit is sent there for processing. Text embeddings for search still run locally in your browser.'**
+  String get aiTransparencyWebNote;
 
   /// No description provided for @aiTransparencyAcknowledge.
   ///

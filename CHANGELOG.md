@@ -5,6 +5,39 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 
 ## [Unreleased]
 
+### Fixed — EU AI Act audit, round 2
+
+A second audit, run the day Art. 50 became enforceable, against everything
+the v0.9.6 sweep had not treated as in scope. The recurring theme: a
+generating surface nobody had thought of as a generating surface.
+
+- **AI-generated text was never marked.** Meeting summaries and machine
+  translations were copied to the clipboard with no disclosure, and
+  `/v1/translations` was the only generating endpoint not setting
+  `x-content-ai-generated` — while the compliance docs recorded text
+  marking as done on the strength of OCR alone. All three now carry the
+  Art. 50(2) disclosure. Rule-based cleanup deliberately does not: it is
+  the "assistive function for standard editing" the article carves out.
+- **A second voice-cloning screen had no consent gate.** The voice-bake
+  screen produced a voicepack from any recording without asking for a
+  rights attestation, while the voice-clone wizard beside it required
+  one. Gated, with an audit line and the attestation reset per file.
+- **The CLI shipped unmarked audio.** `synthesize` and `s2s` wrote bare
+  WAVs: no beep disclaimer even when cloning, no C2PA manifest, no
+  provenance metadata, no watermark verification. The WAV encoder is now
+  shared with the app rather than duplicated, `--i-have-rights` is
+  required to clone, and speech-to-speech is treated as the deepfake it
+  is.
+- **The first-use notice claimed "no data is sent to external servers".**
+  Untrue once the opt-in cloud features are enabled, and untrue by
+  construction on the web build, which has no on-device engine at all.
+  The notice now distinguishes the on-device default from the opt-in
+  network features, names the LLM text subsystem it had omitted, and
+  states the web build's cloud dependency explicitly.
+- **`PRIVACY.md` did not mention the cloud LLM.** New §3.3 documents what
+  is sent, to whom, that the receiving provider's policy governs it, and
+  that a transcript can carry personal data about people other than you.
+
 ### Fixed — EU AI Act compliance audit (v0.9.6)
 
 A full audit against Regulation (EU) 2024/1689 found the §13 compliance

@@ -1,7 +1,7 @@
 # EU AI Act Technical Documentation (Annex IV)
 
 **Application:** CrisperWeaver
-**Date:** 2026-08-01 (revised; originally 2026-07-16)
+**Date:** 2026-08-02 (revised; originally 2026-07-16)
 **Regulation:** Regulation (EU) 2024/1689, Annex IV
 
 ---
@@ -12,9 +12,10 @@
 
 CrisperWeaver is a cross-platform application for on-device audio
 transcription, speech synthesis, speaker identification, document
-analysis (OCR), and semantic search. It enables users to convert
-speech to text, generate speech from text, identify speakers in
-recordings, and search their transcription history.
+analysis (OCR), LLM-backed text processing, and semantic search. It
+enables users to convert speech to text, generate speech from text,
+identify speakers in recordings, translate and summarise transcripts,
+and search their transcription history.
 
 ### 1.2 Provider
 
@@ -23,8 +24,10 @@ Open-source project maintained at
 
 ### 1.3 Version
 
-Current release: v0.9.1+
-Engine dependency: CrispASR 0.8.12, CrispEmbed 0.15.1
+Current release: v0.9.6 (build 76).
+Engine dependencies, pinned to release tags in CI (`.github/workflows/`)
+rather than tracking a moving branch: CrispASR v0.8.25, CrispEmbed
+v0.16.1, glint_audio v0.11.0.
 
 ### 1.4 Interaction with Other Systems
 
@@ -32,8 +35,25 @@ Engine dependency: CrispASR 0.8.12, CrispEmbed 0.15.1
   engine, accessed via Dart FFI.
 - **CrispEmbed** (path dependency): C++ text/vision embedding engine,
   accessed via Dart FFI.
+- **glint_audio** (path dependency): C codec suite for MP3/AAC/Opus
+  decode, accessed via Dart FFI.
 - **HuggingFace** (optional network): GGUF model downloads over HTTPS.
-- No other external system interactions in default configuration.
+  Also hosts the optional cloud-transcription Space.
+- **User-configured OpenAI-compatible LLM endpoint** (optional network,
+  opt-in, off by default): receives transcript text for cleanup or
+  summarisation when the user enables cloud mode and supplies a URL and
+  key. The endpoint is chosen entirely by the user — the app has no
+  default and no relationship with any provider. See `AI_ACT_RISK.md`
+  §2.7 and `PRIVACY.md` §3.3.
+- No other external system interactions. In the **default**
+  configuration the only network traffic is model downloads.
+
+CrisperWeaver also *exposes* two interfaces of its own, both bound to
+localhost and both off unless started by the user: an OpenAI-compatible
+HTTP server (`server_service.dart`) and a Wyoming-protocol ASR socket.
+Generated output crossing either carries the same marking as the GUI's —
+`x-content-ai-generated` on generating endpoints, watermark and manifest
+in the audio bytes.
 
 ## 2. Design Specifications (Annex IV, 2)
 
@@ -84,13 +104,17 @@ inference. No training occurs on-device — inference only.
 
 ### 3.2 Testing
 
-- **Unit tests:** 1164 tests covering services, providers, utilities,
+- **Unit tests:** ~1200 tests covering services, providers, utilities,
   engines, compliance, and catalog integrity.
 - **Live tests:** Integration tests against real ASR/TTS models on
   developer hardware (tagged `@slow`, run separately from CI).
-- **Compliance tests:** 53 dedicated tests for EU AI Act compliance
-  (watermark round-trip, C2PA manifest, disclosure defaults, consent
-  records, privacy constants).
+- **Compliance tests:** dedicated tests for EU AI Act compliance in
+  `test/synthetic_compliance_test.dart` (watermark round-trip and
+  measured detector floor, C2PA manifest, export and text disclosure
+  defaults, consent records and consent-derived speaker roster, privacy
+  constants). The count is deliberately not quoted here — it moved
+  53 → 62 → 66 → 71 over three audits, and a number in prose goes stale
+  faster than the suite does.
 - **Widget tests:** Screen-level tests for transcription and synthesis
   UI flows.
 
@@ -146,9 +170,11 @@ biometric data processing risks.
 
 | Risk | Category | Mitigation |
 |---|---|---|
-| AI-generated audio misattributed as human | Art. 50 | Automatic watermark + C2PA signing + metadata tags |
-| Voice cloning for impersonation | Art. 50(4) | Consent gate + mandatory beep disclaimer + audit logging |
+| AI-generated audio misattributed as human | Art. 50 | Automatic watermark + C2PA signing + metadata tags, on every generating path (GUI, HTTP server, CLI) |
+| AI-generated text mistaken for authored text | Art. 50(2) | Disclosure attached to OCR, LLM summaries and translations on screen and on copy/export; `x-content-ai-generated` on the HTTP translation endpoint |
+| Voice cloning for impersonation | Art. 50(4) | Consent gate on **every** cloning path (wizard, voice-bake screen, CLI `--i-have-rights`) + mandatory beep disclaimer + audit logging |
 | Biometric data misuse | GDPR Art. 9 | Explicit consent + on-device only + right to erasure |
+| Transcript text disclosed to a third party | GDPR | Cloud LLM is opt-in and off by default; local model is the default path; flow disclosed in the first-use notice and `PRIVACY.md` §3.3 |
 | Transcription errors affecting decisions | Accuracy | Word-level confidence scores; user can verify and edit |
 | Model bias in ASR | Fairness | Multiple model families available; user chooses |
 
@@ -167,9 +193,11 @@ biometric data processing risks.
 
 ### 6.3 Monitoring Metrics
 
-- Test suite pass rate (1164 tests, CI-enforced)
-- Compliance test coverage (53 tests for EU AI Act requirements)
+- Test suite pass rate (CI-enforced, zero-error `flutter analyze`)
+- Compliance test coverage (`test/synthetic_compliance_test.dart`)
 - GitHub issue tracking for reported problems
+- Abuse reports via the channel embedded in every generated file's C2PA
+  manifest (`AI_ACT_RISK.md` §7.1)
 
 ## 7. Instructions for Use (Art. 13)
 
@@ -203,3 +231,5 @@ border control, employment decisions, or critical infrastructure.
 | Date | Change |
 |---|---|
 | 2026-07-16 | Initial Annex IV technical documentation |
+| 2026-08-01 | Audit revision: applicable dates refreshed for the Digital Omnibus; §5 cross-referenced to the provider/deployer split in `AI_ACT_RISK.md` §5.1. (Recorded retrospectively — the 2026-08-02 audit found this row had been omitted when the revision was made.) |
+| 2026-08-02 | Second audit. Corrected version and engine pins in §1.3, which had drifted three releases; added the LLM text subsystem and the localhost server/Wyoming interfaces to §1.4; replaced hard-coded test counts with pointers in §3.2/§6.3; added text-marking, cloud-disclosure and every-cloning-path rows to §5.1. |

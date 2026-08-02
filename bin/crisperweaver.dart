@@ -21,6 +21,13 @@ import 'dart:typed_data';
 
 import 'package:args/command_runner.dart';
 import 'package:crispasr/crispasr.dart' as crispasr;
+import 'package:path/path.dart' as p;
+
+import 'package:crisper_weaver/constants/app_constants.dart';
+import 'package:crisper_weaver/services/audio_watermark_service.dart';
+import 'package:crisper_weaver/services/content_provenance_service.dart';
+import 'package:crisper_weaver/services/spread_spectrum_watermark.dart';
+import 'package:crisper_weaver/utils/marked_wav.dart';
 
 String? _resolveLib(String? explicit) {
   for (final c in [
@@ -37,7 +44,116 @@ String? _resolveLib(String? explicit) {
   return explicit; // let the binding try its default loader path
 }
 
-/// Minimal 16-bit PCM WAV writer for TTS output.
+/// Confidence floor for the spread-spectrum detector. Measured gap: clean
+/// audio peaks at ~0.50, freshly marked audio sits at 0.78–0.91 (PLAN §15.8).
+/// Kept in sync with `TtsService._watermarkConfidenceFloor`.
+const double _watermarkFloor = 0.65;
+
+/// Write AI-generated audio with the same EU AI Act marking the GUI applies
+/// — Art. 50(4) beep on deepfake output, a verified Art. 50(2) watermark,
+/// `LIST`/`INFO` provenance, and a C2PA manifest.
+///
+/// The CLI used to write bare 44-byte WAVs from `synthesize` and `s2s`,
+/// so headless output carried none of this. [deepfake] is true for cloned
+/// synthesis and for speech-to-speech voice conversion — PLAN §15.2g is the
+/// same finding on the GUI/server side.
+void _writeMarkedWav(
+  File out,
+  Float32List pcm,
+  int rate, {
+  required String modelName,
+  String? voiceId,
+  bool deepfake = false,
+  String? disclaimerOverride,
+  DynamicLibrary? dylib,
+}) {
+  final ts = DateTime.now();
+  final override = disclaimerOverride?.trim();
+  final beepSuppressed = override != null && override.isNotEmpty;
+
+  // Art. 50(4): mandatory beep disclaimer on cloned / converted audio.
+  var samples = pcm;
+  if (deepfake) {
+    if (!beepSuppressed) {
+      final beeps = AudioWatermarkService.generateBeepDisclaimer(sampleRate: rate);
+      final combined = Float32List(beeps.length + pcm.length);
+      combined.setRange(0, beeps.length, beeps);
+      combined.setRange(beeps.length, combined.length, pcm);
+      samples = combined;
+    } else {
+      stderr.writeln('[DISCLAIMER-OVERRIDE] ts=${ts.toUtc().toIso8601String()} '
+          'beep suppressed — burden shifted to caller; '
+          'attestation="$override"');
+    }
+  }
+
+  // Art. 50(2): probe for the watermark the C API normally auto-embeds
+  // rather than assuming it ran, and fall back to the Dart embedder when it
+  // did not — the same reasoning as PLAN §15.2f. Detection runs on the
+  // pre-beep PCM because the native mark covers only the synthesised audio.
+  var pcmForWav = samples;
+  var fallback = false;
+  if (SpreadSpectrumWatermark.detect(pcm) < _watermarkFloor) {
+    pcmForWav = SpreadSpectrumWatermark.embed(samples);
+    fallback = true;
+  }
+
+  var bytes = MarkedWav.encode(
+    pcmForWav,
+    rate,
+    generatorVersion: AppConstants.appVersion,
+    modelName: modelName,
+    voiceId: voiceId,
+    timestamp: ts,
+  );
+  if (fallback) {
+    // LSB mark too, for back-compat with older detectors.
+    bytes = AudioWatermarkService.embedWatermark(bytes,
+        timestamp: ts, synthetic: true);
+  }
+
+  // Post-embed verification, so a silent marking failure is reported here
+  // rather than discovered by whoever receives the file.
+  final confidence = SpreadSpectrumWatermark.detect(pcmForWav);
+  final watermarked = confidence >= _watermarkFloor;
+
+  // C2PA: native COSE/X.509 signing where the dylib provides it, unsigned
+  // JSON-LD manifest otherwise.
+  var c2paSigned = false;
+  if (crispasr.CrispasrC2pa.isAvailable(lib: dylib)) {
+    final signed =
+        crispasr.CrispasrC2pa.sign(bytes, format: 'audio/wav', lib: dylib);
+    if (signed != null) {
+      bytes = signed;
+      c2paSigned = true;
+    }
+  }
+  if (!c2paSigned) {
+    bytes = ContentProvenanceService.injectIntoWav(
+      bytes,
+      generator: 'CrisperWeaver',
+      generatorVersion: AppConstants.appVersion,
+      modelName: modelName,
+      voiceId: voiceId,
+      timestamp: ts,
+    );
+  }
+
+  out.writeAsBytesSync(bytes);
+  stdout.writeln('marking: watermark=${watermarked ? "verified" : "FAILED"} '
+      '(${confidence.toStringAsFixed(3)}, ${fallback ? "dart-fallback" : "native"}) '
+      'c2pa=${c2paSigned ? "signed" : "unsigned-manifest"} '
+      'beep=${deepfake ? (beepSuppressed ? "suppressed" : "yes") : "n/a"}');
+  if (!watermarked && !c2paSigned) {
+    stderr.writeln('[MARKING] no robust mark on this output — neither a '
+        'verified watermark nor a signed C2PA manifest; only strippable '
+        'container metadata (EU AI Act Art. 50(2)).');
+  }
+}
+
+/// Minimal 16-bit PCM WAV writer. Used by the commands whose output is not
+/// AI-generated speech (watermark round-trip, denoise); generated audio goes
+/// through [_writeMarkedWav] instead.
 Uint8List _wav(Float32List pcm, int sampleRate) {
   final n = pcm.length;
   final bytes = BytesBuilder();
@@ -343,6 +459,15 @@ class _SynthesizeCmd extends _Base {
       ..addOption('model', abbr: 'm', help: 'TTS GGUF.', mandatory: true)
       ..addOption('out', abbr: 'o', help: 'Output WAV path.', mandatory: true)
       ..addOption('voice', help: 'Reference voice WAV/GGUF (cloning).')
+      ..addFlag('i-have-rights',
+          negatable: false,
+          help: 'Attest that you have the voice owner\'s explicit consent to '
+              'clone this voice. Required with --voice (GDPR Art. 9(2)(a); '
+              'mirrors the GUI voice-clone consent gate).')
+      ..addOption('disclaimer-override',
+          help: 'Suppress the mandatory Art. 50(4) beep disclaimer on cloned '
+              'output. Takes a written legal basis, which is logged. Only the '
+              'beep is suppressed — watermark and provenance still apply.')
       ..addOption('rate', help: 'Output sample rate.', defaultsTo: '24000')
       ..addOption('temperature', help: 'Sampling temperature.', defaultsTo: '0.7')
       ..addOption('seed', help: 'RNG seed (-1 = random).', defaultsTo: '-1');
@@ -355,18 +480,51 @@ class _SynthesizeCmd extends _Base {
   int run() {
     final rest = argResults!.rest;
     final text = rest.isNotEmpty ? rest.join(' ') : stdin.readLineSync() ?? '';
+    final voice = argResults!['voice'] as String?;
+    final isClone = voice != null && voice.isNotEmpty;
+
+    // GDPR Art. 9(2)(a) consent gate, matching the GUI wizard. Refuse rather
+    // than warn: a headless flag that only prints a warning is a flag nobody
+    // reads. Mirrors CrispASR's --i-have-rights.
+    if (isClone && !(argResults!['i-have-rights'] as bool)) {
+      stderr.writeln(
+          'Refusing to clone a voice without --i-have-rights.\n'
+          'Voice cloning processes biometric characteristics of a natural '
+          'person. Pass --i-have-rights to attest that you have the voice '
+          'owner\'s explicit consent (GDPR Art. 9(2)(a)).');
+      return 2;
+    }
+
     final session = crispasr.CrispasrSession.open(
         File(argResults!['model'] as String).absolute.path, libPath: lib);
     try {
-      final voice = argResults!['voice'] as String?;
-      if (voice != null) session.setVoice(File(voice).absolute.path);
+      if (isClone) session.setVoice(File(voice).absolute.path);
       final ttsTemp = double.parse(argResults!['temperature'] as String);
       final ttsSeed = int.parse(argResults!['seed'] as String);
       try { session.setTemperature(ttsTemp, seed: ttsSeed >= 0 ? ttsSeed : 0); } catch (_) {}
       final pcm = session.synthesize(text);
       final rate = int.parse(argResults!['rate'] as String);
-      File(argResults!['out'] as String).writeAsBytesSync(_wav(pcm, rate));
-      stdout.writeln('wrote ${pcm.length} samples @ ${rate}Hz -> ${argResults!['out']}');
+      final out = File(argResults!['out'] as String);
+      final model = argResults!['model'] as String;
+      if (isClone) {
+        stdout.writeln('[CONSENT] ts=${DateTime.now().toUtc().toIso8601String()} '
+            'model=${p.basename(model)} voice=${p.basename(voice)} '
+            'attestation="--i-have-rights"');
+      }
+      _writeMarkedWav(
+        out,
+        pcm,
+        rate,
+        modelName: p.basenameWithoutExtension(model),
+        voiceId: isClone ? p.basenameWithoutExtension(voice) : null,
+        deepfake: isClone,
+        disclaimerOverride: argResults!['disclaimer-override'] as String?,
+        dylib: dylib,
+      );
+      // "synthesized", not "wrote": with the beep disclaimer prepended the
+      // file holds more samples than the model produced.
+      stdout.writeln(
+          'synthesized ${pcm.length} samples @ ${rate}Hz -> ${out.path}');
     } finally {
       session.close();
     }
@@ -713,7 +871,11 @@ class _S2sCmd extends _Base {
       ..addOption('model', abbr: 'm', help: 'S2S model (lfm2-audio/mini-omni2).', mandatory: true)
       ..addOption('backend', abbr: 'b', help: 'Backend name.')
       ..addOption('out', abbr: 'o', help: 'Output WAV path.', mandatory: true)
-      ..addOption('rate', help: 'Output sample rate.', defaultsTo: '24000');
+      ..addOption('rate', help: 'Output sample rate.', defaultsTo: '24000')
+      ..addOption('disclaimer-override',
+          help: 'Suppress the mandatory Art. 50(4) beep disclaimer on the '
+              'converted output. Takes a written legal basis, which is '
+              'logged. Watermark and provenance still apply.');
   }
   @override
   String get name => 's2s';
@@ -729,10 +891,21 @@ class _S2sCmd extends _Base {
         backend: argResults!['backend'] as String?, libPath: lib);
     try {
       final result = session.speechToSpeech(audio.samples);
-      File(argResults!['out'] as String).writeAsBytesSync(
-          _wav(result.pcm, int.parse(argResults!['rate'] as String)));
+      // Voice conversion is Art. 50(4) deepfake territory just as much as
+      // cloning is — see PLAN §15.2g, which fixed exactly this on the GUI
+      // and server paths while the CLI kept writing an unmarked WAV.
+      _writeMarkedWav(
+        File(argResults!['out'] as String),
+        result.pcm,
+        int.parse(argResults!['rate'] as String),
+        modelName: p.basenameWithoutExtension(model),
+        deepfake: true,
+        disclaimerOverride: argResults!['disclaimer-override'] as String?,
+        dylib: dylib,
+      );
       stdout.writeln('transcript: ${result.transcript}');
-      stdout.writeln('wrote ${result.pcm.length} samples -> ${argResults!['out']}');
+      stdout.writeln(
+          'converted ${result.pcm.length} samples -> ${argResults!['out']}');
     } finally {
       session.close();
     }

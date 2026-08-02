@@ -10,8 +10,22 @@
 
 CrisperWeaver is a cross-platform application for on-device audio
 transcription, speech synthesis, speaker identification, document
-analysis, and semantic search. All processing runs locally on the
-user's device — no data is transmitted to external servers.
+analysis, LLM-backed text processing, and semantic search.
+
+**Data flow, stated precisely.** Every AI subsystem runs locally on the
+user's device by default, and the app has no backend of its own. Two
+features are exceptions once the user enables them, and both are off
+until they do:
+
+- **Cloud transcription** (§2.1) — audio to a CrispASR HuggingFace Space.
+- **Cloud text processing** (§2.7) — transcript text to a user-configured
+  OpenAI-compatible endpoint.
+
+Earlier revisions of this document asserted flatly that "no data is
+transmitted to external servers". That was inaccurate for those two paths
+and is corrected here; the app's first-use notice and `PRIVACY.md` §3.3
+have been corrected to match. Biometric data — speaker embeddings, voice
+profiles — is transmitted under **no** configuration.
 
 ## 2. AI Subsystems and Risk Classification
 
@@ -71,6 +85,45 @@ user's device — no data is transmitted to external servers.
 | Annex III category | Not listed |
 | Risk level | **Not high-risk** |
 | Rationale | Local search over user's own data, no profiling or scoring of natural persons |
+
+### 2.7 Text Generation (LLM) — translation, summarisation, cleanup
+
+| Property | Value |
+|---|---|
+| Function | Translates text, summarises transcripts into action items / topics / decisions, and cleans up transcripts. Runs against an on-device GGUF model, or — opt-in and off by default — a user-configured OpenAI-compatible endpoint |
+| Annex III category | Not listed |
+| Art. 50(2) applicability | **Yes for translation and summarisation** — these generate or substantially restate content |
+| Risk level | **Not high-risk; subject to Art. 50(2) transparency** |
+| Mitigations | Disclosure attached on screen and on copy/export; `x-content-ai-generated` header plus a `_disclosure` field on the HTTP translation endpoint |
+
+Three points this subsystem raises that the others do not:
+
+- **It is the only subsystem whose data can leave the device.** The cloud
+  mode sends transcript text — which routinely contains personal data
+  about people other than the user — to a third party the user chooses.
+  The app cannot make privacy commitments on that provider's behalf and
+  does not try to; it discloses the flow (`PRIVACY.md` §3.3, first-use
+  notice) and defaults to the local model.
+- **Cleanup is deliberately excluded from the marking duty, and the
+  exclusion is enforced in the prompt rather than merely asserted.**
+  Art. 50(2) carves out systems performing "an assistive function for
+  standard editing" that do not substantially alter the input data or its
+  semantics. The deterministic pass — filler removal, sentence casing,
+  punctuation repair, whitespace normalisation — is plainly within that.
+  The optional LLM pass is held to the same standard by its system prompt
+  (`cloud_llm_cleanup_service.dart`), which instructs the model to
+  *"preserve the speaker's words, meaning, and language"*, to *"never
+  paraphrase, expand, or summarise"* and to *"never add information not
+  present in the input"*. Should that prompt ever be loosened toward
+  rewriting, the carve-out stops applying and the output needs marking —
+  so the prompt is a compliance boundary, not a quality setting. LLM
+  summarisation and translation are outside the carve-out and are marked.
+- **Text has no container.** Audio carries three independent marks
+  (watermark, C2PA manifest, container metadata); text can carry only the
+  disclosure itself, which a recipient can trivially delete. That is a
+  limitation of the medium rather than of the implementation, and is why
+  the disclosure is attached at every point where text leaves the app
+  rather than only where it is displayed.
 
 ## 3. Speaker Identification — Detailed Risk Assessment
 
@@ -201,11 +254,19 @@ attestation that is logged for audit.
 
 | Obligation | Implementation | Status |
 |---|---|---|
-| Art. 50(1): Users informed of AI interaction | First-use transparency dialog (EN/DE/ZH) | Done |
+| Art. 50(1): Users informed of AI interaction | First-use transparency dialog (EN/DE/ZH), enumerating every AI subsystem and which of them can use the network once enabled | Done |
 | Art. 50(2): Machine-readable AI marking — audio | Spread-spectrum watermark, verified post-embed by probing the PCM; C2PA COSE/X.509 manifest; WAV LIST/INFO + ID3v2 tags | Done |
-| Art. 50(2): Machine-readable AI marking — text | Transcript exports carry a synthetic-content disclosure by default; OCR output carries a disclosure on screen and on copy | Done |
-| Art. 50(4): Deep fake disclosure — voice cloning | Mandatory beep disclaimer; suppression requires a logged attestation | Done |
-| Art. 50(4): Deep fake disclosure — speech-to-speech | Same beep path via `voiceConverted`; `/v1/audio/s2s` consent-gated | Done |
+| Art. 50(2): Machine-readable AI marking — text | Transcript exports carry a synthetic-content disclosure by default; OCR, LLM summaries and translations carry one on screen and on copy; the HTTP translation endpoint sets `x-content-ai-generated` and a `_disclosure` field | Done |
+| Art. 50(4): Deep fake disclosure — voice cloning | Mandatory beep disclaimer; suppression requires a logged attestation. Applies on the GUI, server (`/v1/audio/speech`) and CLI (`synthesize --voice`) paths | Done |
+| Art. 50(4): Deep fake disclosure — speech-to-speech | Same beep path via `voiceConverted` / `_writeMarkedWav(deepfake: true)`; `/v1/audio/s2s` consent-gated; CLI `s2s` marked | Done |
+
+**Scope note — every generating path, not just the GUI.** The audit of
+2026-08-02 found the marking pipeline was implemented on the Flutter side
+only: `bin/crisperweaver.dart` wrote bare 44-byte WAVs from both
+`synthesize` and `s2s`, so headless output carried no beep, no manifest,
+no provenance chunk and no watermark verification. The WAV encoder now
+lives in `lib/utils/marked_wav.dart` and is shared by the app and the CLI
+so the two cannot drift apart again.
 
 ## 6. Art. 4 — AI Literacy
 
@@ -231,9 +292,10 @@ users by:
 |---|---|
 | Anti-impersonation policy / acceptable use | **Done** — [`ACCEPTABLE_USE.md`](../ACCEPTABLE_USE.md) v1.0 |
 | Third-party abuse-reporting channel | **Done** — see §7.1 |
-| Code of Practice on Transparency of AI-generated Content | **Assessed** — see §7.2. Technically conformant; *signing* is an outstanding decision for the maintainer |
+| Code of Practice on Transparency of AI-generated Content | **Closed — decided not to sign** (2026-08-02). Technically conformant on every limb; adherence declined while the generating surface is still moving. Reasoning and re-open triggers in §7.2 |
 | Art. 49(2) EU-database registration | **Not applicable** on the operative analysis — see §7.3 |
 | C2PA signing for MP3 exports | **Not applicable** — no MP3 export exists; see §7.4 |
+| Art. 53 GPAI obligations for republished GGUFs | **Assessed** — mostly exempt, one limb to watch; see §7.5 |
 
 ### 7.1 Abuse-reporting channel
 
@@ -274,22 +336,44 @@ already met, and on the robustness limb arguably exceeded:
 | Robust | Watermark survives re-encoding; container metadata does not, and that limit is disclosed to users rather than glossed |
 | "As far as technically feasible" | Sub-100 ms and digitally silent audio cannot carry a spectral watermark; the app **reports** this instead of claiming a mark it did not make |
 
-**Outstanding:** signing the Code is an organisational act only the
-maintainer can perform — complete the Signatory Form and email it to
-`CNECT-AIOFFICE-CODE-OF-PRACTICE-TRANSPARENCY@ec.europa.eu`, signed by
-someone with authority to bind the provider. Open at any time; the
-initial-signatories list closed 22 July 2026.
-
 Note the benefit precisely: signatories can *demonstrate* compliance and
 have enforcement focused on monitoring adherence rather than individual
 assessment by each national market surveillance authority. This is **not**
 an Art. 40 "presumption of conformity" — that concept attaches to
 harmonised standards, not codes of practice.
 
-Signing is a judgement call rather than a technical gap. It commits the
-project to the code's measures on an ongoing basis, so diverging later is
-a worse position than never having signed, and the benefit mainly accrues
-to providers who expect to be assessed. Art. 50 itself is met either way.
+**Decision (2026-08-02): not signing, for now.** This is a judgement call
+rather than a technical gap, and the reasoning is recorded here so it can
+be revisited on its merits rather than re-argued from scratch.
+
+Adherence is an **ongoing** commitment to the Code's measures across
+whatever the software becomes, not a one-time attestation about the
+version that exists today. CrisperWeaver is under active development and
+its surface keeps moving — the last two audits alone added an LLM text
+subsystem to the marking scope, brought the CLI inside it, and closed two
+consent gates on paths that did not exist a few releases earlier.
+Committing a moving target to a fixed set of measures invites a worse
+position than never signing: diverging after signing reads as breaking a
+commitment, whereas a non-signatory is simply assessed on the merits.
+
+The benefit accrues mainly to providers who expect to be assessed by
+national market surveillance authorities — a posture that does not fit an
+AGPL project with no accounts, no servers, and no commercial deployment.
+
+What this costs is small and stated plainly: no ability to *demonstrate*
+compliance by reference to the Code, so the technical measures have to
+stand on their own. They do — every limb in the table above is met, and
+the robustness limb is arguably exceeded. **Art. 50 is binding either way
+and is met either way**; the Code is a route to showing that, not a
+source of the obligation.
+
+**Revisit if** the project stabilises its generating surface, gains a
+commercial or institutional deployment, or is contacted by a market
+surveillance authority. Signing remains open at any time (the
+initial-signatories list closed 22 July 2026, which affects listing order
+and nothing else): complete the Signatory Form and email it to
+`CNECT-AIOFFICE-CODE-OF-PRACTICE-TRANSPARENCY@ec.europa.eu`, signed by
+someone with authority to bind the provider.
 
 ### 7.3 Art. 49(2) registration
 
@@ -331,6 +415,48 @@ If MP3 export is ever added, that is also the point to revisit
 manifest leaves the watermark as the only mark, which is precisely the
 case CrispASR's watermark floor exists for (PLAN §15.8).
 
+### 7.5 Art. 53 — GPAI obligations for the republished GGUFs
+
+This concerns the maintainer rather than the app, but it arises from the
+same activity and is recorded here so it is not overlooked.
+
+The project converts third-party models to GGUF and publishes them under
+`cstr/*` on HuggingFace (`miotts`, `moss-tts-local`, `gigaam`,
+`titanet-large`, among others) so the catalogue has something to point at.
+Making a model available on the Union market can bring the entity doing so
+within the definition of a *provider* of that model, and quantisation plus
+format conversion is a modification — so the question is live rather than
+obviously inapplicable.
+
+Assessment:
+
+- **Art. 53(2) exempts free and open-source GPAI models** from the
+  technical-documentation duties in 53(1)(a) and (b), provided the model is
+  released under a licence allowing access, use, modification and
+  distribution, with parameters and architecture publicly available. The
+  republished GGUFs meet that; the exemption falls away only for models
+  with **systemic risk** (Art. 51: ~10²⁵ FLOP training compute), which
+  nothing in this catalogue approaches — these are 0.5–2 B parameter
+  speech models.
+- **What survives the exemption** is 53(1)(c) — a policy to comply with
+  Union copyright law — and 53(1)(d) — a sufficiently detailed public
+  summary of training content. Both attach to whoever counts as the
+  model's provider.
+- **The strongest argument is that this project is not that provider.**
+  Format conversion changes the numeric representation, not the model:
+  no training, no fine-tuning, no change to architecture or capability.
+  The upstream research teams remain the providers, and the model cards
+  attribute upstream. A quantiser is closer to a distributor than to a
+  provider of a new model.
+
+That is an argument rather than a settled reading, so the practical step
+is cheap insurance: each republished repo's card should name the upstream
+model and licence, state that only quantisation/format conversion was
+applied, and point at the upstream training-data documentation. Where the
+upstream publishes no such summary, that gap should be visible rather than
+papered over. **Re-open this** if the project ever fine-tunes, merges, or
+distils a model rather than converting one.
+
 ## 8. Applicable Dates
 
 | Provision | Applies from | Relevance |
@@ -347,3 +473,4 @@ case CrispASR's watermark floor exists for (PLAN §15.8).
 |---|---|
 | 2026-07-16 | Initial risk classification document |
 | 2026-08-01 | Audit revision. Reframed speaker ID as biometric **verification** under the closed-roster API (§3.1) with Art. 6(3) demoted to a fallback argument and its registration/profiling caveats stated (§3.2). Added Art. 2(12) open-source scope note (§3a), provider/deployer split (§5.1), Art. 4 (§6), open items (§7), and post-Digital-Omnibus dates (§8). |
+| 2026-08-02 | Second audit. Corrected the inaccurate "no data is transmitted" claim in §1 and classified the previously unclassified LLM text subsystem (§2.7) — the only one whose data can leave the device. Recorded that Art. 50(2) text marking now covers LLM summaries and translations, not only OCR, and that the CLI is inside the marking scope (§5.2). Added the GPAI note (§7.5). Closed the Code of Practice item as a decision not to sign, with reasoning and re-open triggers (§7.2). |

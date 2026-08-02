@@ -1,7 +1,7 @@
 # Privacy Policy — CrisperWeaver
 
 **Effective date:** 2026-07-10
-**Last updated:** 2026-07-16
+**Last updated:** 2026-08-02
 
 CrisperWeaver is an offline-first audio transcription and speech
 synthesis app. This policy explains what data the app accesses, how
@@ -12,7 +12,13 @@ it is used, and your rights.
 ## 1. Data We Collect
 
 **We do not collect, transmit, or store any personal data on our
-servers.** CrisperWeaver is designed to run entirely on your device.
+servers.** CrisperWeaver is designed to run entirely on your device,
+and has no servers of its own to send anything to.
+
+Two optional features do use the network once you switch them on:
+cloud transcription (§3.2) and cloud cleanup/summarisation (§3.3).
+Both are off by default, and both send data to an endpoint **you**
+choose, not to us.
 
 ### 1.1 Audio Data
 
@@ -25,8 +31,11 @@ case audio is sent to the third-party endpoint you configure.
 ### 1.2 Transcription Data
 
 Transcripts, history entries, speaker profiles, and embeddings are
-stored locally on your device in the app's documents directory. They
-are never transmitted off-device.
+stored locally on your device in the app's documents directory.
+Speaker profiles and voice embeddings are never transmitted
+off-device under any setting. Transcript **text** likewise stays on
+the device unless you turn on cloud cleanup or cloud summarisation,
+which send it to an endpoint you configure — see §3.3.
 
 ### 1.3 Model Files
 
@@ -50,7 +59,7 @@ The app requests the following permissions:
 |---|---|---|
 | Microphone | Record audio for transcription | When you tap Record |
 | Storage / Files | Save and load audio files, models, transcripts | When you import/export files or download models |
-| Internet | Download models from HuggingFace; optional cloud transcription | When you download a model or use cloud ASR |
+| Internet | Download models from HuggingFace; optional cloud transcription; optional cloud text processing | When you download a model, use cloud ASR, or use cloud cleanup/summarisation |
 | Background Audio | Continue recording when the app is backgrounded | When recording with the screen locked |
 | Local Network | Flutter debugging (development only) | Debug builds only |
 
@@ -72,6 +81,38 @@ If you enable cloud transcription (Settings > Engine > CrispASR
 Cloud), audio is sent to a CrispASR HuggingFace Space for
 processing. This is **opt-in** and **off by default**. The default
 engine is fully on-device.
+
+### 3.3 Optional Cloud Text Processing (BYOK)
+
+Transcript cleanup and meeting summarisation can run either
+on-device (local GGUF language model) or against a cloud endpoint
+you configure yourself — Settings > Cleanup > Cloud LLM. The cloud
+mode is **opt-in**, **off by default**, and inert until you supply
+both an API URL and an API key.
+
+When it is enabled, **the transcript text is sent to the endpoint
+you configured** as an OpenAI-compatible
+`/v1/chat/completions` request — cleanup sends it segment by
+segment, summarisation sends the passage being summarised. That
+endpoint is whatever you point it at (OpenAI, OpenRouter, Groq,
+Anthropic via a proxy, or a llama-server on your own machine), and
+**that provider's privacy policy governs what happens to the text**,
+including whether it is retained or used for training. CrisperWeaver
+has no relationship with it and cannot make commitments on its
+behalf.
+
+Two things to be aware of before enabling it:
+
+- A transcript can contain personal data about people who are not
+  you — other meeting participants, for instance — and sending it
+  onward is a disclosure to a third party. Decide whether you have a
+  lawful basis for that.
+- Your API key is stored on this device and sent only to the
+  endpoint you configured.
+
+The local model path does the same work with no network traffic at
+all, and is the default. Speaker profiles, voice embeddings, and
+audio are never sent to a cloud LLM under either mode.
 
 ## 4. Data Storage and Retention
 
@@ -183,7 +224,10 @@ For questions about this privacy policy:
 ---
 
 **Summary:** CrisperWeaver processes everything locally on your
-device. No data is collected, no analytics are used, no accounts are
-required. The only network traffic is model downloads from
-HuggingFace (your choice) and optional cloud transcription (opt-in,
-off by default).
+device by default. No data is collected, no analytics are used, no
+accounts are required. Network traffic happens only for model
+downloads from HuggingFace (your choice) and for the two opt-in,
+off-by-default cloud features — cloud transcription (§3.2) and cloud
+cleanup/summarisation (§3.3), which send audio or transcript text to
+a provider you configure. Speaker profiles and voice embeddings
+never leave your device.

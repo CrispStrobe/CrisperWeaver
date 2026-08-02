@@ -27,6 +27,16 @@ class _VoiceBakeScreenState extends ConsumerState<VoiceBakeScreen> {
       TextEditingController(text: VoiceBakingService.defaultScriptPath);
   double _exaggeration = 0.5;
   bool _busy = false;
+  /// EU AI Act Art. 50(4) + GDPR Art. 9(2)(a): baking a voicepack from a
+  /// reference WAV *is* voice cloning, so it carries the same consent gate
+  /// as [VoiceCloneWizardScreen]. This screen shipped without one — the
+  /// same class of gap as the second speaker-enrolment path (PLAN §15.3i),
+  /// where a parallel entry point reached the biometric operation without
+  /// passing the attestation the primary path enforces.
+  ///
+  /// Reset on every WAV pick: the attestation is about *that* voice, and
+  /// carrying it over to a newly picked file would make it meaningless.
+  bool _voiceRightsAttested = false;
   // Last-N stderr/stdout lines we echo into the screen. Bigger than
   // the user wants to scroll, smaller than the in-app log buffer.
   final List<String> _logTail = [];
@@ -47,7 +57,11 @@ class _VoiceBakeScreenState extends ConsumerState<VoiceBakeScreen> {
         allowedExtensions: const ['wav'],
       );
       if (pick.isEmpty) return;
-      setState(() => _wavPath = pick.localPaths.first);
+      setState(() {
+        _wavPath = pick.localPaths.first;
+        // New voice, new attestation.
+        _voiceRightsAttested = false;
+      });
     } on FilePickerCloudUriUnsupported catch (e, st) {
       Log.instance.w('voice-bake', 'cloud-URI pick failed even with fallback',
           error: e, stack: st);
@@ -80,6 +94,22 @@ class _VoiceBakeScreenState extends ConsumerState<VoiceBakeScreen> {
       );
       return;
     }
+    // Belt-and-braces: the button is already disabled without the
+    // attestation, but this is a biometric operation on a third party's
+    // voice — the gate should not depend on one widget's enabled state.
+    if (!_voiceRightsAttested) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l.voiceCloneConsentTitle)),
+      );
+      return;
+    }
+    // Audit trail, matching the `[CONSENT]` convention TtsService uses for
+    // cloned synthesis. Records that an attestation was given, not the
+    // voice data itself.
+    Log.instance.i('voice-bake',
+        '[CONSENT] ts=${DateTime.now().toUtc().toIso8601String()} '
+        'op=voice-bake wav=${p.basename(_wavPath!)} '
+        'attestation="rights to clone this voice attested"');
     setState(() {
       _busy = true;
       _logTail.clear();
@@ -227,9 +257,68 @@ class _VoiceBakeScreenState extends ConsumerState<VoiceBakeScreen> {
               ],
             ),
             const SizedBox(height: 12),
+            // EU AI Act Art. 50(4) + GDPR Art. 9: voice-cloning consent
+            // gate, identical in substance to the voice-clone wizard's.
+            // Baking a voicepack from someone's recording is cloning their
+            // voice, whichever screen it happens on.
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Theme.of(context)
+                    .colorScheme
+                    .errorContainer
+                    .withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: _voiceRightsAttested
+                      ? Colors.green.shade400
+                      : Theme.of(context)
+                          .colorScheme
+                          .error
+                          .withValues(alpha: 0.5),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.gavel,
+                          size: 16,
+                          color: Theme.of(context).colorScheme.error),
+                      const SizedBox(width: 6),
+                      Text(l.voiceCloneConsentTitle,
+                          style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: Theme.of(context).colorScheme.error)),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(l.voiceCloneConsentBody,
+                      style:
+                          TextStyle(fontSize: 12, color: Colors.grey.shade700)),
+                  const SizedBox(height: 8),
+                  CheckboxListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    value: _voiceRightsAttested,
+                    onChanged: _busy
+                        ? null
+                        : (v) =>
+                            setState(() => _voiceRightsAttested = v ?? false),
+                    title: Text(l.voiceCloneConsentCheckbox,
+                        style: const TextStyle(fontSize: 12)),
+                    controlAffinity: ListTileControlAffinity.leading,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
             FilledButton.icon(
               onPressed: _busy ||
                       _wavPath == null ||
+                      !_voiceRightsAttested ||
                       !VoiceBakingService.isSupported
                   ? null
                   : _bake,

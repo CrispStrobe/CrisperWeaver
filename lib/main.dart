@@ -307,10 +307,12 @@ class _CrisperWeaverAppState extends ConsumerState<CrisperWeaverApp> {
     );
   }
 
-  /// EU AI Act Art. 52: inform the user on first launch that this
-  /// application uses AI systems for speech recognition, synthesis,
-  /// speaker identification, and document analysis. Dismissal is
-  /// persisted so the dialog only shows once.
+  /// EU AI Act Art. 50(1): inform the user on first launch that this
+  /// application uses AI systems — speech recognition, synthesis, speaker
+  /// identification, document analysis, and LLM-backed text generation —
+  /// and which of them can leave the device once enabled. (Art. 52 in the
+  /// draft numbering; Art. 50 in Regulation (EU) 2024/1689 as adopted.)
+  /// Dismissal is persisted so the dialog only shows once.
   void _showAiTransparencyNoticeIfNeeded() {
     final settings = ref.read(settingsServiceProvider);
     if (settings.aiTransparencyNoticeSeen) return;
@@ -326,7 +328,14 @@ class _CrisperWeaverAppState extends ConsumerState<CrisperWeaverApp> {
           icon: const Icon(Icons.smart_toy_outlined, size: 32),
           title: Text(l.aiTransparencyTitle),
           content: SingleChildScrollView(
-            child: Text(l.aiTransparencyBody),
+            // The web build has no on-device engine — EngineFactory
+            // defaults it to the HF Space — so the body text's
+            // "runs on your device by default" is true of the native apps
+            // and false here. Same string, different platform, so the
+            // difference has to be stated rather than assumed.
+            child: Text(plat.isWeb
+                ? '${l.aiTransparencyBody}\n\n${l.aiTransparencyWebNote}'
+                : l.aiTransparencyBody),
           ),
           actions: [
             FilledButton(

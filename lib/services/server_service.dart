@@ -24,6 +24,7 @@ import 'transcription_service.dart';
 import 'tts_service.dart';
 import 'vad_service.dart';
 import '../native/crispasr_import.dart' as crispasr;
+import '../utils/ai_text_disclosure.dart';
 
 /// Local HTTP server exposing CrisperWeaver's services through an
 /// OpenAI-compatible surface. Three endpoints:
@@ -594,9 +595,20 @@ class ServerService {
             tgtLang: tgt,
             maxTokens: maxTokens,
           );
+      // EU AI Act Art. 50(2): machine-translated text is AI-generated
+      // content. The audio endpoints already mark themselves with
+      // `x-content-ai-generated`; this one returns text and was the only
+      // generating endpoint that did not. `_disclosure` mirrors the JSON
+      // transcript-export key so a consumer sees the same shape in both.
       return Response.ok(
-        jsonEncode({'translation': out}),
-        headers: const {'content-type': 'application/json'},
+        jsonEncode({
+          '_disclosure': AiTextDisclosure.translation,
+          'translation': out,
+        }),
+        headers: const {
+          'content-type': 'application/json',
+          'x-content-ai-generated': 'true',
+        },
       );
     } on TextTranslationException catch (e) {
       return Response.internalServerError(body: e.message);
