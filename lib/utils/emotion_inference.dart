@@ -66,4 +66,34 @@ class EmotionInference {
   /// interchangeably, and a case-sensitive check would let one of them
   /// through.
   static bool isEmotionTag(String tag) => tags.contains(tag.toUpperCase());
+
+  /// The inline tag syntax SenseVoice-family backends emit.
+  static final RegExp tagPattern = RegExp(r'<\|([A-Za-z_]+)\|>');
+
+  /// [input] with every inline tag removed, plus the non-emotion tags that
+  /// were in it.
+  ///
+  /// This exists because the filter used to be written out inline inside
+  /// `CrispasrEngine`, which made it a property of *that engine* rather than
+  /// of the app. The audit of 2026-08-04 found `HfSpaceEngine` — the cloud
+  /// path, offered on every platform and the only engine on web — copying
+  /// the server's text into segments verbatim, with no tag handling at all.
+  /// Nothing reachable exercised it, because the cloud model list happens
+  /// not to offer a SenseVoice backend; adding one line to that list would
+  /// have re-created the Annex III 1(c) exposure the capability was deleted
+  /// to avoid. A control that only holds on the route it was written for is
+  /// the failure mode this file already documents twice, so the filter now
+  /// lives here and both engines call it.
+  static ({String text, List<String> keptTags}) strip(String input) {
+    final kept = <String>[];
+    for (final m in tagPattern.allMatches(input)) {
+      final tag = m.group(1)!;
+      if (isEmotionTag(tag)) continue;
+      kept.add(tag);
+    }
+    return (
+      text: input.replaceAll(tagPattern, '').trim(),
+      keptTags: kept,
+    );
+  }
 }

@@ -2,7 +2,7 @@
 
 **Regulation:** GDPR Art. 35
 **Application:** CrisperWeaver
-**Date:** 2026-08-02 (revised; originally 2026-07-16)
+**Date:** 2026-08-04 (revised; originally 2026-07-16)
 **Assessor:** CrisperWeaver development team
 
 ---
@@ -22,6 +22,23 @@ speaker profiles.
   speakers whose voices appear in audio files processed by the user.
 - **Data types:** Voice embeddings (256-dimensional float vectors
   derived from audio via TitaNet), stored as `.spk` files.
+- **A second, transient population of the same vector type.** Scoped
+  explicitly on 2026-08-04, having previously been left out. Speaker
+  **diarisation** also derives TitaNet embeddings — one per segment, for
+  *every* speaker in any recording the user processes, enrolled or not,
+  consented or not — when re-clustering to a requested speaker count. Two
+  earlier revisions assessed the enrolment path in detail without asking
+  what else computes an embedding.
+
+  These are held in memory for the duration of the run and never written to
+  disk, matched against the profile database, or linked to a name. On the
+  assessment at `AI_ACT_RISK.md` §2.12 that keeps them outside Art. 9(1),
+  which bites on biometric data processed *for the purpose of uniquely
+  identifying* a natural person — diarisation asks only whether two
+  utterances in one file are the same voice. **The conclusion is
+  conditional on that.** Persisting, caching across runs, or matching a
+  diarisation embedding against anything outside its own file would make it
+  the processing §2.4 describes, and it would need §2.4's consent gate.
 - **Volume:** Typically 1–20 enrolled speakers per user installation.
 - **Geography:** Worldwide (app distributed via app stores and GitHub).
 
@@ -92,6 +109,7 @@ the original audio.
 | Use for surveillance or law enforcement | Very Low | Very High | App is consumer software with no integrations to surveillance systems; Art. 5 compliance documented |
 | Third-party voice cloning without consent | Medium | High | Rights attestation required on **every** cloning path — voice-clone wizard, voice-bake screen, and the CLI's `--i-have-rights`; server requires consent_attestation; beep disclaimer mandatory on all of them |
 | Data breach via device theft | Low | Medium | Standard device security (screen lock, encryption) is the user's responsibility; app does not add extra encryption layer |
+| Diarisation embeddings outliving the run that made them | Low | Medium | Held in memory only, never persisted, never matched outside their own file. This is the assumption §1.2 and `AI_ACT_RISK.md` §2.12 rest on, so it is listed as a risk to keep true rather than as a fact already secured |
 
 ### 3.2 Overall Risk Level
 
@@ -173,6 +191,7 @@ This DPIA should be reviewed:
 
 | Date | Change |
 |---|---|
+| 2026-08-04 | **Third audit.** Scoped §1.2 to the transient TitaNet embeddings derived by **diarisation**, which two prior revisions omitted entirely while assessing the enrolment path in detail — the same failure mode §3.2 already names, one level up: the question asked was "is the gate sound?" and never "what else derives this vector?". Added the corresponding risk row to §3.1, framed as an assumption to keep true rather than a fact already secured, since the Art. 9 analysis depends on it. |
 | 2026-07-16 | Initial DPIA |
 | 2026-08-01 | Audit revision: corrected the third-party data-subject assumption in §5; recorded the consent gate on every enrolment path and the consent-derived match roster. |
 | 2026-08-02 | Second audit: scoped the "no transmission" statement in §1.3 to biometric data and named the two optional cloud flows it does not cover; extended the cloning-consent mitigation to the voice-bake screen and CLI, which had no attestation; recorded the recurring parallel-entry-point failure mode in §3.2. |

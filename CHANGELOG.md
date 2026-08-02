@@ -5,6 +5,62 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 
 ## [Unreleased]
 
+### Fixed — EU AI Act audit, round 5
+
+Round 4 marked audio-Q&A answers as generated so no export could call them
+transcripts. This round found that the mark did not survive being saved,
+which quietly undid it — and two more cases of a duty discharged on one
+route to a capability and not on another.
+
+(Rounds 3 and 4 landed in this same unreleased window and are recorded in
+`docs/AI_ACT_RISK.md` §9 rather than here; the round numbering follows that
+document, not the headings below.)
+
+- **The provenance flag was discarded on save.** `HistoryEntry.toJson`
+  listed segment fields by hand and `metadata` was not among them, so
+  `generated: audio-qa` died the moment a run was written to history.
+  Re-exporting a Q&A answer from History therefore described a language
+  model's answer as a transcript in every format — and as `.txt`, whose
+  notice is conditional on the flag, with no notice at all. Segment
+  metadata now round-trips; entries written before the fix still load, and
+  a value JSON cannot encode is dropped rather than throwing away the run.
+- **Machine translation was marked everywhere except the GUI.** The CLI and
+  `/v1/audio/transcriptions` read it off the request; the GUI exporters
+  read the segments, and translation left no trace on them. The engine now
+  stamps `generated: translation`, so all four surfaces reach the same
+  conclusion from the same place — and a history re-export still knows.
+- **Chapter exports carried no notice.** Detected chapter markers are
+  verbatim transcript text written to a file and handed to the share sheet;
+  the neighbouring "export as YouTube chapters" menu entry disclosed and
+  this one did not. Both the YouTube and Podcasting 2.0 outputs now carry
+  the notice their segments earned.
+- **The transcript notice implied the recording was faked.** It read "this
+  content contains AI-generated synthetic speech" — false for a recording
+  of a real person, where only the transcription is machine work. Both
+  exporters now use the same "machine-generated transcript" wording.
+- **The emotion-tag filter only covered one engine.** It was written inside
+  `CrispasrEngine`, so the cloud engine — offered on every platform and the
+  only engine in the web build — parsed remote text untouched on both of
+  its routes. Latent rather than live, since that engine's backend list
+  offers no SenseVoice-family model, but one list entry from re-creating
+  the capability that was deleted to stay out of Annex III 1(c). The filter
+  moved to `EmotionInference.strip`; a test asserts every engine calls it.
+  The affective-prompt guard is now applied there too.
+- **Cloud TTS returned unmarked audio.** `HfSpaceTtsService` handed back
+  samples straight off the wire — no watermark, no probe. It now checks
+  whether the remote marked its output and embeds a watermark locally when
+  it did not, verifying the result instead of assuming it.
+- **The first-use notice did not enumerate every subsystem.** Audio Q&A,
+  diarisation, spoken-language ID and denoise were missing; added in all
+  three locales.
+- **Diarisation was never classified.** It derives TitaNet speaker
+  embeddings for every speaker in any recording, enrolled or not — the same
+  vector type the consent gate exists for. Assessed as outside GDPR Art. 9
+  because it never pursues identification, and documented as conditional on
+  those vectors staying transient (`AI_ACT_RISK.md` §2.12, `DPIA.md` §1.2).
+  Punctuation restoration, forced alignment, written-language ID and
+  chapter detection classified alongside it (§2.13).
+
 ### Fixed — EU AI Act audit, round 2
 
 A second audit, run the day Art. 50 became enforceable, against everything

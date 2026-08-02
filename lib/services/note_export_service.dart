@@ -33,15 +33,28 @@ class NoteExportService {
   /// artefacts still leave through the same exporters, so the notice is
   /// chosen per export rather than fixed.
   static String disclosureFor(List<TranscriptionSegment> segments) =>
-      segments.any((s) => s.isGenerated)
-          ? AiTextDisclosure.audioQa
-          : disclosure;
+      AiTextDisclosure.forKind(_generatedKind(segments)) ?? disclosure;
+
+  /// The `metadata['generated']` kind carried by [segments]. Q&A wins over
+  /// translation when both appear — a translated answer is still an answer.
+  static String? _generatedKind(List<TranscriptionSegment> segments) {
+    if (segments.any((s) => s.generatedKind == 'audio-qa')) return 'audio-qa';
+    for (final s in segments) {
+      if (s.generatedKind != null) return s.generatedKind;
+    }
+    return null;
+  }
 
   /// Frontmatter/tag label matching [disclosureFor] — `transcript` is a
   /// factual claim about the file's contents in Obsidian and Logseq, and
-  /// searching `type:transcript` should not surface generated answers.
+  /// searching `type:transcript` should not surface generated answers or
+  /// machine translations.
   static String _kindFor(List<TranscriptionSegment> segments) =>
-      segments.any((s) => s.isGenerated) ? 'ai-answer' : 'transcript';
+      switch (_generatedKind(segments)) {
+        'audio-qa' => 'ai-answer',
+        'translation' => 'machine-translation',
+        _ => 'transcript',
+      };
 
   /// Export as Obsidian-flavoured Markdown with YAML frontmatter.
   ///

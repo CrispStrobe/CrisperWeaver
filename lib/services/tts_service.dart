@@ -81,7 +81,8 @@ class TtsService {
   /// sits in that gap, so it neither passes unmarked audio nor rejects
   /// quiet-but-real output. A borderline read triggers the Dart
   /// fallback — double-marking is harmless, shipping unmarked is not.
-  static const double _watermarkConfidenceFloor = 0.65;
+  static const double _watermarkConfidenceFloor =
+      SpreadSpectrumWatermark.confidenceFloor;
 
   /// §5.25.9 — Pronunciation lexicon applied to text before synthesis.
   PronunciationLexicon? _lexicon;

@@ -94,17 +94,49 @@ class HistoryEntry {
           ),
         if (audioEmbedding != null && audioEmbedding!.isNotEmpty)
           'audioEmbedding': audioEmbedding,
-        'segments': segments
-            .map((s) => {
-                  'text': s.text,
-                  'startTime': s.startTime,
-                  'endTime': s.endTime,
-                  'speaker': s.speaker,
-                  'confidence': s.confidence,
-                  if (s.tags.isNotEmpty) 'tags': s.tags,
-                })
-            .toList(),
+        'segments': segments.map((s) {
+          final md = _jsonSafe(s.metadata);
+          return {
+            'text': s.text,
+            'startTime': s.startTime,
+            'endTime': s.endTime,
+            'speaker': s.speaker,
+            'confidence': s.confidence,
+            if (s.tags.isNotEmpty) 'tags': s.tags,
+            // EU AI Act Art. 50(2): `metadata` carries the provenance flags
+            // every exporter reads — `generated: audio-qa` /
+            // `generated: translation` pick the disclosure wording, and
+            // `edited` records human intervention. Dropping the map on the
+            // way to disk meant a re-export from History described a language
+            // model's answer as a transcript, and wrote it to `.txt` with no
+            // notice at all. Persisted whole rather than as a named subset: a
+            // flag added later must survive without anyone remembering to
+            // widen a list here.
+            if (md.isNotEmpty) 'metadata': md,
+          };
+        }).toList(),
       };
+
+  /// [m] reduced to values `jsonEncode` accepts.
+  ///
+  /// `metadata` is a `Map<String, dynamic>` that any engine can write into,
+  /// so persisting it wholesale means one non-encodable value would throw
+  /// inside `saveEntry` and lose the whole run — a worse failure than the
+  /// one this fixes. Unrepresentable values are dropped; the flags that
+  /// matter here are strings, bools, numbers and string lists.
+  static Map<String, dynamic> _jsonSafe(Map<String, dynamic> m) {
+    bool ok(Object? v) =>
+        v == null ||
+        v is String ||
+        v is num ||
+        v is bool ||
+        (v is List && v.every(ok)) ||
+        (v is Map && v.keys.every((k) => k is String) && v.values.every(ok));
+    return {
+      for (final e in m.entries)
+        if (ok(e.value)) e.key: e.value,
+    };
+  }
 
   static HistoryEntry fromJson(Map<String, dynamic> j) => HistoryEntry(
         id: j['id'] as String,
@@ -132,6 +164,12 @@ class HistoryEntry {
                   speaker: m['speaker'] as String?,
                   confidence: (m['confidence'] as num?)?.toDouble() ?? 1.0,
                   tags: ((m['tags'] as List?) ?? const []).cast<String>(),
+                  // Absent on entries written before 2026-08-04, which is
+                  // exactly the back-compat shape `speakerNames` already
+                  // uses: missing reads as empty, and such an entry simply
+                  // falls back to the transcript wording it had before.
+                  metadata: ((m['metadata'] as Map?) ?? const {})
+                      .map((k, v) => MapEntry(k.toString(), v)),
                 ))
             .toList(),
       );

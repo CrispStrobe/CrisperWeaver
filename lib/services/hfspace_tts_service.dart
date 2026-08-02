@@ -1,11 +1,33 @@
 // Web TTS service — routes synthesis through a remote CrispASR server
 // via POST /v1/audio/speech (OpenAI-compatible).
+//
+// EU AI Act Art. 50(2). The on-device path gets its watermark from
+// `crispasr_session_synthesize` inside the C API, and `TtsService.writeWav`
+// probes the PCM to confirm it rather than assuming it. Neither applies
+// here: the samples come off the wire from a server this app does not
+// control, and until the audit of 2026-08-04 this service handed them back
+// as ordinary audio — no watermark, no probe, no provenance. Nothing in
+// `lib/` calls it yet, which is exactly the position `AudioEditService`
+// `exportEncoded` was in when `AI_ACT_RISK.md` §7.4 recorded that an
+// unreachable marking gap is a gap waiting for a caller. The shipped
+// first-use notice already tells web users that "synthesis run[s] on a
+// remote CrispASR server", so the route is documented ahead of being wired.
+//
+// So the service marks what it returns: a spread-spectrum watermark is
+// embedded here unless the remote already applied one, and the result is
+// verified by probing the PCM. Container-level marking (LIST/INFO, C2PA,
+// the Art. 50(4) beep for cloned voices) still has to come from
+// `TtsService.writeWav`, which is the only writer that has the model and
+// voice identity to put in a manifest — [SynthesizedAudio] carries samples,
+// not a file.
 
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 
+import '../constants/app_constants.dart';
 import 'log_service.dart';
+import 'spread_spectrum_watermark.dart';
 import 'tts_service.dart' show SynthesizedAudio;
 
 /// TTS backends available on the HF Space.
@@ -86,7 +108,7 @@ class HfSpaceTtsService {
 
       final wavBytes = Uint8List.fromList(r.data as List<int>);
       // Parse WAV to extract Float32List samples + sample rate.
-      return _parseWav(wavBytes);
+      return _marked(_parseWav(wavBytes));
     } on DioException catch (e) {
       Log.instance.e('hfspace-tts', 'synthesize failed: ${e.message}',
           error: e);
@@ -112,6 +134,43 @@ class HfSpaceTtsService {
   }
 
   void dispose() => _dio.close(force: true);
+
+  /// [audio] with a spread-spectrum watermark, unless one is already there.
+  ///
+  /// The remote is a CrispASR server and normally watermarks its own output,
+  /// so this probes first rather than double-embedding — two overlaid
+  /// sequences degrade the correlation the detector relies on. When neither
+  /// the remote's mark nor ours can be confirmed afterwards, that is logged
+  /// at error level with the same wording `TtsService` uses, because the
+  /// alternative — silence — is what lets unmarked synthetic audio ship
+  /// while everyone believes it was marked.
+  static SynthesizedAudio _marked(SynthesizedAudio audio) {
+    if (!AppConstants.enableAudioWatermark) return audio;
+    if (audio.samples.isEmpty) return audio;
+    final existing = SpreadSpectrumWatermark.detect(audio.samples);
+    if (existing >= _watermarkConfidenceFloor) {
+      Log.instance.d('hfspace-tts', 'remote output already watermarked',
+          fields: {'confidence': existing.toStringAsFixed(3)});
+      return audio;
+    }
+    final embedded = SpreadSpectrumWatermark.embed(audio.samples);
+    final confidence = SpreadSpectrumWatermark.detect(embedded);
+    if (confidence < _watermarkConfidenceFloor) {
+      Log.instance.e(
+          'hfspace-tts',
+          '[MARKING] no robust mark on synthesised output — the remote did '
+              'not watermark it and the local embed did not verify '
+              '(EU AI Act Art. 50(2))',
+          fields: {'confidence': confidence.toStringAsFixed(3)});
+    } else {
+      Log.instance.i('hfspace-tts', 'watermark embedded locally',
+          fields: {'confidence': confidence.toStringAsFixed(3)});
+    }
+    return SynthesizedAudio(samples: embedded, sampleRate: audio.sampleRate);
+  }
+
+  static const double _watermarkConfidenceFloor =
+      SpreadSpectrumWatermark.confidenceFloor;
 
   /// Parse a WAV file into Float32List samples and sample rate.
   static SynthesizedAudio _parseWav(Uint8List wav) {

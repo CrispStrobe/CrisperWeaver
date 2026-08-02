@@ -74,4 +74,18 @@ class AiTextDisclosure {
 
   /// [attach] with the [translation] wording.
   static String forTranslation(String text) => attach(text, translation);
+
+  /// The disclosure owed by a `metadata['generated']` kind, or null when the
+  /// segments are an ordinary transcript.
+  ///
+  /// One rule, so the GUI exporters, the note exporters, the HTTP server and
+  /// the CLI cannot drift into disclosing different things about the same
+  /// artefact. The 2026-08-03 audit fixed the Q&A wording on four surfaces
+  /// independently; the fifth found translation marked on two of them and
+  /// not the other two, which is what a duty spread across call sites does.
+  static String? forKind(String? kind) => switch (kind) {
+        'audio-qa' => audioQa,
+        'translation' => translation,
+        _ => null,
+      };
 }

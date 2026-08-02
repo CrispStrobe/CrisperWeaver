@@ -11,6 +11,8 @@ import 'package:dio/dio.dart';
 import '../services/log_service.dart';
 import '../services/model_service.dart';
 import '../services/transcription_service.dart' show AdvancedTranscribeOptions;
+import '../utils/affective_prompt_guard.dart';
+import '../utils/emotion_inference.dart';
 import 'transcription_engine.dart';
 
 /// ASR backends available on the HF Space (free-tier feasible).
@@ -248,6 +250,23 @@ class HfSpaceEngine implements TranscriptionEngine {
     void Function(TranscriptionSegment segment)? onSegment,
     void Function(double progress)? onProgress,
   }) async {
+    // Art. 5(1)(f) / Annex III 1(c): the same screen `CrispasrEngine`
+    // applies. This engine does not forward [askPrompt] to the server at
+    // all, so nothing affective can reach a model through it today — but
+    // the guard belongs at every engine's entry rather than at the one
+    // where the feature was built, which is how the SenseVoice route
+    // survived two audits. Refusing rather than ignoring also means a
+    // caller learns the prompt was rejected instead of quietly receiving a
+    // plain transcript.
+    final affectiveTerm = AffectivePromptGuard.offendingTerm(askPrompt);
+    if (affectiveTerm != null) {
+      Log.instance.w('hfspace', 'audio Q&A prompt refused (affective)',
+          fields: {'term': affectiveTerm});
+      throw AffectivePromptException(
+          AffectivePromptGuard.refusalMessage(affectiveTerm),
+          engineId,
+          affectiveTerm);
+    }
     // Encode Float32List PCM as 16-bit WAV for upload.
     final wavBytes = _encodeWav(audioData, 16000);
     return transcribeBytes(
@@ -331,19 +350,35 @@ class HfSpaceEngine implements TranscriptionEngine {
       final json = r.data is Map<String, dynamic>
           ? r.data as Map<String, dynamic>
           : <String, dynamic>{};
-      final text = (json['text'] as String?) ?? '';
+      // Annex III 1(c): the remote server decides which backend runs, so
+      // anything SenseVoice-shaped can come back with inline `<|HAPPY|>`
+      // emotion tags. Strip them here, at this engine's parse boundary,
+      // exactly as `CrispasrEngine` does at its own — the app performs no
+      // emotion recognition regardless of which engine produced the text.
+      final text = EmotionInference.strip((json['text'] as String?) ?? '').text;
       final rawSegments = json['segments'] as List<dynamic>? ?? [];
       final detectedLang = json['language'] as String?;
 
       final segments = <TranscriptionSegment>[];
       for (final s in rawSegments) {
         if (s is! Map<String, dynamic>) continue;
+        final stripped = EmotionInference.strip((s['text'] as String?) ?? '');
         final seg = TranscriptionSegment(
-          text: (s['text'] as String?) ?? '',
+          text: stripped.text,
           startTime: (s['start'] as num?)?.toDouble() ?? 0.0,
           endTime: (s['end'] as num?)?.toDouble() ?? 0.0,
           confidence: (s['avg_logprob'] as num?)?.toDouble() ?? 1.0,
           speaker: s['speaker'] as String?,
+          metadata: {
+            'engine': engineId,
+            if (stripped.keptTags.isNotEmpty)
+              'sensevoice_tags': stripped.keptTags,
+            // Art. 50(2): the server also translates when asked, and this
+            // engine's caller passes the flag through. Stamp it so the
+            // exporters describe the result as a translation rather than as
+            // a record of what was said.
+            if (translate) 'generated': 'translation',
+          },
         );
         segments.add(seg);
         onSegment?.call(seg);
@@ -434,7 +469,11 @@ class HfSpaceEngine implements TranscriptionEngine {
       onProgress?.call(0.85);
 
       final payload = _parseGradioSse(res.data as String);
-      final text = payload.isNotEmpty ? (payload[0]?.toString() ?? '') : '';
+      // Same Annex III 1(c) strip as the REST path — two routes into this
+      // engine, one filter, applied on both.
+      final text = EmotionInference.strip(
+              payload.isNotEmpty ? (payload[0]?.toString() ?? '') : '')
+          .text;
       Map<String, dynamic> raw = const {};
       if (payload.length > 1 && payload[1] is String) {
         try {
@@ -449,12 +488,18 @@ class HfSpaceEngine implements TranscriptionEngine {
       final segments = <TranscriptionSegment>[];
       for (final s in (raw['segments'] as List<dynamic>? ?? const [])) {
         if (s is! Map<String, dynamic>) continue;
+        final stripped = EmotionInference.strip((s['text'] as String?) ?? '');
         final seg = TranscriptionSegment(
-          text: (s['text'] as String?) ?? '',
+          text: stripped.text,
           startTime: (s['start'] as num?)?.toDouble() ?? 0.0,
           endTime: (s['end'] as num?)?.toDouble() ?? 0.0,
           confidence: (s['avg_logprob'] as num?)?.toDouble() ?? 1.0,
           speaker: s['speaker'] as String?,
+          metadata: {
+            'engine': engineId,
+            if (stripped.keptTags.isNotEmpty)
+              'sensevoice_tags': stripped.keptTags,
+          },
         );
         segments.add(seg);
         onSegment?.call(seg);
