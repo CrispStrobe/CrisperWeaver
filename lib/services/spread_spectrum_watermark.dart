@@ -25,6 +25,20 @@ class SpreadSpectrumWatermark {
   /// Number of frequency bins to modify per frame.
   static const int nBins = 32;
 
+  /// Confidence at or above which [detect] counts as "this PCM is marked".
+  ///
+  /// Measured, not guessed (pinned by `test/synthetic_compliance_test.dart`):
+  /// clean audio peaks at ~0.50, freshly watermarked audio sits at 0.78–0.91
+  /// from ~100 ms upward, and detection is level-invariant. 0.65 sits in that
+  /// gap, so it neither passes unmarked audio nor rejects quiet-but-real
+  /// output.
+  ///
+  /// Lives here rather than beside the one caller that first needed it:
+  /// `HfSpaceTtsService` had to make the same judgement about audio arriving
+  /// from a remote server, and a second copy of a measured threshold is a
+  /// second thing to forget when the measurement changes.
+  static const double confidenceFloor = 0.65;
+
   static const int _fftSize = 1024;
   static const int _hop = _fftSize ~/ 2;
 

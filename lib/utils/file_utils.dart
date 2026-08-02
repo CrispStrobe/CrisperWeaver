@@ -12,16 +12,33 @@ import 'ai_text_disclosure.dart';
 class FileUtils {
   /// EU AI Act Art. 50(2) — the notice text for [segments].
   ///
-  /// Transcripts and audio-Q&A answers both leave through these exporters
-  /// but are not the same artefact, and until the audit of 2026-08-03 every
-  /// format called both "AI-generated synthetic speech". A model-authored
-  /// answer described as a record of speech is mismarked, not marked: a
-  /// reader who trusts the label reads assertions about the audio as
-  /// quotations from it.
+  /// Transcripts, audio-Q&A answers and machine translations all leave
+  /// through these exporters but are not the same artefact, and until the
+  /// audit of 2026-08-03 every format called all three "AI-generated
+  /// synthetic speech". A model-authored answer described as a record of
+  /// speech is mismarked, not marked: a reader who trusts the label reads
+  /// assertions about the audio as quotations from it.
+  ///
+  /// The transcript wording says *machine-generated transcript*, matching
+  /// `NoteExportService.disclosure`. The older text — "this content contains
+  /// AI-generated synthetic speech" — was wrong in the direction that
+  /// matters: it told a recipient the *recording* was synthesised, when the
+  /// audio is a real person and only the transcription is machine work.
   static String disclosureFor(List<TranscriptionSegment> segments) =>
-      segments.any((s) => s.isGenerated)
-          ? AiTextDisclosure.audioQa
-          : 'This content contains AI-generated synthetic speech.';
+      AiTextDisclosure.forKind(_generatedKind(segments)) ??
+      'Machine-generated transcript — produced by AI speech recognition and '
+          'not checked by a human. It may contain recognition errors.';
+
+  /// The `metadata['generated']` kind carried by [segments], or null for an
+  /// ordinary transcript. Q&A wins over translation when both appear, since
+  /// it is the stronger claim about the text.
+  static String? _generatedKind(List<TranscriptionSegment> segments) {
+    if (segments.any((s) => s.generatedKind == 'audio-qa')) return 'audio-qa';
+    for (final s in segments) {
+      if (s.generatedKind != null) return s.generatedKind;
+    }
+    return null;
+  }
 
   /// Whether [segments] hold generated prose rather than transcribed speech
   /// — the case where even a plain-text export has to carry a mark, since
@@ -136,7 +153,7 @@ class FileUtils {
         // authored prose, and `.txt` is the one format with no structure to
         // hide a notice in, so it has to go in the body.
         content = (syntheticDisclosure && _isGenerated(segments ?? []))
-            ? AiTextDisclosure.forAudioQa(text)
+            ? AiTextDisclosure.attach(text, disclosureFor(segments ?? []))
             : text;
         break;
       case TranscriptFormat.srt:
@@ -172,7 +189,7 @@ class FileUtils {
     // syntax each format tolerates — `#` for the WTS shell script, a bare
     // first line for CSV, and an LRC `[re:]` metadata tag.
     if (syntheticDisclosure && _isGenerated(segments ?? [])) {
-      const notice = AiTextDisclosure.audioQa;
+      final notice = disclosureFor(segments ?? []);
       switch (format) {
         case TranscriptFormat.csv:
           content = '# $notice\n$content';
@@ -527,7 +544,12 @@ class FileUtils {
     }
     return const JsonEncoder.withIndent('  ').convert({
       '_disclosure': disclosureFor(segments),
-      if (_isGenerated(segments)) '_content': 'audio-qa-answer',
+      // Machine-readable half of the Art. 50(2) mark: a parser should not
+      // have to string-match the prose to tell an answer from a translation.
+      if (_isGenerated(segments))
+        '_content': _generatedKind(segments) == 'audio-qa'
+            ? 'audio-qa-answer'
+            : 'machine-translation',
       'segments': segList,
     });
   }
@@ -626,7 +648,11 @@ class FileUtils {
     bool syntheticDisclosure = true,
   }) {
     final buffer = StringBuffer();
-    buffer.writeln(_isGenerated(segments) ? '# AI-generated answer' : '# Transcript');
+    buffer.writeln(switch (_generatedKind(segments)) {
+      'audio-qa' => '# AI-generated answer',
+      'translation' => '# Machine translation',
+      _ => '# Transcript',
+    });
     buffer.writeln();
     if (syntheticDisclosure) {
       buffer.writeln('> **Notice:** ${disclosureFor(segments)}');

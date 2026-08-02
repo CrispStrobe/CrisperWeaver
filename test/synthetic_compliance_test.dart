@@ -17,7 +17,9 @@ import 'package:crisper_weaver/engines/transcription_engine.dart';
 import 'package:crisper_weaver/l10n/generated/app_localizations.dart';
 import 'package:crisper_weaver/services/audio_edit_service.dart';
 import 'package:crisper_weaver/services/audio_watermark_service.dart';
+import 'package:crisper_weaver/services/chapter_detection_service.dart';
 import 'package:crisper_weaver/services/content_provenance_service.dart';
+import 'package:crisper_weaver/services/history_service.dart';
 import 'package:crisper_weaver/services/note_export_service.dart';
 import 'package:crisper_weaver/services/ocr_service.dart';
 import 'package:crisper_weaver/services/spread_spectrum_watermark.dart';
@@ -210,7 +212,11 @@ void main() {
       // syntax, so the old form was a parse error or a dropped disclosure
       // depending on the player (fixed 2026-08-03).
       expect(out, startsWith('0\n00:00:00,000 --> 00:00:03,000\n'));
-      expect(out, contains('AI-generated synthetic speech'));
+      // Asserted against the shared string, not a literal: the transcript
+      // wording changed on 2026-08-04 (it used to claim the *speech* was
+      // synthetic, which is false for a recording of a real person), and a
+      // literal here is a second place to remember.
+      expect(out, contains(FileUtils.disclosureFor(segs)));
       expect(out, contains('Alice: Hello world.'));
     });
 
@@ -242,7 +248,7 @@ void main() {
       final out = FileUtils.generateVttContent(segs);
       expect(out, startsWith('WEBVTT\n'));
       expect(out, contains('NOTE '));
-      expect(out, contains('AI-generated synthetic speech'));
+      expect(out, contains(FileUtils.disclosureFor(segs)));
     });
 
     test('explicit opt-out suppresses NOTE', () {
@@ -258,7 +264,7 @@ void main() {
       final out = FileUtils.generateJsonContent(segs);
       final decoded = jsonDecode(out) as Map<String, dynamic>;
       expect(decoded.containsKey('_disclosure'), isTrue);
-      expect(decoded['_disclosure'], contains('AI-generated'));
+      expect(decoded['_disclosure'], FileUtils.disclosureFor(segs));
       expect(decoded['segments'], isA<List<dynamic>>());
       expect((decoded['segments'] as List<dynamic>).length, 1);
     });
@@ -288,7 +294,7 @@ void main() {
     test('default includes blockquote notice (Art. 50)', () {
       final out = FileUtils.generateMarkdownContent(segs);
       expect(out, contains('> **Notice:**'));
-      expect(out, contains('AI-generated synthetic speech'));
+      expect(out, contains(FileUtils.disclosureFor(segs)));
       expect(out, contains('Alice'));
     });
 
@@ -727,13 +733,13 @@ void main() {
   group('Export disclosure defaults', () {
     test('SRT default includes notice', () {
       final out = FileUtils.generateSrtContent(segs);
-      expect(out, contains('AI-generated'));
+      expect(out, contains(FileUtils.disclosureFor(segs)));
     });
 
     test('VTT default includes NOTE', () {
       final out = FileUtils.generateVttContent(segs);
       expect(out, contains('NOTE '));
-      expect(out, contains('AI-generated'));
+      expect(out, contains(FileUtils.disclosureFor(segs)));
     });
 
     test('JSON default includes _disclosure', () {
@@ -1230,7 +1236,34 @@ void _thirdAuditTests() {
       expect(engine, isNot(contains("'emotion':")));
       expect(widget, isNot(contains("metadata['emotion']")));
       // The filter that replaced it must still be there.
-      expect(engine, contains('EmotionInference.isEmotionTag'));
+      expect(engine, contains('EmotionInference.strip'));
+    });
+
+    test('every engine that parses server text applies the filter', () {
+      // The 2026-08-04 audit found the filter living *inside*
+      // `CrispasrEngine` rather than at the app's boundary, so the cloud
+      // engine — offered on every platform, and the only engine on web —
+      // copied the remote server's text into segments untouched. Nothing
+      // reachable exercised it, because the cloud model list happens not to
+      // offer a SenseVoice backend; one line added there would have
+      // re-created the Annex III 1(c) exposure §2.8 deleted a feature to
+      // avoid. This test is the reason that stays true.
+      for (final path in const [
+        'lib/engines/crispasr_engine.dart',
+        'lib/engines/hfspace_engine.dart',
+      ]) {
+        final src = File(path).readAsStringSync();
+        expect(src, contains('EmotionInference.strip'),
+            reason: '$path parses model text without the emotion filter');
+      }
+    });
+
+    test('the filter drops emotion tags and keeps acoustic events', () {
+      final r = EmotionInference.strip(
+          '<|HAPPY|><|BGM|>Guten Tag<|EMO_UNKNOWN|>');
+      expect(r.text, 'Guten Tag');
+      expect(r.keptTags, ['BGM']);
+      expect(r.keptTags.any(EmotionInference.isEmotionTag), isFalse);
     });
   });
 
@@ -1540,6 +1573,212 @@ void _thirdAuditTests() {
       final d = AiTextDisclosure.audioQa.toLowerCase();
       expect(d, contains('ai-generated'));
       expect(d, contains('not a transcript'));
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // The provenance flag has to survive being written to disk (Art. 50(2))
+  // -----------------------------------------------------------------------
+  group('Generated flag survives persistence (Art. 50(2))', () {
+    const qa = TranscriptionSegment(
+      text: 'The speaker agreed to ship on Friday.',
+      startTime: 0.0,
+      endTime: 3.0,
+      metadata: {'generated': 'audio-qa', 'edited': true},
+    );
+
+    HistoryEntry entryOf(List<TranscriptionSegment> segs) => HistoryEntry(
+          id: 'e1',
+          createdAt: DateTime.utc(2026, 8, 4),
+          engineId: 'crispasr',
+          segments: segs,
+        );
+
+    test('metadata round-trips through the history JSON', () {
+      // Until 2026-08-04 `toJson` listed the segment fields by hand and
+      // `metadata` was not among them, so the flag died the moment a run was
+      // saved. Everything downstream then read a language model's answer as
+      // a transcript, and a `.txt` re-export carried no notice at all —
+      // while both compliance documents asserted the flag was "persisted
+      // with `metadata`, so a re-export from history months later still
+      // knows". This is that claim, made checkable.
+      final round = HistoryEntry.fromJson(entryOf([qa]).toJson());
+      expect(round.segments.first.isGenerated, isTrue);
+      expect(round.segments.first.generatedKind, 'audio-qa');
+      expect(round.segments.first.metadata['edited'], isTrue);
+    });
+
+    test('a re-export after the round-trip still says answer', () {
+      final round = HistoryEntry.fromJson(entryOf([qa]).toJson());
+      final segs = round.segments;
+      expect(FileUtils.disclosureFor(segs), AiTextDisclosure.audioQa);
+      expect(NoteExportService.disclosureFor(segs), AiTextDisclosure.audioQa);
+      expect(NoteExportService.toObsidian(segments: segs, title: 'T'),
+          contains('type: ai-answer'));
+      final md = FileUtils.generateMarkdownContent(segs);
+      expect(md, startsWith('# AI-generated answer'));
+    });
+
+    test('an entry written before the fix still loads', () {
+      // Back-compat: absent reads as empty, exactly as `speakerNames` does.
+      final legacy = <String, dynamic>{
+        'id': 'old',
+        'createdAt': DateTime.utc(2026, 1, 1).toIso8601String(),
+        'engineId': 'crispasr',
+        'segments': [
+          {'text': 'hello', 'startTime': 0.0, 'endTime': 1.0},
+        ],
+      };
+      final e = HistoryEntry.fromJson(legacy);
+      expect(e.segments.first.metadata, isEmpty);
+      expect(e.segments.first.isGenerated, isFalse);
+    });
+
+    test('a value JSON cannot encode is dropped, not thrown', () {
+      // Persisting `metadata` wholesale means any engine can put anything in
+      // it. A throw inside `saveEntry` would lose the whole run — a worse
+      // failure than the one this group fixes.
+      final seg = TranscriptionSegment(
+        text: 't',
+        startTime: 0.0,
+        endTime: 1.0,
+        metadata: {'generated': 'audio-qa', 'blob': Duration.zero},
+      );
+      final json = entryOf([seg]).toJson();
+      expect(() => jsonEncode(json), returnsNormally);
+      final round = HistoryEntry.fromJson(jsonDecode(jsonEncode(json))
+          as Map<String, dynamic>);
+      expect(round.segments.first.generatedKind, 'audio-qa');
+      expect(round.segments.first.metadata.containsKey('blob'), isFalse);
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // Machine translation is marked as translation, not as transcription
+  // -----------------------------------------------------------------------
+  group('Machine translation marking (Art. 50(2))', () {
+    const translated = [
+      TranscriptionSegment(
+        text: 'Good morning everyone.',
+        startTime: 0.0,
+        endTime: 2.0,
+        metadata: {'generated': 'translation'},
+      ),
+    ];
+    const plain = [
+      TranscriptionSegment(text: 'Guten Morgen.', startTime: 0.0, endTime: 2.0),
+    ];
+
+    test('the translation wording reaches both exporters', () {
+      // The CLI and `/v1/audio/transcriptions` distinguished translation
+      // from 2026-08-03; the GUI exporters did not, because they read the
+      // segments and translation left no trace on them. `CrispasrEngine`
+      // now stamps it, which is what lets one rule serve all four surfaces.
+      expect(FileUtils.disclosureFor(translated), AiTextDisclosure.translation);
+      expect(NoteExportService.disclosureFor(translated),
+          AiTextDisclosure.translation);
+    });
+
+    test('a plain transcript is not called a translation', () {
+      expect(FileUtils.disclosureFor(plain),
+          isNot(AiTextDisclosure.translation));
+      expect(NoteExportService.disclosureFor(plain),
+          NoteExportService.disclosure);
+    });
+
+    test('structured exports name the kind machine-readably', () {
+      final decoded =
+          jsonDecode(FileUtils.generateJsonContent(translated)) as Map;
+      expect(decoded['_content'], 'machine-translation');
+      expect(FileUtils.generateMarkdownContent(translated),
+          startsWith('# Machine translation'));
+      expect(NoteExportService.toObsidian(segments: translated, title: 'T'),
+          contains('type: machine-translation'));
+    });
+
+    test('an answer outranks a translation when both apply', () {
+      const both = [
+        TranscriptionSegment(
+            text: 'a',
+            startTime: 0.0,
+            endTime: 1.0,
+            metadata: {'generated': 'translation'}),
+        TranscriptionSegment(
+            text: 'b',
+            startTime: 1.0,
+            endTime: 2.0,
+            metadata: {'generated': 'audio-qa'}),
+      ];
+      expect(FileUtils.disclosureFor(both), AiTextDisclosure.audioQa);
+      expect(NoteExportService.disclosureFor(both), AiTextDisclosure.audioQa);
+    });
+
+    test('the transcript wording no longer calls the speech synthetic', () {
+      // It used to read "this content contains AI-generated synthetic
+      // speech", which told a recipient the *recording* was faked when the
+      // audio is a real person and only the transcription is machine work.
+      expect(FileUtils.disclosureFor(plain).toLowerCase(),
+          isNot(contains('synthetic speech')));
+      expect(FileUtils.disclosureFor(plain), NoteExportService.disclosure);
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // Chapter exports are exports too (Art. 50(2))
+  // -----------------------------------------------------------------------
+  group('Chapter export marking (Art. 50(2))', () {
+    const chapters = [
+      ChapterMarker(
+          startTime: 0.0, endTime: 60.0, startSegmentIndex: 0, title: 'Intro'),
+    ];
+
+    test('the YouTube chapter file carries the notice', () {
+      // Two menu entries write chapter markers to a file and hand it to the
+      // share sheet. `NoteExportService.toYouTubeChapters` disclosed;
+      // `ChapterDetectionService.toYouTubeFormat`, two cases away in the
+      // same switch, did not.
+      final out = ChapterDetectionService.toYouTubeFormat(chapters,
+          disclosure: NoteExportService.disclosure);
+      expect(out, startsWith('[${NoteExportService.disclosure}]'));
+      expect(out, contains('Intro'));
+    });
+
+    test('the podcast JSON carries the notice and stays valid', () {
+      final json = ChapterDetectionService.toPodcastChaptersJson(chapters,
+          disclosure: AiTextDisclosure.audioQa);
+      expect(json['_disclosure'], AiTextDisclosure.audioQa);
+      expect(json['version'], '1.2.0');
+      expect((json['chapters'] as List).length, 1);
+    });
+
+    test('the caller passes the notice the segments earned', () {
+      final screen =
+          File('lib/screens/transcription_screen.dart').readAsStringSync();
+      expect(screen, contains('NoteExportService.disclosureFor(segments)'),
+          reason: 'chapter export must pick its wording from the segments');
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // Cloud TTS returns marked audio (Art. 50(2))
+  // -----------------------------------------------------------------------
+  group('Cloud TTS marking (Art. 50(2))', () {
+    test('the watermark floor has one definition', () {
+      // `HfSpaceTtsService` needed the same measured threshold `TtsService`
+      // uses. A second copy is a second thing to forget when the
+      // measurement changes.
+      expect(SpreadSpectrumWatermark.confidenceFloor, 0.65);
+      final tts = File('lib/services/tts_service.dart').readAsStringSync();
+      expect(tts, contains('SpreadSpectrumWatermark.confidenceFloor'));
+    });
+
+    test('the remote synthesis path marks what it returns', () {
+      final src =
+          File('lib/services/hfspace_tts_service.dart').readAsStringSync();
+      expect(src, contains('SpreadSpectrumWatermark.embed'),
+          reason: 'audio from the remote server ships unmarked otherwise');
+      expect(src, contains('SpreadSpectrumWatermark.detect'),
+          reason: 'the embed must be verified, not assumed');
     });
   });
 

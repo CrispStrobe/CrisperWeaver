@@ -3419,12 +3419,17 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
       );
       String content;
       String ext;
+      // Art. 50(2): the chapter titles are transcript text, so the file
+      // carries the same notice the note exporters put on it.
+      final notice = NoteExportService.disclosureFor(segments);
       if (podcast) {
-        content = const JsonEncoder.withIndent('  ')
-            .convert(ChapterDetectionService.toPodcastChaptersJson(chapters));
+        content = const JsonEncoder.withIndent('  ').convert(
+            ChapterDetectionService.toPodcastChaptersJson(chapters,
+                disclosure: notice));
         ext = 'json';
       } else {
-        content = ChapterDetectionService.toYouTubeFormat(chapters);
+        content = ChapterDetectionService.toYouTubeFormat(chapters,
+            disclosure: notice);
         ext = 'txt';
       }
       final baseName =

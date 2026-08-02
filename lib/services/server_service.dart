@@ -333,18 +333,22 @@ class ServerService {
   Response _formatTranscriptionResponse(
       List<TranscriptionSegment> segments, String fmt,
       {bool translated = false}) {
-    final isQa = segments.any((s) => s.isGenerated);
-    final generated = isQa || translated;
-    final disclosure = isQa
-        ? AiTextDisclosure.audioQa
-        : translated
-            ? AiTextDisclosure.translation
-            : null;
-    final task = isQa
+    // The segments now carry the kind themselves (`CrispasrEngine` stamps
+    // `generated`), so the request flag is only a fallback for engines that
+    // do not — the cloud engine, which the server can also be pointed at.
+    final String? kind = segments.any((s) => s.generatedKind == 'audio-qa')
         ? 'audio-qa'
-        : translated
-            ? 'translate'
-            : 'transcribe';
+        : segments
+                .map((s) => s.generatedKind)
+                .firstWhere((k) => k != null, orElse: () => null) ??
+            (translated ? 'translation' : null);
+    final generated = kind != null;
+    final disclosure = AiTextDisclosure.forKind(kind);
+    final task = switch (kind) {
+      'audio-qa' => 'audio-qa',
+      'translation' => 'translate',
+      _ => 'transcribe',
+    };
     // Mirrors the audio endpoints' header so a client can detect generated
     // content without parsing the body — the machine-readable half of the
     // mark, with the disclosure text as the human-readable half.

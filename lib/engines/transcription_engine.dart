@@ -173,12 +173,22 @@ class TranscriptionSegment {
   /// rather than a record of speech.
   ///
   /// True for audio-Q&A ("ask the audio") output, where an instruct-tuned
-  /// backend answers the user's question instead of transcribing. Set by
-  /// `CrispasrEngine.transcribe`, persisted in history JSON with the rest of
-  /// [metadata], and read by every export path to pick the right disclosure
-  /// — a Q&A answer labelled "machine-generated transcript" is marked, but
-  /// marked as the wrong thing.
+  /// backend answers the user's question instead of transcribing, and for
+  /// speech translation, where the words are the model's rather than the
+  /// speaker's. Set by `CrispasrEngine.transcribe`, persisted in history
+  /// JSON with the rest of [metadata], and read by every export path to pick
+  /// the right disclosure — a Q&A answer labelled "machine-generated
+  /// transcript" is marked, but marked as the wrong thing.
   bool get isGenerated => metadata['generated'] != null;
+
+  /// Which kind of generation produced this segment: `audio-qa`,
+  /// `translation`, or null for an ordinary transcript.
+  ///
+  /// Exporters branch on this rather than on [isGenerated] alone, because
+  /// the two failure modes a reader has to be warned about are different: a
+  /// Q&A answer can assert things the recording does not contain, while a
+  /// translation preserves the content and can shift the meaning.
+  String? get generatedKind => metadata['generated'] as String?;
 
   /// Copy with selected fields replaced. Added for the Art. 50(2) generated
   /// flag; `metadata` is replaced wholesale, not merged, so callers spread

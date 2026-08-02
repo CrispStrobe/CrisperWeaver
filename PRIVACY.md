@@ -1,7 +1,7 @@
 # Privacy Policy — CrisperWeaver
 
 **Effective date:** 2026-07-10
-**Last updated:** 2026-08-02
+**Last updated:** 2026-08-04
 
 CrisperWeaver is an offline-first audio transcription and speech
 synthesis app. This policy explains what data the app accesses, how
@@ -146,7 +146,7 @@ natural person by their voice characteristics.
 ### 5.2 Legal Basis
 
 Processing is based on **explicit consent** (GDPR Art. 9(2)(a)). The
-app displays a consent dialog before any biometric processing that
+app displays a consent dialog before enrolling a speaker, which
 explains:
 
 - Voice embeddings are biometric data under GDPR Art. 9
@@ -157,6 +157,20 @@ explains:
 A consent record (`.consent.json`) is saved alongside each speaker
 profile, documenting: speaker name, consent timestamp, purpose,
 lawful basis, and storage location.
+
+**One thing that is deliberately not gated, and why** (added
+2026-08-04; earlier revisions said the dialog appeared before "any
+biometric processing", which was too broad). **Speaker diarisation** —
+working out who spoke when, without naming anyone — computes the same
+kind of voice vector for every speaker in a recording, whether or not
+they are enrolled. Those vectors exist only in memory for the length of
+the run: they are never written to disk, never compared against your
+enrolled profiles, and never linked to a name. Under GDPR Art. 9 the
+special-category rules apply to biometric data processed *for the
+purpose of uniquely identifying* someone, and separating voices within
+one file is not that. Enrolment is, which is why enrolment is where the
+consent gate sits. See `docs/AI_ACT_RISK.md` §2.12 and `docs/DPIA.md`
+§1.2 for the full assessment.
 
 ### 5.3 Storage and Security
 

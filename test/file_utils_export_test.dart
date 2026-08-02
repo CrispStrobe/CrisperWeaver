@@ -218,7 +218,11 @@ void main() {
     test('default includes disclosure notice (Art. 50)', () {
       final out = FileUtils.generateMarkdownContent(twoSegs);
       expect(out, contains('> **Notice:**'));
-      expect(out, contains('AI-generated synthetic speech'));
+      // Against the shared string, not a literal. The transcript wording
+      // changed on 2026-08-04: it used to say the content "contains
+      // AI-generated synthetic speech", which told a reader the recording
+      // itself was synthesised when only the transcription is machine work.
+      expect(out, contains(FileUtils.disclosureFor(twoSegs)));
     });
 
     test('disclosure omitted when explicitly opted out', () {

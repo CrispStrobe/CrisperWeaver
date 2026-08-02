@@ -1162,11 +1162,23 @@ class CrispASREngine implements TranscriptionEngine {
       // in scope, so every downstream consumer — export, share, history
       // re-export months later — can tell the two apart without having to
       // know how the run was configured.
+      //
+      // Speech translation is the same problem one step down. `translate`
+      // and `targetLanguage` make the output machine-translated text rather
+      // than a record of the words spoken, and the CLI and
+      // `/v1/audio/transcriptions` both say so — but they read it off the
+      // *request*, which the GUI's exporters never see, and which is gone
+      // by the time anything is re-exported from History. Stamping it here
+      // is what lets one rule serve all three surfaces. Q&A wins where both
+      // apply: a translated answer is still an answer.
       final isAudioQa = askPrompt != null && askPrompt.trim().isNotEmpty;
-      if (isAudioQa) {
+      final isTranslated = translate ||
+          (targetLanguage != null && targetLanguage.trim().isNotEmpty);
+      if (isAudioQa || isTranslated) {
+        final kind = isAudioQa ? 'audio-qa' : 'translation';
         segments = segments
             .map((s) => s.copyWith(
-                  metadata: {...s.metadata, 'generated': 'audio-qa'},
+                  metadata: {...s.metadata, 'generated': kind},
                 ))
             .toList();
       }
@@ -1801,15 +1813,9 @@ class CrispASREngine implements TranscriptionEngine {
       // rather than documented. The filter is here, at the only point the
       // tags enter the app, so there is one place to check rather than a
       // duty spread across every consumer of `metadata`.
-      var segText = s.text.trim();
-      final svTags = <String>[];
-      final tagPattern = RegExp(r'<\|([A-Za-z_]+)\|>');
-      for (final m in tagPattern.allMatches(segText)) {
-        final tag = m.group(1)!;
-        if (EmotionInference.isEmotionTag(tag)) continue;
-        svTags.add(tag);
-      }
-      segText = segText.replaceAll(tagPattern, '').trim();
+      final stripped = EmotionInference.strip(s.text.trim());
+      final segText = stripped.text;
+      final svTags = stripped.keptTags;
 
       final seg = TranscriptionSegment(
         text: segText,

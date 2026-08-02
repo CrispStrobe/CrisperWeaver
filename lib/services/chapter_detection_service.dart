@@ -79,8 +79,24 @@ class ChapterDetectionService {
   }
 
   /// Export chapters as YouTube-format timestamps.
-  static String toYouTubeFormat(List<ChapterMarker> chapters) {
+  ///
+  /// EU AI Act Art. 50(2): chapter titles are verbatim transcript text, so
+  /// this writes machine-produced content to a file the user then shares.
+  /// [disclosure] carries the notice `NoteExportService` puts on the
+  /// neighbouring "export as YouTube chapters" action — the 2026-08-04 audit
+  /// found this route, reached from the menu two entries away, writing the
+  /// same shape of file with nothing on it. Pass the exporter's
+  /// `disclosureFor(segments)` so a Q&A answer or a machine translation is
+  /// described as what it is rather than as a transcript.
+  static String toYouTubeFormat(List<ChapterMarker> chapters,
+      {String? disclosure}) {
     final buf = StringBuffer();
+    if (disclosure != null && disclosure.isNotEmpty) {
+      // A YouTube description box has no comment syntax, so the notice has
+      // to be a visible line or nothing — same call as `toYouTubeChapters`.
+      buf.writeln('[$disclosure]');
+      buf.writeln();
+    }
     for (final ch in chapters) {
       final h = (ch.startTime / 3600).floor();
       final m = ((ch.startTime % 3600) / 60).floor();
@@ -92,10 +108,16 @@ class ChapterDetectionService {
   }
 
   /// Export chapters as podcast:chapters JSON (Podcasting 2.0 spec).
+  ///
+  /// [disclosure] lands in a `_disclosure` key, matching the shape
+  /// `FileUtils.generateJsonContent` uses for transcript JSON. The spec
+  /// ignores unknown top-level keys, so the file stays valid.
   static Map<String, dynamic> toPodcastChaptersJson(
-      List<ChapterMarker> chapters) {
+      List<ChapterMarker> chapters,
+      {String? disclosure}) {
     return {
       'version': '1.2.0',
+      if (disclosure != null && disclosure.isNotEmpty) '_disclosure': disclosure,
       'chapters': chapters
           .map((ch) => {
                 'startTime': ch.startTime,
