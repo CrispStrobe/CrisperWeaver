@@ -3306,4 +3306,7 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get settingsExperimentalSubtitle =>
       'Adds transcript comparison, subtitle overlay, voice baking, audio editing, the local API server, and the log and storage inspectors.';
+
+  @override
+  String get advancedAllOptions => 'All options';
 }

@@ -3326,4 +3326,7 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get settingsExperimentalSubtitle =>
       'Ergänzt Transkriptvergleich, Untertitel-Overlay, Voice-Baking, Audiobearbeitung, den lokalen API-Server sowie Log- und Speicheransicht.';
+
+  @override
+  String get advancedAllOptions => 'Alle Optionen';
 }

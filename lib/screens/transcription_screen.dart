@@ -804,7 +804,11 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
                 // trim / cut / split) for the currently-loaded
                 // file. Hidden when no file is loaded so the
                 // affordance only shows up when it's actionable.
-                if (displayPath != null && displayPath.isNotEmpty) ...[
+                // Beta: audio editing is a post-production workflow, not
+                // part of "record something and read the transcript".
+                if (displayPath != null &&
+                    displayPath.isNotEmpty &&
+                    ref.read(settingsServiceProvider).experimentalFeatures) ...[
                   const SizedBox(width: 8),
                   IconButton(
                     tooltip: l.editAudioOpen,

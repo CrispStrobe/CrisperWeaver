@@ -2025,5 +2025,6 @@
   "modelsTooLargeInline": "Zu groß für dieses Gerät",
   "settingsExperimentalSection": "Weitere Funktionen",
   "settingsExperimentalTitle": "Erweiterte Funktionen anzeigen",
-  "settingsExperimentalSubtitle": "Ergänzt Transkriptvergleich, Untertitel-Overlay, Voice-Baking, Audiobearbeitung, den lokalen API-Server sowie Log- und Speicheransicht."
+  "settingsExperimentalSubtitle": "Ergänzt Transkriptvergleich, Untertitel-Overlay, Voice-Baking, Audiobearbeitung, den lokalen API-Server sowie Log- und Speicheransicht.",
+  "advancedAllOptions": "Alle Optionen"
 }

@@ -2427,18 +2427,6 @@
     "kind": "tts"
   },
   {
-    "name": "voxcpm2-ref",
-    "displayName": "VoxCPM2 (ref)",
-    "fileName": "voxcpm2-ref.gguf",
-    "url": "https://huggingface.co/cstr/voxcpm2-GGUF/resolve/main/voxcpm2-ref.gguf",
-    "sizeBytes": 433600,
-    "checksum": "",
-    "description": "VoxCPM2 diffusion TTS (29 languages, zero-shot) \u2014 423.4 KB",
-    "quantization": "ref",
-    "backend": "voxcpm2-tts",
-    "kind": "tts"
-  },
-  {
     "name": "f5-tts-v1-base-f16",
     "displayName": "F5-TTS (f16)",
     "fileName": "f5-tts-v1-base-f16.gguf",
@@ -2847,18 +2835,6 @@
     "kind": "tts"
   },
   {
-    "name": "parler-mini-v1.1-ref",
-    "displayName": "Parler-TTS (ref)",
-    "fileName": "parler-mini-v1.1-ref.gguf",
-    "url": "https://huggingface.co/cstr/parler-tts-mini-v1.1-GGUF/resolve/main/parler-mini-v1.1-ref.gguf",
-    "sizeBytes": 292896,
-    "checksum": "",
-    "description": "Parler-TTS Mini \u2014 text voice description (EN) \u2014 286.0 KB",
-    "quantization": "ref",
-    "backend": "parler-tts",
-    "kind": "tts"
-  },
-  {
     "name": "pocket-tts-english-f16",
     "displayName": "Pocket TTS (f16)",
     "fileName": "pocket-tts-english-f16.gguf",
@@ -3257,18 +3233,6 @@
     "checksum": "",
     "description": "ASR + audio QA (Whisper enc + Qwen3 LLM) \u2014 3.83 GB",
     "quantization": "q4_k",
-    "backend": "moss-audio",
-    "kind": "asr"
-  },
-  {
-    "name": "moss-audio-4b-instruct-ref",
-    "displayName": "MOSS-Audio 4B (ref)",
-    "fileName": "moss-audio-4b-instruct-ref.gguf",
-    "url": "https://huggingface.co/cstr/MOSS-Audio-4B-Instruct-GGUF/resolve/main/moss-audio-4b-instruct-ref.gguf",
-    "sizeBytes": 24842176,
-    "checksum": "",
-    "description": "ASR + audio QA (Whisper enc + Qwen3 LLM) \u2014 23.7 MB",
-    "quantization": "ref",
     "backend": "moss-audio",
     "kind": "asr"
   },

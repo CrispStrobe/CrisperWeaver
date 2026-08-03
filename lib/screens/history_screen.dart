@@ -9,6 +9,7 @@ import '../main.dart';
 import '../l10n/generated/app_localizations.dart';
 import '../models/segment_tag.dart';
 import '../services/history_service.dart';
+import '../services/settings_service.dart' show settingsServiceProvider;
 import '../services/semantic_search_service.dart';
 import '../utils/file_utils.dart';
 import '../utils/responsive.dart';
@@ -444,11 +445,21 @@ class _HistoryTile extends StatelessWidget {
                           _exportAs(context, TranscriptFormat.json),
                     ),
                     // §5.25.7 — Compare with another history entry.
-                    OutlinedButton.icon(
-                      icon: const Icon(Icons.compare_arrows, size: 16),
-                      label: Text(AppLocalizations.of(context).historyCompareButton),
-                      onPressed: () => _showComparePicker(context),
-                    ),
+                    // Beta: presumes two finished transcripts of the same
+                    // audio, which a first-run tester will not have.
+                    Consumer(builder: (context, ref, _) {
+                      if (!ref
+                          .watch(settingsServiceProvider)
+                          .experimentalFeatures) {
+                        return const SizedBox.shrink();
+                      }
+                      return OutlinedButton.icon(
+                        icon: const Icon(Icons.compare_arrows, size: 16),
+                        label: Text(
+                            AppLocalizations.of(context).historyCompareButton),
+                        onPressed: () => _showComparePicker(context),
+                      );
+                    }),
                     OutlinedButton.icon(
                       icon: const Icon(Icons.delete_outline, size: 16),
                       style:

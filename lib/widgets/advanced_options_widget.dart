@@ -911,77 +911,99 @@ class _AdvancedDecodingSectionState
         // §5.26.2 — Hotwords for contextual biasing.
         _buildHotwordsRow(context, opts),
         _buildHotwordsBoostRow(context, opts),
-        // LID method picker — visible only when the global language
-        // dropdown is "auto" + active backend lacks native LID. We
-        // can't see those preconditions here, so always show it; the
-        // engine ignores it on backends that already auto-detect.
-        _buildLidMethodRow(context, opts),
-        // Diarisation method picker — only meaningful when diarisation
-        // is enabled (separate toggle on the screen above). Show it
-        // unconditionally; the screen-level diarize flag gates whether
-        // anything happens.
-        _buildDiarizationMethodRow(context, opts),
-        // §5.8.1 — Resolve diarised cluster labels to enrolled
-        // speakers via TitaNet. Hidden when the diarisation method is
-        // `energy` (stereo channel IDs already disambiguate speakers).
-        _buildSpeakerRecognitionRow(context, opts),
-        // Whisper-only tdrz toggle (tinydiarize). Hidden on session
-        // backends because the model file format differs.
-        _buildTdrzRow(context, opts),
-        // Token-level timestamps (whisper DTW). Useful when subtitle
-        // tooling consumes per-token timing instead of segments.
-        _buildTokenTimestampsRow(context, opts),
-        // §10 — Forced-aligner model picker. Auto selects a language-
-        // matched wav2vec2 or canary-ctc-aligner; users can override.
-        _buildAlignerModelRow(context, opts),
-        // §5.1.11 — Top-N alternative-candidate capture (Whisper only).
-        // Powers the transcript editor's tap-to-pick popover on
-        // ambiguous words. Hidden on non-whisper backends.
-        _buildAltNRow(context, opts),
-        // §5.8 — whisper subtitle formatting (tokens-per-segment
-        // cap + split-on-word). Pair is whisper-only; collapses
-        // on session-style backends. SplitOnWord additionally
-        // hides itself when maxLen == 0 to avoid a no-op toggle.
-        _buildMaxLenRow(context, opts),
-        _buildSplitOnWordRow(context, opts),
-        _buildSplitOnPunctRow(context, opts),
-        // §5.8 — GBNF grammar-constrained sampling (Whisper-only).
-        // Multi-line TextField for the GBNF source plus a slider
-        // for grammar_penalty. Empty text means "no constraint";
-        // the transcription worker only calls setGrammar when text
-        // is non-empty so other backends don't take an extra trip.
-        _buildGrammarRows(context, opts),
         // §5.1.10 — RNNoise audio enhancement pre-step.
         // Backend-agnostic; the transcribe screen pipes loaded
         // PCM through crispasr.enhanceAudioRnnoise(...) before
         // the §5.8 window slice / dispatch. Off by default;
         // pre-0.5.12 libcrispasr falls through silently.
         _buildEnhanceAudioRow(context, opts),
-        // Whisper decoder-fallback thresholds (Whisper-only).
-        // Five-slider ExpansionTile — defaults reproduce
-        // whisper_full_default_params exactly so leaving every
-        // slider alone matches stock whisper.cpp. Power-user
-        // knob; collapses when defaults are in effect.
-        _buildFallbackThresholdsRow(context, opts),
-        // Whisper text-suppression + prompt-carry extras
-        // (Whisper-only). 3 controls — 2 switches + 1 regex
-        // text field. Reproduces CLI's --suppress-nst /
-        // --suppress-regex / --carry-initial-prompt.
-        _buildWhisperDecodeExtrasRow(context, opts),
-        // Punctuation family picker — only visible when "Restore
-        // punctuation" is on AND the user has more than one family on
-        // disk. Otherwise PuncService auto-picks whatever it finds.
-        if (opts.restorePunctuation) _buildPuncFamilyRow(context, opts),
-        // Transcribe window — CrispASR CLI's --offset-t / --duration
-        // equivalent. Backend-agnostic; the screen slices the PCM
-        // before dispatch and the existing startOffsetSec shift
-        // brings segment timestamps back to absolute file time.
-        _buildTranscribeWindowRow(context, opts),
-        // Performance — LID accelerator + thread count. Honoured by
-        // crispasr_detect_language_pcm directly. ASR-side perf flags
-        // need to be set at session-open time and aren't runtime-
-        // tunable, so they aren't surfaced here.
-        _buildPerfRows(context, opts),
+        // Everything past this point is behind one more tap.
+        //
+        // AdvancedOptions carries 111 fields. Every one of them earns its
+        // place for someone, and showing all of them to a first-run tester
+        // is how a usable app reads as an unusable one. The split is a
+        // boundary rather than a reordering: nothing moved except the
+        // denoise switch, which is a plain quality toggle and belongs with
+        // the common set. Reorganising a working panel the week before a
+        // beta is how you ship new bugs.
+        ExpansionTile(
+          tilePadding: EdgeInsets.zero,
+          title: Row(
+            children: [
+              const Icon(Icons.settings_suggest_outlined, size: 16),
+              const SizedBox(width: 8),
+              Text(l.advancedAllOptions,
+                  style: const TextStyle(fontSize: 13)),
+            ],
+          ),
+          children: [
+          // LID method picker — visible only when the global language
+          // dropdown is "auto" + active backend lacks native LID. We
+          // can't see those preconditions here, so always show it; the
+          // engine ignores it on backends that already auto-detect.
+          _buildLidMethodRow(context, opts),
+          // Diarisation method picker — only meaningful when diarisation
+          // is enabled (separate toggle on the screen above). Show it
+          // unconditionally; the screen-level diarize flag gates whether
+          // anything happens.
+          _buildDiarizationMethodRow(context, opts),
+          // §5.8.1 — Resolve diarised cluster labels to enrolled
+          // speakers via TitaNet. Hidden when the diarisation method is
+          // `energy` (stereo channel IDs already disambiguate speakers).
+          _buildSpeakerRecognitionRow(context, opts),
+          // Whisper-only tdrz toggle (tinydiarize). Hidden on session
+          // backends because the model file format differs.
+          _buildTdrzRow(context, opts),
+          // Token-level timestamps (whisper DTW). Useful when subtitle
+          // tooling consumes per-token timing instead of segments.
+          _buildTokenTimestampsRow(context, opts),
+          // §10 — Forced-aligner model picker. Auto selects a language-
+          // matched wav2vec2 or canary-ctc-aligner; users can override.
+          _buildAlignerModelRow(context, opts),
+          // §5.1.11 — Top-N alternative-candidate capture (Whisper only).
+          // Powers the transcript editor's tap-to-pick popover on
+          // ambiguous words. Hidden on non-whisper backends.
+          _buildAltNRow(context, opts),
+          // §5.8 — whisper subtitle formatting (tokens-per-segment
+          // cap + split-on-word). Pair is whisper-only; collapses
+          // on session-style backends. SplitOnWord additionally
+          // hides itself when maxLen == 0 to avoid a no-op toggle.
+          _buildMaxLenRow(context, opts),
+          _buildSplitOnWordRow(context, opts),
+          _buildSplitOnPunctRow(context, opts),
+          // §5.8 — GBNF grammar-constrained sampling (Whisper-only).
+          // Multi-line TextField for the GBNF source plus a slider
+          // for grammar_penalty. Empty text means "no constraint";
+          // the transcription worker only calls setGrammar when text
+          // is non-empty so other backends don't take an extra trip.
+          _buildGrammarRows(context, opts),
+          // Whisper decoder-fallback thresholds (Whisper-only).
+          // Five-slider ExpansionTile — defaults reproduce
+          // whisper_full_default_params exactly so leaving every
+          // slider alone matches stock whisper.cpp. Power-user
+          // knob; collapses when defaults are in effect.
+          _buildFallbackThresholdsRow(context, opts),
+          // Whisper text-suppression + prompt-carry extras
+          // (Whisper-only). 3 controls — 2 switches + 1 regex
+          // text field. Reproduces CLI's --suppress-nst /
+          // --suppress-regex / --carry-initial-prompt.
+          _buildWhisperDecodeExtrasRow(context, opts),
+          // Punctuation family picker — only visible when "Restore
+          // punctuation" is on AND the user has more than one family on
+          // disk. Otherwise PuncService auto-picks whatever it finds.
+          if (opts.restorePunctuation) _buildPuncFamilyRow(context, opts),
+          // Transcribe window — CrispASR CLI's --offset-t / --duration
+          // equivalent. Backend-agnostic; the screen slices the PCM
+          // before dispatch and the existing startOffsetSec shift
+          // brings segment timestamps back to absolute file time.
+          _buildTranscribeWindowRow(context, opts),
+          // Performance — LID accelerator + thread count. Honoured by
+          // crispasr_detect_language_pcm directly. ASR-side perf flags
+          // need to be set at session-open time and aren't runtime-
+          // tunable, so they aren't surfaced here.
+          _buildPerfRows(context, opts),
+          ],
+        ),
       ],
     );
   }
