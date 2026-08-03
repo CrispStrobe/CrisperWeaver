@@ -736,18 +736,17 @@ class CrispASREngine implements TranscriptionEngine {
     // catch — unlike the SenseVoice `<|HAPPY|>` tags, which have a closed
     // vocabulary and a parse boundary. So the control sits here, at the one
     // point an ask prompt enters the engine. See `AffectivePromptGuard`.
-    final affectiveTerm = AffectivePromptGuard.offendingTerm(askPrompt);
-    if (affectiveTerm != null) {
+    final ScreenedAskPrompt screenedAsk;
+    try {
+      screenedAsk = ScreenedAskPrompt.screen(askPrompt);
+    } on AffectivePromptRefused catch (e) {
       Log.instance.w('crispasr', 'audio Q&A prompt refused (affective)',
-          fields: {'term': affectiveTerm});
-      throw AffectivePromptException(
-          AffectivePromptGuard.refusalMessage(affectiveTerm),
-          engineId,
-          affectiveTerm);
+          fields: {'term': e.term});
+      throw AffectivePromptException(e.message, engineId, e.term);
     }
     if (_session != null) {
       try {
-        _session!.setAsk(askPrompt ?? '');
+        _session!.setAsk(screenedAsk.value);
       } catch (e) {
         // Older libwhisper without the setAsk symbol — silent skip;
         // the field has zero effect on those builds anyway.

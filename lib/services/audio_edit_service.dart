@@ -50,6 +50,27 @@ import 'log_service.dart';
 /// One contiguous removal range in [cut] — both bounds in
 /// seconds, half-open `[start, end)`. Regions are sorted +
 /// non-overlapping per `cut`'s contract.
+/// Thrown when AI-generated audio would be written to a container that cannot
+/// carry a machine-readable provenance mark (EU AI Act Art. 50(2)).
+///
+/// AAC and Opus have no manifest slot on this path, so the spread-spectrum
+/// watermark in the samples would be the only surviving mark — a
+/// machine-readable channel with no human-readable or standard counterpart.
+/// `AudioEditService.exportEncoded` refuses by default; callers that want the
+/// export anyway pass `allowUnmarkedContainer: true` and take the decision
+/// explicitly.
+class UnmarkableContainerException implements Exception {
+  const UnmarkableContainerException(this.format);
+  final String format;
+
+  @override
+  String toString() =>
+      'Refusing to export AI-generated audio as .$format: the container '
+      'cannot carry a provenance manifest, so the output would be marked '
+      'only by the audio watermark. Export as WAV or MP3, or pass '
+      'allowUnmarkedContainer: true to accept this deliberately.';
+}
+
 class AudioCutRegion {
   const AudioCutRegion(this.startSec, this.endSec);
   final double startSec;
@@ -161,6 +182,11 @@ class AudioEditService {
     double? startSec,
     double? endSec,
     int bitrateKbps = 128,
+    /// Art. 50(2) escape hatch. When the source carries a provenance
+    /// manifest and the target container cannot, this method **refuses** by
+    /// default rather than emitting audio whose only mark is the watermark.
+    /// Pass true to accept that trade deliberately; it is logged either way.
+    bool allowUnmarkedContainer = false,
   }) async {
     final src = await decode(sourcePath);
     var samples = src.samples;
@@ -203,12 +229,30 @@ class AudioEditService {
       await encoded.writeAsBytes(tagged, flush: true);
       Log.instance.i('audio-edit', 'carried AI provenance into MP3 ID3v2',
           fields: {'dest': destinationPath});
-    } else {
+    } else if (allowUnmarkedContainer) {
       Log.instance.w('audio-edit',
           'encoded AI-generated audio to a container that cannot carry a '
           'provenance manifest — only the spread-spectrum watermark marks '
           'this output (EU AI Act Art. 50(2))',
           fields: {'format': format.extension, 'dest': destinationPath});
+    } else {
+      // Fail closed. `AI_ACT_RISK.md` §7.4 left this open — "mark-and-warn or
+      // refuse?" — and deferred it until the path had a UI caller. Deciding
+      // it then would have meant deciding it under pressure, with a feature
+      // waiting on the answer; deciding it now costs nothing, because nothing
+      // in the shipped app reaches this branch.
+      //
+      // Delete first. The encoder has already written the file, so returning
+      // an error while leaving unmarked AI-generated audio on disk would be
+      // the worst of both outcomes.
+      try {
+        await encoded.delete();
+      } catch (_) {/* best effort — the throw below is the contract */}
+      Log.instance.w('audio-edit',
+          'refused to export AI-generated audio to a container that cannot '
+          'carry a provenance manifest (EU AI Act Art. 50(2))',
+          fields: {'format': format.extension, 'dest': destinationPath});
+      throw UnmarkableContainerException(format.extension);
     }
     return encoded;
   }

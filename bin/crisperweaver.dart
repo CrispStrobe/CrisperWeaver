@@ -280,10 +280,11 @@ class _TranscribeCmd extends _Base {
     // before the decode and the model load, so a refused run costs nothing
     // and cannot be mistaken for a transcription failure. The engine and the
     // HTTP server enforce the same list.
-    final affectiveTerm =
-        AffectivePromptGuard.offendingTerm(argResults!['ask'] as String?);
-    if (affectiveTerm != null) {
-      stderr.writeln(AffectivePromptGuard.refusalMessage(affectiveTerm));
+    final ScreenedAskPrompt screenedAsk;
+    try {
+      screenedAsk = ScreenedAskPrompt.screen(argResults!['ask'] as String?);
+    } on AffectivePromptRefused catch (e) {
+      stderr.writeln(e.message);
       return 2;
     }
     final audio = crispasr.decodeAudioFile(File(rest.first).absolute.path, libPath: lib);
@@ -319,8 +320,9 @@ class _TranscribeCmd extends _Base {
       if (beamSize > 0) {
         try { session.setBeamSize(beamSize); } catch (_) {}
       }
-      if (ask != null && ask.isNotEmpty) {
-        try { session.setAsk(ask); } catch (_) {}
+      // Art. 5(1)(f): only a ScreenedAskPrompt can reach setAsk.
+      if (screenedAsk.isNotEmpty) {
+        try { session.setAsk(screenedAsk.value); } catch (_) {}
       }
       if (lang != null && lang.isNotEmpty && lang != 'auto') {
         try { session.setSourceLanguage(lang); } catch (_) {}

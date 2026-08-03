@@ -130,3 +130,74 @@ class AffectivePromptGuard {
       'perform emotion recognition. Ask about what was said rather than how '
       'the speaker sounded.';
 }
+
+/// Thrown by [ScreenedAskPrompt.screen] when a prompt is refused.
+///
+/// A plain `Exception` rather than the engine's `AffectivePromptException`
+/// because this file is imported by `bin/crisperweaver.dart`, and
+/// `transcription_engine.dart` pulls in Flutter. Callers inside the app
+/// translate it into `AffectivePromptException` so the UI's existing handler
+/// still fires.
+class AffectivePromptRefused implements Exception {
+  const AffectivePromptRefused(this.term, this.message);
+
+  /// The term that tripped the guard, so the caller can name it.
+  final String term;
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
+/// An ask prompt that **has been screened**, and which cannot be constructed
+/// any other way.
+///
+/// This is the prompt-side equivalent of `TranscriptionSegment.fromModelText`,
+/// and it exists for the same reason. Round 6 found the guard applied at the
+/// engine and absent from the worker pool, which reaches the same native
+/// sessions; the fix was to add it at the pool too, which is a fix for one
+/// call site and not for the class. The general defect — a control that has
+/// to be *remembered* at every entry — was recorded as the weakest remaining
+/// one in `AI_ACT_RISK.md` §5.2, on the grounds that a prompt has no
+/// destination type to attach a control to.
+///
+/// That was wrong: the prompt is itself a value, so the value can be the
+/// type. `session.setAsk` now takes `.value` off one of these, so obtaining
+/// something to pass means going through [screen], and a new entry point
+/// cannot forget the guard — it can only fail to compile.
+///
+/// **What this does not fix.** The screening is still `AffectivePromptGuard`,
+/// a finite keyword list over free text, and a determined user can rephrase
+/// past it. Making the guard unforgettable is a different property from
+/// making it strong, and `AI_ACT_RISK.md` §2.9 continues to state the second
+/// limit plainly.
+class ScreenedAskPrompt {
+  const ScreenedAskPrompt._(this.value);
+
+  /// The prompt text, or `''` when there is none. Empty is meaningful: the
+  /// session setters are sticky, so an empty ask has to be pushed to clear a
+  /// previous job's question rather than skipped.
+  final String value;
+
+  bool get isEmpty => value.isEmpty;
+  bool get isNotEmpty => value.isNotEmpty;
+
+  /// The absence of a prompt. Screening `null` yields the same thing; this
+  /// spelling is for call sites that never had one.
+  static const ScreenedAskPrompt none = ScreenedAskPrompt._('');
+
+  /// Screen [raw], or throw [AffectivePromptRefused].
+  ///
+  /// Idempotent and cheap, so re-screening across a trust boundary — the
+  /// worker isolate re-screens what the pool sent, because the wire format is
+  /// an untyped map and a `ScreenedAskPrompt` cannot cross it as a type — is
+  /// the right thing to do rather than a redundancy to optimise away.
+  factory ScreenedAskPrompt.screen(String? raw) {
+    final term = AffectivePromptGuard.offendingTerm(raw);
+    if (term != null) {
+      throw AffectivePromptRefused(
+          term, AffectivePromptGuard.refusalMessage(term));
+    }
+    return ScreenedAskPrompt._(raw?.trim() ?? '');
+  }
+}

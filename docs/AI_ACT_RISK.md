@@ -880,13 +880,36 @@ way, stated rather than glossed: nothing forces a *new* call site to choose
 the factory over the plain constructor. That is what the tripwire covers, and
 the two are complements rather than alternatives.
 
-The same reasoning was **not** applied to the affective-prompt guard, and the
-asymmetry is deliberate. A prompt has no single destination type to attach a
-control to; it goes into a session setter. Its four entry points — engine,
-pool, HTTP server, CLI — are each guarded individually, and the tripwire
-watches for a fifth. That is a weaker guarantee than the segment filter now
-has, and it is the right place to look first when this document is next
-audited.
+**The same move was then applied to the prompt, contradicting what this
+section said an hour earlier.** The text above read: *"A prompt has no single
+destination type to attach a control to; it goes into a session setter."*
+That is false, and the mistake is worth keeping rather than editing away,
+because it is the same category error as "the only point the tags enter the
+app" — reasoning about where a value *goes* instead of about what the value
+*is*. A prompt is a value, so the value can be the type.
+
+`ScreenedAskPrompt` can only be constructed by `ScreenedAskPrompt.screen`,
+which screens or throws. `session.setAsk` now takes `.value` off one of
+these, so a new entry point cannot forget the guard — it can only fail to
+compile. All four entry points (engine, pool, HTTP server, CLI) were
+converted, and a fifth was added deliberately: **the worker isolate screens
+again on arrival**, because the wire format is an untyped map and the type
+cannot cross it. That re-screening is placed outside the FFI-probe
+`catch (_)` that surrounds the neighbouring setters — a feature probe may be
+silently swallowed, a compliance refusal may not.
+
+`test/compliance_boundaries_test.dart` covers the one case the type cannot:
+`setAsk` is upstream API typed on `String`, so passing a bare string still
+compiles. The tripwire reads every `.setAsk(...)` argument in `lib/` and
+`bin/` and requires it to come from a screened prompt.
+
+**What is still not fixed, and now genuinely is the weakest control.** The
+screening remains `AffectivePromptGuard`, a finite keyword list over free
+text. Making a guard unforgettable is a different property from making it
+strong, and §2.9 states the second limit plainly. There is no structural move
+left for that one: it is a semantic judgement about natural language, and the
+honest position is that the app refuses the prompts it can recognise and does
+not claim to recognise all of them.
 
 ### 5.3 Art. 50(5) — clarity and accessibility
 
@@ -1089,12 +1112,29 @@ Now implemented rather than deferred:
   warning at the point of export** rather than passing silently — the same
   posture as the post-embed watermark verification failure.
 
-The remaining open question is whether the AAC/Opus case should be
-**fail-closed** (refuse to export AI-generated audio to a container that
-cannot carry the machine-readable mark) rather than mark-and-warn. It is
+**Resolved 2026-08-03: fail-closed.** `exportEncoded` now refuses when the
+source carries a provenance manifest and the target container cannot, throwing
+`UnmarkableContainerException` and **deleting the file the encoder has already
+written** — returning an error while leaving unmarked AI-generated audio on
+disk would have been the worst of both outcomes. Callers that want the export
+anyway pass `allowUnmarkedContainer: true`, which restores the old
+mark-and-warn behaviour as a deliberate, logged decision rather than a
+default.
+
+The deferral below was the wrong instinct and is kept as written so the
+correction is visible. "Revisit when it is wired up" means deciding a
+compliance question at the exact moment a feature is waiting on the answer,
+which is when the convenient answer wins. Deciding it while the path is
+unreachable cost nothing and is the same reasoning applied to the Wyoming
+bind address (§7.6): set the safe default before anyone depends on the unsafe
+one.
+
+The superseded text: *the remaining open question is whether the AAC/Opus case
+should be* **fail-closed** *(refuse to export AI-generated audio to a container
+that cannot carry the machine-readable mark) rather than mark-and-warn. It is
 left as mark-and-warn while the path is UI-unreachable; revisit when it is
 wired up, because that is when the watermark floor (PLAN §15.8) starts
-carrying real weight on its own.
+carrying real weight on its own.*
 
 ### 7.5 Art. 53 — GPAI obligations for the `cstr/*` HuggingFace account
 
@@ -1333,6 +1373,7 @@ description of the system, and a description nobody checks is an assertion.
 
 | Date | Change |
 |---|---|
+| 2026-08-03 | **Sixth audit, remaining gaps closed.** Three, all of which this document had described as either fixed or as acceptable deferrals. (a) The affective-prompt guard was per-entry-point, and §5.2 had asserted an hour earlier that no structural fix existed because "a prompt has no destination type" — the same category error as "the only point the tags enter the app", reasoning about where a value goes rather than what it is. `ScreenedAskPrompt` is now the only thing `setAsk` accepts, so a new entry point cannot forget the guard, only fail to compile; the worker isolate re-screens on arrival because the type cannot cross an untyped wire format, placed outside the FFI-probe swallow that surrounds its neighbours. (b) **Word tokens were never filtered by any version of this control** — every mapper stripped the segment text and copied `w.text` through, so a tag emitted as its own token reached the word-level view and the JSON export while the segment text beside it was clean. Now stripped in the factory, with tag-only tokens dropped. (c) §7.4's AAC/Opus question is resolved fail-closed rather than deferred again: refusing while the path is unreachable costs nothing, whereas "revisit when it is wired up" means deciding a compliance question with a feature waiting on the answer. |
 | 2026-08-03 | **Sixth audit, fifth finding — found while building the fix for the first.** Enumerating call sites to wrap the CrispASR session turned up **four more** unfiltered model-text constructions, all inside `CrispasrEngine`, the file every audit treated as the one that got this right: the streamed-segment drain (interim segments pushed to the live transcript view, so emotion tags were briefly visible in the UI), `_mapWhisperSegments`, and both halves of the streaming controller. The first of those reads from a *free function*, `drainStreamedSegments()`, not from the session — so the planned session wrapper would have shipped with the gap still open while looking like a structural guarantee. The filter therefore moved to the **destination type**: `TranscriptionSegment.fromModelText` is now the only supported way to build a segment from model output, so completeness no longer depends on enumerating sources. Seven attempts to place this control at "the parse boundary" is the evidence that no such single boundary exists on the source side. The same move is not available for the affective-prompt guard, which has no destination type; that asymmetry is stated at §5.2 as the weakest remaining control. |
 | 2026-08-03 | **Sixth audit — and its central finding is not an exit but a chokepoint that was never one.** Three compliance controls lived inside `CrispasrEngine.transcribe`, each documented here and in the code as sitting at "the single point" its input enters the app: the affective-prompt guard (§2.9), the emotion-tag discard (§2.8), and the Art. 50(2) `generated` stamp. `TranscriptionWorkerPool` is a second entry to the same native sessions — `transcription_screen` dispatches to it directly for parallel batch jobs and the A/B model comparison, and `workerSegmentFromMap` is a second parse boundary every pooled segment crosses — and **all three controls were absent there**. So on the pooled path, which is the default for batch: SenseVoice emotion tags reached the UI, history and exports; affective ask prompts reached the model unrefused; and Q&A answers and machine translations were labelled transcripts everywhere. Unlike the `HfSpaceEngine` gap of the fifth audit, none of this was latent — SenseVoice is a catalogued local backend. The fifth audit's own regression test passed throughout, because it enumerated *engines* and a worker pool is not an engine. All three controls now sit at the pool boundary; the acoustic-event vocabulary moved out of a private engine helper into `EmotionInference.eventTags`, and the generated-kind rule into `GeneratedKind`, so there is one implementation of each rather than two that must agree. |
 | 2026-08-03 | **Sixth audit, fourth finding (§7.5b).** Checked the Art. 53 item against the live account rather than against this document, which had described it as broadly outstanding. It is nearly finished: of the 34 repositories where the conversion argument is unavailable (27 merges + 7 LaserRMT), **33 already carry explicit 53(1)(c) and 53(1)(d) sections** from the 2026-08-02 sweep, each with the base model verified from `config.json` rather than inferred from the repo name. §7.5's "6 of the 7 LaserRMT repos have no card at all" was true when written and is stale. One repository was missed by that sweep — `cstr/Flora_7B-laser`, whose whole card was an 85-byte sentence — which is the same per-item-rather-than-per-class gap this document keeps recording, this time in the documentation work itself. Its licence was checked against the base before writing (both `cc-by-sa-4.0`, so no relicensing issue), and its base was read from the weights' own `_name_or_path`. |

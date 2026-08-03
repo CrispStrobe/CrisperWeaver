@@ -52,6 +52,7 @@ import 'dart:typed_data';
 import '../native/crispasr_import.dart' as crispasr;
 
 import '../engines/transcription_engine.dart';
+import '../utils/affective_prompt_guard.dart';
 
 class TranscriptionWorkerArgs {
   const TranscriptionWorkerArgs({
@@ -220,8 +221,16 @@ Future<void> transcriptionWorkerEntry(TranscriptionWorkerArgs args) async {
       } on Object catch (_) {} // FFI feature probe — silent
       // setAsk always fires (even with empty string) so the
       // previous job's prompt doesn't stick across the boundary.
+      //
+      // Art. 5(1)(f) — screened HERE as well as at the pool, because the wire
+      // format is an untyped map: a `ScreenedAskPrompt` cannot cross the
+      // isolate boundary as a type, so the guarantee has to be re-established
+      // on arrival. Deliberately outside the `on Object catch (_)` swallow
+      // below — an FFI feature probe may be silently ignored, a compliance
+      // refusal may not. It propagates to the handler's error reply.
+      final screenedAsk = ScreenedAskPrompt.screen(askPrompt);
       try {
-        session.setAsk(askPrompt ?? '');
+        session.setAsk(screenedAsk.value);
       } on Object catch (_) {} // FFI feature probe — silent
       // Fire setTemperature on every dispatch — same reasoning as
       // setAsk; the slider's previous value mustn't leak forward.

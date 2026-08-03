@@ -260,12 +260,12 @@ class ServerService {
     // ask the model to infer a speaker's emotions or intent. The engine
     // enforces this too — this check exists so the server answers 400 with a
     // readable reason instead of surfacing an engine exception as a 500.
-    final affectiveTerm = AffectivePromptGuard.offendingTerm(askPrompt);
-    if (affectiveTerm != null) {
+    try {
+      ScreenedAskPrompt.screen(askPrompt);
+    } on AffectivePromptRefused catch (e) {
       Log.instance.w('server', 'audio Q&A prompt refused (affective)',
-          fields: {'term': affectiveTerm});
-      return Response.badRequest(
-          body: AffectivePromptGuard.refusalMessage(affectiveTerm));
+          fields: {'term': e.term});
+      return Response.badRequest(body: e.message);
     }
 
     final tx = ref.read(transcriptionServiceProvider);

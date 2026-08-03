@@ -1278,6 +1278,46 @@ void _thirdAuditTests() {
       expect(jsonEncode(seg.metadata).toUpperCase().contains('ANGRY'), isFalse);
     });
 
+    test('the factory strips word tokens too', () {
+      // No version of this filter touched word text: `_mapSessionSegments`
+      // stripped the segment and copied `w.text` through, so a tag emitted as
+      // its own token survived into the word-level view and the JSON export
+      // while the segment text beside it was clean.
+      final seg = TranscriptionSegment.fromModelText(
+        rawText: 'Das ist unerhört.',
+        startTime: 0,
+        endTime: 2,
+        words: const [
+          TranscriptionWord(
+              word: '<|ANGRY|>', startTime: 0, endTime: 0.1, confidence: 1),
+          TranscriptionWord(
+              word: 'Das', startTime: 0.1, endTime: 0.4, confidence: 1),
+        ],
+      );
+      // The tag-only token is dropped entirely rather than left empty.
+      expect(seg.words!.map((w) => w.word).toList(), ['Das']);
+      expect(seg.words!.first.startTime, 0.1,
+          reason: 'surviving words keep their own timings');
+    });
+
+    test('a prompt cannot reach a model unscreened', () {
+      expect(ScreenedAskPrompt.screen('Summarize the call').value,
+          'Summarize the call');
+      expect(ScreenedAskPrompt.screen(null).isEmpty, isTrue);
+      expect(ScreenedAskPrompt.none.value, '');
+      expect(() => ScreenedAskPrompt.screen("What is the speaker's tone?"),
+          throwsA(isA<AffectivePromptRefused>()));
+      // The refusal names what it objected to — a refusal the user cannot
+      // diagnose is a bug report.
+      try {
+        ScreenedAskPrompt.screen('Is the speaker angry?');
+        fail('expected a refusal');
+      } on AffectivePromptRefused catch (e) {
+        expect(e.term, isNotEmpty);
+        expect(e.message, contains('Art. 3(39)'));
+      }
+    });
+
     test('the factory preserves caller metadata', () {
       final seg = TranscriptionSegment.fromModelText(
         rawText: 'Guten Morgen.',
@@ -1722,9 +1762,16 @@ void _thirdAuditTests() {
       // The pool spawns real isolates, so the controls are asserted at the
       // source. Both were absent, not wrong — a behavioural test on
       // `dispatch` would have needed a worker to exist before it could fail.
+      //
+      // Updated 2026-08-03: the pool no longer calls the guard directly. It
+      // builds a `ScreenedAskPrompt`, which is the only thing `setAsk`
+      // accepts — so the screening is now enforced by the type rather than
+      // by this assertion. The assertion stays because the pool also has to
+      // fail *early*, before a worker is acquired and audio is copied across
+      // the isolate boundary.
       final src =
           File('lib/services/transcription_worker_pool.dart').readAsStringSync();
-      expect(src, contains('AffectivePromptGuard.offendingTerm'),
+      expect(src, contains('ScreenedAskPrompt.screen'),
           reason: 'the pool hands ask prompts to the model unscreened');
       expect(src, contains('GeneratedKind.stamp'),
           reason: 'pool output leaves without an Art. 50(2) kind');
