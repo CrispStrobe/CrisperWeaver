@@ -5,6 +5,76 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 
 ## [Unreleased]
 
+## [0.9.8] — 2026-08-03
+
+First build prepared for TestFlight. The app was feature-complete before
+this release and unusable for anyone opening it for the first time; most of
+what follows is about the first ten minutes.
+
+### Added — getting started
+
+- **Recommended models.** The Models screen now lifts a short, curated list
+  under "Recommended to start with" — four ASR and three TTS picks, ordered.
+  The catalogue is 364 entries and its filters answer "which of these is a
+  Parakeet?", never "which should I take?". The picks answer the second
+  question. Hidden once you search, filter by backend, or download them all.
+- **Device-fit warnings.** Models too large for the device's memory are
+  marked in the list, and downloading one asks first, naming both the memory
+  the model needs and the memory the device has. It asks rather than blocks:
+  the figure on phones is a conservative default rather than a reading, and a
+  wrong estimate should not be a wall on your own device.
+- **"Show advanced features"** in Settings. Off by default, it reveals
+  transcript comparison, the subtitle overlay, voice baking, audio editing,
+  the local API server, and the log and storage inspectors. Nothing is
+  removed — the switch returns all of it.
+
+### Changed
+
+- **Advanced Options** shows about fifteen common controls; sixteen
+  power-user knobs moved under a nested "All options" expander. Exactly one
+  control changed place (the denoise switch, which belongs with the common
+  set) — the rest kept their order.
+
+### Fixed
+
+- Five catalogue entries were not loadable models and have been removed: two
+  `.imatrix` quantisation-calibration files listed as ASR models (picking one
+  downloaded a megabyte and failed with no explanation) and three `-ref.gguf`
+  reference artefacts. The catalogue bake now filters these at the source, so
+  regenerating it stays clean. Models quantised *using* an importance matrix
+  (`*-q4_k-imatrix`) are unaffected — those are real.
+
+### Fixed — EU AI Act audit, round 6
+
+The audit found the previous five rounds had each fixed a call site rather
+than a class of defect, so this round fixed the classes. Full detail in
+`docs/AI_ACT_RISK.md` §5.2.
+
+- **The worker pool bypassed every compliance control in the engine.** The
+  emotion-tag filter, the affective-prompt guard and the AI-generated marking
+  all lived in `CrispasrEngine`, each documented as sitting at "the single
+  point" its input enters the app. The worker pool — the default execution
+  path for batch jobs — reaches the same models without going through it and
+  had none of the three. Unlike the previous round's equivalent finding this
+  was live rather than latent.
+- **Copy and Share carried no AI-generated disclosure**, on five buttons each
+  sitting next to an Export control that marked the same text. The first-use
+  notice had promised in all three languages that copied text carries one.
+- **Emotion tags could survive in word-level output.** No version of the
+  filter had ever looked below the segment.
+- The emotion filter is now an **allow-list**: only known acoustic events
+  (laughter, applause, music) survive, so a label from a future model is
+  discarded rather than published. It previously dropped known emotion tags
+  and kept everything else.
+- Audio-Q&A prompts are now a type that cannot exist unscreened, so a new
+  entry point cannot forget the guard.
+- Exporting AI-generated audio to a container that cannot carry provenance
+  (AAC, Opus) now refuses instead of warning.
+- The Wyoming ASR socket bound every network interface; it now binds
+  loopback.
+- `test/compliance_boundaries_test.dart` fails the build when a new call site
+  appears at any of these boundaries.
+
 ## [0.9.7] — 2026-08-02
 
 ### Fixed — EU AI Act audit, round 5
