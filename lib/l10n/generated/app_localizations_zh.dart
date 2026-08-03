@@ -3199,4 +3199,7 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get settingsExperimentalSubtitle =>
       '增加转写对比、字幕浮层、语音烘焙、音频编辑、本地 API 服务器，以及日志和存储查看器。';
+
+  @override
+  String get advancedAllOptions => '全部选项';
 }

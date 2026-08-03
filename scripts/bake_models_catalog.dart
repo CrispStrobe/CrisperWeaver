@@ -42,6 +42,14 @@ bool _isNotAModel(String fname) {
   // Adapters and auxiliary tensors that need a base model to mean anything.
   if (f.endsWith('-lora.gguf') || f.endsWith('.lora.gguf')) return true;
   if (f.endsWith('-vocab.gguf') || f.endsWith('-tokenizer.gguf')) return true;
+  // `-ref.gguf` — baked reference material, not weights. Three shipped as
+  // downloadable main models in v0.9.7: `moss-audio-4b-instruct-ref` (24.8 MB
+  // beside a 4.11 GB q4_k of the same model), `voxcpm2-ref` and
+  // `parler-mini-v1.1-ref`. `model_catalog.dart` describes the voxcpm2 one
+  // exactly right — "a baked reference voice for the not-yet-wired cloning
+  // path" — which is precisely what should not appear in a list of things to
+  // download and load. None is usable standalone.
+  if (f.endsWith('-ref.gguf')) return true;
   return false;
 }
 

@@ -5583,6 +5583,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Adds transcript comparison, subtitle overlay, voice baking, audio editing, the local API server, and the log and storage inspectors.'**
   String get settingsExperimentalSubtitle;
+
+  /// No description provided for @advancedAllOptions.
+  ///
+  /// In en, this message translates to:
+  /// **'All options'**
+  String get advancedAllOptions;
 }
 
 class _AppLocalizationsDelegate
