@@ -9,6 +9,12 @@
 	<key>CFBundleIconFile</key>
 	<string></string>
 	<!-- Mac App Store validation rejects a bundle without a category. -->
+	<!-- Without this the macOS build lands in App Store Connect as
+	     MISSING_EXPORT_COMPLIANCE and cannot be assigned to a TestFlight
+	     group until someone answers the question by hand. ios/Runner has
+	     carried it for releases; macos/Runner never did. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.productivity</string>
 	<key>CFBundleIdentifier</key>

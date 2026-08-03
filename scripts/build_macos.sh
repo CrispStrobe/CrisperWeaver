@@ -191,6 +191,12 @@ echo "==> flutter pub get"
 flutter pub get >/dev/null
 
 echo "==> flutter build macos $FLUTTER_FLAG"
+# CocoaPods runs under Homebrew ruby, but a chruby line in ~/.zshrc
+# exports GEM_PATH/GEM_HOME for a DIFFERENT ruby. pod then dies with
+# "Could not find 'nkf'", flutter reports "CocoaPods not installed or
+# not in valid state", skips pod install, and produces no .app at all.
+# Harmless on CI, where neither var is set.
+unset GEM_PATH GEM_HOME
 flutter build macos $FLUTTER_FLAG 2>&1 \
   | grep -vE "(Run script build phase|Metal\.xctoolchain)" || true
 
