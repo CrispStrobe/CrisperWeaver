@@ -204,6 +204,127 @@ jobs:
           prerelease: false
           fail_on_unmatched_files: true
 
+  # Mac App Store / TestFlight build.
+  #
+  # Separate from build-macos on purpose: that job ships a NOT-sandboxed
+  # .app for direct download, which sets disable-library-validation so a
+  # user can drop their own libwhisper.dylib beside it. The App Store
+  # forbids both, so the two are different products built from one source
+  # and they cannot share a signing pass. See scripts/build_macos_appstore.sh.
+  #
+  # continue-on-error while this path is young: a signing or validation
+  # hiccup must not fail a release whose other five artefacts are fine.
+  build-macos-appstore:
+    name: macOS (App Store .pkg)
+    needs: validate-tag
+    runs-on: macos-latest
+    timeout-minutes: 120
+    continue-on-error: true
+    permissions:
+      contents: write
+    steps:
+      - name: Check out CrisperWeaver
+        uses: actions/checkout@v5
+        with:
+          path: repos/CrisperWeaver
+          ref: ${{ inputs.tag || github.ref }}
+
+      - name: Check out sibling CrispASR
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ env.CRISPASR_REPO }}
+          ref: ${{ env.CRISPASR_REF }}
+          path: repos/CrispASR
+          submodules: recursive
+
+      - name: Check out sibling CrispEmbed
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ env.CRISPEMBED_REPO }}
+          ref: ${{ env.CRISPEMBED_REF }}
+          path: repos/CrispEmbed
+          submodules: recursive
+
+      - name: Check out sibling glint
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ env.GLINT_REPO }}
+          ref: ${{ env.GLINT_REF }}
+          path: repos/glint
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Pub get
+        working-directory: repos/CrisperWeaver
+        run: flutter pub get
+
+      - name: Generate build info (git hash + timestamp)
+        working-directory: repos/CrisperWeaver
+        run: bash scripts/gen_build_info.sh
+
+      - name: Refresh baked models catalogue
+        working-directory: repos/CrisperWeaver
+        run: timeout 120 dart run scripts/bake_models_catalog.dart || true
+
+      # A dedicated keychain, never login.keychain — the runner has no
+      # human to click through an export prompt.
+      - name: Install signing credentials
+        id: signing
+        env:
+          MAC_DIST_P12: ${{ secrets.MAC_DIST_P12 }}
+          MAC_DIST_P12_PASSWORD: ${{ secrets.MAC_DIST_P12_PASSWORD }}
+          MAC_PROFILE_BASE64: ${{ secrets.MAC_PROFILE_BASE64 }}
+        run: |
+          if [ -z "$MAC_DIST_P12" ] || [ -z "$MAC_PROFILE_BASE64" ]; then
+            echo "signing_ready=false" >> "$GITHUB_OUTPUT"
+            echo "macOS App Store secrets absent - skipping signed build"
+            exit 0
+          fi
+          KEYCHAIN="$RUNNER_TEMP/mac-appstore.keychain-db"
+          security create-keychain -p ci "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p ci "$KEYCHAIN"
+          echo "$MAC_DIST_P12" | base64 --decode > "$RUNNER_TEMP/mac_dist.p12"
+          security import "$RUNNER_TEMP/mac_dist.p12" -k "$KEYCHAIN" \
+            -P "$MAC_DIST_P12_PASSWORD" -A -t cert -f pkcs12
+          security set-key-partition-list -S apple-tool:,apple:,codesign: \
+            -s -k ci "$KEYCHAIN" >/dev/null
+          security list-keychains -d user -s "$KEYCHAIN" \
+            $(security list-keychains -d user | tr -d '"')
+          mkdir -p "$RUNNER_TEMP/profiles"
+          echo "$MAC_PROFILE_BASE64" | base64 --decode \
+            > "$RUNNER_TEMP/profiles/CrisperWeaver_MacAppStore.provisionprofile"
+          security find-identity -v -p codesigning "$KEYCHAIN"
+          echo "signing_ready=true" >> "$GITHUB_OUTPUT"
+
+      - name: Build, sign and package for the App Store
+        if: steps.signing.outputs.signing_ready == 'true'
+        working-directory: repos/CrisperWeaver
+        env:
+          MAC_PROFILE: ${{ runner.temp }}/profiles/CrisperWeaver_MacAppStore.provisionprofile
+          APPSTORE_APP_ID: ${{ secrets.APPSTORE_APP_ID }}
+          # The script defaults to the maintainer's exportable
+          # brickwright-build keychain; on a runner that does not exist, so
+          # point it at the throwaway keychain created above. Never the
+          # runner's login keychain.
+          SIGN_KEYCHAIN: ${{ runner.temp }}/mac-appstore.keychain-db
+        run: bash scripts/build_macos_appstore.sh --upload
+
+      - name: Upload .pkg to GitHub Release
+        if: always() && steps.signing.outputs.signing_ready == 'true'
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ inputs.tag || github.ref_name }}
+          files: repos/CrisperWeaver/crisper_weaver-macos-appstore.pkg
+          draft: false
+          prerelease: false
+          fail_on_unmatched_files: false
+
   build-linux:
     name: Linux (.tar.gz bundle)
     needs: validate-tag
