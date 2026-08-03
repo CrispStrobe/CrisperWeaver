@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Mac App Store build only. Release.entitlements stays as it is for
+	     the direct-download .app, which is not sandboxed and can load a
+	     user-supplied dylib. Neither of those is permitted here. -->
+	<key>com.apple.security.app-sandbox</key>
+	<true/>
+	<!-- Model downloads from HuggingFace. -->
+	<key>com.apple.security.network.client</key>
+	<true/>
+	<!-- The OpenAI-compatible local server binds 127.0.0.1. A sandboxed app
+	     cannot listen on a socket without this, even on loopback. It is
+	     behind the advanced-features toggle and off by default. -->
+	<key>com.apple.security.network.server</key>
+	<true/>
+	<!-- In-app recorder. -->
+	<key>com.apple.security.device.audio-input</key>
+	<true/>
+	<!-- Files the user picks or drops. Sandbox grants nothing else. -->
+	<key>com.apple.security.files.user-selected.read-write</key>
+	<true/>
+	<key>com.apple.security.files.downloads.read-only</key>
+	<true/>
+	<!-- Without these two, altool warns 90886 "not TestFlight eligible"
+	     and the upload lands unusable. -->
+	<key>com.apple.application-identifier</key>
+	<string>N9XSJ4M3GT.com.crispstrobe.crisperweaver</string>
+	<key>com.apple.developer.team-identifier</key>
+	<string>N9XSJ4M3GT</string>
+</dict>
+</plist>
