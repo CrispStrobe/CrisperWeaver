@@ -196,6 +196,36 @@ void main() {
   // put the guard in `CrispasrEngine`; round 6 found the screen dispatching
   // to the worker pool directly, so batch jobs ran unscreened.
   // -----------------------------------------------------------------------
+  test('setAsk is reachable only with a screened prompt (Art. 5(1)(f))', () {
+    // The prompt-side equivalent of `fromModelText`. `session.setAsk` takes
+    // `.value` off a `ScreenedAskPrompt`, which can only be built by
+    // `ScreenedAskPrompt.screen` — so a new entry point cannot forget the
+    // guard, it can only fail to compile.
+    //
+    // This assertion covers the case the type cannot: someone passing a bare
+    // string, which still compiles because `setAsk` is upstream API typed on
+    // String.
+    for (final dir in const ['lib', 'bin']) {
+      for (final entity in Directory(dir).listSync(recursive: true)) {
+        if (entity is! File || !entity.path.endsWith('.dart')) continue;
+        final rel = entity.path.replaceAll(r'\', '/');
+        // The web stub declares the signature; it drives no model.
+        if (rel == 'lib/native/crispasr_stub.dart') continue;
+        final src = entity.readAsStringSync();
+        for (final m in RegExp(r'\.setAsk\(([^)]*)\)').allMatches(src)) {
+          final arg = m.group(1)!.trim();
+          expect(arg, contains('screenedAsk'),
+              reason: '\n\n$rel calls setAsk with `$arg`.\n\n'
+                  'Only a ScreenedAskPrompt may reach the model. Build one\n'
+                  'with ScreenedAskPrompt.screen(raw) and pass `.value`.\n'
+                  'An LLM asked for a speaker\'s tone is an emotion\n'
+                  'recognition system under Art. 3(39); no output filter can\n'
+                  'catch free prose. See AI_ACT_RISK.md §2.9.\n');
+        }
+      }
+    }
+  });
+
   test('every ask-prompt entry point is reviewed (Art. 5(1)(f))', () {
     _expectAllowlist(
       _scanLib([RegExp(r'setAsk\(|askPrompt:')]),

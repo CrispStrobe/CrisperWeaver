@@ -313,14 +313,17 @@ class TranscriptionWorkerPool {
     // Both controls are idempotent, so the engine applying them as well on
     // its own pool path is harmless. This is the choke point that covers
     // every caller; the engine's copies cover its non-pool paths.
-    final affectiveTerm = AffectivePromptGuard.offendingTerm(askPrompt);
-    if (affectiveTerm != null) {
+    // Screened here so a refused job fails before a worker is acquired and
+    // audio is copied across the isolate boundary. The worker screens again
+    // on arrival — see `transcription_worker.dart` — because the wire format
+    // is untyped and this object cannot cross it.
+    final ScreenedAskPrompt screenedAsk;
+    try {
+      screenedAsk = ScreenedAskPrompt.screen(askPrompt);
+    } on AffectivePromptRefused catch (e) {
       Log.instance.w('worker-pool', 'audio Q&A prompt refused (affective)',
-          fields: {'term': affectiveTerm});
-      throw AffectivePromptException(
-          AffectivePromptGuard.refusalMessage(affectiveTerm),
-          'crispasr',
-          affectiveTerm);
+          fields: {'term': e.term});
+      throw AffectivePromptException(e.message, 'crispasr', e.term);
     }
 
     final worker = await _acquire();
@@ -368,7 +371,8 @@ class TranscriptionWorkerPool {
         'language': language,
         if (targetLanguage != null) 'targetLanguage': targetLanguage,
         'translate': translate,
-        if (askPrompt != null) 'askPrompt': askPrompt,
+        // Send the screened value, not the caller's raw string.
+        if (screenedAsk.isNotEmpty) 'askPrompt': screenedAsk.value,
         'temperature': temperature,
         'bestOf': bestOf,
         'beamSize': beamSize,

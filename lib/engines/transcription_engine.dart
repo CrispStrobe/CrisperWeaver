@@ -206,13 +206,33 @@ class TranscriptionSegment {
     // Post-allow-list, every surviving tag is an acoustic event by
     // construction; `audio_event` is the one the UI badges.
     final events = stripped.keptTags;
+    // Word tokens are model output too, and no version of this filter has
+    // ever touched them — `_mapSessionSegments` stripped `s.text` and copied
+    // `w.text` through, so a tag emitted as its own token would have survived
+    // into the word-level view and the JSON export while the segment text
+    // beside it was clean. A no-op for every ordinary word.
+    final cleanWords = words
+        ?.map((w) {
+          final t = EmotionInference.strip(w.word).text;
+          return t == w.word
+              ? w
+              : TranscriptionWord(
+                  word: t,
+                  startTime: w.startTime,
+                  endTime: w.endTime,
+                  confidence: w.confidence,
+                  alts: w.alts,
+                );
+        })
+        .where((w) => w.word.isNotEmpty)
+        .toList(growable: false);
     return TranscriptionSegment(
       text: stripped.text,
       startTime: startTime,
       endTime: endTime,
       speaker: speaker,
       confidence: confidence,
-      words: words,
+      words: cleanWords,
       metadata: {
         ...metadata,
         if (events.isNotEmpty) 'sensevoice_tags': events,
