@@ -1,9 +1,7 @@
 {
   "@@locale": "zh",
-
   "appName": "CrisperWeaver",
   "appTagline": "带说话人分离的音频转录",
-
   "menuHistory": "历史记录",
   "menuSettings": "设置",
   "menuModels": "模型",
@@ -16,10 +14,8 @@
   "tabRun": "运行",
   "tabOutput": "输出",
   "navHome": "转录",
-
   "engineReady": "引擎就绪",
   "engineStarting": "引擎启动中…",
-
   "audioInput": "音频输入",
   "noFileSelected": "未选择文件",
   "browse": "浏览",
@@ -29,12 +25,10 @@
   "language": "语言",
   "languageAuto": "自动检测",
   "model": "模型",
-
   "transcribe": "转录",
   "transcribing": "转录中…",
   "stop": "停止",
   "clear": "清空",
-
   "transcriptionOutput": "转录结果",
   "noTranscriptionYet": "暂无转录",
   "noTranscriptionHint": "选择音频文件并开始转录",
@@ -43,7 +37,6 @@
   "noResultsHint": "请尝试其他搜索词",
   "tabSegments": "片段",
   "tabFullText": "全文",
-
   "sharePlain": "分享纯文本",
   "copyClipboard": "复制到剪贴板",
   "saveAsTxt": "保存为 .txt",
@@ -51,7 +44,6 @@
   "saveAsVtt": "保存为 .vtt",
   "saveAsJson": "保存为 .json",
   "copied": "已复制",
-
   "perfRtf": "实时率",
   "perfAudio": "音频",
   "perfWall": "实际时长",
@@ -61,14 +53,12 @@
   "perfModel": "模型",
   "perfFasterThanRealtime": "快于实时",
   "perfSlowerThanRealtime": "慢于实时",
-
   "diarizationTitle": "说话人分离",
   "diarizationSubtitle": "识别录音中的不同说话人",
   "diarizationModel": "分离模型",
   "minSpeakers": "最少说话人数",
   "maxSpeakers": "最多说话人数",
   "auto": "自动",
-
   "settingsTitle": "设置",
   "settingsAppLanguage": "应用语言",
   "settingsInterfaceLanguage": "界面语言",
@@ -100,10 +90,8 @@
   "languageJa": "日语",
   "languageKo": "韩语",
   "languageRu": "俄语",
-
   "modelSize": "大小：{size}",
   "modelDeleteConfirm": "确定要删除 {name} 吗？",
-
   "historyCopy": "复制",
   "historyExportSrt": "导出 SRT",
   "historyExportTxt": "导出 TXT",
@@ -112,7 +100,6 @@
   "historyFailedToLoad": "加载历史记录失败：{error}",
   "historySaved": "已保存至 {path}",
   "historyExportFailed": "导出失败：{error}",
-
   "recorderDeleteTitle": "删除录音",
   "recorderDeleteBody": "确定要删除此录音吗？",
   "recorderQueuedForTranscription": "录音已加入转录队列。",
@@ -121,7 +108,6 @@
   "recorderSystemAudioTooltip": "捕获系统音频（Zoom 会议、浏览器标签、播客应用）并实时转录。仅支持 macOS 13+；首次使用将提示授予屏幕录制权限。",
   "recorderSystemAudioPermission": "屏幕录制权限被拒绝。请前往系统设置 → 隐私与安全 → 屏幕录制，勾选 CrisperWeaver，然后重试。",
   "recorderSystemAudioUnsupported": "此平台暂不支持系统音频捕获。详见 PLAN.md §5.1.1。",
-
   "outputShowTimestamps": "显示时间戳",
   "outputShowSpeakers": "显示说话人",
   "outputShowConfidence": "显示置信度",
@@ -142,9 +128,7 @@
   "outputSegmentCopied": "片段已复制到剪贴板",
   "outputAllCopied": "所有转录内容已复制到剪贴板",
   "outputPlayingSegment": "正在播放片段：{time}",
-
   "settingsLoading": "加载中…",
-
   "transcribeLanguageLabel": "语言",
   "transcribeLoadingButton": "正在加载 {model}…",
   "transcribeLoadingFallback": "正在加载模型…",
@@ -152,7 +136,6 @@
   "transcribeStarting": "开始下载：{model}",
   "transcribeUnsupportedFile": "不支持的文件类型：{name}",
   "transcribeLoadedFile": "已加载 {name}",
-
   "aboutEmail": "电子邮件：{email}",
   "aboutPhone": "电话：{phone}",
   "aboutVersion": "版本 {version}",
@@ -243,7 +226,6 @@
   "settingsHfTokenSubtitle": "访问门控或私有仓库时必填。",
   "settingsHfTokenSave": "保存",
   "settingsHfTokenCancel": "取消",
-
   "transcriptionNoModelsFound": "未找到模型",
   "transcriptionRetry": "重试",
   "transcriptionLoadFailed": "加载失败：{error}",
@@ -259,11 +241,9 @@
   "transcriptionSaveAsJson": "保存为 JSON",
   "transcriptionDownloadModel": "下载模型",
   "transcriptionDownload": "下载",
-
   "advancedBestOfSingle": "最优解码：单次解码 (1)",
   "advancedBestOfCurrent": "最优解码：{n} 次",
   "advancedBestOfHelper": "1 = 单次解码（默认）。大于 1 时运行 N 次独立解码并选取得分最高的结果。代价为 N 倍解码时间。",
-
   "advancedTemperatureGreedy": "解码温度：贪婪 (0.00)",
   "advancedTemperatureCurrent": "解码温度：{value}",
   "advancedTemperatureHelper": "0.00 = 贪婪/可复现。大于 0 = 随机采样 — 当贪婪解码出现重复幻觉时有用。Whisper 有内置回退梯队；此项影响采样后端（canary、cohere、parakeet、moonshine）。",
@@ -279,14 +259,11 @@
   "streamingRequiresWhisper": "实时转录需要 Whisper 引擎。请在设置中切换后端。",
   "streamingMicUnavailable": "麦克风不可用，无法进行实时转录。",
   "streamingEngineNoSession": "引擎未返回流式会话。",
-
   "playbackFailed": "播放失败：{error}",
   "synthesizeFailed": "合成失败：{error}",
-
   "logsShowLevel": "显示 {level} 及以上",
   "diarizationAuto": "自动",
   "diarizationModelSelectionTitle": "分离模型选择",
-
   "aboutServiceProvider": "服务提供商",
   "aboutContact": "联系方式",
   "aboutPrivacy": "隐私",
@@ -296,7 +273,6 @@
   "aboutPrivacyText": "CrisperWeaver 在您的设备本地处理所有音频。音频数据、转录内容和录音均不会上传至任何服务器。模型下载通过 HTTPS 直接从 HuggingFace 获取 GGUF 权重文件；其他任何数据均不离开设备。",
   "aboutDisclaimerText": "本软件按「现状」提供，不附带任何形式的明示或暗示保证，包括但不限于适销性、特定用途适用性及不侵权保证。在任何情况下，作者均不对因使用或无法使用本软件而产生的任何索赔、损害或其他责任承担责任。",
   "aboutLicenseText": "CrisperWeaver 是自由软件，依据 GNU Affero 通用公共许可证 v3.0（AGPL-3.0）授权。您可以在该许可证条款下重新发布和修改本软件。特别是，如果您以网络服务形式运行修改版 CrisperWeaver，必须向其用户提供源代码。",
-
   "historyTitle": "转录历史",
   "historyEmpty": "暂无转录记录",
   "historyEmptyHint": "运行转录后将显示在此处。",
@@ -308,14 +284,12 @@
   "historyClearAllPrompt": "将从此设备删除所有保存的转录记录，此操作无法撤销。",
   "cancel": "取消",
   "delete": "删除",
-
   "logsTitle": "日志",
   "logsFilterHint": "按消息、标签或错误筛选…",
   "logsCopyVisible": "复制可见内容",
   "logsCopyAll": "复制全部",
   "logsExport": "导出到文件",
   "logsShare": "作为文件分享",
-
   "modelsTitle": "模型管理",
   "modelsNoneAvailable": "暂无可用模型",
   "modelsRetry": "重试",
@@ -324,7 +298,6 @@
   "modelsDownloaded": "已下载",
   "modelsNotDownloaded": "未下载",
   "modelsDownloadingPercent": "下载中… {percent}%",
-
   "error": "错误",
   "ok": "确定",
   "save": "保存",
@@ -349,7 +322,6 @@
   "quickStartAllInstalled": "所有入门模型均已安装。",
   "modelsProbedCountZero": "在 HuggingFace 上未发现新的量化版本。",
   "modelsProbedCount": "发现 {count} 个新量化版本{plural}。",
-
   "batchQueueTitle": "批量队列",
   "batchQueueSummary": "{queued} 排队 · {running} 运行中 · {done} 完成 · {errored} 失败",
   "batchClearCompleted": "清除已完成",
@@ -358,7 +330,6 @@
   "batchRunAll": "全部转录",
   "batchStop": "停止批处理",
   "batchQueueDropHint": "将音频文件拖放至此处加入队列",
-
   "advancedSection": "高级解码",
   "advancedVadTrim": "静音裁剪（VAD）",
   "advancedVadTrimSubtitle": "通过 Silero VAD 跳过开头和结尾的静音。对含大量静音的会议/长录音更快。",
@@ -367,13 +338,31 @@
   "advancedBeamSearch": "束搜索",
   "advancedBeamSearchSubtitle": "速度较慢，通常更准确。默认使用贪婪解码。",
   "advancedBeamSize": "Beam 宽度：{n}",
-  "@advancedBeamSize": {"placeholders": {"n": {"type": "int"}}},
+  "@advancedBeamSize": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
   "advancedBeamSizeHelper": "Beam 搜索的 beam 数量。0 = 后端默认值（通常为 5）。",
   "advancedHotwordsBoost": "热词增强：{value}",
-  "@advancedHotwordsBoost": {"placeholders": {"value": {"type": "String"}}},
+  "@advancedHotwordsBoost": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
   "advancedHotwordsBoostHelper": "CTC/TDT 热词偏置增强因子（granite、parakeet）。0 = 关闭。",
   "advancedChunkSeconds": "分块窗口：{n}秒",
-  "@advancedChunkSeconds": {"placeholders": {"n": {"type": "int"}}},
+  "@advancedChunkSeconds": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
   "advancedChunkSecondsHelper": "转录分块大小（秒）。0 = 模型默认值（约30秒）。较小的值可减少长文件的峰值内存占用。",
   "advancedInitialPrompt": "初始提示（词汇/上下文）",
   "advancedInitialPromptHint": "例如：\"CrispASR, Flutter, Riverpod, 说话人区分\"",
@@ -391,7 +380,11 @@
   "askPromptRefusedAffectiveTitle": "提问被拒绝",
   "askPromptRefusedAffective": "该提问要求模型推断说话人的情绪或意图属性（匹配到「{term}」）。从声音推断情绪属于欧盟《人工智能法案》所定义的情绪识别——在工作场所和学校中被禁止，在其他场合属于高风险。CrisperWeaver 不执行此类推断。请提问「说了什么」，而非「听起来如何」。",
   "@askPromptRefusedAffective": {
-    "placeholders": { "term": { "type": "String" } }
+    "placeholders": {
+      "term": {
+        "type": "String"
+      }
+    }
   },
   "editAudioOpen": "在音频编辑器中打开",
   "editAudioTitle": "编辑音频",
@@ -530,12 +523,10 @@
   "advancedVocabularyHelperPrompt": "通过 Whisper 的 initial_prompt 偏向解码器。适用于模型容易听错的品牌名、缩写、技术术语和人名。",
   "advancedVocabularyHelperAsk": "通过在提示前附加这些术语来偏向 LLM。与问答模式结合 — 问题仍会执行。",
   "advancedVocabularyHelperUnsupported": "当前后端为 CTC 式，无法在解码器处偏向词汇。请切换到 Whisper / Moonshine / LLM 后端（Voxtral、Qwen3、Granite…）以启用。",
-
   "advancedHotwords": "热词",
   "advancedHotwordsHint": "逗号分隔的词或短语（如：ACME 公司、TensorFlow、张医生）",
   "advancedHotwordsHelper": "引导解码器偏向这些词/短语。适用于模型容易听错的名称、品牌或领域术语。",
   "advancedHotwordsUnsupported": "当前后端不支持热词偏向。请切换到 LLM 后端或 Whisper 以启用。",
-
   "voiceCloneOpenTooltip": "克隆声音…",
   "voiceCloneTitle": "声音克隆向导",
   "voiceCloneStepCapture": "录制",
@@ -590,14 +581,11 @@
   "filePickerFailed": "文件选择器失败：{error}",
   "openModels": "打开模型",
   "synthMissingDependency": "缺少必需的配套文件：{name}",
-
   "synthBackendUnsupported": "此构建版本中 {backend} 合成功能尚不可用。更新版引擎发布后此声音将可用。",
-
   "synthSpeakerLabel": "说话人",
   "synthSpeakerHelper": "此声音内置多个说话人 — 请选择一个。",
   "synthPreviewVoice": "预览声音",
   "synthPreviewSample": "你好，这是语音预览。",
-
   "advancedVadBackend": "VAD 后端",
   "advancedVadBackendHelper": "Silero 已内置（约 885 KB）。FireRed / MarbleNet / Whisper-VAD 需在模型管理中下载；缺少文件时回退到 Silero。",
   "advancedVadBackendSilero": "Silero（内置，默认）",
@@ -612,7 +600,6 @@
   "advancedVadMinSilenceHelper": "将一个片段与下一个片段分开的最短静音。",
   "advancedVadSpeechPad": "语音填充：{ms} ms",
   "advancedVadSpeechPadHelper": "在每个语音片段两侧添加的额外上下文。",
-
   "advancedLidMethod": "语言检测方法",
   "advancedLidMethodHelper": "当模型不支持原生 LID 且您选择了「自动」时使用。Whisper 复用任意多语言 ggml-*.bin；Silero / Firered / Ecapa 各需其自身的 GGUF。",
   "advancedLidMethodWhisper": "Whisper 编码器（复用现有模型）",
@@ -666,33 +653,26 @@
   "settingsLocalLlmCatalogueNotDownloaded": "未下载 · {size}",
   "settingsLocalLlmCatalogueDownload": "下载",
   "modelsKindFilterChatLlm": "对话 LLM",
-
   "advancedDiarizeMethod": "分离方法",
   "advancedDiarizeMethodHelper": "仅在启用分离时生效。vad-turns 适合单声道；pyannote 需要其分割 GGUF；energy / xcorr 需要立体声音频。",
   "advancedDiarizeVadTurns": "VAD 轮换（单声道，无需额外模型）",
   "advancedDiarizePyannote": "Pyannote v3（机器学习，需要 GGUF）",
   "advancedDiarizeEnergy": "立体声左/右能量",
   "advancedDiarizeXcorr": "立体声互相关",
-
   "advancedSpeakerRecognition": "识别已注册说话人",
   "advancedSpeakerRecognitionSubtitle": "分离后，将每个说话人聚类与设备上的说话人数据库（设置 → 说话人）比对，有把握时将「说话人 N」替换为注册姓名。需要 TitaNet GGUF。",
-
   "advancedTdrz": "Tinydiarize 说话人轮换（仅 Whisper）",
   "advancedTdrzSubtitle": "通过 Whisper .en.tdrz 微调插入 [SPEAKER_TURN] 标记。会话后端不生效。",
-
   "advancedTokenTimestamps": "词元级时间戳",
   "advancedTokenTimestampsSubtitle": "DTW 对齐的每词元计时。比词级时间戳慢；适用于精细字幕工具。",
-
   "advancedAltN": "每词备选候选数（仅 Whisper）",
   "advancedAltNLabel": "{n, plural, =0{关闭} other{前 {n} 个}}",
   "advancedAltNSubtitle": "捕获 Whisper 每个贪婪步骤的前 N 个备选词元。可在转录编辑器中点击模糊词并选择竞争候选项（kubectl / cubicle / …）。0 = 关闭（默认）。最适合贪婪解码 — 不支持束搜索。0.5.13 之前的 dylib 静默忽略。",
-
   "advancedPuncFamily": "标点模型",
   "advancedPuncFamilyHelper": "PCS 一体化（标点 + 真实大小写 + SBD，47 种语言）。FireRedPunc 和 fullstop-punc 与真实大小写器配合使用。",
   "advancedPuncFamilyPcs": "PCS（47 种语言，一体化）",
   "advancedPuncFamilyFirered": "FireRedPunc（中文 + 英语）",
   "advancedPuncFamilyFullstop": "Fullstop-punc 多语言（EN/DE/FR/IT）",
-
   "transcriptionSaveAsCsv": "保存为 CSV",
   "transcriptionSaveAsLrc": "保存为 LRC（歌词）",
   "transcriptionSaveAsWts": "保存为 WTS（调试）",
@@ -700,7 +680,6 @@
   "transcriptionShareAudioAndTranscript": "分享音频 + 转录",
   "transcriptionShareAudioAndTranscriptHelp": "将音频文件和 SRT 转录作为单次分享发送 — 便于归档或交接给同事。",
   "transcriptionShareAudioMissing": "请先选择音频文件以一起分享。",
-
   "synthAdvancedSection": "高级合成",
   "synthRefText": "参考转录（声音克隆）",
   "synthRefTextHelper": "将 WAV 声音与 qwen3-tts Base 或 vibevoice-1.5b 配合进行运行时克隆时必填。内置 GGUF 声音无需填写。",
@@ -710,7 +689,6 @@
   "synthTrimSilenceSubtitle": "从合成 PCM 中裁剪低于 -72 dBFS 的开头和结尾静音。",
   "synthSpeed": "速度：{value}×",
   "synthSpeedHelper": "播放速度倍率（0.25× – 4.00×）。最近邻重采样；无音调校正。",
-
   "translateTitle": "文本翻译",
   "translateModelLabel": "翻译模型",
   "translateSourceLang": "源语言",
@@ -724,7 +702,6 @@
   "translateAdvanced": "高级",
   "translateMaxTokens": "最大输出词元数：{n}",
   "translateMaxTokensHelper": "翻译文本长度的硬上限。CrispASR 默认值为 200；较长段落可提高，较短生成可降低。",
-
   "advancedPerfHeader": "性能",
   "advancedLidUseGpu": "GPU 语言检测",
   "advancedLidUseGpuSubtitle": "在支持时将语言检测路由到 Metal / CUDA / Vulkan。ASR 后端在加载时遵循其自身的每会话 GPU 设置。",
@@ -732,19 +709,16 @@
   "advancedLidFlashAttnSubtitle": "在 LID 编码器过程中使用更快的注意力内核。仅在怀疑构建版本存在闪速注意力正确性问题时禁用。",
   "advancedNThreads": "CPU 线程数：{n}",
   "advancedNThreadsHelper": "用于 LID 和其他非解码器过程的线程数。默认为 4。",
-
   "synthCustomVoice": "自定义声音（WAV 参考）",
   "synthCustomVoiceHelper": "从磁盘选择 WAV 进行运行时克隆。在 qwen3-tts Base / vibevoice-1.5b 上与参考转录配合使用。设置后覆盖声音包下拉列表。",
   "synthCustomVoicePick": "选择参考 WAV…",
   "synthCustomVoiceReplace": "替换参考 WAV…",
   "synthCustomVoiceClear": "清除自定义声音",
-
   "recorderStreamSession": "流式（会话）",
   "recorderStreamSessionTooltip": "通过活跃后端的流式接口进行实时麦克风转录（kyutai-stt / moonshine-streaming / voxtral4b）。后端无原生流式 API 时回退到 Whisper 滑动窗口。",
   "streamingNotAvailableForBackend": "活跃后端（{backend}）无流式接口。请切换到 whisper、kyutai-stt、moonshine-streaming 或 voxtral4b。",
   "streamingNoModelLoaded": "尚未加载模型。请从上方下拉列表选择一个模型（已下载则自动加载），或先打开模型管理下载一个。",
   "transcribeNoSource": "请选择音频文件、输入 URL 或进行录音。",
-
   "voiceBakeTitle": "烘焙声音（WAV → GGUF）",
   "voiceBakeOpenTooltip": "从 WAV 参考烘焙 Chatterbox 声音",
   "voiceBakeIntro": "运行 CrispASR 的 bake-chatterbox-voice-from-wav.py，将 WAV 参考转换为烘焙声音包 GGUF。需要系统上安装 Python 3 + chatterbox-tts + gguf。",
@@ -763,7 +737,6 @@
   "voiceBakeSuccess": "声音已烘焙 → {path}",
   "voiceBakeFailure": "烘焙失败：{error}",
   "voiceBakeMissingInputs": "请先选择参考 WAV 和输出文件名。",
-
   "advancedAsrUseGpu": "GPU ASR",
   "advancedAsrUseGpuSubtitle": "在支持时将 ASR 会话初始化路由到 Metal / CUDA / Vulkan。下次模型加载时生效。无运行时 GPU 控制的后端保持编译时默认设置。",
   "advancedAsrFlashAttn": "ASR 闪速注意力",
@@ -771,7 +744,6 @@
   "advancedAsrNGpuLayers": "GPU 层数（LLM）：{n}",
   "advancedAsrNGpuLayersAuto": "GPU 层数（LLM）：自动（最大值）",
   "advancedAsrNGpuLayersHelper": "基于 LLM 的后端（orpheus / voxtral / qwen3 / granite / chatterbox）GPU 卸载 Transformer 层上限。0 = 在 CPU 上运行 LLM；1+ = 明确边界；自动 = 尽量多。下次模型加载时生效。",
-
   "settingsServerSection": "本地 HTTP 服务器（OpenAI 兼容）",
   "settingsServerEnable": "运行服务器",
   "settingsServerRunningAt": "正在监听 {url}",
@@ -779,7 +751,6 @@
   "settingsServerStartFailed": "服务器启动失败：{error}",
   "settingsServerEndpoints": "端点",
   "settingsServerEndpointsHelp": "POST /v1/audio/transcriptions（多部分上传，file=音频）· POST /v1/audio/speech（JSON：model、input、voice、speed）· POST /v1/translations（JSON：model、text、src、tgt）· GET /health。仅绑定到 127.0.0.1 — 无需身份验证。",
-
   "synthTemperature": "温度：{value}",
   "synthTemperatureHelper": "orpheus / chatterbox / canary 共享的采样温度。0.0 = 贪婪/可复现。越高 = 多样性越大。",
   "synthTtsSteps": "扩散步数：{n}",
@@ -801,22 +772,39 @@
   "synthFrequencyPenalty": "频率惩罚：{value}",
   "synthFrequencyPenaltyHelper": "对自回归后端中重复词元进行惩罚。0 = 关闭；调高可减少循环卡顿瑕疵。",
   "synthTopK": "Top-K：{n}",
-  "@synthTopK": {"placeholders": {"n": {"type": "int"}}},
+  "@synthTopK": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
   "synthTopKHelper": "Top-K 采样宽度（qwen3-tts、chatterbox、orpheus、dots-tts、tada）。0 = 禁用。",
   "synthDoSample": "随机采样",
   "synthDoSampleHelper": "启用随机采样代替贪心解码。",
   "synthNumCandidates": "声学候选数：{n}",
-  "@synthNumCandidates": {"placeholders": {"n": {"type": "int"}}},
+  "@synthNumCandidates": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
   "synthNumCandidatesHelper": "用于排序的声学候选数（tada、chatterbox、kokoro）。0 = 默认值。",
   "synthNoiseTemp": "噪声温度：{value}",
-  "@synthNoiseTemp": {"placeholders": {"value": {"type": "String"}}},
+  "@synthNoiseTemp": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
   "synthNoiseTempHelper": "随机生成的噪声温度（kokoro、vibevoice）。0 = 默认值。",
   "synthG2pDict": "G2P 字典",
   "synthG2pDictHelper": "字形到音素字典路径（kokoro、vibevoice、speecht5）。",
   "synthClearPhonemeCache": "清除音素缓存",
   "synthClearPhonemeCacheDone": "音素缓存已清除。",
   "synthClearPhonemeCacheUnsupported": "此后端不使用音素缓存（或当前会话过旧）。",
-
   "modelsLoadFailed": "加载模型失败：{error}",
   "modelsProbeFailed": "HuggingFace 探测失败：{error}",
   "modelsSkippedRepos": " 已跳过 {count, plural, other{{count} 个私有/门控仓库}}。",
@@ -854,7 +842,6 @@
   "modelsDownloadFailedReason": "下载失败：{error}",
   "modelsDeleteFailedNamed": "删除 {name} 失败",
   "modelsDeleteFailedReason": "删除失败：{error}",
-
   "enrollFromSegment": "从此片段注册说话人…",
   "enrollSpeakerTitle": "注册说话人",
   "enrollSpeakerNameLabel": "说话人姓名",
@@ -865,15 +852,12 @@
   "enrollSucceeded": "已注册「{name}」 — 未来录音将进行匹配。",
   "enrollFailedShort": "注册失败。",
   "enrollFailedReason": "注册失败：{error}",
-
   "modelsRecommendedBadge": "推荐",
   "transcribeNoBackendModelHint": "尚未下载 {backend} 模型。",
   "transcribeDownloadRecommended": "推荐下载：{name}（{size}）",
-
   "synthDownloadingNamed": "正在下载 {name}…",
   "synthDownloadFailedShort": "下载 {name} 失败",
   "synthDownloadFailedNamed": "下载 {name} 失败：{error}",
-
   "aiGeneratedAudio": "AI 生成音频",
   "speakerConsentTitle": "生物特征数据同意",
   "speakerConsentBody": "说话人注册会创建声纹嵌入（GDPR 第 9 条下的生物特征数据）。此数据仅存储在您的设备上，绝不传输，并可随时从说话人管理界面删除。\n\n如果该声音不属于您本人，您必须在注册前获得该人的明确同意。只有具备同意记录的说话人才会参与匹配。\n\n继续操作即表示您确认该声音为您本人所有，或您已获得声音所有者的明确同意（GDPR 第 9(2)(a) 条）。",
@@ -881,35 +865,29 @@
   "aboutSyntheticCompliance": "合成内容合规",
   "aboutSyntheticComplianceText": "合成语音输出带有水印并包含机器可读的来源元数据。说话人注册需要明确的生物特征同意（GDPR 第 9 条）。所有数据留在设备上；您可以随时删除您的数据。",
   "syntheticDisclosureNote": "此内容包含 AI 生成的合成语音。",
-
   "aiTransparencyTitle": "AI 驱动的应用程序",
   "aiTransparencyBody": "CrisperWeaver 使用人工智能系统进行：\n\n• 语音识别 (ASR) — 将音频转换为文本\n• 语音合成 (TTS) — 从文本生成语音音频\n• 说话人识别 — 生物特征语音匹配\n• 文档分析 (OCR) — 识别图像中的文字\n• 文本生成 — 由语言模型进行翻译、摘要和转录稿整理\n• 音频问答 — 由语言模型回答您关于录音的提问，而非转录内容\n• 说话人分离 — 区分谁在何时说话 — 以及口语语种检测\n• 音频增强 — 降噪处理\n• 语义搜索 — AI 驱动的内容检索\n\n默认情况下，所有处理均在您的设备上运行，不会发送任何数据。部分功能默认关闭，启用后会使用网络：模型下载、可选的云端转录，以及可选的云端摘要或整理功能，它们会将相关文本或音频发送至您所配置的服务商。说话人档案和语音录音永远不会离开您的设备。\n\nAI 生成的音频会自动添加水印并签署机器可读的来源元数据；AI 生成的文本在复制或导出时会附带披露声明（欧盟AI法案第50条）。\n\n详情请参见关于页面及 PRIVACY.md。",
   "aiTransparencyWebNote": "网页版说明：与桌面版和移动版不同，浏览器版本没有设备端引擎。语音识别和语音合成在远程 CrispASR 服务器上运行，因此您提交的音频会被发送至该服务器处理。用于搜索的文本嵌入仍在您的浏览器本地计算。",
   "aiTransparencyAcknowledge": "我了解",
-
   "historySearchSemanticTooltip": "语义搜索（已激活）",
   "historySearchSubstringTooltip": "子串搜索（点击切换为语义搜索）",
   "historyCompareButton": "比较…",
   "historyCompareNoOtherEntries": "没有其他可比较的条目",
   "historyComparePickerTitle": "与…比较",
-
   "menuCompareModels": "比较模型",
   "menuSubtitleOverlay": "字幕叠加",
   "advancedTagSegmentLanguages": "标注片段语言",
   "advancedTagSegmentLanguagesSubtitle": "按片段检测语言（多语言）",
-
   "exportObsidian": "Obsidian",
   "exportNotion": "Notion",
   "exportLogseq": "Logseq",
   "exportYouTubeChapters": "YouTube 章节",
   "exportDetectChapters": "检测章节",
   "exportPodcastChapters": "播客章节（JSON）",
-
   "compareModelsNeedSecond": "请下载第二个模型以进行比较",
   "compareModelsPickerTitle": "与模型比较…",
   "compareModelsRunning": "正在运行 A/B：{modelA} 与 {modelB}…",
   "compareModelsFailed": "A/B 测试失败：{error}",
-
   "settingsWatchFolder": "监控文件夹",
   "settingsWatchFolderAutoTranscribe": "自动转录新文件",
   "settingsWatchFolderWatching": "正在监控：{path}",
@@ -917,7 +895,6 @@
   "settingsWatchFolderPath": "监控文件夹路径",
   "settingsWatchFolderNotSet": "未设置",
   "settingsWatchFolderPickerTitle": "选择要监控的文件夹",
-
   "settingsSpeakerVocab": "说话人词汇",
   "settingsSpeakerVocabSubtitle": "每位说话人的领域词汇列表",
   "settingsSpeakerVocabDialogTitle": "说话人词汇",
@@ -925,7 +902,6 @@
   "settingsSpeakerVocabAddTermHint": "领域词汇或短语",
   "settingsSpeakerVocabNoSpeakers": "无已注册说话人。请先在说话人管理界面注册说话人。",
   "add": "添加",
-
   "synthLexiconSectionTitle": "发音词典",
   "synthLexiconAddTitle": "添加发音",
   "synthLexiconAddEntryTooltip": "添加条目",
@@ -935,35 +911,29 @@
   "synthLexiconPronunciationHint": "例如：Crisp A S R",
   "synthLexiconIpaLabel": "IPA 标注",
   "synthLexiconEmpty": "暂无条目。请添加词语 → 发音映射。",
-
   "outputSegmentEditedTooltip": "已编辑",
-
   "subtitleExitOverlayTooltip": "退出叠加",
   "subtitleSmallerTextTooltip": "缩小文字",
   "subtitleLargerTextTooltip": "放大文字",
   "subtitleTogglePositionTooltip": "切换位置",
   "subtitleToggleBackgroundTooltip": "切换背景",
   "subtitleWaitingForTranscription": "等待转录…",
-
   "compareTranscriptsTitle": "比较转录",
   "compareLeftFallback": "左",
   "compareRightFallback": "右",
   "compareLeftWords": "左侧单词数",
   "compareRightWords": "右侧单词数",
   "compareSimilarity": "相似度",
-
   "abTestNeedSecondModel": "请下载第二个模型以进行比较",
   "abTestPickModel": "与模型比较…",
   "abTestRunning": "正在运行 A/B：{modelA} 与 {modelB}…",
   "abTestFailed": "A/B 测试失败：{error}",
-
   "subtitleOverlayExitTooltip": "退出叠加",
   "subtitleOverlaySmallerText": "缩小文字",
   "subtitleOverlayLargerText": "放大文字",
   "subtitleOverlayTogglePosition": "切换位置",
   "subtitleOverlayToggleBackground": "切换背景",
   "subtitleOverlayWaiting": "等待转录…",
-
   "outputNoTranscriptionYet": "暂无转录",
   "outputSelectAudioFile": "选择音频文件并开始转录",
   "outputNoResultsFound": "未找到结果",
@@ -977,13 +947,20 @@
   "dialogCancel": "取消",
   "dialogAdd": "添加",
   "dialogApply": "应用",
-
   "settingsAllFilesAccessNeeded": "需要「所有文件访问」权限",
   "settingsAllFilesAccessExplanation": "选择应用沙箱外的文件夹需要 Android 的「所有文件访问」权限。点击「打开设置」，为 CrisperWeaver 启用「所有文件访问」，然后返回。卸载并重新安装应用后，Android 将重置此授权，需重新启用。",
   "settingsOpenSettings": "打开设置",
   "settingsAllFilesAccessDenied": "「所有文件访问」被拒绝 — 改为使用沙箱目录。",
-
   "fingerprintDedupTitle": "已转录",
   "fingerprintDedupBody": "此文件已被转录。是否再次转录？",
-  "fingerprintDedupTranscribeAgain": "再次转录"
+  "fingerprintDedupTranscribeAgain": "再次转录",
+  "modelsRecommendedHeader": "建议从这些开始",
+  "modelsAllHeader": "全部模型（{count}）",
+  "modelsTooLargeTitle": "超出本设备可加载的大小",
+  "modelsTooLargeBody": "{model} 加载约需 {size} 内存，而本设备可为模型提供约 {budget}。\n\n可以下载，但很可能无法加载或导致应用关闭。同一模型的较小版本通常也能良好运行。",
+  "modelsDownloadAnyway": "仍要下载",
+  "modelsTooLargeInline": "超出本设备可加载的大小",
+  "settingsExperimentalSection": "更多功能",
+  "settingsExperimentalTitle": "显示高级功能",
+  "settingsExperimentalSubtitle": "增加转写对比、字幕浮层、语音烘焙、音频编辑、本地 API 服务器，以及日志和存储查看器。"
 }

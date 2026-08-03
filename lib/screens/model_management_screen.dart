@@ -6,7 +6,9 @@ import '../constants/app_constants.dart';
 import '../l10n/generated/app_localizations.dart';
 import '../main.dart' show modelServiceProvider;
 import '../services/log_service.dart';
+import '../services/memory_estimator.dart' show memoryEstimatorProvider;
 import '../services/model_service.dart';
+import '../services/starter_models.dart';
 import '../services/settings_service.dart' show settingsServiceProvider;
 
 class ModelManagementScreen extends ConsumerStatefulWidget {
@@ -434,18 +436,68 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
                     ),
                   ),
                 )
-              : ListView.builder(
-                  padding: const EdgeInsets.all(8),
-                  itemCount: filtered.length,
-                  itemBuilder: (context, index) {
-                    final model = filtered[index];
-                    return _buildModelCard(model);
-                  },
-                ),
+              : _buildCuratedList(filtered),
         ),
       ],
     );
   }
+
+  /// The list, with curated starters lifted to the top under a header.
+  ///
+  /// A 367-entry catalogue with good filters still answers only "which of
+  /// these is a Parakeet?" — never "which should I take?". A new install had
+  /// no way to know that `moonshine-base-q4_k` is 47 MB and a sane first pick
+  /// while `MiMo ASR (f16)` is 16 GB and will not load on any phone. The
+  /// recommendations are the answer to the second question; see
+  /// `StarterModels`.
+  ///
+  /// Suppressed once the user is searching or has narrowed by backend — at
+  /// that point they have told us what they want and a "Recommended" block is
+  /// in the way. Also suppressed when every pick is already downloaded, which
+  /// is the state the section exists to get the user out of.
+  Widget _buildCuratedList(List<ModelInfo> filtered) {
+    final kind = _kindFilter;
+    final narrowing = _nameFilter.isNotEmpty || _backendFilter.isNotEmpty;
+    final picks = <ModelInfo>[];
+    if (kind != null && !narrowing && StarterModels.hasPicksFor(kind)) {
+      final ids = StarterModels.pickIdsFor(kind);
+      picks.addAll(filtered.where((m) => ids.contains(m.name)));
+      picks.sort((a, b) => StarterModels.rankOf(kind, a.name)
+          .compareTo(StarterModels.rankOf(kind, b.name)));
+    }
+    final showPicks = picks.isNotEmpty && picks.any((m) => !m.isDownloaded);
+    final rest = showPicks
+        ? filtered.where((m) => !picks.contains(m)).toList()
+        : filtered;
+
+    final l10n = AppLocalizations.of(context);
+    return ListView.builder(
+      padding: const EdgeInsets.all(8),
+      itemCount: (showPicks ? picks.length + 2 : 0) + rest.length,
+      itemBuilder: (context, index) {
+        if (showPicks) {
+          if (index == 0) return _listHeader(l10n.modelsRecommendedHeader);
+          if (index <= picks.length) return _buildModelCard(picks[index - 1]);
+          if (index == picks.length + 1) {
+            return _listHeader(l10n.modelsAllHeader(rest.length));
+          }
+          return _buildModelCard(rest[index - picks.length - 2]);
+        }
+        return _buildModelCard(rest[index]);
+      },
+    );
+  }
+
+  Widget _listHeader(String text) => Padding(
+        padding: const EdgeInsets.fromLTRB(8, 12, 8, 6),
+        child: Text(
+          text,
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                color: Theme.of(context).colorScheme.primary,
+                fontWeight: FontWeight.w600,
+              ),
+        ),
+      );
 
   /// Filter chips: "All / ASR / TTS / Voices / Codecs / Post-processors".
   /// Counts in parens make it obvious which buckets are populated.
@@ -744,6 +796,29 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(AppLocalizations.of(context).modelSize(model.size)),
+            // Marked in the list, not only at the moment of download — the
+            // point is that a tester can see which rows are plausible before
+            // committing to a multi-gigabyte transfer.
+            if (!model.isDownloaded &&
+                StarterModels.fitFor(model.sizeBytes,
+                        ref.read(memoryEstimatorProvider)) ==
+                    DeviceFit.tooLarge)
+              Row(
+                children: [
+                  Icon(Icons.memory,
+                      size: 13, color: Theme.of(context).colorScheme.error),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      AppLocalizations.of(context).modelsTooLargeInline,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             Text(model.description),
             if (model.isDownloaded)
               Text(
@@ -927,6 +1002,43 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
   /// Confirmation gate for non-commercial / research-only weights. Returns
   /// true when the user accepts the licence terms. Surfaces the licence
   /// string verbatim so the choice is informed (licence-compliance).
+  /// Confirm a download the device probably cannot load.
+  ///
+  /// Deliberately names the two numbers rather than saying "too large":
+  /// a user who disagrees with our RAM estimate can see what it was.
+  Future<bool> _confirmOversizedDownload(ModelInfo model) async {
+    final l10n = AppLocalizations.of(context);
+    final est = ref.read(memoryEstimatorProvider);
+    final budget = StarterModels.budgetBytes(est);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        icon: const Icon(Icons.memory, color: Colors.orange),
+        title: Text(l10n.modelsTooLargeTitle),
+        content: Text(l10n.modelsTooLargeBody(
+          model.displayName,
+          _formatBytes(model.sizeBytes),
+          budget == null ? '—' : _formatBytes(budget),
+        )),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(l10n.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(l10n.modelsDownloadAnyway),
+          ),
+        ],
+      ),
+    );
+    return ok ?? false;
+  }
+
+  static String _formatBytes(int b) => b >= 1000000000
+      ? '${(b / 1000000000).toStringAsFixed(1)} GB'
+      : '${(b / 1000000).round()} MB';
+
   Future<bool> _confirmNonCommercialDownload(ModelDefinition def) async {
     final ok = await showDialog<bool>(
       context: context,
@@ -964,6 +1076,21 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
     if (ncDef != null && ncDef.isNonCommercial) {
       final accepted = await _confirmNonCommercialDownload(ncDef);
       if (!accepted) return;
+    }
+    // Memory gate. `MemoryEstimator` has always known this device's budget,
+    // but was wired only to the worker-count slider — so the app would
+    // carefully refuse to run two workers against a 400 MB model and then
+    // let the user download 16 GB and OOM on load. 150 catalogue entries
+    // exceed 1 GB; the largest is 17.3 GB; iOS is assumed to have 3 GB.
+    //
+    // Confirm rather than block: the RAM figure on mobile is a conservative
+    // platform default, not a reading, and a wrong estimate should not be a
+    // hard wall on the user's own device.
+    if (StarterModels.fitFor(
+            model.sizeBytes, ref.read(memoryEstimatorProvider)) ==
+        DeviceFit.tooLarge) {
+      final proceed = await _confirmOversizedDownload(model);
+      if (!proceed) return;
     }
     // Build the download queue: the main model first, then any
     // companions it declares (TTS voicepacks, codec/tokenizer GGUFs,

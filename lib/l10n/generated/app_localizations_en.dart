@@ -3274,4 +3274,36 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get fingerprintDedupTranscribeAgain => 'Transcribe again';
+
+  @override
+  String get modelsRecommendedHeader => 'Recommended to start with';
+
+  @override
+  String modelsAllHeader(int count) {
+    return 'All models ($count)';
+  }
+
+  @override
+  String get modelsTooLargeTitle => 'Larger than this device can load';
+
+  @override
+  String modelsTooLargeBody(String model, String size, String budget) {
+    return '$model needs about $size of memory to load, and this device can give a model about $budget.\n\nIt will download, but it will most likely fail to load or close the app. A smaller version of the same model usually works well.';
+  }
+
+  @override
+  String get modelsDownloadAnyway => 'Download anyway';
+
+  @override
+  String get modelsTooLargeInline => 'Too large for this device';
+
+  @override
+  String get settingsExperimentalSection => 'More features';
+
+  @override
+  String get settingsExperimentalTitle => 'Show advanced features';
+
+  @override
+  String get settingsExperimentalSubtitle =>
+      'Adds transcript comparison, subtitle overlay, voice baking, audio editing, the local API server, and the log and storage inspectors.';
 }

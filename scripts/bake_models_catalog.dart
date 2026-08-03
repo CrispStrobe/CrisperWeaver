@@ -21,6 +21,30 @@
 import 'dart:convert';
 import 'dart:io';
 
+/// Whether a `.gguf` in an HF repo is something other than loadable weights.
+///
+/// The bake harvests every file with the repo's extension, which is right for
+/// weights and wrong for the auxiliary artefacts that live beside them. Two
+/// shipped in v0.9.7's catalogue as downloadable ASR models:
+/// `qwen3-asr-0.6b-en-de.imatrix.gguf` (1.0 MB) and
+/// `mega-asr-1.7b-en-de.imatrix.gguf` (1.7 MB). An importance matrix is
+/// quantisation calibration data — a tester picking "Qwen3-ASR 0.6B
+/// (en-de.imatrix)" downloads a megabyte and gets a load failure with nothing
+/// to explain it.
+///
+/// Note the distinction from `*-q4_k-imatrix.gguf`, which IS a model — one
+/// quantised *using* an importance matrix. Only a `.imatrix` stem suffix marks
+/// the matrix itself, so the check is anchored rather than a substring match.
+bool _isNotAModel(String fname) {
+  final f = fname.toLowerCase();
+  // The calibration matrix itself, not a model quantised with one.
+  if (f.endsWith('.imatrix.gguf')) return true;
+  // Adapters and auxiliary tensors that need a base model to mean anything.
+  if (f.endsWith('-lora.gguf') || f.endsWith('.lora.gguf')) return true;
+  if (f.endsWith('-vocab.gguf') || f.endsWith('-tokenizer.gguf')) return true;
+  return false;
+}
+
 class RepoSpec {
   final String backend;
   final String repoId;
@@ -731,6 +755,10 @@ Future<void> main() async {
       if (sib is! Map) continue;
       final fname = sib['rfilename'] as String? ?? '';
       if (!fname.endsWith(repo.extension)) continue;
+      if (_isNotAModel(fname)) {
+        stdout.writeln('  skipping non-weight artefact: $fname');
+        continue;
+      }
       final stem = fname.substring(0, fname.length - repo.extension.length);
       final sizeBytes = (sib['size'] as num?)?.toInt() ?? 0;
 

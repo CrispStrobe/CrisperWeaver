@@ -14,6 +14,7 @@ import '../l10n/generated/app_localizations.dart';
 import '../main.dart' show modelServiceProvider;
 import '../providers/synthesize_screen_provider.dart';
 import '../services/log_service.dart';
+import '../services/settings_service.dart' show settingsServiceProvider;
 import '../services/model_service.dart';
 import '../services/tts_service.dart';
 import '../utils/file_picker_util.dart';
@@ -796,7 +797,9 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
             icon: const Icon(Icons.record_voice_over_outlined),
             onPressed: () => context.push('/voice-clone'),
           ),
-          if (VoiceBakingService.isSupported)
+          // Beta: voice baking presumes a finished cloning workflow.
+          if (VoiceBakingService.isSupported &&
+              ref.read(settingsServiceProvider).experimentalFeatures)
             IconButton(
               tooltip: l.voiceBakeOpenTooltip,
               icon: const Icon(Icons.cake),

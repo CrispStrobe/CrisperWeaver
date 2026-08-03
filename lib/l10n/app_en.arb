@@ -1,9 +1,7 @@
 {
   "@@locale": "en",
-
   "appName": "CrisperWeaver",
   "appTagline": "Audio transcription with speaker diarization",
-
   "menuHistory": "History",
   "menuSettings": "Settings",
   "menuModels": "Models",
@@ -16,10 +14,8 @@
   "tabRun": "Run",
   "tabOutput": "Output",
   "navHome": "Transcribe",
-
   "engineReady": "Engine ready",
   "engineStarting": "Engine starting…",
-
   "audioInput": "Audio input",
   "noFileSelected": "No file selected",
   "browse": "Browse",
@@ -29,12 +25,10 @@
   "language": "Language",
   "languageAuto": "Auto-detect",
   "model": "Model",
-
   "transcribe": "Transcribe",
   "transcribing": "Transcribing…",
   "stop": "Stop",
   "clear": "Clear",
-
   "transcriptionOutput": "Transcription output",
   "noTranscriptionYet": "No transcription yet",
   "noTranscriptionHint": "Select an audio file and start transcription",
@@ -43,7 +37,6 @@
   "noResultsHint": "Try a different search term",
   "tabSegments": "Segments",
   "tabFullText": "Full Text",
-
   "sharePlain": "Share plain text",
   "copyClipboard": "Copy to clipboard",
   "saveAsTxt": "Save as .txt",
@@ -51,7 +44,6 @@
   "saveAsVtt": "Save as .vtt",
   "saveAsJson": "Save as .json",
   "copied": "Copied",
-
   "perfRtf": "RTF",
   "perfAudio": "Audio",
   "perfWall": "Wall",
@@ -61,14 +53,12 @@
   "perfModel": "Model",
   "perfFasterThanRealtime": "faster than real-time",
   "perfSlowerThanRealtime": "slower than real-time",
-
   "diarizationTitle": "Speaker diarization",
   "diarizationSubtitle": "Identify different speakers in audio recordings",
   "diarizationModel": "Diarization model",
   "minSpeakers": "Min. speakers",
   "maxSpeakers": "Max. speakers",
   "auto": "Auto",
-
   "settingsTitle": "Settings",
   "settingsAppLanguage": "App language",
   "settingsInterfaceLanguage": "Interface language",
@@ -78,12 +68,20 @@
   "settingsSelectEngine": "Select engine",
   "settingsEngineSwitched": "Switched to {engine}",
   "@settingsEngineSwitched": {
-    "placeholders": {"engine": {"type": "String"}}
+    "placeholders": {
+      "engine": {
+        "type": "String"
+      }
+    }
   },
   "settingsEngineSwitchFailed": "Engine switch failed",
   "settingsAudioQualityCurrent": "Recording quality: {percent}%",
   "@settingsAudioQualityCurrent": {
-    "placeholders": {"percent": {"type": "int"}}
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
   },
   "settingsCacheCleared": "Cache cleared successfully",
   "settingsHfToken": "HuggingFace API token",
@@ -93,11 +91,23 @@
   "settingsModelsDirPickTitle": "Pick models directory",
   "settingsModelsDirCurrentDefault": "Currently using the default app-sandbox path. Pick a custom directory to share GGUFs with other tools (e.g. an external drive).",
   "settingsModelsDirCurrent": "Current: {path}",
-  "@settingsModelsDirCurrent": {"placeholders": {"path": {"type": "String"}}},
+  "@settingsModelsDirCurrent": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
   "settingsModelsDirPick": "Pick…",
   "settingsModelsDirReset": "Use default",
   "settingsModelsDirSet": "Models directory set to {path}",
-  "@settingsModelsDirSet": {"placeholders": {"path": {"type": "String"}}},
+  "@settingsModelsDirSet": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
   "languageEn": "English",
   "languageDe": "German",
   "languageEs": "Spanish",
@@ -108,16 +118,22 @@
   "languageJa": "Japanese",
   "languageKo": "Korean",
   "languageRu": "Russian",
-
   "modelSize": "Size: {size}",
   "@modelSize": {
-    "placeholders": {"size": {"type": "String"}}
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
   },
   "modelDeleteConfirm": "Are you sure you want to delete {name}?",
   "@modelDeleteConfirm": {
-    "placeholders": {"name": {"type": "String"}}
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
   },
-
   "historyCopy": "Copy",
   "historyExportSrt": "Export SRT",
   "historyExportTxt": "Export TXT",
@@ -125,17 +141,28 @@
   "historyDelete": "Delete",
   "historyFailedToLoad": "Failed to load history: {error}",
   "@historyFailedToLoad": {
-    "placeholders": {"error": {"type": "String"}}
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
   "historySaved": "Saved {path}",
   "@historySaved": {
-    "placeholders": {"path": {"type": "String"}}
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
   },
   "historyExportFailed": "Export failed: {error}",
   "@historyExportFailed": {
-    "placeholders": {"error": {"type": "String"}}
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
-
   "recorderDeleteTitle": "Delete recording",
   "recorderDeleteBody": "Are you sure you want to delete this recording?",
   "recorderQueuedForTranscription": "Recording queued for transcription.",
@@ -144,7 +171,6 @@
   "recorderSystemAudioTooltip": "Capture system audio (Zoom call, browser tab, podcast app) and transcribe live. macOS 13+ only; first use prompts for Screen Recording permission.",
   "recorderSystemAudioPermission": "Screen Recording permission denied. Open System Settings → Privacy & Security → Screen Recording and tick CrisperWeaver, then try again.",
   "recorderSystemAudioUnsupported": "System audio capture is not yet supported on this platform. Tracked in PLAN.md §5.1.1.",
-
   "outputShowTimestamps": "Show timestamps",
   "outputShowSpeakers": "Show speakers",
   "outputShowConfidence": "Show confidence",
@@ -161,53 +187,92 @@
   "outputEditAltPickTooltip": "Pick an alternative candidate for this word",
   "outputRenameSpeakerTitle": "Rename speaker",
   "outputRenameSpeakerOriginal": "Original label: {original}",
-  "@outputRenameSpeakerOriginal": {"placeholders": {"original": {"type": "String"}}},
+  "@outputRenameSpeakerOriginal": {
+    "placeholders": {
+      "original": {
+        "type": "String"
+      }
+    }
+  },
   "outputRenameSpeakerReset": "Reset to original",
   "outputSegmentCopied": "Segment copied to clipboard",
   "outputAllCopied": "All transcription copied to clipboard",
   "outputPlayingSegment": "Playing segment: {time}",
   "@outputPlayingSegment": {
-    "placeholders": {"time": {"type": "String"}}
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
   },
-
   "settingsLoading": "Loading…",
-
   "transcribeLanguageLabel": "Language",
   "transcribeLoadingButton": "Loading {model}…",
   "@transcribeLoadingButton": {
     "description": "Transcribe button label during the model-load phase. `model` is the model's display name optionally followed by ' (size)' e.g. 'Whisper Base (140 MB)'.",
-    "placeholders": {"model": {"type": "String"}}
+    "placeholders": {
+      "model": {
+        "type": "String"
+      }
+    }
   },
   "transcribeLoadingFallback": "Loading model…",
   "transcribeLoadingDetail": "Loading model: {model} — first transcribe on this model takes ~5–15 s while the worker pool spawns and the weights map into memory.",
   "@transcribeLoadingDetail": {
     "description": "Inline status row under the output panel during the model-load phase.",
-    "placeholders": {"model": {"type": "String"}}
+    "placeholders": {
+      "model": {
+        "type": "String"
+      }
+    }
   },
   "transcribeStarting": "Starting download: {model}",
   "@transcribeStarting": {
-    "placeholders": {"model": {"type": "String"}}
+    "placeholders": {
+      "model": {
+        "type": "String"
+      }
+    }
   },
   "transcribeUnsupportedFile": "Unsupported file type: {name}",
   "@transcribeUnsupportedFile": {
-    "placeholders": {"name": {"type": "String"}}
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
   },
   "transcribeLoadedFile": "Loaded {name}",
   "@transcribeLoadedFile": {
-    "placeholders": {"name": {"type": "String"}}
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
   },
-
   "aboutEmail": "Email: {email}",
   "@aboutEmail": {
-    "placeholders": {"email": {"type": "String"}}
+    "placeholders": {
+      "email": {
+        "type": "String"
+      }
+    }
   },
   "aboutPhone": "Phone: {phone}",
   "@aboutPhone": {
-    "placeholders": {"phone": {"type": "String"}}
+    "placeholders": {
+      "phone": {
+        "type": "String"
+      }
+    }
   },
   "aboutVersion": "Version {version}",
   "@aboutVersion": {
-    "placeholders": {"version": {"type": "String"}}
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
   },
   "settingsTranscription": "Transcription",
   "settingsDefaultModel": "Default model",
@@ -236,37 +301,61 @@
   "storageTotalUsed": "Total on disk",
   "storageBackendCount": "{count, plural, one{1 backend} other{{count} backends}}",
   "@storageBackendCount": {
-    "placeholders": {"count": {"type": "int"}}
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "storageFilesCount": "{size} • {count, plural, one{1 file} other{{count} files}}",
   "@storageFilesCount": {
     "placeholders": {
-      "size": {"type": "String"},
-      "count": {"type": "int"}
+      "size": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
     }
   },
   "storageDeleteAllTooltip": "Delete all models for this backend",
   "storageDeleteTitle": "Delete all {backend} models?",
   "@storageDeleteTitle": {
-    "placeholders": {"backend": {"type": "String"}}
+    "placeholders": {
+      "backend": {
+        "type": "String"
+      }
+    }
   },
   "storageDeleteMessage": "This will free {size} across {count, plural, one{1 file} other{{count} files}} and cannot be undone.",
   "@storageDeleteMessage": {
     "placeholders": {
-      "size": {"type": "String"},
-      "count": {"type": "int"}
+      "size": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
     }
   },
   "storageDeleteConfirm": "Delete",
   "storageDeletedSnack": "Freed {size}",
   "@storageDeletedSnack": {
-    "placeholders": {"size": {"type": "String"}}
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
   },
   "settingsDebugging": "Debugging & development",
   "settingsLogLevel": "Log level",
   "settingsLogLevelCurrent": "Currently {level}",
   "@settingsLogLevelCurrent": {
-    "placeholders": {"level": {"type": "String"}}
+    "placeholders": {
+      "level": {
+        "type": "String"
+      }
+    }
   },
   "settingsMirrorLogs": "Mirror logs to file",
   "settingsMirrorLogsSubtitle": "Writes to logs/session.log in the app documents directory",
@@ -279,30 +368,52 @@
   "settingsMaxConcurrentSessions": "Parallel sessions",
   "settingsMaxConcurrentSessionsCurrent": "Parallel sessions: {n}",
   "@settingsMaxConcurrentSessionsCurrent": {
-    "placeholders": { "n": { "type": "int" } }
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
   },
   "settingsMaxConcurrentSessionsSubtitle": "1 = single session (default). 2+ spins up N worker isolates each holding its own model copy in RAM. Cost is N × model size; pre-flight clamps down if it wouldn't fit on this device.",
   "settingsMemoryProjection": "Projected RAM: {projected} of {total} (per-worker: {per})",
   "@settingsMemoryProjection": {
     "placeholders": {
-      "projected": { "type": "String" },
-      "total": { "type": "String" },
-      "per": { "type": "String" }
+      "projected": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      },
+      "per": {
+        "type": "String"
+      }
     }
   },
   "settingsMemoryProjectionClamped": "Clamped to {affordable} of {requested} workers — model is too big for available RAM",
   "@settingsMemoryProjectionClamped": {
     "placeholders": {
-      "affordable": { "type": "int" },
-      "requested": { "type": "int" }
+      "affordable": {
+        "type": "int"
+      },
+      "requested": {
+        "type": "int"
+      }
     }
   },
   "batchResumedSnackbar": "{n, plural, =1{Recovered 1 interrupted transcription} other{Recovered {n} interrupted transcriptions}} — hit Start to resume",
   "@batchResumedSnackbar": {
-    "placeholders": { "n": { "type": "int" } }
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
   },
   "@settingsMaxConcurrentCurrent": {
-    "placeholders": { "n": { "type": "int" } }
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
   },
   "settingsMaxConcurrentSubtitle": "1 = serial (current behaviour). 2+ pre-decodes the next file's audio in a worker isolate while the current file is being transcribed — extra parallelism without extra model copies in RAM.",
   "settingsOpenLogViewer": "Open log viewer",
@@ -315,7 +426,13 @@
   "speakersAdd": "Add speaker",
   "speakersDeleteTitle": "Delete enrolled speaker?",
   "speakersDeleteBody": "{name}'s voice profile will be removed from this device.",
-  "@speakersDeleteBody": { "placeholders": { "name": { "type": "String" } } },
+  "@speakersDeleteBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "speakersDeleteFailed": "Failed to delete profile.",
   "speakersEnrolTitle": "Enrol speaker",
   "speakersSourceRecord": "Record",
@@ -329,11 +446,29 @@
   "speakersRecord": "Start recording",
   "speakersRecordStop": "Stop",
   "speakersRecordHint": "Tap to record a {seconds} s sample of this person speaking.",
-  "@speakersRecordHint": { "placeholders": { "seconds": { "type": "int" } } },
+  "@speakersRecordHint": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
   "speakersRecordingCountdown": "Recording… {seconds} s left",
-  "@speakersRecordingCountdown": { "placeholders": { "seconds": { "type": "int" } } },
+  "@speakersRecordingCountdown": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
   "speakersRecordingDone": "Captured {seconds} s of audio.",
-  "@speakersRecordingDone": { "placeholders": { "seconds": { "type": "int" } } },
+  "@speakersRecordingDone": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
   "speakersRecordNoPermission": "Microphone permission was denied.",
   "speakersPickHint": "Pick any audio file with a clear sample of this person speaking.",
   "speakersPickButton": "Choose audio file",
@@ -346,20 +481,31 @@
   "settingsHfTokenSubtitle": "Required for gated or private repositories.",
   "settingsHfTokenSave": "SAVE",
   "settingsHfTokenCancel": "CANCEL",
-
   "transcriptionNoModelsFound": "No models found",
   "transcriptionRetry": "Retry",
   "transcriptionLoadFailed": "Load failed: {error}",
   "@transcriptionLoadFailed": {
-    "placeholders": {"error": {"type": "String"}}
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
   "transcriptionSavedTo": "Saved {path}",
   "@transcriptionSavedTo": {
-    "placeholders": {"path": {"type": "String"}}
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
   },
   "transcriptionSaveFailed": "Save failed: {error}",
   "@transcriptionSaveFailed": {
-    "placeholders": {"error": {"type": "String"}}
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
   "transcriptionCopiedToClipboard": "Copied to clipboard",
   "transcriptionShareSheetTitle": "Share or save",
@@ -371,25 +517,35 @@
   "transcriptionSaveAsJson": "Save as JSON",
   "transcriptionDownloadModel": "Download Model",
   "transcriptionDownload": "DOWNLOAD",
-
   "advancedBestOfSingle": "Best-of-N: single decode (1)",
   "advancedBestOfCurrent": "Best-of-N: {n} decodes",
   "@advancedBestOfCurrent": {
-    "placeholders": {"n": {"type": "int"}}
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
   },
   "advancedBestOfHelper": "1 = single decode (default). >1 runs N independent decodes and picks the highest-scoring result. Whisper consumes this internally; other backends loop externally and pick the highest-mean-confidence transcript. Cost is N× per-call decode time.",
-
   "advancedTemperatureGreedy": "Decoder temperature: greedy (0.00)",
   "advancedTemperatureCurrent": "Decoder temperature: {value}",
   "@advancedTemperatureCurrent": {
-    "placeholders": {"value": {"type": "String"}}
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
   },
   "advancedTemperatureHelper": "0.00 = greedy / reproducible. > 0 = stochastic sampling — useful when greedy decoding hallucinates a repetition. Whisper has its own internal fallback ladder; this affects sampling backends (canary, cohere, parakeet, moonshine).",
   "downloadModelPrompt": "The model \"{name}\" is not yet downloaded. Would you like to download it now (~{size})?",
   "@downloadModelPrompt": {
     "placeholders": {
-      "name": {"type": "String"},
-      "size": {"type": "String"}
+      "name": {
+        "type": "String"
+      },
+      "size": {
+        "type": "String"
+      }
     }
   },
   "tooltipDeleteRecording": "Delete recording",
@@ -403,23 +559,32 @@
   "streamingRequiresWhisper": "Streaming requires the Whisper engine. Switch backend in Settings.",
   "streamingMicUnavailable": "Microphone unavailable for streaming.",
   "streamingEngineNoSession": "Engine returned no streaming session.",
-
   "playbackFailed": "Playback failed: {error}",
   "@playbackFailed": {
-    "placeholders": {"error": {"type": "String"}}
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
   "synthesizeFailed": "Synthesize failed: {error}",
   "@synthesizeFailed": {
-    "placeholders": {"error": {"type": "String"}}
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
-
   "logsShowLevel": "Show {level} and above",
   "@logsShowLevel": {
-    "placeholders": {"level": {"type": "String"}}
+    "placeholders": {
+      "level": {
+        "type": "String"
+      }
+    }
   },
   "diarizationAuto": "Auto",
   "diarizationModelSelectionTitle": "Diarization Model Selection",
-
   "aboutServiceProvider": "Service Provider",
   "aboutContact": "Contact",
   "aboutPrivacy": "Privacy",
@@ -429,7 +594,6 @@
   "aboutPrivacyText": "CrisperWeaver processes all audio locally on your device. No audio data, transcripts, or recordings are sent to any server. Model downloads fetch GGUF weights directly from HuggingFace over HTTPS; nothing else leaves the device.",
   "aboutDisclaimerText": "This software is provided \"as is\", without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose and noninfringement. In no event shall the authors be liable for any claim, damages or other liability arising from, out of or in connection with the software or its use.",
   "aboutLicenseText": "CrisperWeaver is free software, licensed under the GNU Affero General Public License v3.0 (AGPL-3.0). You may redistribute and modify it under the terms of that license. In particular, if you run a modified version of CrisperWeaver as a network service, you must make your source code available to its users.",
-
   "historyTitle": "Transcription history",
   "historyEmpty": "No transcriptions yet",
   "historyEmptyHint": "Run a transcription and it will show up here.",
@@ -438,26 +602,32 @@
   "historySearchHint": "Search title or transcript…",
   "historySearchNoResults": "No history entries match \"{query}\"",
   "@historySearchNoResults": {
-    "placeholders": { "query": { "type": "String" } }
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
   },
   "historySearchMatchCount": "{matched, plural, =1{1 of {total} matched} other{{matched} of {total} matched}}",
   "@historySearchMatchCount": {
     "placeholders": {
-      "matched": { "type": "int" },
-      "total": { "type": "int" }
+      "matched": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
     }
   },
   "historyClearAllPrompt": "Remove every saved transcription from this device. This cannot be undone.",
   "cancel": "Cancel",
   "delete": "Delete",
-
   "logsTitle": "Logs",
   "logsFilterHint": "Filter by message, tag, or error…",
   "logsCopyVisible": "Copy visible",
   "logsCopyAll": "Copy all",
   "logsExport": "Export to file",
   "logsShare": "Share as file",
-
   "modelsTitle": "Model management",
   "modelsNoneAvailable": "No models available",
   "modelsRetry": "Retry",
@@ -467,9 +637,12 @@
   "modelsNotDownloaded": "Not downloaded",
   "modelsDownloadingPercent": "Downloading… {percent}%",
   "@modelsDownloadingPercent": {
-    "placeholders": {"percent": {"type": "String"}}
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
   },
-
   "error": "Error",
   "ok": "OK",
   "save": "Save",
@@ -479,13 +652,21 @@
   "settingsSelectBackend": "Select default backend",
   "settingsSelectModel": "Select default model ({backend})",
   "@settingsSelectModel": {
-    "placeholders": {"backend": {"type": "String"}}
+    "placeholders": {
+      "backend": {
+        "type": "String"
+      }
+    }
   },
   "settingsSelectLanguage": "Select default language",
   "settingsSelectInterfaceLanguage": "Select interface language",
   "settingsNoModelsForBackend": "No models known for backend \"{backend}\". Use the model manager → cloud-download icon to probe HuggingFace.",
   "@settingsNoModelsForBackend": {
-    "placeholders": {"backend": {"type": "String"}}
+    "placeholders": {
+      "backend": {
+        "type": "String"
+      }
+    }
   },
   "modelFilterHint": "Filter models (name / quant)",
   "modelAnyBackend": "Any backend",
@@ -502,31 +683,45 @@
   "modelsProbedCount": "Discovered {count} new quant variant{plural}.",
   "@modelsProbedCount": {
     "placeholders": {
-      "count": {"type": "int"},
-      "plural": {"type": "String"}
+      "count": {
+        "type": "int"
+      },
+      "plural": {
+        "type": "String"
+      }
     }
   },
-
   "batchQueueTitle": "Batch queue",
   "batchQueueSummary": "{queued} queued · {running} running · {done} done · {errored} failed",
   "@batchQueueSummary": {
     "placeholders": {
-      "queued": {"type": "int"},
-      "running": {"type": "int"},
-      "done": {"type": "int"},
-      "errored": {"type": "int"}
+      "queued": {
+        "type": "int"
+      },
+      "running": {
+        "type": "int"
+      },
+      "done": {
+        "type": "int"
+      },
+      "errored": {
+        "type": "int"
+      }
     }
   },
   "batchClearCompleted": "Clear done",
   "batchRemove": "Remove from queue",
   "batchEnqueueAdded": "{count} file(s) added to queue.",
   "@batchEnqueueAdded": {
-    "placeholders": {"count": {"type": "int"}}
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "batchRunAll": "Transcribe all",
   "batchStop": "Stop batch",
   "batchQueueDropHint": "Drop audio files here to queue them",
-
   "advancedSection": "Advanced decoding",
   "advancedVadTrim": "Trim silence (VAD)",
   "advancedVadTrimSubtitle": "Skip leading and trailing silence via Silero VAD. Faster on meetings / long recordings with silent padding.",
@@ -535,13 +730,31 @@
   "advancedBeamSearch": "Beam search",
   "advancedBeamSearchSubtitle": "Slower, usually more accurate. Default is greedy.",
   "advancedBeamSize": "Beam width: {n}",
-  "@advancedBeamSize": {"placeholders": {"n": {"type": "int"}}},
+  "@advancedBeamSize": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
   "advancedBeamSizeHelper": "Number of beams for beam search. 0 = backend default (typically 5).",
   "advancedHotwordsBoost": "Hotwords boost: {value}",
-  "@advancedHotwordsBoost": {"placeholders": {"value": {"type": "String"}}},
+  "@advancedHotwordsBoost": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
   "advancedHotwordsBoostHelper": "Boost factor for CTC/TDT hotword biasing (granite, parakeet). 0 = off.",
   "advancedChunkSeconds": "Chunk window: {n}s",
-  "@advancedChunkSeconds": {"placeholders": {"n": {"type": "int"}}},
+  "@advancedChunkSeconds": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
   "advancedChunkSecondsHelper": "Transcription chunk size in seconds. 0 = per-model default (~30s). Smaller values reduce peak memory on long files.",
   "advancedInitialPrompt": "Initial prompt (vocabulary / context)",
   "advancedInitialPromptHint": "e.g. \"CrispASR, Flutter, Riverpod, Sprecher-Unterscheidung\"",
@@ -559,25 +772,41 @@
   "askPromptRefusedAffectiveTitle": "Prompt refused",
   "askPromptRefusedAffective": "This question asks the model to infer an emotional or intent-bearing attribute of a speaker (matched \"{term}\"). Inferring emotions from a voice is emotion recognition under the EU AI Act — prohibited in workplaces and schools, and high-risk elsewhere. CrisperWeaver does not do it. Ask about what was said rather than how the speaker sounded.",
   "@askPromptRefusedAffective": {
-    "placeholders": { "term": { "type": "String" } }
+    "placeholders": {
+      "term": {
+        "type": "String"
+      }
+    }
   },
   "editAudioOpen": "Open in audio editor",
   "editAudioTitle": "Edit audio",
   "editAudioLoadFailed": "Couldn't decode audio: {error}",
   "@editAudioLoadFailed": {
-    "placeholders": { "error": { "type": "String" } }
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
   "editAudioSaveAs": "Save edited audio as…",
   "editAudioSavedTo": "Saved to {path}",
   "@editAudioSavedTo": {
-    "placeholders": { "path": { "type": "String" } }
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
   },
   "editAudioTrim": "Trim",
   "editAudioCut": "Cut middle",
   "editAudioAddSplitMark": "Add split mark",
   "editAudioRunSplit": "Split into {n} files",
   "@editAudioRunSplit": {
-    "placeholders": { "n": { "type": "int" } }
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
   },
   "editAudioClearMarks": "Clear marks",
   "editAudioClearSelection": "Clear selection",
@@ -586,13 +815,21 @@
   "editAudioSelectionLabel": "Selection: {start} – {end}",
   "@editAudioSelectionLabel": {
     "placeholders": {
-      "start": { "type": "String" },
-      "end": { "type": "String" }
+      "start": {
+        "type": "String"
+      },
+      "end": {
+        "type": "String"
+      }
     }
   },
   "editAudioSplitSaved": "Saved {n} files.",
   "@editAudioSplitSaved": {
-    "placeholders": { "n": { "type": "int" } }
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
   },
   "editAudioHowto": "Tap waveform to seek. Drag to select a region. Use Trim to keep [start, end]; Cut middle to remove [start, end] and splice the rest; Add split mark to drop a split point at the current playhead, then Split to write one WAV per region.",
   "editAudioToggleTranscriptShow": "Show transcript",
@@ -605,7 +842,11 @@
   "editAudioSelectSegment": "Select this segment",
   "editAudioSegmentMarkedForCut": "Marked split point at {time}.",
   "@editAudioSegmentMarkedForCut": {
-    "placeholders": { "time": { "type": "String" } }
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
   },
   "close": "Close",
   "presetsTooltip": "Presets",
@@ -619,14 +860,22 @@
   "presetsApply": "Apply",
   "presetsApplied": "Applied preset \"{name}\".",
   "@presetsApplied": {
-    "placeholders": { "name": { "type": "String" } }
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
   },
   "presetsRenameTitle": "Rename preset",
   "presetsRenameTooltip": "Rename",
   "presetsDeleteTitle": "Delete preset?",
   "presetsDeleteConfirm": "Delete preset \"{name}\"? This can't be undone.",
   "@presetsDeleteConfirm": {
-    "placeholders": { "name": { "type": "String" } }
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
   },
   "presetsDeleteTooltip": "Delete",
   "outputSummarize": "Summarize…",
@@ -636,7 +885,11 @@
   "outputSummarizeTitle": "Summarize transcript",
   "outputSummarizeHelp": "Sends the transcript to {model} and asks for a structured summary. Output is Markdown-formatted bullet lists.",
   "@outputSummarizeHelp": {
-    "placeholders": { "model": { "type": "String" } }
+    "placeholders": {
+      "model": {
+        "type": "String"
+      }
+    }
   },
   "outputSummarizeUnconfigured": "No cloud LLM endpoint configured. Open Settings → Cloud LLM cleanup to add one — the same endpoint is used for both cleanup and summarisation.",
   "outputSummarizeKindActionItems": "Action items",
@@ -663,7 +916,11 @@
   "outputCleanupLlmPass": "Also run LLM pass (cloud)",
   "outputCleanupLlmPassHelp": "After the deterministic pass, send each segment to {model} for a context-aware cleanup. Slower; uses your configured API key.",
   "@outputCleanupLlmPassHelp": {
-    "placeholders": { "model": { "type": "String" } }
+    "placeholders": {
+      "model": {
+        "type": "String"
+      }
+    }
   },
   "outputCleanupLlmPassUnconfigured": "Configure a cloud LLM endpoint in Settings → Cloud LLM cleanup to enable this.",
   "outputCleanupLlmRunning": "Running LLM cleanup pass…",
@@ -673,11 +930,19 @@
   "outputCleanupLlmModeLocal": "Local",
   "outputCleanupLlmModeCloudHelp": "After the deterministic pass, send each segment to {model} (cloud, BYOK). Slower; uses your configured API key.",
   "@outputCleanupLlmModeCloudHelp": {
-    "placeholders": { "model": { "type": "String" } }
+    "placeholders": {
+      "model": {
+        "type": "String"
+      }
+    }
   },
   "outputCleanupLlmModeLocalHelp": "After the deterministic pass, run each segment through {model} on this device. No network, no API key; first run loads the model into memory.",
   "@outputCleanupLlmModeLocalHelp": {
-    "placeholders": { "model": { "type": "String" } }
+    "placeholders": {
+      "model": {
+        "type": "String"
+      }
+    }
   },
   "outputCleanupLlmModeCloudUnconfigured": "Configure a cloud LLM endpoint in Settings → Cloud LLM cleanup to enable this.",
   "outputCleanupLlmModeLocalUnconfigured": "Point at a GGUF chat model in Settings → Local LLM cleanup to enable this.",
@@ -691,28 +956,48 @@
   "settingsLocalLlmAdvanced": "Advanced parameters",
   "settingsLocalLlmNGpuLayers": "GPU layers: {n}",
   "@settingsLocalLlmNGpuLayers": {
-    "placeholders": { "n": { "type": "int" } }
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
   },
   "settingsLocalLlmNGpuLayersAll": "GPU layers: all",
   "settingsLocalLlmNGpuLayersHelp": "-1 = offload every layer to the GPU (default; Metal on macOS / CUDA on Linux+Windows when available). 0 = CPU only. Positive values are partial offload for low-VRAM machines.",
   "settingsLocalLlmNCtx": "Context window (tokens): {n}",
   "@settingsLocalLlmNCtx": {
-    "placeholders": { "n": { "type": "int" } }
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
   },
   "settingsLocalLlmNCtxDefault": "Context window: model default",
   "settingsLocalLlmNCtxHelp": "0 keeps the GGUF's baked-in default. Raise this when summarising long transcripts; lower it on memory-constrained hosts.",
   "settingsLocalLlmNThreads": "CPU threads: {n}",
   "@settingsLocalLlmNThreads": {
-    "placeholders": { "n": { "type": "int" } }
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
   },
   "settingsLocalLlmNThreadsAuto": "CPU threads: auto",
   "settingsLocalLlmMaxTokens": "Max output tokens per call: {n}",
   "@settingsLocalLlmMaxTokens": {
-    "placeholders": { "n": { "type": "int" } }
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
   },
   "settingsLocalLlmTemperature": "Temperature: {t}",
   "@settingsLocalLlmTemperature": {
-    "placeholders": { "t": { "type": "String" } }
+    "placeholders": {
+      "t": {
+        "type": "String"
+      }
+    }
   },
   "settingsLocalLlmUnsupported": "This libcrispasr build doesn't expose the chat ABI — needs CrispASR 0.7.0 or newer.",
   "outputCleanupLocalLlmRunning": "Running local LLM cleanup pass…",
@@ -729,7 +1014,11 @@
   "settingsHotkeyActionToggleHelp": "Press once to start, press again to stop. Simpler mental model; doesn't require holding a modifier.",
   "settingsHotkeyInvalid": "Invalid combo \"{combo}\". Use modifier+modifier+key, e.g. meta+shift+space.",
   "@settingsHotkeyInvalid": {
-    "placeholders": { "combo": { "type": "String" } }
+    "placeholders": {
+      "combo": {
+        "type": "String"
+      }
+    }
   },
   "settingsCloudLlmCleanup": "Cloud LLM cleanup (BYOK)",
   "settingsCloudLlmCleanupOff": "Off (paste an OpenAI-compatible URL + API key to enable)",
@@ -740,20 +1029,32 @@
   "settingsCloudLlmClear": "Clear",
   "outputCleanupApplied": "Cleanup applied to {n} segment(s).",
   "@outputCleanupApplied": {
-    "placeholders": { "n": { "type": "int" } }
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
   },
   "outputEditSegmentInAudioEditor": "Edit this segment in audio editor",
   "outputMarkSegmentInAudioEditor": "Mark for split in audio editor",
   "editAudioSegmentSelected": "Selection set: {start} – {end}.",
   "@editAudioSegmentSelected": {
     "placeholders": {
-      "start": { "type": "String" },
-      "end": { "type": "String" }
+      "start": {
+        "type": "String"
+      },
+      "end": {
+        "type": "String"
+      }
     }
   },
   "advancedMaxLen": "Max tokens per segment: {n}",
   "@advancedMaxLen": {
-    "placeholders": { "n": { "type": "int" } }
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
   },
   "advancedMaxLenOff": "off",
   "advancedMaxLenSubtitle": "Whisper-only soft cap. 0 = no cap (default). Pair with \"Split on word\" for SRT-friendly short subtitle lines.",
@@ -767,12 +1068,10 @@
   "advancedVocabularyHelperPrompt": "Biases the decoder via Whisper's initial_prompt. Useful for brand names, acronyms, technical jargon and people's names that the model otherwise mishears.",
   "advancedVocabularyHelperAsk": "Biases the LLM by prepending these terms to its prompt. Combined with Q&A — your question still runs.",
   "advancedVocabularyHelperUnsupported": "The active backend is CTC-style and can't bias vocabulary at the decoder. Switch to Whisper / Moonshine / an LLM-backend (Voxtral, Qwen3, Granite, …) to enable.",
-
   "advancedHotwords": "Hotwords",
   "advancedHotwordsHint": "Comma-separated words or phrases (e.g. ACME Corp, TensorFlow, Dr. Smith)",
   "advancedHotwordsHelper": "Biases the decoder toward these words/phrases. Useful for names, brands, or domain terms the model is likely to mishear.",
   "advancedHotwordsUnsupported": "The active backend doesn't support hotword biasing. Switch to an LLM-backend or Whisper to enable.",
-
   "voiceCloneOpenTooltip": "Clone a voice…",
   "voiceCloneTitle": "Voice clone wizard",
   "voiceCloneStepCapture": "Capture",
@@ -781,17 +1080,29 @@
   "voiceCloneCaptureHeading": "Capture a reference clip",
   "voiceCloneCaptureHelp": "Record about {seconds} seconds of clean speech, or pick an existing audio file. A single speaker with minimal background noise gives the best clone.",
   "@voiceCloneCaptureHelp": {
-    "placeholders": { "seconds": { "type": "int" } }
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
   },
   "voiceCloneCaptureNoPermission": "Microphone permission was denied. Grant it in your system settings and try again.",
   "voiceCloneRecord": "Record {seconds} s",
   "@voiceCloneRecord": {
-    "placeholders": { "seconds": { "type": "int" } }
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
   },
   "voiceClonePickFile": "Pick file",
   "voiceCloneRecordingCountdown": "{seconds} s remaining",
   "@voiceCloneRecordingCountdown": {
-    "placeholders": { "seconds": { "type": "int" } }
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
   },
   "voiceCloneRecordingStop": "Stop",
   "voiceClonePreviewPlay": "Play",
@@ -831,25 +1142,50 @@
   "synthNoTtsModelsDownloaded": "No TTS models downloaded yet. Open Models → Models tab → switch to \"TTS\" to fetch one.",
   "synthOpenModelManagement": "Open Model Management",
   "defaultModelNotDownloaded": "Default model \"{modelId}\" isn't downloaded yet.",
-  "@defaultModelNotDownloaded": {"placeholders": {"modelId": {"type": "String"}}},
+  "@defaultModelNotDownloaded": {
+    "placeholders": {
+      "modelId": {
+        "type": "String"
+      }
+    }
+  },
   "noModelsDownloadedYet": "No transcription model is downloaded yet — open Models to grab one.",
-  "@noModelsDownloadedYet": {"description": "Shown at first launch / before the user has downloaded any model. Replaces defaultModelNotDownloaded when there is literally nothing to load."},
+  "@noModelsDownloadedYet": {
+    "description": "Shown at first launch / before the user has downloaded any model. Replaces defaultModelNotDownloaded when there is literally nothing to load."
+  },
   "filePickerCloudFileUnsupported": "This file lives in cloud storage and can't be opened directly. Please copy it to local storage (Downloads / Files on this device) and try again.",
-  "@filePickerCloudFileUnsupported": {"description": "Shown when the OS returns a content:// URI we can't resolve to a real path (typical for Google Drive / OneDrive / Files that haven't been synced)."},
+  "@filePickerCloudFileUnsupported": {
+    "description": "Shown when the OS returns a content:// URI we can't resolve to a real path (typical for Google Drive / OneDrive / Files that haven't been synced)."
+  },
   "filePickerFailed": "File picker failed: {error}",
-  "@filePickerFailed": {"placeholders": {"error": {"type": "String"}}},
+  "@filePickerFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "openModels": "Open Models",
   "synthMissingDependency": "Missing required companion file: {name}",
-  "@synthMissingDependency": {"placeholders": {"name": {"type": "String"}}},
-
+  "@synthMissingDependency": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "synthBackendUnsupported": "{backend} synthesis isn't available in this build yet. This voice will work once an updated engine ships.",
-  "@synthBackendUnsupported": {"placeholders": {"backend": {"type": "String"}}},
-
+  "@synthBackendUnsupported": {
+    "placeholders": {
+      "backend": {
+        "type": "String"
+      }
+    }
+  },
   "synthSpeakerLabel": "Speaker",
   "synthSpeakerHelper": "This voice has built-in speakers — pick one.",
   "synthPreviewVoice": "Preview voice",
   "synthPreviewSample": "Hello, this is a voice preview.",
-
   "advancedVadBackend": "VAD backend",
   "advancedVadBackendHelper": "Silero is bundled (~885 KB). FireRed / MarbleNet / Whisper-VAD need a Model Management download; missing files fall back to Silero.",
   "advancedVadBackendSilero": "Silero (bundled, default)",
@@ -857,18 +1193,41 @@
   "advancedVadBackendMarblenet": "MarbleNet (small, multilingual)",
   "advancedVadBackendWhisperEncDec": "Whisper-VAD-EncDec (experimental EN)",
   "advancedVadThreshold": "VAD threshold: {value}",
-  "@advancedVadThreshold": {"placeholders": {"value": {"type": "String"}}},
+  "@advancedVadThreshold": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
   "advancedVadThresholdHelper": "Higher = fewer / shorter speech regions detected. CrispASR default is 0.50.",
   "advancedVadMinSpeech": "Min. speech duration: {ms} ms",
-  "@advancedVadMinSpeech": {"placeholders": {"ms": {"type": "int"}}},
+  "@advancedVadMinSpeech": {
+    "placeholders": {
+      "ms": {
+        "type": "int"
+      }
+    }
+  },
   "advancedVadMinSpeechHelper": "Shortest voiced run kept as a speech segment.",
   "advancedVadMinSilence": "Min. silence duration: {ms} ms",
-  "@advancedVadMinSilence": {"placeholders": {"ms": {"type": "int"}}},
+  "@advancedVadMinSilence": {
+    "placeholders": {
+      "ms": {
+        "type": "int"
+      }
+    }
+  },
   "advancedVadMinSilenceHelper": "Shortest silence that splits one segment from the next.",
   "advancedVadSpeechPad": "Speech padding: {ms} ms",
-  "@advancedVadSpeechPad": {"placeholders": {"ms": {"type": "int"}}},
+  "@advancedVadSpeechPad": {
+    "placeholders": {
+      "ms": {
+        "type": "int"
+      }
+    }
+  },
   "advancedVadSpeechPadHelper": "Extra context added on each side of every speech segment.",
-
   "advancedLidMethod": "Language detection method",
   "advancedLidMethodHelper": "Used when the model lacks native LID and you picked Auto. Whisper reuses any multilingual ggml-*.bin; Silero / Firered / Ecapa each need their own GGUF.",
   "advancedLidMethodWhisper": "Whisper encoder (reuses an existing model)",
@@ -882,12 +1241,27 @@
   "advancedGrammarRootRule": "Root rule",
   "advancedGrammarRootRuleHelper": "Symbol name to start parsing from. The GBNF convention is \"root\".",
   "advancedGrammarPenalty": "Grammar penalty: {value}",
-  "@advancedGrammarPenalty": {"placeholders": {"value": {"type": "String"}}},
+  "@advancedGrammarPenalty": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
   "advancedGrammarPenaltyHelper": "Higher = harder constraint, lower = softer suggestion. Upstream default is 100; useful range is 50..200.",
   "advancedTranscribeWindowTitle": "Transcribe window (offset + duration)",
   "advancedTranscribeWindowSubtitle": "Process only a [start, start+duration) slice of the audio. Empty / 0 = transcribe the whole file (default).",
   "advancedTranscribeWindowSubtitleActive": "Active: {start}s..{end}s of the file. Timestamps remain absolute on output.",
-  "@advancedTranscribeWindowSubtitleActive": {"placeholders": {"start": {"type": "String"}, "end": {"type": "String"}}},
+  "@advancedTranscribeWindowSubtitleActive": {
+    "placeholders": {
+      "start": {
+        "type": "String"
+      },
+      "end": {
+        "type": "String"
+      }
+    }
+  },
   "advancedTranscribeWindowEndOfFile": "end-of-file",
   "advancedTranscribeWindowStart": "Start (seconds)",
   "advancedTranscribeWindowStartHelper": "Offset into the file. 0 = start.",
@@ -898,16 +1272,40 @@
   "advancedFallbackThresholdsSubtitleActive": "Custom thresholds active — defaults are 2.4 / -1.0 / 0.6 / 0.2.",
   "advancedFallbackThresholdsReset": "Reset to defaults",
   "advancedEntropyThold": "Entropy threshold: {value}",
-  "@advancedEntropyThold": {"placeholders": {"value": {"type": "String"}}},
+  "@advancedEntropyThold": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
   "advancedEntropyTholdHelper": "Per-token entropy that triggers a fallback pass. Default 2.4. Lower = stricter (more retries on hard audio); raise to suppress excessive retries.",
   "advancedLogprobThold": "Logprob threshold: {value}",
-  "@advancedLogprobThold": {"placeholders": {"value": {"type": "String"}}},
+  "@advancedLogprobThold": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
   "advancedLogprobTholdHelper": "Average log-probability cutoff that triggers a fallback pass. Default -1.0. More negative = more tolerant of noisy decoding.",
   "advancedNoSpeechThold": "No-speech threshold: {value}",
-  "@advancedNoSpeechThold": {"placeholders": {"value": {"type": "String"}}},
+  "@advancedNoSpeechThold": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
   "advancedNoSpeechTholdHelper": "Silence detector cutoff. Default 0.6. Higher = less aggressive silence gating (keeps faint speech).",
   "advancedTemperatureInc": "Temperature increment: {value}",
-  "@advancedTemperatureInc": {"placeholders": {"value": {"type": "String"}}},
+  "@advancedTemperatureInc": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
   "advancedTemperatureIncDisabled": "Temperature increment: 0 (fallback disabled)",
   "advancedTemperatureIncHelper": "Temperature step per fallback pass. Default 0.2. Set to 0 to disable the fallback loop entirely (= the CLI's --no-fallback).",
   "advancedWhisperDecodeExtrasTitle": "Whisper text suppression",
@@ -925,44 +1323,51 @@
   "settingsLocalLlmCatalogueHelp": "Tap a downloaded model to select it. Tap an undownloaded model to open Model Management and download it.",
   "settingsLocalLlmCatalogueManage": "Manage",
   "settingsLocalLlmCatalogueDownloaded": "Downloaded · {size}",
-  "@settingsLocalLlmCatalogueDownloaded": {"placeholders": {"size": {"type": "String"}}},
+  "@settingsLocalLlmCatalogueDownloaded": {
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
   "settingsLocalLlmCatalogueNotDownloaded": "Not downloaded · {size}",
-  "@settingsLocalLlmCatalogueNotDownloaded": {"placeholders": {"size": {"type": "String"}}},
+  "@settingsLocalLlmCatalogueNotDownloaded": {
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
   "settingsLocalLlmCatalogueDownload": "DOWNLOAD",
   "modelsKindFilterChatLlm": "Chat LLM",
-
   "advancedDiarizeMethod": "Diarisation method",
   "advancedDiarizeMethodHelper": "Only takes effect when diarisation is enabled. vad-turns is mono-friendly; pyannote requires its segmentation GGUF; energy / xcorr need stereo audio.",
   "advancedDiarizeVadTurns": "VAD turns (mono, no extra model)",
   "advancedDiarizePyannote": "Pyannote v3 (ML, needs GGUF)",
   "advancedDiarizeEnergy": "Stereo L/R energy",
   "advancedDiarizeXcorr": "Stereo cross-correlation",
-
   "advancedSpeakerRecognition": "Identify enrolled speakers",
   "advancedSpeakerRecognitionSubtitle": "After diarisation, match each speaker cluster against the on-device speaker DB (Settings → Speakers) and replace 'Speaker N' with the enrolled name when confident. Requires the TitaNet GGUF.",
-
   "advancedTdrz": "Tinydiarize speaker turns (Whisper only)",
   "advancedTdrzSubtitle": "Insert [SPEAKER_TURN] markers via a Whisper .en.tdrz finetune. No-op on session backends.",
-
   "advancedTokenTimestamps": "Token-level timestamps",
   "advancedTokenTimestampsSubtitle": "DTW-aligned per-token timing. Slower than word timestamps; useful for fine-grained subtitle tooling.",
-
   "advancedAltN": "Alternative candidates per word (Whisper only)",
   "@advancedAltN": {},
   "advancedAltNLabel": "{n, plural, =0{Off} other{Top {n}}}",
   "@advancedAltNLabel": {
     "placeholders": {
-      "n": {"type": "int"}
+      "n": {
+        "type": "int"
+      }
     }
   },
   "advancedAltNSubtitle": "Capture the top-N runner-up tokens at each Whisper greedy step. Lets you tap an ambiguous word in the transcript editor and pick a competing candidate (kubectl / cubicle / …). 0 = off (default). Best with greedy decoding — beam search not supported. Pre-0.5.13 dylibs silently ignore.",
-
   "advancedPuncFamily": "Punctuation model",
   "advancedPuncFamilyHelper": "PCS is all-in-one (punct + truecase + SBD, 47 langs). FireRedPunc and fullstop-punc chain with the truecaser.",
   "advancedPuncFamilyPcs": "PCS (47 languages, all-in-one)",
   "advancedPuncFamilyFirered": "FireRedPunc (Chinese + English)",
   "advancedPuncFamilyFullstop": "Fullstop-punc multilang (EN/DE/FR/IT)",
-
   "transcriptionSaveAsCsv": "Save as CSV",
   "transcriptionSaveAsLrc": "Save as LRC (lyrics)",
   "transcriptionSaveAsWts": "Save as WTS (debug)",
@@ -970,7 +1375,6 @@
   "transcriptionShareAudioAndTranscript": "Share audio + transcript",
   "transcriptionShareAudioAndTranscriptHelp": "Sends the audio file and the SRT transcript as a single share — useful for archiving or handing off to a colleague.",
   "transcriptionShareAudioMissing": "Select an audio file first to share both together.",
-
   "synthAdvancedSection": "Advanced synthesis",
   "synthRefText": "Reference transcript (voice cloning)",
   "synthRefTextHelper": "Required when pairing a WAV voice with qwen3-tts Base or vibevoice-1.5b for runtime cloning. Empty for baked GGUF voices.",
@@ -979,9 +1383,14 @@
   "synthTrimSilence": "Trim silence",
   "synthTrimSilenceSubtitle": "Strip leading and trailing silence below -72 dBFS from the synthesised PCM.",
   "synthSpeed": "Speed: {value}×",
-  "@synthSpeed": {"placeholders": {"value": {"type": "String"}}},
+  "@synthSpeed": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
   "synthSpeedHelper": "Playback speed multiplier (0.25× – 4.00×). Nearest-neighbour resample; no pitch correction.",
-
   "translateTitle": "Translate text",
   "translateModelLabel": "Translation model",
   "translateSourceLang": "From",
@@ -994,31 +1403,45 @@
   "translateNoModelsDownloaded": "No translation models downloaded. Open Models, switch to the Translate filter, and fetch one of M2M-100, WMT21 (en→X / X→en), or MADLAD-400.",
   "translateAdvanced": "Advanced",
   "translateMaxTokens": "Max output tokens: {n}",
-  "@translateMaxTokens": {"placeholders": {"n": {"type": "int"}}},
+  "@translateMaxTokens": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
   "translateMaxTokensHelper": "Hard cap on translated-text length. CrispASR's default is 200; raise for long passages, lower to keep generation snappy.",
-
   "advancedPerfHeader": "Performance",
   "advancedLidUseGpu": "LID on GPU",
   "advancedLidUseGpuSubtitle": "Route language detection to Metal / CUDA / Vulkan when supported. ASR backends honour their own per-session GPU setup at load time.",
   "advancedLidFlashAttn": "LID flash-attention",
   "advancedLidFlashAttnSubtitle": "Faster attention kernel during the LID encoder pass. Disable only if you suspect a flash-attn correctness bug on your build.",
   "advancedNThreads": "CPU threads: {n}",
-  "@advancedNThreads": {"placeholders": {"n": {"type": "int"}}},
+  "@advancedNThreads": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
   "advancedNThreadsHelper": "Threads used for LID and other non-decoder passes. Defaults to 4.",
-
   "synthCustomVoice": "Custom voice (WAV reference)",
   "synthCustomVoiceHelper": "Pick a WAV from disk for runtime cloning. Pair with the Reference transcript on qwen3-tts Base / vibevoice-1.5b. Overrides the voicepack dropdown when set.",
   "synthCustomVoicePick": "Pick reference WAV…",
   "synthCustomVoiceReplace": "Replace reference WAV…",
   "synthCustomVoiceClear": "Clear custom voice",
-
   "recorderStreamSession": "Stream (session)",
   "recorderStreamSessionTooltip": "Live mic transcribe through the active backend's streaming arm (kyutai-stt / moonshine-streaming / voxtral4b). Falls back to Whisper sliding-window when the backend has no native stream API.",
   "streamingNotAvailableForBackend": "The active backend ({backend}) has no streaming arm. Switch to whisper, kyutai-stt, moonshine-streaming, or voxtral4b.",
-  "@streamingNotAvailableForBackend": {"placeholders": {"backend": {"type": "String"}}},
+  "@streamingNotAvailableForBackend": {
+    "placeholders": {
+      "backend": {
+        "type": "String"
+      }
+    }
+  },
   "streamingNoModelLoaded": "No model loaded yet. Pick a model from the dropdown above (it'll auto-load if downloaded), or open Model Management to download one first.",
   "transcribeNoSource": "Please select an audio file, enter a URL, or make a recording.",
-
   "voiceBakeTitle": "Bake voice (WAV → GGUF)",
   "voiceBakeOpenTooltip": "Bake a Chatterbox voice from a WAV reference",
   "voiceBakeIntro": "Run CrispASR's bake-chatterbox-voice-from-wav.py to convert a WAV reference into a baked voicepack GGUF. Requires Python 3 + chatterbox-tts + gguf installed on the system.",
@@ -1027,7 +1450,13 @@
   "voiceBakeOutputName": "Output filename",
   "voiceBakeOutputNameHelper": "Saved into your models directory next to other voicepacks. Use the .gguf extension.",
   "voiceBakeExaggeration": "Exaggeration: {value}",
-  "@voiceBakeExaggeration": {"placeholders": {"value": {"type": "String"}}},
+  "@voiceBakeExaggeration": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
   "voiceBakeExaggerationHelper": "Default emotion-advance scalar (0.0 – 1.0). 0.5 is the upstream default.",
   "voiceBakePythonLabel": "Python interpreter",
   "voiceBakePythonHelper": "Defaults to `python3` on PATH. Override if your chatterbox-tts / gguf install lives in a venv.",
@@ -1036,83 +1465,205 @@
   "voiceBakeRun": "Bake voice",
   "voiceBakeRunning": "Baking…",
   "voiceBakeSuccess": "Voice baked → {path}",
-  "@voiceBakeSuccess": {"placeholders": {"path": {"type": "String"}}},
+  "@voiceBakeSuccess": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
   "voiceBakeFailure": "Bake failed: {error}",
-  "@voiceBakeFailure": {"placeholders": {"error": {"type": "String"}}},
+  "@voiceBakeFailure": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "voiceBakeMissingInputs": "Pick a reference WAV and an output filename first.",
-
   "advancedAsrUseGpu": "ASR on GPU",
   "advancedAsrUseGpuSubtitle": "Route ASR session inits to Metal / CUDA / Vulkan when supported. Takes effect on the next model load. Backends without runtime GPU control keep their compile-time default.",
   "advancedAsrFlashAttn": "ASR flash-attention",
   "advancedAsrFlashAttnSubtitle": "Use the flash-attention kernel for the ASR compute graph. Honoured by Whisper natively; other backends accept the toggle but their compute graphs aren't yet branched on it. Takes effect on the next model load.",
   "advancedAsrNGpuLayers": "GPU layers (LLM): {n}",
-  "@advancedAsrNGpuLayers": {"placeholders": {"n": {"type": "int"}}},
+  "@advancedAsrNGpuLayers": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
   "advancedAsrNGpuLayersAuto": "GPU layers (LLM): auto (max)",
   "advancedAsrNGpuLayersHelper": "Cap on GPU-offloaded transformer layers for LLM-based backends (orpheus / voxtral / qwen3 / granite / chatterbox). 0 = run LLM on CPU; 1+ = explicit bound; auto = as many as fit. Takes effect on the next model load.",
-
   "settingsServerSection": "Local HTTP server (OpenAI-compatible)",
   "settingsServerEnable": "Run server",
   "settingsServerRunningAt": "Listening on {url}",
-  "@settingsServerRunningAt": {"placeholders": {"url": {"type": "String"}}},
+  "@settingsServerRunningAt": {
+    "placeholders": {
+      "url": {
+        "type": "String"
+      }
+    }
+  },
   "settingsServerStopped": "Stopped. Toggle on to expose CrisperWeaver's services on a local port.",
   "settingsServerStartFailed": "Failed to start server: {error}",
-  "@settingsServerStartFailed": {"placeholders": {"error": {"type": "String"}}},
+  "@settingsServerStartFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "settingsServerEndpoints": "Endpoints",
   "settingsServerEndpointsHelp": "POST /v1/audio/transcriptions (multipart upload, file=audio) · POST /v1/audio/speech (JSON: model, input, voice, speed) · POST /v1/translations (JSON: model, text, src, tgt) · GET /health. Binds to 127.0.0.1 only — no auth.",
-
   "synthTemperature": "Temperature: {value}",
-  "@synthTemperature": {"placeholders": {"value": {"type": "String"}}},
+  "@synthTemperature": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
   "synthTemperatureHelper": "Sampling temperature shared across orpheus / chatterbox / canary. 0.0 = greedy / reproducible. Higher = more variety.",
   "synthTtsSteps": "Diffusion steps: {n}",
-  "@synthTtsSteps": {"placeholders": {"n": {"type": "int"}}},
+  "@synthTtsSteps": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
   "synthTtsStepsHelper": "Number of CFM Euler steps in the chatterbox mel decoder (default 10). Higher = smoother audio at the cost of latency.",
   "synthCfgWeight": "CFG weight: {value}",
-  "@synthCfgWeight": {"placeholders": {"value": {"type": "String"}}},
+  "@synthCfgWeight": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
   "synthCfgWeightHelper": "Classifier-free-guidance weight (chatterbox). 0 disables CFG; 0.5 is the upstream default; 1+ amplifies the conditional path.",
   "synthExaggeration": "Exaggeration: {value}",
-  "@synthExaggeration": {"placeholders": {"value": {"type": "String"}}},
+  "@synthExaggeration": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
   "synthExaggerationHelper": "Emotion-exaggeration scalar (chatterbox). 0.5 is the upstream default; raise for dramatic delivery, lower for monotone.",
   "synthTopP": "Top-p: {value}",
-  "@synthTopP": {"placeholders": {"value": {"type": "String"}}},
+  "@synthTopP": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
   "synthTopPHelper": "Top-p nucleus sampling threshold (chatterbox). 1.0 disables top-p; lower values cut the long tail of unlikely tokens.",
   "synthMinP": "Min-p: {value}",
-  "@synthMinP": {"placeholders": {"value": {"type": "String"}}},
+  "@synthMinP": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
   "synthMinPHelper": "Min-p threshold (chatterbox). 0 disables; positive values drop tokens whose probability falls below this fraction of the most-likely token.",
   "synthRepetitionPenalty": "Repetition penalty: {value}",
-  "@synthRepetitionPenalty": {"placeholders": {"value": {"type": "String"}}},
+  "@synthRepetitionPenalty": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
   "synthRepetitionPenaltyHelper": "Repeat-penalty scalar (chatterbox). 1.0 disables; raise to discourage the model from loop-stuttering on repeated tokens.",
   "synthMaxSpeechTokens": "Max speech tokens: {n}",
-  "@synthMaxSpeechTokens": {"placeholders": {"n": {"type": "int"}}},
+  "@synthMaxSpeechTokens": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
   "synthMaxSpeechTokensHelper": "Hard cap on AR speech tokens per call (chatterbox). 1000 ≈ 20 s; raise for long inputs, lower to bound runaway generation.",
   "synthSeed": "Seed: {n}",
-  "@synthSeed": {"placeholders": {"n": {"type": "int"}}},
+  "@synthSeed": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
   "synthSeedHelper": "Random seed for reproducible output (chatterbox, vibevoice, qwen3-tts, orpheus). 0 = non-deterministic.",
   "synthFrequencyPenalty": "Frequency penalty: {value}",
-  "@synthFrequencyPenalty": {"placeholders": {"value": {"type": "String"}}},
+  "@synthFrequencyPenalty": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
   "synthFrequencyPenaltyHelper": "Penalises repeated tokens in autoregressive backends. 0 = off; raise to reduce loop-stuttering artefacts.",
   "synthTopK": "Top-K: {n}",
-  "@synthTopK": {"placeholders": {"n": {"type": "int"}}},
+  "@synthTopK": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
   "synthTopKHelper": "Top-K sampling width (qwen3-tts, chatterbox, orpheus, dots-tts, tada). 0 = disabled.",
   "synthDoSample": "Stochastic sampling",
   "synthDoSampleHelper": "Enable stochastic sampling instead of greedy decoding.",
   "synthNumCandidates": "Acoustic candidates: {n}",
-  "@synthNumCandidates": {"placeholders": {"n": {"type": "int"}}},
+  "@synthNumCandidates": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
   "synthNumCandidatesHelper": "Number of acoustic candidates for ranking (tada, chatterbox, kokoro). 0 = backend default.",
   "synthNoiseTemp": "Noise temperature: {value}",
-  "@synthNoiseTemp": {"placeholders": {"value": {"type": "String"}}},
+  "@synthNoiseTemp": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
   "synthNoiseTempHelper": "Noise temperature for stochastic generation (kokoro, vibevoice). 0 = backend default.",
   "synthG2pDict": "G2P dictionary",
   "synthG2pDictHelper": "Grapheme-to-phoneme dictionary path (kokoro, vibevoice, speecht5).",
   "synthClearPhonemeCache": "Clear phoneme cache",
   "synthClearPhonemeCacheDone": "Phoneme cache cleared.",
   "synthClearPhonemeCacheUnsupported": "This backend doesn't use a phoneme cache (or the open session is too old).",
-
   "modelsLoadFailed": "Failed to load models: {error}",
-  "@modelsLoadFailed": {"placeholders": {"error": {"type": "String"}}},
+  "@modelsLoadFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "modelsProbeFailed": "HuggingFace probe failed: {error}",
-  "@modelsProbeFailed": {"placeholders": {"error": {"type": "String"}}},
+  "@modelsProbeFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "modelsSkippedRepos": " Skipped {count, plural, one{1 private/gated repo} other{{count} private/gated repos}}.",
-  "@modelsSkippedRepos": {"placeholders": {"count": {"type": "int"}}},
+  "@modelsSkippedRepos": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "modelsHfRepoTitle": "Add from HuggingFace repo",
   "modelsHfRepoAddTooltip": "Add from HuggingFace repo…",
   "modelsHfReposManageTooltip": "Manage added HuggingFace repos…",
@@ -1123,15 +1674,45 @@
   "modelsHfRepoBackendHelper": "How the model should be loaded.",
   "modelsHfRepoProbe": "Probe",
   "modelsHfRepoNoneFound": "No .gguf / .bin files found in {repo}.",
-  "@modelsHfRepoNoneFound": {"placeholders": {"repo": {"type": "String"}}},
+  "@modelsHfRepoNoneFound": {
+    "placeholders": {
+      "repo": {
+        "type": "String"
+      }
+    }
+  },
   "modelsHfRepoAdded": "Added {count, plural, one{1 model} other{{count} models}} from {repo}.",
-  "@modelsHfRepoAdded": {"placeholders": {"count": {"type": "int"}, "repo": {"type": "String"}}},
+  "@modelsHfRepoAdded": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "repo": {
+        "type": "String"
+      }
+    }
+  },
   "modelsHfRepoProbeFailed": "Failed to probe {repo}:\n{error}",
-  "@modelsHfRepoProbeFailed": {"placeholders": {"repo": {"type": "String"}, "error": {"type": "String"}}},
+  "@modelsHfRepoProbeFailed": {
+    "placeholders": {
+      "repo": {
+        "type": "String"
+      },
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "modelsHfReposTitle": "Added HuggingFace repos",
   "modelsHfReposEmpty": "No repos added yet. Use “Add from HuggingFace repo…” to register one — it will persist across restarts.",
   "modelsHfRepoBackendValue": "backend: {backend}",
-  "@modelsHfRepoBackendValue": {"placeholders": {"backend": {"type": "String"}}},
+  "@modelsHfRepoBackendValue": {
+    "placeholders": {
+      "backend": {
+        "type": "String"
+      }
+    }
+  },
   "modelsHfRepoForget": "Forget this repo",
   "modelsAnyLanguage": "Any language",
   "modelsCategoryEmpty": "No models in this category yet — try the cloud-refresh button or download one from another category first.",
@@ -1144,22 +1725,72 @@
   "modelsFilterTranslate": "Translate",
   "modelsFilterAllLangs": "All langs",
   "modelsDownloadedOne": "{name} downloaded",
-  "@modelsDownloadedOne": {"placeholders": {"name": {"type": "String"}}},
+  "@modelsDownloadedOne": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "modelsDownloadedMany": "{count} files downloaded: {names}",
-  "@modelsDownloadedMany": {"placeholders": {"count": {"type": "int"}, "names": {"type": "String"}}},
+  "@modelsDownloadedMany": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "names": {
+        "type": "String"
+      }
+    }
+  },
   "modelsDeletedNamed": "{name} deleted",
-  "@modelsDeletedNamed": {"placeholders": {"name": {"type": "String"}}},
+  "@modelsDeletedNamed": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "modelsTotalSize": "Total size: {size}",
-  "@modelsTotalSize": {"placeholders": {"size": {"type": "String"}}},
+  "@modelsTotalSize": {
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
   "modelsDownloadFailedNamed": "Failed to download {name}",
-  "@modelsDownloadFailedNamed": {"placeholders": {"name": {"type": "String"}}},
+  "@modelsDownloadFailedNamed": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "modelsDownloadFailedReason": "Download failed: {error}",
-  "@modelsDownloadFailedReason": {"placeholders": {"error": {"type": "String"}}},
+  "@modelsDownloadFailedReason": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "modelsDeleteFailedNamed": "Failed to delete {name}",
-  "@modelsDeleteFailedNamed": {"placeholders": {"name": {"type": "String"}}},
+  "@modelsDeleteFailedNamed": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "modelsDeleteFailedReason": "Delete failed: {error}",
-  "@modelsDeleteFailedReason": {"placeholders": {"error": {"type": "String"}}},
-
+  "@modelsDeleteFailedReason": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "enrollFromSegment": "Enroll speaker from this segment…",
   "enrollSpeakerTitle": "Enroll speaker",
   "enrollSpeakerNameLabel": "Speaker name",
@@ -1168,24 +1799,69 @@
   "enrollInProgress": "Enrolling…",
   "enrollNoAudio": "Segment has no audio to enroll.",
   "enrollSucceeded": "Enrolled \"{name}\" — future recordings will be matched.",
-  "@enrollSucceeded": {"placeholders": {"name": {"type": "String"}}},
+  "@enrollSucceeded": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "enrollFailedShort": "Enrollment failed.",
   "enrollFailedReason": "Enrollment failed: {error}",
-  "@enrollFailedReason": {"placeholders": {"error": {"type": "String"}}},
-
+  "@enrollFailedReason": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "modelsRecommendedBadge": "Recommended",
   "transcribeNoBackendModelHint": "No {backend} model downloaded yet.",
-  "@transcribeNoBackendModelHint": {"placeholders": {"backend": {"type": "String"}}},
+  "@transcribeNoBackendModelHint": {
+    "placeholders": {
+      "backend": {
+        "type": "String"
+      }
+    }
+  },
   "transcribeDownloadRecommended": "Download recommended: {name} ({size})",
-  "@transcribeDownloadRecommended": {"placeholders": {"name": {"type": "String"}, "size": {"type": "String"}}},
-
+  "@transcribeDownloadRecommended": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "size": {
+        "type": "String"
+      }
+    }
+  },
   "synthDownloadingNamed": "Downloading {name}…",
-  "@synthDownloadingNamed": {"placeholders": {"name": {"type": "String"}}},
+  "@synthDownloadingNamed": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "synthDownloadFailedShort": "Download of {name} failed",
-  "@synthDownloadFailedShort": {"placeholders": {"name": {"type": "String"}}},
+  "@synthDownloadFailedShort": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "synthDownloadFailedNamed": "Download of {name} failed: {error}",
-  "@synthDownloadFailedNamed": {"placeholders": {"name": {"type": "String"}, "error": {"type": "String"}}},
-
+  "@synthDownloadFailedNamed": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "aiGeneratedAudio": "AI-Generated Audio",
   "speakerConsentTitle": "Biometric Data Consent",
   "speakerConsentBody": "Speaker enrollment creates a voice embedding (biometric data under GDPR Art. 9). It is stored only on your device, is never transmitted, and can be deleted at any time from the speaker management screen.\n\nIf the voice is not your own, you must have the explicit consent of the person it belongs to before enrolling them. Only speakers with a consent record are matched.\n\nBy proceeding you confirm that the voice is your own, or that you have the explicit consent of the person it belongs to (GDPR Art. 9(2)(a)).",
@@ -1193,56 +1869,74 @@
   "aboutSyntheticCompliance": "Synthetic Content Compliance",
   "aboutSyntheticComplianceText": "Synthetic speech outputs are watermarked and carry machine-readable provenance metadata. Speaker enrollment requires explicit biometric consent (GDPR Art. 9). All data stays on-device; you can delete your data at any time.",
   "syntheticDisclosureNote": "This content contains AI-generated synthetic speech.",
-
   "aiTransparencyTitle": "AI-Powered Application",
   "aiTransparencyBody": "CrisperWeaver uses artificial intelligence systems for:\n\n• Speech recognition (ASR) — converting audio to text\n• Speech synthesis (TTS) — generating spoken audio from text\n• Speaker identification — biometric voice matching\n• Document analysis (OCR) — recognizing text in images\n• Text generation — translation, summarisation, and transcript cleanup by language models\n• Audio Q&A — a language model answers your question about a recording instead of transcribing it\n• Speaker diarisation — separating who spoke when, and spoken-language detection\n• Audio enhancement — noise suppression\n• Semantic search — AI-powered content retrieval\n\nBy default everything runs on your device and nothing is sent anywhere. Some features are off until you switch them on and then do use the network: model downloads, optional cloud transcription, and optional cloud summarisation or cleanup, which send the text or audio concerned to the provider you configure. Speaker profiles and voice recordings never leave your device.\n\nAI-generated audio is automatically watermarked and signed with machine-readable provenance metadata, and AI-generated text carries a disclosure when you copy or export it (EU AI Act Art. 50).\n\nFor details, see the About screen and PRIVACY.md.",
   "aiTransparencyWebNote": "Note for this web version: unlike the desktop and mobile apps, the browser build has no on-device engine. Speech recognition and synthesis run on a remote CrispASR server, so the audio you submit is sent there for processing. Text embeddings for search still run locally in your browser.",
   "aiTransparencyAcknowledge": "I understand",
-
   "historySearchSemanticTooltip": "Semantic search (active)",
   "historySearchSubstringTooltip": "Substring search (tap for semantic)",
   "historyCompareButton": "Compare…",
   "historyCompareNoOtherEntries": "No other entries to compare with",
   "historyComparePickerTitle": "Compare with…",
-
   "menuCompareModels": "Compare models",
   "menuSubtitleOverlay": "Subtitle overlay",
   "advancedTagSegmentLanguages": "Tag segment languages",
   "advancedTagSegmentLanguagesSubtitle": "Detect language per segment (multilingual)",
-
   "exportObsidian": "Obsidian",
   "exportNotion": "Notion",
   "exportLogseq": "Logseq",
   "exportYouTubeChapters": "YouTube chapters",
   "exportDetectChapters": "Detect chapters",
   "exportPodcastChapters": "Podcast chapters (JSON)",
-
   "compareModelsNeedSecond": "Download a second model to compare",
   "compareModelsPickerTitle": "Compare with model…",
   "compareModelsRunning": "Running A/B: {modelA} vs {modelB}…",
-  "@compareModelsRunning": {"placeholders": {"modelA": {"type": "String"}, "modelB": {"type": "String"}}},
+  "@compareModelsRunning": {
+    "placeholders": {
+      "modelA": {
+        "type": "String"
+      },
+      "modelB": {
+        "type": "String"
+      }
+    }
+  },
   "compareModelsFailed": "A/B test failed: {error}",
-  "@compareModelsFailed": {"placeholders": {"error": {"type": "String"}}},
-
+  "@compareModelsFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "settingsWatchFolder": "Watch folder",
   "settingsWatchFolderAutoTranscribe": "Auto-transcribe new files",
   "settingsWatchFolderWatching": "Watching: {path}",
-  "@settingsWatchFolderWatching": {"placeholders": {"path": {"type": "String"}}},
+  "@settingsWatchFolderWatching": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
   "settingsWatchFolderMonitorHint": "Monitor a folder for new audio files",
   "settingsWatchFolderPath": "Watch folder path",
   "settingsWatchFolderNotSet": "Not set",
   "settingsWatchFolderPickerTitle": "Select folder to watch",
-
   "settingsSpeakerVocab": "Speaker vocabulary",
   "settingsSpeakerVocabSubtitle": "Per-speaker domain word lists",
   "settingsSpeakerVocabDialogTitle": "Speaker vocabulary",
   "settingsSpeakerVocabAddTermTitle": "Add term for {name}",
-  "@settingsSpeakerVocabAddTermTitle": {"placeholders": {"name": {"type": "String"}}},
+  "@settingsSpeakerVocabAddTermTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "settingsSpeakerVocabAddTermHint": "Domain word or phrase",
   "settingsSpeakerVocabNoSpeakers": "No enrolled speakers. Enrol speakers first in the Speaker Management screen.",
   "add": "Add",
-  "done": "Done",
-
   "synthLexiconSectionTitle": "Pronunciation lexicon",
   "synthLexiconAddTitle": "Add pronunciation",
   "synthLexiconAddEntryTooltip": "Add entry",
@@ -1252,37 +1946,46 @@
   "synthLexiconPronunciationHint": "e.g. Crisp A S R",
   "synthLexiconIpaLabel": "IPA notation",
   "synthLexiconEmpty": "No entries. Add word → pronunciation mappings.",
-
   "outputSegmentEditedTooltip": "Edited",
-
   "subtitleExitOverlayTooltip": "Exit overlay",
   "subtitleSmallerTextTooltip": "Smaller text",
   "subtitleLargerTextTooltip": "Larger text",
   "subtitleTogglePositionTooltip": "Toggle position",
   "subtitleToggleBackgroundTooltip": "Toggle background",
   "subtitleWaitingForTranscription": "Waiting for transcription…",
-
   "compareTranscriptsTitle": "Compare Transcripts",
   "compareLeftFallback": "Left",
   "compareRightFallback": "Right",
   "compareLeftWords": "Left words",
   "compareRightWords": "Right words",
   "compareSimilarity": "Similarity",
-
   "abTestNeedSecondModel": "Download a second model to compare",
   "abTestPickModel": "Compare with model…",
   "abTestRunning": "Running A/B: {modelA} vs {modelB}…",
-  "@abTestRunning": {"placeholders": {"modelA": {"type": "String"}, "modelB": {"type": "String"}}},
+  "@abTestRunning": {
+    "placeholders": {
+      "modelA": {
+        "type": "String"
+      },
+      "modelB": {
+        "type": "String"
+      }
+    }
+  },
   "abTestFailed": "A/B test failed: {error}",
-  "@abTestFailed": {"placeholders": {"error": {"type": "String"}}},
-
+  "@abTestFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "subtitleOverlayExitTooltip": "Exit overlay",
   "subtitleOverlaySmallerText": "Smaller text",
   "subtitleOverlayLargerText": "Larger text",
   "subtitleOverlayTogglePosition": "Toggle position",
   "subtitleOverlayToggleBackground": "Toggle background",
   "subtitleOverlayWaiting": "Waiting for transcription…",
-
   "outputNoTranscriptionYet": "No transcription yet",
   "outputSelectAudioFile": "Select an audio file and start transcription",
   "outputNoResultsFound": "No results found",
@@ -1292,21 +1995,64 @@
   "outputLidModelsButton": "Models",
   "outputLidFailed": "Couldn't detect the language.",
   "outputLidDetected": "Detected language: {code} ({pct}%) [{model}]",
-  "@outputLidDetected": {"placeholders": {"code": {"type": "String"}, "pct": {"type": "String"}, "model": {"type": "String"}}},
+  "@outputLidDetected": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      },
+      "pct": {
+        "type": "String"
+      },
+      "model": {
+        "type": "String"
+      }
+    }
+  },
   "outputTagSegment": "Tag segment",
   "dialogCancel": "Cancel",
   "dialogAdd": "Add",
   "dialogApply": "Apply",
-
-  "settingsEngineSwitched": "Switched to {engine}",
-  "@settingsEngineSwitched": {"placeholders": {"engine": {"type": "String"}}},
-  "settingsEngineSwitchFailed": "Engine switch failed",
   "settingsAllFilesAccessNeeded": "\"All files access\" needed",
   "settingsAllFilesAccessExplanation": "Picking a folder outside the app sandbox needs Android's \"All files access\" permission. Tap \"Open Settings\", enable \"All files access\" for CrisperWeaver, then come back. After uninstalling and reinstalling the app, the grant is reset by Android and must be re-enabled.",
   "settingsOpenSettings": "Open Settings",
   "settingsAllFilesAccessDenied": "\"All files access\" denied — using sandbox dir instead.",
-
   "fingerprintDedupTitle": "Already transcribed",
   "fingerprintDedupBody": "This file has already been transcribed. Transcribe again?",
-  "fingerprintDedupTranscribeAgain": "Transcribe again"
+  "fingerprintDedupTranscribeAgain": "Transcribe again",
+  "modelsRecommendedHeader": "Recommended to start with",
+  "@modelsRecommendedHeader": {},
+  "modelsAllHeader": "All models ({count})",
+  "@modelsAllHeader": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "modelsTooLargeTitle": "Larger than this device can load",
+  "@modelsTooLargeTitle": {},
+  "modelsTooLargeBody": "{model} needs about {size} of memory to load, and this device can give a model about {budget}.\n\nIt will download, but it will most likely fail to load or close the app. A smaller version of the same model usually works well.",
+  "@modelsTooLargeBody": {
+    "placeholders": {
+      "model": {
+        "type": "String"
+      },
+      "size": {
+        "type": "String"
+      },
+      "budget": {
+        "type": "String"
+      }
+    }
+  },
+  "modelsDownloadAnyway": "Download anyway",
+  "@modelsDownloadAnyway": {},
+  "modelsTooLargeInline": "Too large for this device",
+  "@modelsTooLargeInline": {},
+  "settingsExperimentalSection": "More features",
+  "@settingsExperimentalSection": {},
+  "settingsExperimentalTitle": "Show advanced features",
+  "@settingsExperimentalTitle": {},
+  "settingsExperimentalSubtitle": "Adds transcript comparison, subtitle overlay, voice baking, audio editing, the local API server, and the log and storage inspectors.",
+  "@settingsExperimentalSubtitle": {}
 }

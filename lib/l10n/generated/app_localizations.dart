@@ -5529,6 +5529,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Transcribe again'**
   String get fingerprintDedupTranscribeAgain;
+
+  /// No description provided for @modelsRecommendedHeader.
+  ///
+  /// In en, this message translates to:
+  /// **'Recommended to start with'**
+  String get modelsRecommendedHeader;
+
+  /// No description provided for @modelsAllHeader.
+  ///
+  /// In en, this message translates to:
+  /// **'All models ({count})'**
+  String modelsAllHeader(int count);
+
+  /// No description provided for @modelsTooLargeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Larger than this device can load'**
+  String get modelsTooLargeTitle;
+
+  /// No description provided for @modelsTooLargeBody.
+  ///
+  /// In en, this message translates to:
+  /// **'{model} needs about {size} of memory to load, and this device can give a model about {budget}.\n\nIt will download, but it will most likely fail to load or close the app. A smaller version of the same model usually works well.'**
+  String modelsTooLargeBody(String model, String size, String budget);
+
+  /// No description provided for @modelsDownloadAnyway.
+  ///
+  /// In en, this message translates to:
+  /// **'Download anyway'**
+  String get modelsDownloadAnyway;
+
+  /// No description provided for @modelsTooLargeInline.
+  ///
+  /// In en, this message translates to:
+  /// **'Too large for this device'**
+  String get modelsTooLargeInline;
+
+  /// No description provided for @settingsExperimentalSection.
+  ///
+  /// In en, this message translates to:
+  /// **'More features'**
+  String get settingsExperimentalSection;
+
+  /// No description provided for @settingsExperimentalTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Show advanced features'**
+  String get settingsExperimentalTitle;
+
+  /// No description provided for @settingsExperimentalSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Adds transcript comparison, subtitle overlay, voice baking, audio editing, the local API server, and the log and storage inspectors.'**
+  String get settingsExperimentalSubtitle;
 }
 
 class _AppLocalizationsDelegate

@@ -537,6 +537,27 @@ class SettingsService {
       _prefs.getBool('ai_transparency_notice_seen') ?? false;
   set aiTransparencyNoticeSeen(bool value) =>
       _prefs.setBool('ai_transparency_notice_seen', value);
+
+  /// Reveal the power-user surface: transcript A/B compare, subtitle overlay,
+  /// voice baking, audio editing, the local HTTP server, and the log and
+  /// storage inspectors.
+  ///
+  /// **Off by default, and that is a beta decision rather than a judgement
+  /// about the features.** The app has 18 routes and 111 advanced options; a
+  /// TestFlight tester who opens it for the first time needs to find "record
+  /// or pick a file, get a transcript" and nothing else. Everything gated
+  /// here is either a developer tool, a workflow that presumes a finished
+  /// transcript, or — in the server's case — something that makes iOS ask for
+  /// local-network permission on first use, which is a support conversation
+  /// nobody wants to have with a beta tester.
+  ///
+  /// Nothing is deleted or compiled out: this flips one flag and the whole
+  /// surface returns, so feedback on it stays one tap away for the testers
+  /// who want it.
+  bool get experimentalFeatures =>
+      _prefs.getBool('experimental_features') ?? false;
+  set experimentalFeatures(bool value) =>
+      _prefs.setBool('experimental_features', value);
 }
 
 /// Provider for the SettingsService.
