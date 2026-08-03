@@ -5,6 +5,17 @@ import 'package:path/path.dart' as p;
 
 import 'log_service.dart' show Log;
 
+/// Outcome of [WatchFolderService.start].
+enum WatchFolderStartResult {
+  /// A live watch is running on the requested directory.
+  watching,
+
+  /// The directory could not be read. Either it is gone, or — on the
+  /// sandboxed macOS build — the app holds no current grant for it and the
+  /// user has to pick it again.
+  inaccessible,
+}
+
 /// §5.25.8 — Watch-folder / scheduled transcription.
 ///
 /// Monitors a user-configured directory for new audio files and notifies
@@ -35,16 +46,35 @@ class WatchFolderService {
   String? get watchPath => _watchPath;
 
   /// Start watching [dirPath]. Replaces any existing watch.
-  void start(String dirPath) {
+  ///
+  /// Returns why it failed rather than only logging, because the two failure
+  /// modes are indistinguishable from inside `dart:io` and mean very different
+  /// things to the user. Under the macOS App Store sandbox a directory the app
+  /// has no grant for reports `existsSync() == false` exactly as a deleted one
+  /// does — so this used to log "directory does not exist" and return, leaving
+  /// the Settings toggle reading as enabled while nothing was watched. The
+  /// caller resolves a security-scoped bookmark first (see
+  /// [SecurityScopedBookmarks]) and can therefore tell the two apart.
+  WatchFolderStartResult start(String dirPath) {
     stop();
     final dir = Directory(dirPath);
     if (!dir.existsSync()) {
-      Log.instance.i('watch-folder','WatchFolder: directory does not exist: $dirPath');
-      return;
+      Log.instance.w('watch-folder',
+          'WatchFolder: directory is not readable — deleted, or the sandbox '
+          'grant for it was not restored',
+          fields: {'path': dirPath});
+      return WatchFolderStartResult.inaccessible;
+    }
+    try {
+      _watchSub = dir.watch(events: FileSystemEvent.create).listen(_onEvent);
+    } on FileSystemException catch (e) {
+      Log.instance.w('watch-folder', 'WatchFolder: could not watch directory',
+          error: e, fields: {'path': dirPath});
+      return WatchFolderStartResult.inaccessible;
     }
     _watchPath = dirPath;
-    _watchSub = dir.watch(events: FileSystemEvent.create).listen(_onEvent);
     Log.instance.i('watch-folder','WatchFolder: watching $dirPath');
+    return WatchFolderStartResult.watching;
   }
 
   /// Stop watching.

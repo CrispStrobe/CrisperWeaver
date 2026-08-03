@@ -532,6 +532,40 @@ class SettingsService {
 
   }
 
+  /// macOS security-scoped bookmark for [watchFolderPath], base64-encoded.
+  ///
+  /// The path alone is not enough under the App Store sandbox: the grant that
+  /// comes from the user picking a folder expires with the session, so on
+  /// relaunch the raw path is unreadable and — because a sandbox denial makes
+  /// `stat` fail rather than throw — the watcher silently found "no such
+  /// directory" and gave up with the setting still showing as enabled.
+  ///
+  /// Null on every other platform and on macOS builds where bookmark creation
+  /// failed; callers fall back to [watchFolderPath], which is correct
+  /// everywhere the sandbox is not in play.
+  String? get watchFolderBookmark => _prefs.getString('watch_folder_bookmark');
+  set watchFolderBookmark(String? v) {
+    if (v == null) {
+      _prefs.remove('watch_folder_bookmark');
+    } else {
+      _prefs.setString('watch_folder_bookmark', v);
+    }
+  }
+
+  /// Set when a configured watch folder could not be opened at launch, so
+  /// Settings can say so instead of displaying the path as though a watch
+  /// were running.
+  ///
+  /// Recorded as an explicit flag rather than re-probed in `build`: outside
+  /// the launch path the app holds no security scope on the folder, so a
+  /// `Directory.existsSync()` check in the widget would report every
+  /// perfectly good sandboxed folder as missing. Cleared when the user picks
+  /// a folder again, which is what restores the grant.
+  bool get watchFolderAccessLost =>
+      _prefs.getBool('watch_folder_access_lost') ?? false;
+  set watchFolderAccessLost(bool v) =>
+      _prefs.setBool('watch_folder_access_lost', v);
+
   // EU AI Act Art. 52 — first-use AI transparency notice.
   bool get aiTransparencyNoticeSeen =>
       _prefs.getBool('ai_transparency_notice_seen') ?? false;

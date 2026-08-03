@@ -3084,6 +3084,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsWatchFolderPickerTitle => 'Select folder to watch';
 
   @override
+  String get settingsWatchFolderUnavailable =>
+      'This folder can no longer be read. Select it again to resume watching.';
+
+  @override
   String get settingsSpeakerVocab => 'Speaker vocabulary';
 
   @override

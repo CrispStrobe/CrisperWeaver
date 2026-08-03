@@ -5,6 +5,33 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 
 ## [Unreleased]
 
+### Fixed
+
+- **Watch folder now survives a restart on macOS.** On the Mac App Store
+  build, the permission you grant by picking a folder lasts only until the
+  app quits, so from the second launch onward the folder was unreadable —
+  and because that looks identical to a deleted folder from inside the app,
+  it failed without saying so, while Settings still showed the folder and
+  the switch still read as on. The picked folder is now remembered as a
+  macOS security-scoped bookmark, so watching resumes after a restart. If
+  the folder really has become unreachable, Settings says so and asks you to
+  pick it again instead of quietly doing nothing.
+- Toggling the watch-folder switch or picking a folder now updates the
+  Settings screen immediately.
+
+### Changed
+
+- **Store listing and privacy wording corrected.** The listing described the
+  app as fully offline with no data leaving the device. That stopped being
+  true when optional cloud transcription and optional cloud cleanup /
+  summarisation shipped — both off by default, both opt-in, and both already
+  documented in [`PRIVACY.md`](PRIVACY.md), which the listing had not caught
+  up with. The listing now says what each optional feature sends and to whom.
+  Nothing about the app's behaviour changed; the description did.
+- The iOS local-network permission prompt now explains the reason you can
+  actually encounter — turning on the built-in transcription server — rather
+  than a developer hot-reload setup.
+
 ## [0.9.8] — 2026-08-03
 
 First build prepared for TestFlight. The app was feature-complete before

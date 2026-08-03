@@ -74,16 +74,24 @@
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>This app needs access to photo library to import media files for transcription.</string>
 
-	<!-- Required by Flutter for wireless debugging on iOS 14+. The
-	     Dart VM service binds to a local port and is discovered by
-	     `flutter run` over Bonjour. Without these two keys iOS
-	     silently blocks the VM service handshake, the debug build
-	     never finishes initialising, and the app stays on the
-	     white LaunchScreen forever. Release / AOT builds don't
-	     need this (no VM service), but it's harmless to ship in
-	     all configs. -->
+	<!-- Two consumers, and the string has to describe the one a USER can
+	     trigger, not the one a developer can.
+
+	     1. Release: starting the optional OpenAI-compatible API server
+	        (Settings → Advanced → Server) binds a listening socket, and
+	        iOS raises the local-network prompt the moment it does.
+	     2. Debug only: the Dart VM service binds a local port discovered
+	        by `flutter run` over Bonjour (hence NSBonjourServices below).
+	        Without the key the debug handshake is blocked silently and the
+	        app hangs on the white LaunchScreen.
+
+	     This string used to describe (2) alone — "connect to its
+	     development host … for hot-reload and debugging" — which is text no
+	     shipping user can act on and which does not explain the access they
+	     are actually being asked to grant. Guideline 5.1.1 wants the
+	     purpose string to make sense to the person reading the alert. -->
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>Allow CrisperWeaver to connect to its development host on the same Wi-Fi for hot-reload and debugging.</string>
+	<string>CrisperWeaver needs this only if you turn on its built-in transcription server, so other apps can send it audio. The server is off by default and accepts connections from this device unless you change its address.</string>
 	<key>NSBonjourServices</key>
 	<array>
 		<string>_dartVmService._tcp</string>

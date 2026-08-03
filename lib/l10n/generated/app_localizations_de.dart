@@ -3102,6 +3102,10 @@ class AppLocalizationsDe extends AppLocalizations {
   String get settingsWatchFolderPickerTitle => 'Überwachungsordner auswählen';
 
   @override
+  String get settingsWatchFolderUnavailable =>
+      'Dieser Ordner kann nicht mehr gelesen werden. Wählen Sie ihn erneut aus, um die Überwachung fortzusetzen.';
+
+  @override
   String get settingsSpeakerVocab => 'Sprecher-Vokabular';
 
   @override

@@ -41,6 +41,12 @@ class MainFlutterWindow: NSWindow {
       window: self,
       messenger: flutterViewController.engine.binaryMessenger)
 
+    // Security-scoped bookmarks — lets the watch folder survive a
+    // relaunch under the App Store sandbox, where a user-selected
+    // path is otherwise only good for the session that picked it.
+    registerSecurityScopedBookmarks(
+      messenger: flutterViewController.engine.binaryMessenger)
+
     super.awakeFromNib()
   }
 }

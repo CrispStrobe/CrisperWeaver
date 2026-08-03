@@ -5176,6 +5176,12 @@ abstract class AppLocalizations {
   /// **'Select folder to watch'**
   String get settingsWatchFolderPickerTitle;
 
+  /// No description provided for @settingsWatchFolderUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'This folder can no longer be read. Select it again to resume watching.'**
+  String get settingsWatchFolderUnavailable;
+
   /// No description provided for @settingsSpeakerVocab.
   ///
   /// In en, this message translates to:
