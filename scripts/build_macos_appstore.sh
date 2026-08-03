@@ -60,7 +60,10 @@ for arg in "$@"; do
 done
 
 cd "$(dirname "$0")/.."
-APP="build/macos/Build/Products/Release/CrisperWeaver.app"
+# Flutter names the product from pubspec (`crisper_weaver`), NOT the display
+# name. `scripts/build_macos.sh` already resolves it this way; guessing
+# "CrisperWeaver.app" here silently found nothing.
+APP="build/macos/Build/Products/Release/crisper_weaver.app"
 OUT_PKG="crisper_weaver-macos-appstore.pkg"
 
 VERSION=$(grep '^version:' pubspec.yaml | head -1 | sed 's/version: //' | cut -d+ -f1)
@@ -80,7 +83,11 @@ if [[ $DO_BUILD -eq 1 ]]; then
   echo "==> scripts/build_macos.sh release"
   scripts/build_macos.sh release
 fi
-[[ -d "$APP" ]] || { echo "!! app not found: $APP" >&2; exit 2; }
+if [[ ! -d "$APP" ]]; then
+  echo "!! app not found: $APP" >&2
+  ls -d build/macos/Build/Products/Release/*.app 2>/dev/null >&2 || true
+  exit 2
+fi
 
 echo "==> embedding provisioning profile"
 cp "$PROFILE" "$APP/Contents/embedded.provisionprofile"
