@@ -90,9 +90,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           _buildAudioSettings(settings),
           _buildDiarizationSettings(settings),
           _buildStorageSettings(),
-          _buildServerSettings(),
+          // Beta surface control — see SettingsService.experimentalFeatures.
+          // The server asks iOS for local-network permission the moment it
+          // starts, and the developer section is a log viewer; neither
+          // belongs in a first-run tester's path.
+          if (settings.experimentalFeatures) ...[
+            _buildServerSettings(),
+            _buildDeveloperSettings(settings),
+          ],
           _buildWatchFolderSettings(settings),
-          _buildDeveloperSettings(settings),
+          _buildExperimentalToggle(settings),
           _buildSystemInfo(),
           _buildAboutSection(),
         ],
@@ -504,6 +511,28 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               AppLocalizations.of(context).settingsStorageBreakdownSubtitle),
           trailing: const Icon(Icons.chevron_right),
           onTap: () => context.push('/storage'),
+        ),
+      ],
+    );
+  }
+
+  /// The one switch that reveals everything else.
+  ///
+  /// Placed near the bottom, after the settings a normal user needs, and
+  /// worded so it reads as "more of the app" rather than "developer mode" —
+  /// a tester who wants the extra surface should feel invited to it, not
+  /// warned off.
+  Widget _buildExperimentalToggle(SettingsService settings) {
+    final l = AppLocalizations.of(context);
+    return _buildSettingsSection(
+      title: l.settingsExperimentalSection,
+      icon: Icons.science_outlined,
+      children: [
+        SwitchListTile(
+          title: Text(l.settingsExperimentalTitle),
+          subtitle: Text(l.settingsExperimentalSubtitle),
+          value: settings.experimentalFeatures,
+          onChanged: (v) => setState(() => settings.experimentalFeatures = v),
         ),
       ],
     );

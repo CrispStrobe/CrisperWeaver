@@ -3167,4 +3167,36 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get fingerprintDedupTranscribeAgain => '再次转录';
+
+  @override
+  String get modelsRecommendedHeader => '建议从这些开始';
+
+  @override
+  String modelsAllHeader(int count) {
+    return '全部模型（$count）';
+  }
+
+  @override
+  String get modelsTooLargeTitle => '超出本设备可加载的大小';
+
+  @override
+  String modelsTooLargeBody(String model, String size, String budget) {
+    return '$model 加载约需 $size 内存，而本设备可为模型提供约 $budget。\n\n可以下载，但很可能无法加载或导致应用关闭。同一模型的较小版本通常也能良好运行。';
+  }
+
+  @override
+  String get modelsDownloadAnyway => '仍要下载';
+
+  @override
+  String get modelsTooLargeInline => '超出本设备可加载的大小';
+
+  @override
+  String get settingsExperimentalSection => '更多功能';
+
+  @override
+  String get settingsExperimentalTitle => '显示高级功能';
+
+  @override
+  String get settingsExperimentalSubtitle =>
+      '增加转写对比、字幕浮层、语音烘焙、音频编辑、本地 API 服务器，以及日志和存储查看器。';
 }

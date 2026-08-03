@@ -480,6 +480,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
                         dense: true,
                       ),
                     ),
+                    if (ref.read(settingsServiceProvider).experimentalFeatures)
                     PopupMenuItem(
                       value: 'subtitle-overlay',
                       child: ListTile(
@@ -541,11 +542,13 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
                   onPressed: _showModelComparison,
                 ),
                 // §5.25.3 — Subtitle overlay / teleprompter mode.
-                IconButton(
-                  icon: const Icon(Icons.subtitles),
-                  tooltip: l.menuSubtitleOverlay,
-                  onPressed: () => context.push('/subtitle-overlay'),
-                ),
+                // Beta: hidden unless the user opted into the extra surface.
+                if (ref.read(settingsServiceProvider).experimentalFeatures)
+                  IconButton(
+                    icon: const Icon(Icons.subtitles),
+                    tooltip: l.menuSubtitleOverlay,
+                    onPressed: () => context.push('/subtitle-overlay'),
+                  ),
                 IconButton(
                   icon: const Icon(Icons.verified_user),
                   tooltip: 'Verify Watermark',
