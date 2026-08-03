@@ -2066,3 +2066,134 @@ commercial or institutional deployment, or if a market surveillance
 authority makes contact. Signing stays open at any time; the
 22 July 2026 cutoff affected the initial-signatories listing only.
 Recorded in `docs/AI_ACT_RISK.md` §7.2 with the same re-open triggers.
+
+## 17. Store-readiness audit round 7 (2026-08-03)
+
+Seventh audit, and the first driven by the App Store submission rather than
+by Art. 50. Three findings. The AI Act controls themselves came through
+clean: `synthetic_compliance_test.dart` and `compliance_boundaries_test.dart`
+pass 155/155, every subsystem classification in `docs/AI_ACT_RISK.md` §2 was
+re-read against the code, and no new route to a generating capability had
+appeared since round 6. What had appeared was a **second platform** and a
+**public-facing surface nobody had been enumerating at all**.
+
+### 17.1 The watch folder was silently dead in the sandbox
+
+`AppStore.entitlements` sandboxes the Mac App Store target, where
+`files.user-selected.read-write` grants access only for the session in which
+the open panel ran. `SettingsService.watchFolderPath` persisted a raw path
+string and `main.dart` restarted the watcher from it on every launch, so from
+the second launch onward the folder was unreadable.
+
+What made it a defect rather than a known platform limit is *how* it failed. A
+sandbox denial makes `stat` fail, so `Directory.existsSync()` returns false
+exactly as it does for a deleted folder; `WatchFolderService.start` took its
+"directory does not exist" branch and returned. Settings went on showing the
+path with the toggle reading enabled, over a watch that was not running. The
+feature is also one of the few **not** behind `experimentalFeatures`, so it
+sits on the default surface a TestFlight tester reaches.
+
+Fixed with real security-scoped bookmarks — `macos/Runner/SecurityScopedBookmarks.swift`
+plus `lib/services/security_scoped_bookmarks.dart` — minted in the same session
+as the open panel, which is the only moment macOS will grant one. Deferring
+creation to the next launch is precisely the bug. Related changes:
+
+- `com.apple.security.files.bookmarks.app-scope` added to
+  `AppStore.entitlements`. Without it `bookmarkData(.withSecurityScope)`
+  throws, `create()` returns null, and the whole fix reverts to the old
+  behaviour silently — which is why the test asserts the entitlement.
+- The Swift file registered in all four `project.pbxproj` sections. A Flutter
+  macOS target lists its sources explicitly; an unregistered file compiles to
+  nothing and the channel is simply absent at runtime.
+- `start()` now returns `WatchFolderStartResult` instead of only logging, so
+  the caller can tell "gone" from "no grant".
+- `watchFolderAccessLost` records the failure so Settings can say the folder
+  needs re-picking. Deliberately a stored flag and **not** an `existsSync()`
+  probe in `build`: outside the launch path the app holds no scope on the
+  folder, so probing would report every healthy sandboxed folder as missing.
+- The bookmark follows a moved or renamed folder, so the resolved path wins
+  over the stored one and is written back; a stale-but-resolvable bookmark is
+  re-minted while access is still live.
+
+Found while fixing it: the watch-folder Settings handlers had lost their
+`setState`, so the UI did not refresh after toggling or picking a folder.
+
+### 17.2 The store listing kept a claim the project retracted a day earlier
+
+Round 2 (2026-08-02) corrected an inaccurate "no data is transmitted" claim in
+`docs/AI_ACT_RISK.md` §1 and rewrote `PRIVACY.md` around the two opt-in network
+features. `STORE_LISTING.md` was not part of that change and still read *"All
+processing happens on your device — no cloud, no accounts, no data
+collection"* and *"Everything runs on-device — no data leaves your phone or
+computer"*.
+
+This is the project's own recurring defect — a claim fixed where it was
+noticed and missed on a surface reached by another route — landing on the most
+public surface there is. Two things make it worse than an internal doc drift.
+Store metadata is the copy a user reads *before* installing, and it is the text
+the App Store Connect App Privacy and Play Data safety answers get filled in
+from, so one absolute claim propagates into two console declarations that are
+formally attested. The exposure is mostly **not** AI Act — Art. 50 governs
+marking, not marketing — it is App Store Guideline 2.3.1 and consumer law, and
+it undercuts the Art. 50(1) first-use notice, which correctly tells the user
+which subsystems can use the network.
+
+Rewritten against `PRIVACY.md` §3.1–3.3, which is the authority, and a console
+questionnaire section added so the listing and the two store declarations are
+answered from one place. `test/store_listing_claims_test.dart` pins it in both
+directions: the retracted absolutes must not return, **and** the opt-in
+features must stay named — banning phrases alone would pass on a listing that
+simply deleted the disclosure.
+
+That test carries one lesson worth keeping. Written the obvious way it did not
+catch the original text: the claim read `no cloud, no accounts, no\ndata
+collection`, wrapped across two lines by ordinary markdown reflow, and a plain
+substring check for "no data collection" passes on that. Prose wraps; the
+matcher collapses whitespace before comparing. Verified by running it against
+`git show HEAD:STORE_LISTING.md` — 7 failures — rather than trusting a green
+run on the fixed file.
+
+### 17.3 The local-network purpose string described the developer's use
+
+`NSLocalNetworkUsageDescription` read *"Allow CrisperWeaver to connect to its
+development host on the same Wi-Fi for hot-reload and debugging"* — accurate
+for the Dart VM service in debug, and text no shipping user can act on. The
+release trigger is the optional OpenAI-compatible server, which binds a
+listening socket and raises the prompt the moment it starts;
+`settings_screen.dart` says so in a comment. Guideline 5.1.1 wants the string
+to explain the access the person reading the alert is actually granting.
+Rewritten around the server, with the debug consumer kept in the comment.
+
+### 17.4 Checked and clean
+
+Recorded because the scope of a negative result is part of the finding:
+
+- **Guideline 2.5.2** — every `DynamicLibrary.open` in `lib/` uses a bundled
+  name. The `--lib` / `CRISPASR_LIB` override lives only in
+  `bin/crisperweaver.dart`, which is not in the bundle.
+- **GPL / App Store** — `release.yml` deliberately does not bundle espeak-ng
+  (GPL-3.0); it is `dlopen`-only and `otool -L` confirms no linkage on the
+  shipped dylib, so the VLC-style conflict is not triggered. The bundled
+  `espeak-ng-data.tar.gz` is a 156-byte placeholder on Apple builds; built-in
+  G2P covers EN/DE/FR/ES.
+- **AGPL** — sole copyright holder, so App Store distribution infringes no
+  third party's licence.
+- **First-run dead end** — `kokoro-82m-q8_0` declares
+  `companions: ['kokoro-voice-af_heart']` and the Models screen queues
+  companions with the main model, so the top TTS starter pick is usable.
+- **Both self-hosted servers** still bind loopback by default (round 6, §7.6).
+
+### 17.5 The generalisation, after seven
+
+Round 6 landed on *"where can this text end up outside the app?"* — a question
+about exits. All three findings here are outside that frame. The watch folder
+is not an exit and marks nothing; it broke because a **second build target**
+has different rules from the one the feature was written against. The store
+listing is not code at all. The purpose string is a sentence in a plist.
+
+So the extension is: a claim is a surface too, and a build target is a route.
+The check that would have caught 17.1 is "which targets does this feature run
+under, and do they grant the same things?" The one that would have caught 17.2
+is "when a statement about the software changes, where else is that statement
+written down?" — and the answer has to include the places that are not in
+`lib/`.

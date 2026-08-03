@@ -1921,6 +1921,7 @@
   "settingsWatchFolderPath": "Überwachungsordner-Pfad",
   "settingsWatchFolderNotSet": "Nicht festgelegt",
   "settingsWatchFolderPickerTitle": "Überwachungsordner auswählen",
+  "settingsWatchFolderUnavailable": "Dieser Ordner kann nicht mehr gelesen werden. Wählen Sie ihn erneut aus, um die Überwachung fortzusetzen.",
   "settingsSpeakerVocab": "Sprecher-Vokabular",
   "settingsSpeakerVocabSubtitle": "Sprecherspezifische Fachbegriffe",
   "settingsSpeakerVocabDialogTitle": "Sprecher-Vokabular",

@@ -20,6 +20,7 @@ import '../services/log_service.dart';
 import '../services/memory_estimator.dart';
 import '../services/model_service.dart';
 import '../services/server_service.dart';
+import '../services/security_scoped_bookmarks.dart';
 import '../services/settings_service.dart';
 import '../services/speaker_id_service.dart';
 import '../models/speaker_vocab.dart';
@@ -584,6 +585,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final l = AppLocalizations.of(context);
     final watchPath = settings.watchFolderPath;
     final enabled = settings.watchFolderEnabled;
+    final accessLost = settings.watchFolderAccessLost && watchPath != null;
     // Watch folder is desktop-only.
     if (!plat.isMacOS && !plat.isLinux && !plat.isWindows) {
       return const SizedBox.shrink();
@@ -600,23 +602,45 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 : l.settingsWatchFolderMonitorHint,
           ),
           value: enabled,
-          onChanged: (v) {
-            settings.watchFolderEnabled = v;
-            
-          },
+          onChanged: (v) => setState(() => settings.watchFolderEnabled = v),
         ),
         ListTile(
           title: Text(l.settingsWatchFolderPath),
-          subtitle: Text(watchPath ?? l.settingsWatchFolderNotSet),
-          trailing: const Icon(Icons.folder_open),
+          // A configured folder we cannot read says so, instead of showing
+          // the path as though the watch were running. Under the App Store
+          // sandbox this is the state a user lands in when the security-scoped
+          // bookmark stops resolving, and picking the folder again is the only
+          // way to restore the grant.
+          subtitle: Text(
+            watchPath == null
+                ? l.settingsWatchFolderNotSet
+                : accessLost
+                    ? '$watchPath\n${l.settingsWatchFolderUnavailable}'
+                    : watchPath,
+            style: accessLost
+                ? TextStyle(color: Theme.of(context).colorScheme.error)
+                : null,
+          ),
+          isThreeLine: accessLost,
+          trailing: Icon(
+            accessLost ? Icons.folder_off : Icons.folder_open,
+          ),
           onTap: () async {
             final result = await FilePicker.getDirectoryPath(
               dialogTitle: l.settingsWatchFolderPickerTitle,
             );
-            if (result != null) {
+            if (result == null) return;
+            // Mint the security-scoped bookmark now, in the same session as
+            // the open panel — this is the only moment macOS will grant one.
+            // Deferring it to the next launch is exactly the bug this fixes.
+            final bookmark = await SecurityScopedBookmarks().create(result);
+            if (!mounted) return;
+            setState(() {
               settings.watchFolderPath = result;
-              
-            }
+              settings.watchFolderBookmark = bookmark;
+              // Picking again is what restores the grant, so the warning goes.
+              settings.watchFolderAccessLost = false;
+            });
           },
         ),
       ],

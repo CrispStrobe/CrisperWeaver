@@ -15,14 +15,16 @@ Offline speech-to-text & text-to-speech. 40+ ASR models, no cloud required.
 Offline Transcription & TTS
 
 ## Promotional Text (170 chars — App Store, editable without review)
-Transcribe audio to text completely offline. 40+ speech recognition models,
+Transcribe audio to text on your own device. 40+ speech recognition models,
 20+ text-to-speech voices, real-time streaming, word timestamps, and more.
 
 ## Full Description (4000 chars — both stores)
 
-CrisperWeaver is a fully offline audio transcription and speech synthesis
-app. All processing happens on your device — no cloud, no accounts, no
-data collection.
+CrisperWeaver is an offline-first audio transcription and speech synthesis
+app. Transcription and synthesis run on your device — no accounts, no
+analytics, no tracking. Models are downloaded once from HuggingFace, and
+two optional features use the network only if you switch them on (see
+PRIVACY below).
 
 SPEECH RECOGNITION
 - 40+ ASR model families: Whisper, Parakeet, Canary, Qwen3-ASR, Voxtral,
@@ -61,9 +63,16 @@ INTEGRATION
 - Command-line interface (dart run)
 
 PRIVACY
-- Everything runs on-device — no data leaves your phone or computer
-- No analytics, no tracking, no accounts
-- Models downloaded once from HuggingFace, cached locally
+- Transcription, synthesis, speaker profiles and voice embeddings stay
+  on your device
+- No analytics, no tracking, no accounts, no ads
+- Models are downloaded once from HuggingFace and cached locally
+- Two optional features send data off-device, and only once you turn them
+  on. Cloud transcription sends audio to a HuggingFace Space. Cloud
+  cleanup and summarisation send transcript text to an endpoint you
+  configure yourself, under that provider's privacy policy. Both are
+  off by default; speaker profiles, voice embeddings and audio are never
+  sent to a cloud language model
 - Open source (GitHub: CrispStrobe/CrisperWeaver)
 
 Available on macOS, Linux, Windows, Android, iOS, and Web.
@@ -83,10 +92,31 @@ transcription,speech-to-text,offline,whisper,tts,voice,audio,dictation,ASR,capti
 - **User-generated content:** No (all content is user's own audio)
 - **In-app purchases:** None
 - **Ads:** None
-- **Data sharing:** None
 - **Account creation:** Not required
 
 **Recommended rating:** Everyone / 4+ (iOS)
+
+## App Privacy questionnaire (App Store Connect) / Data safety (Play)
+
+Answer these from the PRIVACY section above, not from "it's an offline
+app". The developer collects nothing, but two opt-in features transmit
+data to third parties, and both consoles ask about transmission rather
+than about who ends up holding it.
+
+- **Data collected by the developer:** None. There is no backend, no
+  account system and no analytics SDK.
+- **Data transmitted off-device:** Only via the two opt-in features.
+  Cloud transcription transmits **audio** to a HuggingFace Space; cloud
+  cleanup/summarisation transmits **transcript text** to a user-supplied
+  endpoint. Neither is enabled by default, and neither routes through
+  infrastructure this project operates.
+- **Tracking:** None. `NSPrivacyTracking` is false and there are no
+  tracking domains.
+- **Third-party SDKs:** None that collect data. Model downloads are
+  plain HTTPS GETs to HuggingFace with no personal data attached.
+
+If either opt-in feature is ever made reachable by default, both console
+answers and the PRIVACY section have to be revisited in the same change.
 
 ## Screenshots Required
 

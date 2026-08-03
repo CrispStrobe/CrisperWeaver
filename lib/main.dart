@@ -47,6 +47,7 @@ import 'services/espeak_data_service.dart';
 import 'services/history_service.dart';
 import 'services/log_service.dart';
 import 'services/native_licenses.dart';
+import 'services/security_scoped_bookmarks.dart';
 import 'services/share_intake_service.dart';
 import 'services/speaker_id_service.dart';
 import 'services/transcription_service.dart';
@@ -287,7 +288,7 @@ class _CrisperWeaverAppState extends ConsumerState<CrisperWeaverApp> {
               q.enqueue(path);
             },
           );
-          _watchFolderService!.start(settings.watchFolderPath!);
+          unawaited(_startWatchFolder(settings));
         }
       }
 
@@ -305,6 +306,58 @@ class _CrisperWeaverAppState extends ConsumerState<CrisperWeaverApp> {
     _lifecycle = AppLifecycleListener(
       onExitRequested: _onExitRequested,
     );
+  }
+
+  /// Resolve the persisted watch folder and start watching it.
+  ///
+  /// On macOS the stored path is only half the state: under the App Store
+  /// sandbox the grant that came from the user picking the folder died with
+  /// that session, so the path alone is unreadable on the next launch and —
+  /// because a sandbox denial makes `stat` fail rather than throw — the
+  /// watcher used to conclude "no such directory" and stop, silently, with
+  /// the setting still displayed as enabled. Resolving the security-scoped
+  /// bookmark first restores the grant; if it cannot be restored we clear
+  /// [SettingsService.watchFolderEnabled] so the UI stops claiming a watch
+  /// that is not running.
+  Future<void> _startWatchFolder(SettingsService settings) async {
+    final service = _watchFolderService;
+    final stored = settings.watchFolderPath;
+    if (service == null || stored == null) return;
+
+    var path = stored;
+    final bookmark = settings.watchFolderBookmark;
+    final bookmarks = SecurityScopedBookmarks();
+
+    if (bookmarks.isSupported && bookmark != null) {
+      final resolved = await bookmarks.resolve(bookmark);
+      if (resolved != null) {
+        // Bookmarks follow a moved or renamed folder, so trust the resolved
+        // path over the stored one and write it back for display.
+        path = resolved.path;
+        if (path != stored) settings.watchFolderPath = path;
+        if (resolved.stale) {
+          // Still resolvable today, not indefinitely. Re-mint it now, while
+          // we hold live access and creation can succeed.
+          final fresh = await bookmarks.create(path);
+          if (fresh != null) settings.watchFolderBookmark = fresh;
+        }
+      } else {
+        Log.instance.w('watch-folder',
+            'security-scoped bookmark no longer resolves — the folder must be '
+            'picked again');
+      }
+    }
+
+    final result = service.start(path);
+    if (result == WatchFolderStartResult.inaccessible) {
+      // Turn the toggle off rather than leave it reading "on" over a watch
+      // that is not running, and flag *why* so Settings can tell the user to
+      // pick the folder again. The path is kept so it can name which one.
+      settings.watchFolderEnabled = false;
+      settings.watchFolderAccessLost = true;
+    } else {
+      settings.watchFolderAccessLost = false;
+    }
   }
 
   /// EU AI Act Art. 50(1): inform the user on first launch that this

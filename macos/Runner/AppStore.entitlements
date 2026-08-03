@@ -23,6 +23,14 @@
 	<true/>
 	<key>com.apple.security.files.downloads.read-only</key>
 	<true/>
+	<!-- The user-selected grant above dies with the session that opened the
+	     panel. The watch folder has to survive a relaunch, so the picked
+	     directory is persisted as a security-scoped bookmark and re-resolved
+	     on launch (macos/Runner/SecurityScopedBookmarks.swift). Without this
+	     entitlement `bookmarkData(options: .withSecurityScope)` throws and the
+	     feature silently stops working after the first quit. -->
+	<key>com.apple.security.files.bookmarks.app-scope</key>
+	<true/>
 	<!-- Without these two, altool warns 90886 "not TestFlight eligible"
 	     and the upload lands unusable. -->
 	<key>com.apple.application-identifier</key>

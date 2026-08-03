@@ -2982,6 +2982,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsWatchFolderPickerTitle => '选择要监控的文件夹';
 
   @override
+  String get settingsWatchFolderUnavailable => '无法再读取此文件夹。请重新选择以恢复监控。';
+
+  @override
   String get settingsSpeakerVocab => '说话人词汇';
 
   @override

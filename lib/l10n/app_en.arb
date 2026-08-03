@@ -1923,6 +1923,7 @@
   "settingsWatchFolderPath": "Watch folder path",
   "settingsWatchFolderNotSet": "Not set",
   "settingsWatchFolderPickerTitle": "Select folder to watch",
+  "settingsWatchFolderUnavailable": "This folder can no longer be read. Select it again to resume watching.",
   "settingsSpeakerVocab": "Speaker vocabulary",
   "settingsSpeakerVocabSubtitle": "Per-speaker domain word lists",
   "settingsSpeakerVocabDialogTitle": "Speaker vocabulary",

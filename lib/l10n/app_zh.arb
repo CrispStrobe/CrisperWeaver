@@ -895,6 +895,7 @@
   "settingsWatchFolderPath": "监控文件夹路径",
   "settingsWatchFolderNotSet": "未设置",
   "settingsWatchFolderPickerTitle": "选择要监控的文件夹",
+  "settingsWatchFolderUnavailable": "无法再读取此文件夹。请重新选择以恢复监控。",
   "settingsSpeakerVocab": "说话人词汇",
   "settingsSpeakerVocabSubtitle": "每位说话人的领域词汇列表",
   "settingsSpeakerVocabDialogTitle": "说话人词汇",
