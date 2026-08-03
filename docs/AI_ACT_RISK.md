@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-02 (revised; originally 2026-07-16)
 **Regulation:** Regulation (EU) 2024/1689 (EU AI Act)
-**Application:** CrisperWeaver v0.9.7+
+**Application:** CrisperWeaver v0.9.8+
 
 ---
 
