@@ -54,7 +54,7 @@ env:
   CRISPASR_REPO: CrispStrobe/CrispASR
   CRISPASR_REF: v0.8.25
   CRISPEMBED_REPO: CrispStrobe/CrispEmbed
-  CRISPEMBED_REF: v0.16.1
+  CRISPEMBED_REF: v0.17.3
   GLINT_REPO: CrispStrobe/glint
   # NB glint uses a per-package tag scheme; the bare `vX.Y.Z` tags are a
   # stale legacy series (v0.9.0 still carries Dart package 0.1.0).
