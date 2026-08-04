@@ -34,7 +34,7 @@ env:
   CRISPASR_REF: v0.8.25
   # CrispEmbed — on-device embeddings. pubspec path: `../CrispEmbed/flutter/crispembed`.
   CRISPEMBED_REPO: CrispStrobe/CrispEmbed
-  CRISPEMBED_REF: v0.16.1
+  CRISPEMBED_REF: v0.17.3
   # glint — MP3/AAC/Opus codec suite. pubspec path: `../glint/bindings/dart`.
   GLINT_REPO: CrispStrobe/glint
   # NB glint uses a per-package tag scheme; the bare `vX.Y.Z` tags are a
