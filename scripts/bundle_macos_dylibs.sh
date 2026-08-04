@@ -219,6 +219,17 @@ verify_dyld_closure() {
   local fw="$app/Contents/Frameworks"
   local missing=0 outside=0 checked=0 bin dep base weak rp dir found
 
+  # Every filename the bundle actually ships, checked FIRST. What matters for
+  # a distributable .app is whether the file is inside it, not which rpath
+  # entry happens to match earliest: libwhisper's first rpath is its build
+  # tree, so an rpath-ordered search "resolved" every libggml there and warned
+  # about files that were sitting in Frameworks all along. Name-based because
+  # the copy is what ships — Contents/MacOS counts too, which is where Flutter
+  # puts crisper_weaver.debug.dylib (reported missing by the previous version
+  # even though it was present and correctly linked).
+  local present
+  present="$(find "$app/Contents" \( -type f -o -type l \) -exec basename {} \; 2>/dev/null | sort -u)"
+
   while IFS= read -r -d '' bin; do
     case "$(file -b "$bin" 2>/dev/null)" in *Mach-O*) ;; *) continue ;; esac
     checked=$((checked + 1))
@@ -256,6 +267,10 @@ verify_dyld_closure() {
       esac
       grep -qxF "$dep" <<<"$weak" && continue
 
+      # Shipped inside the bundle? Then dyld finds it wherever the loader's
+      # rpath points at the bundle, and the .app is self-contained for it.
+      grep -qxF "$base" <<<"$present" && continue
+
       found=""
       for dir in "${dirs[@]}"; do
         if [[ -e "$dir/$base" ]]; then found="$dir"; break; fi
@@ -280,7 +295,9 @@ verify_dyld_closure() {
     echo "       The app would abort at launch (dyld: Library not loaded)." >&2
     return 1
   fi
-  echo "dyld closure OK ($checked Mach-O files, all @rpath deps resolve${outside:+, $outside via an out-of-bundle rpath})"
+  local note=""
+  [[ $outside -gt 0 ]] && note=", $outside via an out-of-bundle rpath"
+  echo "dyld closure OK ($checked Mach-O files, all @rpath deps resolve$note)"
 }
 verify_dyld_closure "$APP"
 
