@@ -103,6 +103,21 @@ cp -L "$VERSIONED" "$FRAMEWORKS/libwhisper.dylib"
 ln -sf libwhisper.dylib "$FRAMEWORKS/libcrispasr.dylib"
 ln -sf libwhisper.dylib "$FRAMEWORKS/libcrispasr.1.dylib"
 
+# CoreML encoder, when CrispASR was configured with CRISPASR_COREML=ON
+# (scripts/build_macos.sh does; release.yml deliberately does not). It is a
+# SEPARATE dylib that libwhisper carries a load command for, so leaving it
+# out gives a bundle that only runs on a machine where the CrispASR build
+# tree still exists — dyld resolves it through the build-tree rpath baked
+# into libwhisper. That is exactly the sort of "works here, dies for the
+# user" gap verify_dyld_closure() below is meant to surface, so bundle it
+# whenever the build produced one.
+for coreml in "$SRCDIR"/libcrispasr.coreml.dylib "$SRCDIR"/libwhisper.coreml.dylib; do
+  if [[ -f "$coreml" ]]; then
+    cp -L "$coreml" "$FRAMEWORKS/$(basename "$coreml")"
+    echo "Bundled $(basename "$coreml") (CoreML encoder)"
+  fi
+done
+
 # Bundle Homebrew dependencies that libwhisper picked up via absolute
 # paths so the .app runs on machines without that brew package
 # installed (kokoro pulls in espeak-ng for in-process phonemisation).
@@ -202,22 +217,60 @@ fi
 verify_dyld_closure() {
   local app="$1"
   local fw="$app/Contents/Frameworks"
-  local missing=0 checked=0 bin dep base
+  local missing=0 outside=0 checked=0 bin dep base weak rp dir found
 
   while IFS= read -r -d '' bin; do
     case "$(file -b "$bin" 2>/dev/null)" in *Mach-O*) ;; *) continue ;; esac
     checked=$((checked + 1))
+
+    # Weak-linked dylibs are allowed to be absent — dyld binds their symbols
+    # to NULL instead of aborting — so they are not closure failures.
+    weak="$(otool -l "$bin" 2>/dev/null | awk '
+      /^ *cmd LC_LOAD_WEAK_DYLIB/ { w=1; next }
+      /^ *cmd / { w=0 }
+      w && /^ *name / { print $2; w=0 }')"
+
+    # Resolve @rpath the way dyld does: against THIS binary's LC_RPATH list,
+    # not a guessed directory. The main executable's rpath reaches
+    # Contents/MacOS via @executable_path, which is where Flutter puts
+    # crisper_weaver.debug.dylib — checking only Frameworks/ reported that
+    # (present, correctly linked) file as missing.
+    local -a dirs=()
+    while read -r rp; do
+      [[ -z "$rp" ]] && continue
+      dir="${rp//@executable_path/$app/Contents/MacOS}"
+      dir="${dir//@loader_path/$(dirname "$bin")}"
+      dirs+=("$dir")
+    done < <(otool -l "$bin" 2>/dev/null | awk '
+      /^ *cmd LC_RPATH/ { r=1; next }
+      /^ *cmd / { r=0 }
+      r && /^ *path / { print $2; r=0 }')
+    dirs+=("$fw")
+
     while read -r dep; do
       case "$dep" in
-        # Swift runtime lives in the OS (/usr/lib/swift) since 10.14.4 and is
-        # only embedded on older targets; not ours to bundle.
+        # Swift runtime ships in the OS (/usr/lib/swift) since 10.14.4.
         @rpath/libswift*) continue ;;
         @rpath/*) base="${dep#@rpath/}" ;;
         *) continue ;;
       esac
-      if [[ ! -e "$fw/$base" ]]; then
+      grep -qxF "$dep" <<<"$weak" && continue
+
+      found=""
+      for dir in "${dirs[@]}"; do
+        if [[ -e "$dir/$base" ]]; then found="$dir"; break; fi
+      done
+
+      if [[ -z "$found" ]]; then
         echo "  MISSING: $base   (needed by ${bin#"$app/"})" >&2
         missing=$((missing + 1))
+      elif [[ "$found" != "$app"/* ]]; then
+        # Resolves only through an rpath pointing OUTSIDE the bundle (a build
+        # tree). Fine on this machine, broken the moment the .app is copied
+        # elsewhere — warn rather than fail, since a dev build legitimately
+        # links against its build tree.
+        echo "  warn: $base resolves outside the bundle ($found) — needed by ${bin#"$app/"}" >&2
+        outside=$((outside + 1))
       fi
     done < <(otool -L "$bin" 2>/dev/null | awk 'NR>1 {print $1}')
   done < <(find "$app/Contents" -type f -print0)
@@ -227,7 +280,7 @@ verify_dyld_closure() {
     echo "       The app would abort at launch (dyld: Library not loaded)." >&2
     return 1
   fi
-  echo "dyld closure OK ($checked Mach-O files, all @rpath deps resolve)"
+  echo "dyld closure OK ($checked Mach-O files, all @rpath deps resolve${outside:+, $outside via an out-of-bundle rpath})"
 }
 verify_dyld_closure "$APP"
 
