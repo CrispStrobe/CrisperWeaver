@@ -7,6 +7,16 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 
 ### Fixed
 
+- **The macOS download no longer crashes on launch.** v0.9.8 quit
+  immediately with "Check with the developer to make sure crisper_weaver
+  works with this version of macOS" — the app bundle was missing one of the
+  libraries it loads at startup, so it never got as far as drawing a window
+  ([#32](https://github.com/CrispStrobe/CrisperWeaver/issues/32)). The
+  packaging step deleted the library after the build had put it there. It is
+  now left in place, and the build fails outright if any library the app
+  needs is absent from the bundle, so a launch-crashing download cannot ship
+  again. Affects the direct `.app` download and the Mac App Store /
+  TestFlight build alike; other platforms were never affected.
 - **Watch folder now survives a restart on macOS.** On the Mac App Store
   build, the permission you grant by picking a folder lasts only until the
   app quits, so from the second launch onward the folder was unreadable —
