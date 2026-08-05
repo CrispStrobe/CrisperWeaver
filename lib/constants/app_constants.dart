@@ -8,7 +8,7 @@ class AppConstants {
   /// tag, so a stale value is a false provenance claim in exactly the
   /// metadata auditors are asked to trust. It read '1.0.0' while the app
   /// shipped 0.9.5. Guarded by app_version_test.dart.
-  static const String appVersion = '0.9.8';
+  static const String appVersion = '0.9.9';
   static const String appBuildNumber = '1';
 
   // Audio Processing Constants
