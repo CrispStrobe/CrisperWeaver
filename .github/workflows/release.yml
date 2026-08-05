@@ -320,15 +320,23 @@ jobs:
             echo "::warning::APPSTORE_API_KEY_P8 is unset — App Store validation/upload will fail. The .pkg is still built and attached."
             exit 0
           fi
-          mkdir -p ~/.appstoreconnect/private_keys
+          mkdir -p ~/.appstoreconnect/private_keys ~/.private_keys
           KEY=~/.appstoreconnect/private_keys/AuthKey_9RMU3C7422.p8
+          # CrisperWeaver stores this secret as RAW PEM (appstore.md's secret
+          # table), other repos store base64 — try decode, fall back to raw.
           echo "$APPSTORE_API_KEY_P8" | base64 --decode > "$KEY" 2>/dev/null || true
           if ! head -1 "$KEY" | grep -q "BEGIN PRIVATE KEY"; then
             printf '%s' "$APPSTORE_API_KEY_P8" > "$KEY"
           fi
           if head -1 "$KEY" | grep -q "BEGIN PRIVATE KEY"; then
             chmod 600 "$KEY"
-            echo "App Store Connect API key installed at $KEY"
+            # Written to two of altool's four search paths: build-ios uses
+            # ~/.appstoreconnect/private_keys and that works, but appstore.md
+            # calls ~/.private_keys "the safe one to write". Costs nothing to
+            # satisfy both and removes a runner-dependent failure mode.
+            cp "$KEY" ~/.private_keys/AuthKey_9RMU3C7422.p8
+            chmod 600 ~/.private_keys/AuthKey_9RMU3C7422.p8
+            echo "App Store Connect API key installed (.appstoreconnect + .private_keys)"
           else
             rm -f "$KEY"
             echo "::warning::APPSTORE_API_KEY_P8 is not a valid .p8 (neither base64 nor raw PEM) — App Store validation/upload will fail. Re-set the secret per ../appstore.md."
