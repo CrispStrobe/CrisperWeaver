@@ -302,6 +302,38 @@ jobs:
           security find-identity -v -p codesigning "$KEYCHAIN"
           echo "signing_ready=true" >> "$GITHUB_OUTPUT"
 
+      # altool resolves `--apiKey <id>` by NAME: it looks for
+      # AuthKey_<id>.p8 under ~/.appstoreconnect/private_keys (plus three
+      # sibling paths) and aborts with "Failed to load AuthKey file. (-43)"
+      # when it isn't there. Only build-ios materialised that file, so this
+      # job built and signed a perfectly good .pkg and then failed at
+      # validation on every release — invisible from the outside because the
+      # job is continue-on-error and the .pkg still got attached. Same
+      # decode-then-fallback handling as build-ios; keep the key id in step
+      # with API_KEY in scripts/build_macos_appstore.sh.
+      - name: Install App Store Connect API key
+        if: steps.signing.outputs.signing_ready == 'true'
+        env:
+          APPSTORE_API_KEY_P8: ${{ secrets.APPSTORE_API_KEY_P8 }}
+        run: |
+          if [ -z "$APPSTORE_API_KEY_P8" ]; then
+            echo "::warning::APPSTORE_API_KEY_P8 is unset — App Store validation/upload will fail. The .pkg is still built and attached."
+            exit 0
+          fi
+          mkdir -p ~/.appstoreconnect/private_keys
+          KEY=~/.appstoreconnect/private_keys/AuthKey_9RMU3C7422.p8
+          echo "$APPSTORE_API_KEY_P8" | base64 --decode > "$KEY" 2>/dev/null || true
+          if ! head -1 "$KEY" | grep -q "BEGIN PRIVATE KEY"; then
+            printf '%s' "$APPSTORE_API_KEY_P8" > "$KEY"
+          fi
+          if head -1 "$KEY" | grep -q "BEGIN PRIVATE KEY"; then
+            chmod 600 "$KEY"
+            echo "App Store Connect API key installed at $KEY"
+          else
+            rm -f "$KEY"
+            echo "::warning::APPSTORE_API_KEY_P8 is not a valid .p8 (neither base64 nor raw PEM) — App Store validation/upload will fail. Re-set the secret per ../appstore.md."
+          fi
+
       - name: Build, sign and package for the App Store
         if: steps.signing.outputs.signing_ready == 'true'
         working-directory: repos/CrisperWeaver
