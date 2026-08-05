@@ -5,6 +5,8 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 
 ## [Unreleased]
 
+## [0.9.9] — 2026-08-05
+
 ### Fixed
 
 - **The macOS download no longer crashes on launch.** v0.9.8 quit

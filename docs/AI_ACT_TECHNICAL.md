@@ -76,7 +76,7 @@ Open-source project maintained at
 
 ### 1.3 Version
 
-Current release: v0.9.8 (build 78).
+Current release: v0.9.9 (build 79).
 Engine dependencies, pinned to release tags in CI (`.github/workflows/`)
 rather than tracking a moving branch: CrispASR v0.8.25, CrispEmbed
 v0.16.1, glint_audio v0.11.0.
