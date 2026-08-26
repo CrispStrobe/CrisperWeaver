@@ -3,7 +3,7 @@
 Notable user-facing changes per release. Full diff per version on
 the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases).
 
-## [Unreleased]
+## [0.10.1] — 2026-08-26
 
 ### Added
 
