@@ -56,6 +56,13 @@ abstract class LocalLlmBackend {
     int? abortFlagAddress,
   });
 
+  /// Prompt-token count for [messages], or null when this build of
+  /// libcrispasr has no `crispasr_chat_count_tokens`.
+  ///
+  /// Null means "unknown", never "zero" — callers must proceed rather than
+  /// treat an unavailable count as a small prompt.
+  Future<int?> countTokens({required List<Map<String, String>> messages});
+
   /// Clear the KV cache so the next generate re-prefills from
   /// scratch. Idempotent on a closed session (returns success).
   Future<void> reset();
@@ -236,6 +243,32 @@ class IsolateLocalLlmBackend implements LocalLlmBackend {
     // treat as an error.
     throw const LocalLlmException(
         'closed', 'worker stream ended without a done message');
+  }
+
+  @override
+  Future<int?> countTokens({
+    required List<Map<String, String>> messages,
+  }) async {
+    if (!isOpen) {
+      throw const LocalLlmException(
+          'closed', 'session is not open — call open() first');
+    }
+    final reply = ReceivePort();
+    _cmdPort!.send(<String, Object?>{
+      'type': 'count_tokens',
+      'replyPort': reply.sendPort,
+      'messages': messages,
+    });
+    final res = await reply.first;
+    reply.close();
+    if (res is! Map) return null;
+    if (res['ok'] == true) {
+      final v = res['value'];
+      return v is int ? v : null;
+    }
+    // 'unsupported' (old dylib) and any other failure both mean "no usable
+    // count". A pre-flight that cannot answer must not block the work.
+    return null;
   }
 
   @override

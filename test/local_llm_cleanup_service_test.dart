@@ -228,6 +228,73 @@ void main() {
       expect(stub.lastAbortFlagAddress, isNot(0));
     });
 
+    test('skips a segment whose prompt will not fit the context', () async {
+      // The failure this prevents is silent: llama.cpp drops the overflow
+      // rather than erroring, so the model tidies a TRUNCATED transcript and
+      // returns confident prose for text it never saw. Returning the input
+      // unchanged is the only honest answer.
+      final stub = _StubBackend(
+          responder: (msgs) => 'TIDIED')
+        ..tokenCount = 4000;
+      final svc = LocalLlmCleanupService(backend: stub);
+      addTearDown(svc.dispose);
+      final out = await svc.cleanupBatch(
+        texts: const ['a very long transcript segment'],
+        config: cfg(nCtx: 4096, maxTokens: 512),
+        cancel: CleanupCancelToken(),
+      );
+      // 4000 prompt + 512 reserve > 4096 -> skipped, text untouched.
+      expect(out, ['a very long transcript segment']);
+      expect(stub.generateCount, 0);
+      expect(stub.countTokensCalls, 1);
+    });
+
+    test('runs a segment that fits, reserve included', () async {
+      final stub = _StubBackend(responder: (msgs) => 'TIDIED')
+        ..tokenCount = 100;
+      final svc = LocalLlmCleanupService(backend: stub);
+      addTearDown(svc.dispose);
+      final out = await svc.cleanupBatch(
+        texts: const ['short'],
+        config: cfg(nCtx: 4096, maxTokens: 512),
+        cancel: CleanupCancelToken(),
+      );
+      expect(out, ['TIDIED']);
+      expect(stub.generateCount, 1);
+    });
+
+    test('an unavailable count proceeds rather than blocking', () async {
+      // Older libcrispasr has no crispasr_chat_count_tokens. Refusing on an
+      // unknown would disable cleanup entirely on those builds.
+      final stub = _StubBackend(responder: (msgs) => 'TIDIED')
+        ..tokenCount = null;
+      final svc = LocalLlmCleanupService(backend: stub);
+      addTearDown(svc.dispose);
+      final out = await svc.cleanupBatch(
+        texts: const ['whatever'],
+        config: cfg(nCtx: 4096, maxTokens: 512),
+        cancel: CleanupCancelToken(),
+      );
+      expect(out, ['TIDIED']);
+      expect(stub.generateCount, 1);
+    });
+
+    test('no nCtx configured means no pre-flight at all', () async {
+      final stub = _StubBackend(responder: (msgs) => 'TIDIED')
+        ..tokenCount = 99999;
+      final svc = LocalLlmCleanupService(backend: stub);
+      addTearDown(svc.dispose);
+      final out = await svc.cleanupBatch(
+        texts: const ['whatever'],
+        config: cfg(),
+        cancel: CleanupCancelToken(),
+      );
+      // cfg() leaves nCtx null — we cannot know the window, so we must not
+      // invent one and start refusing work.
+      expect(out, ['TIDIED']);
+      expect(stub.countTokensCalls, 0);
+    });
+
     test('per-segment failure falls through with original text', () async {
       var i = 0;
       final stub = _StubBackend(responder: (msgs) {
@@ -297,6 +364,19 @@ class _StubBackend implements LocalLlmBackend {
   /// Non-null proves cleanupBatch handed the worker a cancel channel that
   /// can reach into a running generation.
   int? lastAbortFlagAddress;
+
+  /// Prompt-token count the stub reports. Null mimics a libcrispasr with no
+  /// `crispasr_chat_count_tokens`, which must never block cleanup.
+  int? tokenCount;
+  int countTokensCalls = 0;
+
+  @override
+  Future<int?> countTokens({
+    required List<Map<String, String>> messages,
+  }) async {
+    countTokensCalls++;
+    return tokenCount;
+  }
 
   @override
   Future<String> generate({

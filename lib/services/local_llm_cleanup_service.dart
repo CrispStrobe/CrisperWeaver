@@ -215,6 +215,36 @@ class LocalLlmCleanupService {
       {'role': 'user', 'content': text},
     ];
 
+    // §countTokens pre-flight (CrispASR chat ABI). A segment whose prompt
+    // does not fit the context window does not fail loudly — llama.cpp
+    // silently drops the overflow, so the model tidies a TRUNCATED
+    // transcript and returns confident prose for text it never saw. That is
+    // worse than not running: the caller cannot tell the difference.
+    //
+    // Reserve room for the reply as well as the prompt; a prompt that fits
+    // exactly leaves nothing to generate into. Null means the count is
+    // unavailable (older dylib) — proceed, because refusing on an unknown
+    // would disable cleanup on every build that predates the symbol.
+    final ctx = config.nCtx;
+    if (ctx != null && ctx > 0) {
+      final promptTokens = await _backend.countTokens(messages: messages);
+      if (promptTokens != null) {
+        final reserve = config.maxTokens > 0 ? config.maxTokens : 256;
+        if (promptTokens + reserve > ctx) {
+          Log.instance.w('local-llm', 'segment skipped — prompt exceeds context',
+              fields: {
+                'prompt_tokens': promptTokens,
+                'reserve': reserve,
+                'n_ctx': ctx,
+                'chars': text.length,
+              });
+          // Unchanged text is the honest outcome: the segment is returned
+          // exactly as it came in, rather than as a tidy-looking fragment.
+          return text;
+        }
+      }
+    }
+
     if (onToken != null) {
       final buf = StringBuffer();
       await for (final delta in _backend.generateStream(

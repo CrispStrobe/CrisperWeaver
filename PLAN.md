@@ -463,8 +463,14 @@ New Dart-visible surface, not yet wired, in rough value order:
    libcrispasr plus a 3B GGUF; the shared-word mechanism itself is
    covered by `test/llm_abort_flag_test.dart` across a real isolate
    boundary.
-   `countTokens` is still unwired — it would let the summarize/cleanup
-   services check a transcript against `nCtx` before starting.
+   `countTokens` — **DONE**. `LocalLlmBackend.countTokens` +
+   a `count_tokens` worker command, used as a pre-flight in
+   `cleanupSegment`: prompt tokens + the reply reserve must fit `nCtx` or
+   the segment is returned unchanged. The failure it prevents is silent —
+   llama.cpp drops the overflow rather than erroring, so the model tidies a
+   TRUNCATED transcript and returns confident prose for text it never saw,
+   which the caller cannot distinguish from a good result. A null count
+   (dylib without the symbol) proceeds rather than blocking.
 
 Held back deliberately: **confucius4-tts** is in `engineOnly` — see the
 reasoning in `test/backend_dispatch_test.dart`. Short version: zero-shot

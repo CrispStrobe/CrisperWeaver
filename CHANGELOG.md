@@ -3,6 +3,14 @@
 Notable user-facing changes per release. Full diff per version on
 the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases).
 
+## [Unreleased]
+
+### Fixed
+
+- Transcript tidying now skips a segment whose prompt will not fit the local
+  model's context window instead of silently tidying a truncated version of
+  it and returning confident text for words the model never saw.
+
 ## [0.10.1] — 2026-08-26
 
 ### Added

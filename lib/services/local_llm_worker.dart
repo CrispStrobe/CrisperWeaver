@@ -30,6 +30,8 @@
 //       'messages': [{role, content}, ...],
 //       'generateParams': {...},
 //       'abortFlagAddress': int? }
+//     { 'type': 'count_tokens', 'replyPort': SendPort,
+//       'messages': [{role, content}, ...] }
 //     { 'type': 'reset',    'replyPort': SendPort }
 //     { 'type': 'shutdown' }
 //   ↓
@@ -263,6 +265,105 @@ Future<void> localLlmWorkerEntry(LocalLlmWorkerArgs args) async {
           }
         }
         break;
+
+      case 'count_tokens':
+
+        // Pure query: touches neither the KV cache nor the history, so it
+
+        // is safe between generations. For a session part-way through a
+
+        // conversation the answer is an UPPER BOUND, since the history
+
+        // already holds part of the prompt.
+
+        {
+
+          final s0 = session;
+
+          if (s0 == null) {
+
+            replyPort.send(<String, Object?>{
+
+              'ok': false,
+
+              'kind': 'closed',
+
+              'error': 'session is not open',
+
+            });
+
+            break;
+
+          }
+
+          final raws = raw['messages'];
+
+          final msgs = <crispasr.ChatMessage>[];
+
+          if (raws is List) {
+
+            for (final mm in raws) {
+
+              if (mm is! Map) continue;
+
+              final role = mm['role'];
+
+              final content = mm['content'];
+
+              if (role is! String || content is! String) continue;
+
+              msgs.add(crispasr.ChatMessage(role: role, content: content));
+
+            }
+
+          }
+
+          try {
+
+            replyPort.send(<String, Object?>{
+
+              'ok': true,
+
+              'value': s0.countTokens(msgs),
+
+            });
+
+          } on UnsupportedError catch (e) {
+
+            // Older libcrispasr without crispasr_chat_count_tokens. Not an
+
+            // error worth failing a cleanup pass over — the caller treats a
+
+            // null count as "unknown, proceed".
+
+            replyPort.send(<String, Object?>{
+
+              'ok': false,
+
+              'kind': 'unsupported',
+
+              'error': e.message?.toString() ?? e.toString(),
+
+            });
+
+          } catch (e) {
+
+            replyPort.send(<String, Object?>{
+
+              'ok': false,
+
+              'kind': 'count_failed',
+
+              'error': e.toString(),
+
+            });
+
+          }
+
+        }
+
+        break;
+
 
       case 'reset':
         final s = session;
