@@ -140,6 +140,12 @@ jobs:
           repository: ${{ env.CRISPEMBED_REPO }}
           ref: ${{ env.CRISPEMBED_REF }}
           path: repos/CrispEmbed
+          # CrispEmbed vendors ggml as a submodule and this job builds it
+          # from source, so it needs the same recursive checkout CrispASR and
+          # glint already get. Without it cmake stops at "ggml submodule not
+          # found". release.yml has had this on every CrispEmbed checkout;
+          # ci.yml was the one that did not.
+          submodules: recursive
 
       - name: Check out sibling glint
         uses: actions/checkout@v5
@@ -213,6 +219,12 @@ jobs:
           repository: ${{ env.CRISPEMBED_REPO }}
           ref: ${{ env.CRISPEMBED_REF }}
           path: repos/CrispEmbed
+          # CrispEmbed vendors ggml as a submodule and this job builds it
+          # from source, so it needs the same recursive checkout CrispASR and
+          # glint already get. Without it cmake stops at "ggml submodule not
+          # found". release.yml has had this on every CrispEmbed checkout;
+          # ci.yml was the one that did not.
+          submodules: recursive
 
       - name: Check out sibling glint
         uses: actions/checkout@v5
