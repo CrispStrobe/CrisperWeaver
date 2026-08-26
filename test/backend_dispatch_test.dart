@@ -349,6 +349,33 @@ void main() {
         'mel-band-roformer',
         'piano-transcription',
         'tabcnn',
+
+        // Confucius4-TTS (CrispASR #377), new in the 110fd5ce pin.
+        // Held back deliberately, not overlooked:
+        //
+        //  1. It is zero-shot-ONLY. `docs/tts.md` is explicit that without
+        //     `--voice` conditioning "the output is unintelligible by
+        //     design". A catalogue entry the user can select and hear
+        //     nothing intelligible from is exactly the bug reported in
+        //     issue #22 for qwen3-tts Base, which we fixed by tagging such
+        //     models `requiresVoice: true` and disabling Synthesize until a
+        //     voice is set. Shipping this before that treatment repeats it.
+        //
+        //  2. The session path is not finished. `confucius4_tts_set_w2v_path`
+        //     makes T2S `condition_emb` native, but the C-ABI arm in
+        //     crispasr_c_api.cpp `set_voice` still routes through
+        //     CRISPASR_CONFUCIUS4_COND_DIR — an env var pointing at
+        //     externally-computed w2v-BERT features. The app drives the
+        //     session API, so cloning through it is not yet self-contained.
+        //
+        //  3. It needs THREE GGUFs (t2s + s2a + BigVGAN extras, ~725 MB
+        //     total) and the model manager has no multi-companion download
+        //     shape for TTS beyond a single codec companion.
+        //
+        // Revisit when the session `set_voice` arm calls set_w2v_path
+        // itself; then catalogue it with `requiresVoice: true` alongside
+        // the qwen3-tts Base entries.
+        'confucius4-tts',
       };
 
       final catalogued = <String>{

@@ -92,3 +92,7 @@ android/key.properties
 # Apple App Store Connect API key (NEVER commit)
 .appstoreconnect/
 *.p8
+
+# `build` is a symlink to an external volume on some dev machines.
+# The `/build/` rule above only matches directories, so name it again.
+/build
