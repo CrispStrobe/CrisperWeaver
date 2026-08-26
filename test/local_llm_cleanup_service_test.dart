@@ -208,6 +208,26 @@ void main() {
       expect(out, ['A', 'B']);
     });
 
+    test('hands every generation a cancel channel into the native call',
+        () async {
+      // Cancelling used to be checked only BETWEEN segments, so pressing
+      // Cancel one token into a long segment waited out that entire
+      // generation. The batch now allocates a shared word and passes its
+      // address down, which is the only signal that can reach a worker
+      // isolate blocked inside a synchronous native call.
+      final stub = _StubBackend(
+          responder: (msgs) => (msgs.last['content'] as String).toUpperCase());
+      final svc = LocalLlmCleanupService(backend: stub);
+      addTearDown(svc.dispose);
+      await svc.cleanupBatch(
+        texts: const ['a'],
+        config: cfg(),
+        cancel: CleanupCancelToken(),
+      );
+      expect(stub.lastAbortFlagAddress, isNotNull);
+      expect(stub.lastAbortFlagAddress, isNot(0));
+    });
+
     test('per-segment failure falls through with original text', () async {
       var i = 0;
       final stub = _StubBackend(responder: (msgs) {
@@ -274,14 +294,20 @@ class _StubBackend implements LocalLlmBackend {
     _open = true;
   }
 
+  /// Non-null proves cleanupBatch handed the worker a cancel channel that
+  /// can reach into a running generation.
+  int? lastAbortFlagAddress;
+
   @override
   Future<String> generate({
     required List<Map<String, String>> messages,
     required Map<String, Object?> generateParams,
+    int? abortFlagAddress,
   }) async {
     generateCount++;
     lastMessages = messages;
     lastGenerateParams = generateParams;
+    lastAbortFlagAddress = abortFlagAddress;
     return responder(messages);
   }
 
@@ -289,8 +315,13 @@ class _StubBackend implements LocalLlmBackend {
   Stream<String> generateStream({
     required List<Map<String, String>> messages,
     required Map<String, Object?> generateParams,
+    int? abortFlagAddress,
   }) async* {
-    yield await generate(messages: messages, generateParams: generateParams);
+    yield await generate(
+      messages: messages,
+      generateParams: generateParams,
+      abortFlagAddress: abortFlagAddress,
+    );
   }
 
   @override

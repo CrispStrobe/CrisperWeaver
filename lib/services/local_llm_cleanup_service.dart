@@ -27,6 +27,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'cloud_llm_cleanup_service.dart' show CleanupCancelToken;
+import '../native/llm_abort_flag_import.dart';
 import 'local_llm_backend.dart';
 import 'log_service.dart';
 
@@ -194,6 +195,7 @@ class LocalLlmCleanupService {
     required LocalLlmConfig config,
     String? contextHint,
     void Function(String delta)? onToken,
+    LlmAbortFlag? abortFlag,
   }) async {
     if (!config.enabled) {
       throw const LocalLlmDisabledException('modelPath is empty');
@@ -218,6 +220,7 @@ class LocalLlmCleanupService {
       await for (final delta in _backend.generateStream(
         messages: messages,
         generateParams: config.toGenerateParamsMap(),
+        abortFlagAddress: abortFlag?.address,
       )) {
         buf.write(delta);
         onToken(delta);
@@ -228,6 +231,7 @@ class LocalLlmCleanupService {
     final out = await _backend.generate(
       messages: messages,
       generateParams: config.toGenerateParamsMap(),
+      abortFlagAddress: abortFlag?.address,
     );
     return out.trim();
   }
@@ -244,22 +248,53 @@ class LocalLlmCleanupService {
     void Function(int doneCount, int total)? onProgress,
   }) async {
     final out = <String>[];
-    for (var i = 0; i < texts.length; i++) {
-      if (cancel.cancelled) break;
-      try {
-        final cleaned = await cleanupSegment(
-            text: texts[i], config: config);
-        out.add(cleaned);
-      } on LocalLlmDisabledException {
-        // Disabled is not a per-segment problem; surface to the
-        // caller so it can show a "configure first" snackbar.
-        rethrow;
-      } catch (e, st) {
-        Log.instance.w('local-llm', 'segment cleanup failed',
-            fields: {'index': i}, error: e, stack: st);
-        out.add(texts[i]); // fall through unchanged
+    // The token alone was only ever read BETWEEN segments, so pressing
+    // Cancel during a long segment still waited out that whole generation —
+    // seconds to minutes on a 3B model. The flag is polled by the worker
+    // from inside the native call, so Cancel now stops the current segment
+    // too. Allocated per batch and freed in the finally: the address is read
+    // by the worker isolate, and freeing it while a generation is still
+    // running would be a use-after-free.
+    final abortFlag = LlmAbortFlag();
+    var pumping = true;
+    // Bridge the Dart-side token to the shared word. Polling rather than
+    // subscribing because CleanupCancelToken exposes a bool, not a stream,
+    // and 100 ms is far below the threshold at which a user notices.
+    unawaited(() async {
+      while (pumping) {
+        if (cancel.cancelled) {
+          abortFlag.cancel();
+          return;
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 100));
       }
-      onProgress?.call(i + 1, texts.length);
+    }());
+    try {
+      for (var i = 0; i < texts.length; i++) {
+        if (cancel.cancelled) break;
+        try {
+          final cleaned = await cleanupSegment(
+              text: texts[i], config: config, abortFlag: abortFlag);
+          out.add(cleaned);
+        } on LocalLlmDisabledException {
+          // Disabled is not a per-segment problem; surface to the
+          // caller so it can show a "configure first" snackbar.
+          rethrow;
+        } catch (e, st) {
+          // An aborted generation lands here too. That is the right
+          // outcome — the loop's own `cancel.cancelled` check ends the
+          // pass on the next turn, and the segment falls through
+          // unchanged rather than being recorded as a failure.
+          Log.instance.w('local-llm', 'segment cleanup failed',
+              fields: {'index': i, 'cancelled': cancel.cancelled},
+              error: e, stack: st);
+          out.add(texts[i]); // fall through unchanged
+        }
+        onProgress?.call(i + 1, texts.length);
+      }
+    } finally {
+      pumping = false;
+      abortFlag.dispose();
     }
     return out;
   }

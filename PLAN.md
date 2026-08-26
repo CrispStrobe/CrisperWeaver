@@ -397,6 +397,81 @@ Shipped items (A, B, C, F text-LID, G) archived to
 - Android ANR (lazy whisper load + chunked pool) and iOS kokoro
   (espeak-ng) still need on-device runs (see §5.22).
 
+**G. CrispASR 110fd5ce integration backlog (surveyed 2026-08-26).**
+The pin moved v0.8.25 → `110fd5ce` (534 commits). Behavioural fixes we
+inherit without writing any Dart:
+
+- **#350** — `transcribe_chunked` on non-JA Parakeet. Between 0.8.24 and
+  0.8.28 (i.e. in shipped v0.9.9) a `chunk_seconds = 0` call collapsed to
+  ONE full-length decode that silently dropped whole spans of speech. The
+  app calls `transcribeChunked` with `chunkSeconds: 0` by default, so
+  every Parakeet long-form transcript in v0.9.9 is suspect.
+- **#385** — session progress never moved on the unified long-form
+  dispatch, so the app's progress bar and `getTranscriptionProgress()`
+  poll sat still for the whole decode on those routes.
+- **#393** — the Windows cache probe missed GGUFs larger than 2 GiB and
+  re-downloaded them every launch.
+- **#384** — bare voice names now resolve against the voice dir in five
+  TTS adapters.
+- **punc** — XLM-R punctuation models returned EMPTY output on the
+  default path; `PuncService` gets that back for free.
+- **#388** — inter-utterance pause preserved (whisper.cpp#2279 backport).
+- **#324** — WeSpeaker/spectral diarization now reaches Accelerate and
+  has an opt-in GPU embedder.
+
+New Dart-visible surface, not yet wired, in rough value order:
+
+1. `session.outputSampleRate` / `inputSampleRate` (#332) — **DONE**,
+   `TtsService._probeOutputSampleRate`. Was the fix for playing every
+   backend at an assumed 24 kHz.
+2. `setSensitivity(...)` — **DONE**. Preset picker at the head of the
+   fallback-thresholds tile. Preset and the four sliders are mutually
+   exclusive by construction: the C side treats a later
+   `set_fallback_thresholds()` as overriding a preset, and we fire those
+   unconditionally, so sending both would discard the preset every time.
+   Wired on BOTH arms — `CrispASREngine` and `transcription_worker` — the
+   pooled one being the default route.
+   *Also fixed in passing:* the pool never forwarded the four thresholds
+   at all, so those sliders were inert on the default path.
+3. Diarization `minSpeakers` / `maxSpeakers` / `numSpeakers` +
+   `foxnoseEmbedderPath` (#324) — **DONE**. `wespeaker-resnet34-lm`
+   catalogued (23 MB, `ModelKind.diarize`), `_findFoxnoseEmbedder()`
+   mirrors the pyannote resolver and degrades to vad-turns on a miss.
+   The three hints had been accepted-but-ignored since the API was
+   written; foxNose is the first method that consumes them.
+4. `setSpeakerIdentity(...)` — **PARTLY DONE**. `TtsService.prepare`
+   declares `real_person` for a user-supplied reference WAV and
+   `synthetic` otherwise. The other half is per-voice provenance: a baked
+   preset speaker MAY be a named donor or a corpus speaker (VCTK p225),
+   and Art. 3(60) attaches to the audio resembling that person — but the
+   catalogue carries no provenance per voice, and asserting `real_person`
+   for every preset would make the Art. 50(4) reminder meaningless.
+   Needs a provenance field on the voice entries. See §15.2g.
+5. `setTtsReferenceLanguage` (#329) — **DONE**, `TtsService.prepare`
+   (`referenceLanguage:`). No UI yet: callers pass it, the synthesize
+   screen does not ask for it.
+6. `setMinSpeechTokens` (#360) — **DONE**, `TtsService.prepare`
+   (`minSpeechTokens:`). No UI; MOSS TTS is the only consumer.
+7. Chat C ABI abort — **DONE**, `LlmAbortFlag` +
+   `local_llm_cleanup_service.cleanupBatch`. A SendPort cannot deliver a
+   cancel to the worker: its event loop is blocked inside the synchronous
+   native `generate` for the whole generation. So the flag is one `Int32`
+   on the shared native heap — isolates share no Dart heap but do share a
+   process — polled by the `shouldContinue` predicate from inside the
+   native call. `CleanupCancelToken` was previously only read BETWEEN
+   segments. **Unverified on a real model**: needs a chat-capable
+   libcrispasr plus a 3B GGUF; the shared-word mechanism itself is
+   covered by `test/llm_abort_flag_test.dart` across a real isolate
+   boundary.
+   `countTokens` is still unwired — it would let the summarize/cleanup
+   services check a transcript against `nCtx` before starting.
+
+Held back deliberately: **confucius4-tts** is in `engineOnly` — see the
+reasoning in `test/backend_dispatch_test.dart`. Short version: zero-shot
+only (unintelligible without `--voice`, the #22 failure shape), the
+session `set_voice` arm still wants `CRISPASR_CONFUCIUS4_COND_DIR`
+externally-computed w2v-BERT features, and it needs three GGUFs.
+
 **E. Process.** Each new engine backend follows: CrispASR dispatch (in a
 worktree) → app `ModelDefinition` + `BackendRepo` → drop from guard
 `pending` after the dylib rebuild → release. The guard test fails any

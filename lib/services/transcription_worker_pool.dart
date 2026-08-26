@@ -285,6 +285,7 @@ class TranscriptionWorkerPool {
     String grammarText = '',
     String grammarRootRule = 'root',
     double grammarPenalty = 100.0,
+    String sensitivityPreset = '',
     double entropyThold = 2.4,
     double logprobThold = -1.0,
     double noSpeechThold = 0.6,
@@ -391,6 +392,8 @@ class TranscriptionWorkerPool {
         // Whisper decoder-fallback thresholds — always sent so a
         // slider tweak takes effect on the next job without a
         // worker restart. Pre-0.5.10 dylibs ignore.
+        if (sensitivityPreset.isNotEmpty)
+          'sensitivityPreset': sensitivityPreset,
         'entropyThold': entropyThold,
         'logprobThold': logprobThold,
         'noSpeechThold': noSpeechThold,

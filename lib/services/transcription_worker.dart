@@ -169,6 +169,7 @@ Future<void> transcriptionWorkerEntry(TranscriptionWorkerArgs args) async {
         (raw['grammarPenalty'] as num?)?.toDouble() ?? 100.0;
     // Whisper decoder-fallback thresholds (whisper-only; other
     // backends silently ignore).
+    final sensitivityPreset = (raw['sensitivityPreset'] as String?) ?? '';
     final entropyThold = (raw['entropyThold'] as num?)?.toDouble() ?? 2.4;
     final logprobThold = (raw['logprobThold'] as num?)?.toDouble() ?? -1.0;
     final noSpeechThold =
@@ -251,14 +252,29 @@ Future<void> transcriptionWorkerEntry(TranscriptionWorkerArgs args) async {
       } on Object catch (_) {} // FFI feature probe — silent
       // Whisper decoder-fallback thresholds. Pre-0.5.10 dylibs
       // lack the symbol — UnsupportedError gets swallowed.
-      try {
-        session.setFallbackThresholds(
-          entropyThold: entropyThold,
-          logprobThold: logprobThold,
-          noSpeechThold: noSpeechThold,
-          temperatureInc: temperatureInc,
-        );
-      } on Object catch (_) {/* old dylib or non-whisper backend */}
+      //
+      // A named preset and these four are the same knob, and the C side
+      // treats a later set_fallback_thresholds() as overriding a preset —
+      // so they are mutually exclusive, exactly as on the main-isolate
+      // path in CrispASREngine. This is the DEFAULT dispatch route, so a
+      // preset that was only wired there would appear to do nothing.
+      var presetApplied = false;
+      if (sensitivityPreset.isNotEmpty) {
+        try {
+          session.setSensitivity(sensitivityPreset);
+          presetApplied = true;
+        } on Object catch (_) {/* old dylib, or an unknown preset name */}
+      }
+      if (!presetApplied) {
+        try {
+          session.setFallbackThresholds(
+            entropyThold: entropyThold,
+            logprobThold: logprobThold,
+            noSpeechThold: noSpeechThold,
+            temperatureInc: temperatureInc,
+          );
+        } on Object catch (_) {/* old dylib or non-whisper backend */}
+      }
       // Whisper text-suppression + prompt-carry extras. Pre-0.5.11
       // dylibs lack the symbol.
       try {

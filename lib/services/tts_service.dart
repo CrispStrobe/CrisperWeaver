@@ -94,6 +94,42 @@ class TtsService {
   crispasr.CrispasrSession? _session;
   String? _backend;
 
+  /// Backend-native output rate, read from the session at open time (#332).
+  /// Falls back to [kFallbackOutputSampleRate] when the loaded dylib
+  /// predates `crispasr_session_output_sample_rate`.
+  int _outputSampleRate = kFallbackOutputSampleRate;
+
+  /// What the app assumed for every backend before #332. Correct for most
+  /// of them, which is exactly why the ones it was wrong for went unnoticed.
+  static const int kFallbackOutputSampleRate = 24000;
+
+  /// Rate of the PCM [synthesize] and [speechToSpeech] return.
+  int get outputSampleRate => _outputSampleRate;
+
+  static int _probeOutputSampleRate(crispasr.CrispasrSession s) {
+    try {
+      final rate = s.outputSampleRate;
+      // 0 means "this dylib has no such symbol" or "this backend emits no
+      // audio". Neither is a rate we can resample against.
+      if (rate <= 0) {
+        Log.instance.d('tts',
+            'backend reports no output sample rate; assuming '
+            '$kFallbackOutputSampleRate Hz');
+        return kFallbackOutputSampleRate;
+      }
+      if (rate != kFallbackOutputSampleRate) {
+        Log.instance.i('tts', 'backend output rate differs from the default',
+            fields: {'backend': s.backend, 'rate': rate});
+      }
+      return rate;
+    } catch (e) {
+      Log.instance.d('tts', 'output sample rate probe failed', fields: {
+        'err': e.toString(),
+      });
+      return kFallbackOutputSampleRate;
+    }
+  }
+
   // Resolved config from last prepare(), replayed in the background
   // isolate for synthesis (#23 — prevents ANR on large models).
   String? _modelPath;
@@ -158,6 +194,8 @@ class TtsService {
     String? speakerName,
     int? speakerId,
     String? instructPrompt,
+    String? referenceLanguage,
+    int minSpeechTokens = 0,
   }) async {
     final modelPath = await _resolvePath(modelName);
     if (modelPath == null) {
@@ -189,6 +227,7 @@ class TtsService {
     _session = null;
     _key = null;
     _backend = null;
+    _outputSampleRate = kFallbackOutputSampleRate;
 
     try {
       // Pass the backend explicitly so the C-side doesn't have to
@@ -258,14 +297,72 @@ class TtsService {
               fields: {'id': speakerId, 'err': e.toString()});
         }
       } else if (voicePath != null) {
+        // #329 — cross-lingual cloning. cosyvoice3 compares the reference
+        // clip's language against the requested output language and drops
+        // the reference transcript when they differ, so the clone speaks
+        // the target language instead of carrying the reference's accent.
+        // It otherwise infers this, and declines rather than guessing on a
+        // short transcript — at which point the requested target language
+        // silently has no effect. Set it when we know it.
+        if (referenceLanguage != null && referenceLanguage.isNotEmpty) {
+          try {
+            s.setTtsReferenceLanguage(referenceLanguage);
+          } catch (e) {
+            Log.instance.d('tts', 'setTtsReferenceLanguage rejected',
+                fields: {'lang': referenceLanguage, 'err': e.toString()});
+          }
+        }
         // refText pairs with WAV-cloning voices on qwen3-tts /
         // vibevoice-1.5b; baked GGUFs ignore it. The Dart binding
         // accepts a nullable refText, so passing null is safe.
         s.setVoice(voicePath, refText: refText);
       }
+
+      // EU AI Act Art. 3(60) attaches to audio that resembles an
+      // identifiable person, not to the pipeline that produced it. A
+      // user-supplied reference WAV is by definition someone's real voice,
+      // so declare it and let the C side's Art. 50(4) reminder fire. Baked
+      // preset speakers we declare `synthetic`: a model-internal speaker
+      // MAY still be a named donor or a corpus speaker, but the catalogue
+      // carries no per-voice provenance today, and asserting `real_person`
+      // for every preset would make the reminder meaningless. See PLAN
+      // §5.24 G — per-voice provenance is the other half of this.
+      final identity = (voiceWavPath != null && voiceWavPath.isNotEmpty)
+          ? 'real_person'
+          : 'synthetic';
+      try {
+        s.setSpeakerIdentity(identity);
+      } on UnsupportedError catch (e) {
+        Log.instance.d('tts',
+            'speaker-identity API absent from this dylib: $e');
+      } catch (e) {
+        Log.instance.d('tts', 'setSpeakerIdentity rejected',
+            fields: {'identity': identity, 'err': e.toString()});
+      }
+
+      // #360 — output-length floor, in the backend's own AR decode steps.
+      // MOSS TTS is the only consumer today (one unit = one 80 ms codec
+      // frame); everything else returns -2 and the binding no-ops.
+      if (minSpeechTokens > 0) {
+        try {
+          s.setMinSpeechTokens(minSpeechTokens);
+        } catch (e) {
+          Log.instance.d('tts', 'setMinSpeechTokens rejected',
+              fields: {'n': minSpeechTokens, 'err': e.toString()});
+        }
+      }
       _session = s;
       _key = key;
       _backend = s.backend;
+      // #332 — ask the backend what rate it actually produces instead of
+      // assuming 24 kHz. The assumption was wrong for a third of the TTS
+      // backends: piper / fastpitch / bananamind are 22.05 kHz, speecht5 is
+      // 16 kHz, melotts / dia / parler / zonos are 44.1 kHz, and
+      // voxcpm2 / dots / irodori / moss-tts-local are 48 kHz. Playing 22.05
+      // kHz PCM as 24 kHz is an audible ~9% pitch shift; playing 48 kHz as
+      // 24 kHz is half speed. Older dylibs return 0 from this symbol, and
+      // that is the one case where the old constant is still the best guess.
+      _outputSampleRate = _probeOutputSampleRate(s);
       // Store resolved config for background-isolate replay (#23).
       _modelPath = modelPath;
       _voicePath = voicePath;
@@ -504,12 +601,12 @@ class TtsService {
       Log.instance.i('tts', 'synth done', fields: {
         'samples_raw': beforeSamples,
         'samples_out': pcm.length,
-        'seconds': (pcm.length / 24000.0).toStringAsFixed(2),
+        'seconds': (pcm.length / _outputSampleRate).toStringAsFixed(2),
         'speed': clampedSpeed.toStringAsFixed(2),
         'trim_silence': trimSilence,
         'backend': _backend,
       });
-      return SynthesizedAudio(samples: pcm, sampleRate: 24000);
+      return SynthesizedAudio(samples: pcm, sampleRate: _outputSampleRate);
     } catch (e, st) {
       // Diagnostic enrichment: the upstream C-side last_synth_error now
       // carries a specific reason (e.g. "qwen3-tts Base requires a
@@ -645,7 +742,7 @@ class TtsService {
 
       return SynthesizedAudio(
         samples: result.pcm,
-        sampleRate: 24000,
+        sampleRate: _outputSampleRate,
       );
     } catch (e, st) {
       Log.instance.e('tts', 's2s failed', error: e, stack: st);
@@ -904,6 +1001,7 @@ class TtsService {
     _session = null;
     _key = null;
     _backend = null;
+    _outputSampleRate = kFallbackOutputSampleRate;
     _modelPath = null;
     _voicePath = null;
     _codecPath = null;

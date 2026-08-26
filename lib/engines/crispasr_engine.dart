@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:path/path.dart' as path;
 
 import '../native/crispasr_import.dart' as crispasr;
@@ -10,7 +11,9 @@ import '../native/crispasr_detect_import.dart' as crispasr_detect;
 
 import 'transcription_engine.dart';
 import '../services/aligner_service.dart';
+import '../services/crash_breadcrumb_service.dart';
 import '../services/lid_service.dart';
+import '../services/memory_estimator.dart';
 import '../services/log_service.dart';
 import '../services/model_service.dart';
 import '../services/transcription_service.dart' show AdvancedTranscribeOptions;
@@ -55,6 +58,18 @@ class CrispASREngine implements TranscriptionEngine {
   // while `_model` is still null (deferred). Null when nothing is loaded.
   String? _currentBackend;
   Map<String, dynamic> _config = {};
+  // §OOM pre-flight. Its physical-memory read is cached after the first
+  // call, so keeping one instance per engine avoids re-shelling out
+  // (`sysctl` / `wmic`) on every transcribe.
+  final MemoryEstimator _memoryEstimator = MemoryEstimator();
+
+  /// Settings → Debugging escape hatch for the memory pre-flight. The
+  /// estimate is deliberately conservative and derived from one measured
+  /// backend, so a user with an unusual model or a machine we mis-read must
+  /// be able to say "I know, run it anyway". Set by `EngineFactory` from
+  /// `SettingsService.ignoreMemoryPreflight`.
+  bool ignoreMemoryPreflight = false;
+
   ModelService? _modelService;
   AlignerService? _alignerService;
   LidService? _lidService;
@@ -230,6 +245,8 @@ class CrispASREngine implements TranscriptionEngine {
       {ModelService? modelService, Map<String, dynamic>? config}) async {
     try {
       _config = Map<String, dynamic>.from(config ?? const {});
+      ignoreMemoryPreflight =
+          (_config['ignoreMemoryPreflight'] as bool?) ?? ignoreMemoryPreflight;
       _modelService = modelService;
       if (_modelService != null) {
         await _modelService!.initialize();
@@ -830,19 +847,31 @@ class CrispASREngine implements TranscriptionEngine {
     // override doesn't stick. Pre-0.5.10 dylibs lack the symbol;
     // we swallow UnsupportedError and continue with stock defaults.
     if (_session != null) {
-      try {
-        _session!.setFallbackThresholds(
-          entropyThold: advanced.entropyThold,
-          logprobThold: advanced.logprobThold,
-          noSpeechThold: advanced.noSpeechThold,
-          temperatureInc: advanced.temperatureInc,
-        );
-      } on UnsupportedError catch (e) {
-        Log.instance.d('crispasr',
-            'setFallbackThresholds unsupported on this dylib: $e');
-      } catch (e) {
-        Log.instance.d('crispasr',
-            'setFallbackThresholds rejected by ${_session?.backend}: $e');
+      // A named preset and the four individual thresholds are the same
+      // knob. The C side treats a later set_fallback_thresholds() as
+      // overriding a preset, and we fire those unconditionally, so sending
+      // both would discard the preset on every single transcribe. Preset
+      // wins when the user picked one; empty means the sliders are in
+      // charge, which is the behaviour that predates the preset.
+      final preset = advanced.sensitivityPreset;
+      if (preset.isNotEmpty) {
+        try {
+          _session!.setSensitivity(preset);
+        } on ArgumentError catch (e) {
+          // A typo must not silently become "balanced" — but it also must
+          // not fail the transcribe. Say so and fall through to the
+          // sliders, which are a valid configuration in their own right.
+          Log.instance.w('crispasr', 'unknown sensitivity preset — '
+              'using the individual thresholds instead',
+              fields: {'preset': preset, 'err': e.toString()});
+          _applyFallbackThresholds(advanced);
+        } catch (e) {
+          Log.instance.d('crispasr',
+              'setSensitivity rejected by ${_session?.backend}: $e');
+          _applyFallbackThresholds(advanced);
+        }
+      } else {
+        _applyFallbackThresholds(advanced);
       }
     }
     // §5.1.11 — Whisper alt-token capture (whisper-only — other
@@ -947,6 +976,67 @@ class CrispASREngine implements TranscriptionEngine {
       'prompt_chars': initialPrompt?.length ?? 0,
       'vad': vad,
     });
+
+    // §OOM pre-flight. Whisper slices anything over 60 s into 30 s chunks
+    // below, so its footprint is bounded by the chunk, not the file. Every
+    // OTHER backend (qwen3-asr, voxtral, granite, glm-asr, …) is handed the
+    // whole file in one FFI call — there is no length cap anywhere on that
+    // path. On a big model and a long recording that is enough to exhaust
+    // RAM, and memory exhaustion inside native code does not surface as an
+    // exception: on Windows the box starts thrashing the pagefile and the
+    // whole desktop stops repainting (#34), and a `GGML_ASSERT` abort takes
+    // the process down with no Dart stack at all (#33).
+    //
+    // So refuse up front, where we can still say something useful, instead
+    // of after the machine is unusable. Overridable in Settings → Debugging
+    // for the user who knows their box better than our estimate does.
+    final preflight = _memoryEstimator.estimateTranscribe(
+      modelPath: _currentModelPath ?? _lazyModelPath,
+      audioSeconds: audioSeconds0,
+    );
+    if (!_isWhisper && !preflight.fits) {
+      Log.instance.w('crispasr', 'memory pre-flight exceeded', fields: {
+        'model': _currentModelId,
+        'audio_s': audioSeconds0.toStringAsFixed(1),
+        'projected': preflight.prettyProjected,
+        'physical': preflight.prettyPhysical,
+        'override': ignoreMemoryPreflight,
+      });
+      if (!ignoreMemoryPreflight) {
+        _isProcessing = false;
+        throw TranscriptionException(
+          'This ${preflight.prettyAudio} recording needs about '
+          '${preflight.prettyProjected} of memory with '
+          '${_currentModelId ?? 'this model'}, and this machine has '
+          '${preflight.prettyPhysical}. Split the audio, or pick a smaller '
+          'model or quantisation. '
+          '(Settings → Debugging → Skip memory pre-flight to try anyway.)',
+          'crispasr',
+        );
+      }
+    }
+
+    // §Breadcrumb. Written synchronously so it survives an abort() inside
+    // libcrispasr, which is the failure mode every "crashes, no log" report
+    // describes. Cleared in the finally block below, so a file that is still
+    // there at the next launch means we died in this call.
+    CrashBreadcrumb.record(NativeOperationRecord(
+      phase: 'transcribe',
+      startedAtUtc: DateTime.now().toUtc(),
+      modelId: _currentModelId,
+      backend: _currentBackend,
+      modelPath: _currentModelPath ?? _lazyModelPath,
+      modelBytes: preflight.modelBytes,
+      audioSeconds: audioSeconds0,
+      physicalMemoryBytes: preflight.physicalMemoryBytes,
+      projectedBytes: preflight.projectedUsageBytes,
+      platform: kIsWeb ? 'web' : Platform.operatingSystem,
+      extra: <String, Object?>{
+        'vad': vad,
+        'word_timestamps': enableWordTimestamps,
+        'diarize': enableSpeakerDiarization,
+      },
+    ));
 
     try {
       List<TranscriptionSegment> segments;
@@ -1245,6 +1335,31 @@ class CrispASREngine implements TranscriptionEngine {
           'CrispASR transcription failed: $e', engineId, e);
     } finally {
       _isProcessing = false;
+      // We came back from native code, whatever the outcome — a Dart-level
+      // failure is not the crash the breadcrumb exists to catch.
+      CrashBreadcrumb.clear();
+    }
+  }
+
+  /// Push the four decoder-fallback thresholds individually. Always fired
+  /// (rather than only on change) so a slider tweak takes effect on the next
+  /// transcribe and a previous job's override doesn't stick. Pre-0.5.10
+  /// dylibs lack the symbol; we swallow UnsupportedError and continue with
+  /// stock defaults.
+  void _applyFallbackThresholds(AdvancedTranscribeOptions advanced) {
+    try {
+      _session!.setFallbackThresholds(
+        entropyThold: advanced.entropyThold,
+        logprobThold: advanced.logprobThold,
+        noSpeechThold: advanced.noSpeechThold,
+        temperatureInc: advanced.temperatureInc,
+      );
+    } on UnsupportedError catch (e) {
+      Log.instance.d('crispasr',
+          'setFallbackThresholds unsupported on this dylib: $e');
+    } catch (e) {
+      Log.instance.d('crispasr',
+          'setFallbackThresholds rejected by ${_session?.backend}: $e');
     }
   }
 
@@ -1667,6 +1782,16 @@ class CrispASREngine implements TranscriptionEngine {
       vadMinSilenceMs: useVad ? advanced.vadMinSilenceMs : null,
       vadSpeechPadMs: useVad ? advanced.vadSpeechPadMs : null,
       chunkSeconds: advanced.chunkSeconds,
+      // The pool never forwarded these, so the worker fell back to its own
+      // hardcoded defaults and the four Advanced-Options sliders did nothing
+      // on the pooled route — which is the DEFAULT route. Forward the
+      // preset and the thresholds together; the worker picks one, matching
+      // the main-isolate arm.
+      sensitivityPreset: advanced.sensitivityPreset,
+      entropyThold: advanced.entropyThold,
+      logprobThold: advanced.logprobThold,
+      noSpeechThold: advanced.noSpeechThold,
+      temperatureInc: advanced.temperatureInc,
     );
 
     final backend = _session?.backend;

@@ -36,9 +36,14 @@ abstract class LocalLlmBackend {
   /// One-shot generate. Throws [LocalLlmException] on failure
   /// (kind: `unsupported` | `open_failed` | `generate_failed` |
   /// `closed`).
+  /// [abortFlagAddress] names a word on the shared native heap that the
+  /// worker polls from inside the blocking native call — the only cancel
+  /// signal that can reach it, since its event loop is stalled for the whole
+  /// generation. See [LlmAbortFlag]. Null means "not cancellable".
   Future<String> generate({
     required List<Map<String, String>> messages,
     required Map<String, Object?> generateParams,
+    int? abortFlagAddress,
   });
 
   /// Streaming generate — yields token deltas as they arrive from
@@ -48,6 +53,7 @@ abstract class LocalLlmBackend {
   Stream<String> generateStream({
     required List<Map<String, String>> messages,
     required Map<String, Object?> generateParams,
+    int? abortFlagAddress,
   });
 
   /// Clear the KV cache so the next generate re-prefills from
@@ -158,6 +164,7 @@ class IsolateLocalLlmBackend implements LocalLlmBackend {
   Future<String> generate({
     required List<Map<String, String>> messages,
     required Map<String, Object?> generateParams,
+    int? abortFlagAddress,
   }) async {
     if (!isOpen) {
       throw const LocalLlmException(
@@ -170,6 +177,7 @@ class IsolateLocalLlmBackend implements LocalLlmBackend {
       'replyPort': reply.sendPort,
       'messages': messages,
       'generateParams': generateParams,
+      if (abortFlagAddress != null) 'abortFlagAddress': abortFlagAddress,
     });
     final res = await reply.first;
     reply.close();
@@ -191,6 +199,7 @@ class IsolateLocalLlmBackend implements LocalLlmBackend {
   Stream<String> generateStream({
     required List<Map<String, String>> messages,
     required Map<String, Object?> generateParams,
+    int? abortFlagAddress,
   }) async* {
     if (!isOpen) {
       throw const LocalLlmException(
@@ -203,6 +212,7 @@ class IsolateLocalLlmBackend implements LocalLlmBackend {
       'replyPort': reply.sendPort,
       'messages': messages,
       'generateParams': generateParams,
+      if (abortFlagAddress != null) 'abortFlagAddress': abortFlagAddress,
     });
     // The worker sends {type:'token', value:'...'} for each delta,
     // then {type:'done', ok:true/false, ...} as the final message.

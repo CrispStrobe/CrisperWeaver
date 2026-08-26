@@ -28,7 +28,8 @@
 //       'modelPath': '...', 'openParams': {...} }
 //     { 'type': 'generate', 'replyPort': SendPort,
 //       'messages': [{role, content}, ...],
-//       'generateParams': {...} }
+//       'generateParams': {...},
+//       'abortFlagAddress': int? }
 //     { 'type': 'reset',    'replyPort': SendPort }
 //     { 'type': 'shutdown' }
 //   ↓
@@ -45,6 +46,7 @@ import 'dart:async';
 import 'dart:isolate';
 
 import '../native/crispasr_import.dart' as crispasr;
+import '../native/llm_abort_flag_import.dart';
 import 'log_service.dart';
 
 /// Spawn-time args passed to [localLlmWorkerEntry]. Kept tiny —
@@ -172,6 +174,21 @@ Future<void> localLlmWorkerEntry(LocalLlmWorkerArgs args) async {
             (raw['generateParams'] as Map?)?.cast<String, Object?>() ??
                 const {};
         final params = _generateParamsFromMap(genParamsMap);
+        // Mid-generation cancellation. The address is a plain int naming a
+        // word on the shared native heap; a SendPort message could not
+        // arrive here, because this isolate's event loop is blocked for the
+        // whole of generate(). The predicate must stay cheap and must not
+        // call back into the session — it runs inside the native call with
+        // the session mutex held. See LlmAbortFlag.
+        final abortAddr = (raw['abortFlagAddress'] as num?)?.toInt();
+        final abortFlag =
+            abortAddr == null || abortAddr == 0
+                ? null
+                : LlmAbortFlag.fromAddress(abortAddr);
+        bool Function()? shouldContinue;
+        if (abortFlag != null) {
+          shouldContinue = () => !abortFlag.cancelled;
+        }
         if (type == 'generate_stream') {
           // Streaming path — CrispasrChatSession doesn't expose
           // generateStream (FFI pointer lifetimes prevent async
@@ -181,6 +198,7 @@ Future<void> localLlmWorkerEntry(LocalLlmWorkerArgs args) async {
             final out = await s.generate(
               messages,
               params: params,
+              shouldContinue: shouldContinue,
             );
             replyPort.send(<String, Object?>{
               'type': 'token',
@@ -220,6 +238,7 @@ Future<void> localLlmWorkerEntry(LocalLlmWorkerArgs args) async {
             final out = await s.generate(
               messages,
               params: params,
+              shouldContinue: shouldContinue,
             );
             replyPort.send(<String, Object?>{'ok': true, 'value': out});
           } on crispasr.ChatException catch (e) {
