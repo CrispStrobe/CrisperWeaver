@@ -27,35 +27,30 @@ class SettingsService {
   set preferredEngine(EngineType type) {
     Log.instance.d('settings', 'Saving preferredEngine: ${type.id}');
     _prefs.setString('preferred_engine', type.id);
-
   }
 
   String get defaultModel => _prefs.getString('default_model') ?? 'base';
   set defaultModel(String model) {
     Log.instance.d('settings', 'Saving defaultModel: $model');
     _prefs.setString('default_model', model);
-
   }
 
   String get defaultBackend => _prefs.getString('default_backend') ?? 'whisper';
   set defaultBackend(String backend) {
     Log.instance.d('settings', 'Saving defaultBackend: $backend');
     _prefs.setString('default_backend', backend);
-
   }
 
   String get defaultLanguage => _prefs.getString('default_language') ?? 'auto';
   set defaultLanguage(String lang) {
     Log.instance.d('settings', 'Saving defaultLanguage: $lang');
     _prefs.setString('default_language', lang);
-
   }
 
   bool get autoDetectLanguage => _prefs.getBool('auto_detect_language') ?? true;
   set autoDetectLanguage(bool value) {
     Log.instance.d('settings', 'Saving autoDetectLanguage: $value');
     _prefs.setBool('auto_detect_language', value);
-
   }
 
   bool get enableWordTimestamps =>
@@ -63,7 +58,6 @@ class SettingsService {
   set enableWordTimestamps(bool value) {
     Log.instance.d('settings', 'Saving enableWordTimestamps: $value');
     _prefs.setBool('enable_word_timestamps', value);
-
   }
 
   // --- Audio Settings ---
@@ -72,14 +66,12 @@ class SettingsService {
   set audioQuality(double value) {
     Log.instance.d('settings', 'Saving audioQuality: $value');
     _prefs.setDouble('audio_quality', value);
-
   }
 
   bool get keepAudioFiles => _prefs.getBool('keep_audio_files') ?? false;
   set keepAudioFiles(bool value) {
     Log.instance.d('settings', 'Saving keepAudioFiles: $value');
     _prefs.setBool('keep_audio_files', value);
-
   }
 
   // --- Diarization Settings ---
@@ -89,7 +81,6 @@ class SettingsService {
   set enableDiarizationByDefault(bool value) {
     Log.instance.d('settings', 'Saving enableDiarizationByDefault: $value');
     _prefs.setBool('enable_diarization_by_default', value);
-
   }
 
   // --- App Locale (i18n) ---
@@ -102,7 +93,6 @@ class SettingsService {
     } else {
       _prefs.setString('app_locale', locale);
     }
-
   }
 
   // --- Developer / Debug Settings ---
@@ -118,21 +108,34 @@ class SettingsService {
   set logLevel(LogLevel level) {
     Log.instance.d('settings', 'Saving logLevel: ${level.name}');
     _prefs.setString('log_level', level.name);
-
   }
 
   bool get logToFile => _prefs.getBool('log_to_file') ?? false;
   set logToFile(bool value) {
     Log.instance.d('settings', 'Saving logToFile: $value');
     _prefs.setBool('log_to_file', value);
-
   }
 
   bool get skipChecksum => _prefs.getBool('skip_checksum') ?? false;
   set skipChecksum(bool value) {
     Log.instance.d('settings', 'Saving skipChecksum: $value');
     _prefs.setBool('skip_checksum', value);
+  }
 
+  /// Bypass the transcription memory pre-flight (§OOM guard).
+  ///
+  /// The guard refuses a decode whose projected footprint exceeds 80% of
+  /// system RAM, because on the unchunked session-backend path that ends in
+  /// a native abort or — on Windows — a whole-desktop freeze with no log
+  /// (issues #33, #34). The estimate is calibrated from one measured backend
+  /// and is deliberately pessimistic, so this exists for the user whose
+  /// machine or model it reads wrong. Off by default: the failure it
+  /// prevents costs a reboot.
+  bool get ignoreMemoryPreflight =>
+      _prefs.getBool('ignore_memory_preflight') ?? false;
+  set ignoreMemoryPreflight(bool value) {
+    Log.instance.d('settings', 'Saving ignoreMemoryPreflight: $value');
+    _prefs.setBool('ignore_memory_preflight', value);
   }
 
   String get hfToken => _prefs.getString('hf_token') ?? '';
@@ -140,7 +143,6 @@ class SettingsService {
     Log.instance
         .d('settings', 'Saving hfToken: ${token.isNotEmpty ? "SET" : "EMPTY"}');
     _prefs.setString('hf_token', token);
-
   }
 
   /// User-added HuggingFace repos for the "Add from HuggingFace repo"
@@ -162,15 +164,14 @@ class SettingsService {
               (m['repoId'] ?? '').isNotEmpty && (m['backend'] ?? '').isNotEmpty)
           .toList();
     } catch (e) {
-      Log.instance.w('settings', 'hfUserRepos decode failed — ignoring',
-          error: e);
+      Log.instance
+          .w('settings', 'hfUserRepos decode failed — ignoring', error: e);
       return const [];
     }
   }
 
   set hfUserRepos(List<Map<String, String>> repos) {
     _prefs.setString('hf_user_repos', jsonEncode(repos));
-
   }
 
   /// Add or replace a user HF repo entry (idempotent on the
@@ -204,11 +205,24 @@ class SettingsService {
   /// at the new path without an app restart.
   String get customModelsDir => _prefs.getString('custom_models_dir') ?? '';
   set customModelsDir(String dir) {
-    Log.instance.d('settings',
-        'Saving customModelsDir: ${dir.isEmpty ? "DEFAULT" : dir}');
+    Log.instance.d(
+        'settings', 'Saving customModelsDir: ${dir.isEmpty ? "DEFAULT" : dir}');
     _prefs.setString('custom_models_dir', dir);
-
   }
+
+  String? get modelsDirBookmark => _prefs.getString('models_dir_bookmark');
+  set modelsDirBookmark(String? value) {
+    if (value == null || value.isEmpty) {
+      _prefs.remove('models_dir_bookmark');
+    } else {
+      _prefs.setString('models_dir_bookmark', value);
+    }
+  }
+
+  bool get modelsDirAccessLost =>
+      _prefs.getBool('models_dir_access_lost') ?? false;
+  set modelsDirAccessLost(bool value) =>
+      _prefs.setBool('models_dir_access_lost', value);
 
   /// Reorder a batch queue so jobs with the same
   /// (backend, modelId, language) run consecutively, sparing the
@@ -221,7 +235,6 @@ class SettingsService {
   set groupBatchByBackend(bool value) {
     Log.instance.d('settings', 'Saving groupBatchByBackend: $value');
     _prefs.setBool('group_batch_by_backend', value);
-
   }
 
   /// How many transcription jobs the drain loop runs in pipeline-
@@ -252,7 +265,6 @@ class SettingsService {
     Log.instance.d('settings',
         'Saving maxConcurrentTranscriptions: $clamped (requested $value, cap $cap)');
     _prefs.setInt('max_concurrent_transcriptions', clamped);
-
   }
 
   /// Per-platform upper bound for the concurrent-transcriptions
@@ -286,7 +298,6 @@ class SettingsService {
     Log.instance.d('settings',
         'Saving maxConcurrentSessions: $clamped (requested $value, cap $cap)');
     _prefs.setInt('max_concurrent_sessions', clamped);
-
   }
 
   /// Same per-platform shape as the prefetch slider — iOS caps at 2
@@ -303,13 +314,11 @@ class SettingsService {
   /// endpoint to nudge users into a known-good shape; can be
   /// pointed at any other compatible server (Anthropic via
   /// proxy, local llama-server, OpenRouter, Groq, etc.).
-  String get cloudLlmApiUrl =>
-      _prefs.getString('cloud_llm_api_url') ?? '';
+  String get cloudLlmApiUrl => _prefs.getString('cloud_llm_api_url') ?? '';
   set cloudLlmApiUrl(String url) {
-    Log.instance.d('settings',
-        'Saving cloudLlmApiUrl: ${url.isEmpty ? "EMPTY" : url}');
+    Log.instance
+        .d('settings', 'Saving cloudLlmApiUrl: ${url.isEmpty ? "EMPTY" : url}');
     _prefs.setString('cloud_llm_api_url', url);
-
   }
 
   // --- HF Space / Cloud ASR ---
@@ -318,7 +327,6 @@ class SettingsService {
       _prefs.getString('hf_space_url') ?? _defaultHfSpaceUrl;
   set hfSpaceUrl(String url) {
     _prefs.setString('hf_space_url', url);
-
   }
 
   /// API key — pasted by the user. Logged only as SET/EMPTY
@@ -328,13 +336,11 @@ class SettingsService {
   /// other platforms). For real secret storage we'd reach for
   /// flutter_secure_storage — out of scope for the v1
   /// opt-in cleanup feature.
-  String get cloudLlmApiKey =>
-      _prefs.getString('cloud_llm_api_key') ?? '';
+  String get cloudLlmApiKey => _prefs.getString('cloud_llm_api_key') ?? '';
   set cloudLlmApiKey(String key) {
-    Log.instance.d('settings',
-        'Saving cloudLlmApiKey: ${key.isEmpty ? "EMPTY" : "SET"}');
+    Log.instance.d(
+        'settings', 'Saving cloudLlmApiKey: ${key.isEmpty ? "EMPTY" : "SET"}');
     _prefs.setString('cloud_llm_api_key', key);
-
   }
 
   /// Model id sent in the chat-completions request body.
@@ -347,7 +353,6 @@ class SettingsService {
   set cloudLlmModel(String model) {
     Log.instance.d('settings', 'Saving cloudLlmModel: $model');
     _prefs.setString('cloud_llm_model', model);
-
   }
 
   // --- §5.1.6 v3 Local-LLM cleanup ---
@@ -370,7 +375,6 @@ class SettingsService {
   set llmCleanupMode(LlmCleanupMode mode) {
     Log.instance.d('settings', 'Saving llmCleanupMode: ${mode.name}');
     _prefs.setString('llm_cleanup_mode', mode.name);
-
   }
 
   /// Absolute path to a GGUF chat model. Empty means "no model
@@ -385,7 +389,6 @@ class SettingsService {
     Log.instance.d('settings',
         'Saving localLlmModelPath: ${path.isEmpty ? "EMPTY" : path}');
     _prefs.setString('local_llm_model_path', path);
-
   }
 
   /// `-1` = all layers on GPU (default — Metal on macOS, CUDA
@@ -393,12 +396,10 @@ class SettingsService {
   /// `0` = CPU only; positive int = partial offload. Stored as
   /// int so the user-facing slider in Settings can write it
   /// without per-platform branching here.
-  int get localLlmNGpuLayers =>
-      _prefs.getInt('local_llm_n_gpu_layers') ?? -1;
+  int get localLlmNGpuLayers => _prefs.getInt('local_llm_n_gpu_layers') ?? -1;
   set localLlmNGpuLayers(int n) {
     Log.instance.d('settings', 'Saving localLlmNGpuLayers: $n');
     _prefs.setInt('local_llm_n_gpu_layers', n);
-
   }
 
   /// Context window in tokens. 0 means "use the GGUF's baked-in
@@ -409,7 +410,6 @@ class SettingsService {
   set localLlmNCtx(int n) {
     Log.instance.d('settings', 'Saving localLlmNCtx: $n');
     _prefs.setInt('local_llm_n_ctx', n);
-
   }
 
   /// Generation threads. 0 = upstream's default (physical-cores cap).
@@ -417,7 +417,6 @@ class SettingsService {
   set localLlmNThreads(int n) {
     Log.instance.d('settings', 'Saving localLlmNThreads: $n');
     _prefs.setInt('local_llm_n_threads', n);
-
   }
 
   /// Per-call output cap. Smaller than the cloud default
@@ -425,12 +424,10 @@ class SettingsService {
   /// output of similar length to the input — 512 is enough
   /// headroom while keeping a runaway generation from
   /// dominating the pass.
-  int get localLlmMaxTokens =>
-      _prefs.getInt('local_llm_max_tokens') ?? 512;
+  int get localLlmMaxTokens => _prefs.getInt('local_llm_max_tokens') ?? 512;
   set localLlmMaxTokens(int n) {
     Log.instance.d('settings', 'Saving localLlmMaxTokens: $n');
     _prefs.setInt('local_llm_max_tokens', n);
-
   }
 
   /// Sampling temperature. 0.0 = greedy, matches the cloud
@@ -440,7 +437,6 @@ class SettingsService {
   set localLlmTemperature(double t) {
     Log.instance.d('settings', 'Saving localLlmTemperature: $t');
     _prefs.setDouble('local_llm_temperature', t);
-
   }
 
   // --- §5.1.11 Global hotkey ---
@@ -454,7 +450,6 @@ class SettingsService {
   set hotkeyEnabled(bool value) {
     Log.instance.d('settings', 'Saving hotkeyEnabled: $value');
     _prefs.setBool('hotkey_enabled', value);
-
   }
 
   /// Normalised combo string ("meta+shift+space",
@@ -465,7 +460,6 @@ class SettingsService {
   set hotkeyCombo(String combo) {
     Log.instance.d('settings', 'Saving hotkeyCombo: $combo');
     _prefs.setString('hotkey_combo', combo);
-
   }
 
   /// 'pushToTalk' (default) or 'toggle'. Stored as the enum
@@ -475,7 +469,6 @@ class SettingsService {
   set hotkeyActionName(String name) {
     Log.instance.d('settings', 'Saving hotkeyActionName: $name');
     _prefs.setString('hotkey_action', name);
-
   }
 
   /// Convenience: parse / write the enum directly. Defaults to
@@ -491,7 +484,6 @@ class SettingsService {
 
   set hotkeyAction(HotkeyAction v) {
     hotkeyActionName = v.name;
-
   }
 
   /// §5.1.5 Phase C — whether the EditAudioScreen's transcript
@@ -503,10 +495,8 @@ class SettingsService {
   bool get editAudioShowTranscript =>
       _prefs.getBool('edit_audio_show_transcript') ?? false;
   set editAudioShowTranscript(bool value) {
-    Log.instance
-        .d('settings', 'Saving editAudioShowTranscript: $value');
+    Log.instance.d('settings', 'Saving editAudioShowTranscript: $value');
     _prefs.setBool('edit_audio_show_transcript', value);
-
   }
 
   /// Helper to clear all settings (for reset)
@@ -516,10 +506,10 @@ class SettingsService {
 
   // --- Watch Folder (§5.25.8) ---
 
-  bool get watchFolderEnabled => _prefs.getBool('watch_folder_enabled') ?? false;
+  bool get watchFolderEnabled =>
+      _prefs.getBool('watch_folder_enabled') ?? false;
   set watchFolderEnabled(bool v) {
     _prefs.setBool('watch_folder_enabled', v);
-
   }
 
   String? get watchFolderPath => _prefs.getString('watch_folder_path');
@@ -529,7 +519,6 @@ class SettingsService {
     } else {
       _prefs.setString('watch_folder_path', v);
     }
-
   }
 
   /// macOS security-scoped bookmark for [watchFolderPath], base64-encoded.
@@ -571,6 +560,21 @@ class SettingsService {
       _prefs.getBool('ai_transparency_notice_seen') ?? false;
   set aiTransparencyNoticeSeen(bool value) =>
       _prefs.setBool('ai_transparency_notice_seen', value);
+
+  bool get onboardingCompleted =>
+      _prefs.getBool('onboarding_completed') ?? false;
+  set onboardingCompleted(bool value) =>
+      _prefs.setBool('onboarding_completed', value);
+
+  String get onboardingTask =>
+      _prefs.getString('onboarding_task') ?? 'transcribe';
+  set onboardingTask(String value) =>
+      _prefs.setString('onboarding_task', value);
+
+  String get onboardingPriority =>
+      _prefs.getString('onboarding_priority') ?? 'balanced';
+  set onboardingPriority(String value) =>
+      _prefs.setString('onboarding_priority', value);
 
   /// Reveal the power-user surface: transcript A/B compare, subtitle overlay,
   /// voice baking, audio editing, the local HTTP server, and the log and

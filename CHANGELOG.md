@@ -5,6 +5,106 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 
 ## [Unreleased]
 
+### Added
+
+- A sensitivity preset (conservative / balanced / aggressive) in Advanced
+  Options moves the four decoder-fallback thresholds as a set.
+- FoxNose diarisation: WeSpeaker embeddings with spectral clustering. Unlike
+  the energy and cross-correlation methods it works on mono, and unlike
+  pyannote it accepts a speaker count — minimum, maximum, or exact.
+- Voice cloning can declare the reference clip's language, so a cross-lingual
+  clone speaks the target language instead of carrying the reference accent.
+- After a crash inside the inference engine, the next launch reports what the
+  app was doing when it stopped — model, backend, audio length and available
+  memory — in the log and the diagnostics report. Native crashes previously
+  left nothing behind at all.
+- If Dart or a plugin fails during bootstrap, the app now opens a recovery
+  window with retry and sanitized, copyable support details instead of exiting
+  before the first frame.
+
+### Fixed
+
+- Cancelling a local-LLM tidy pass now stops the segment being generated
+  instead of waiting for it to finish, which on a 3B model could take
+  minutes.
+- The four decoder-fallback sliders in Advanced Options had no effect on the
+  default transcription path — the worker pool never received them and used
+  its own defaults.
+- Long Parakeet recordings no longer lose whole passages. Between CrispASR
+  0.8.24 and 0.8.28 a bounded long-form request collapsed into a single
+  full-length decode that silently dropped spans of speech.
+- The progress bar no longer sits still for the whole decode on Parakeet
+  long-form transcriptions.
+- Windows no longer re-downloads models larger than 2 GB on every launch.
+- Punctuation restoration works again with XLM-R models, which returned empty
+  output on the default path.
+- Synthesised speech now plays and exports at the rate the backend actually
+  produces instead of an assumed 24 kHz. Piper, FastPitch and BananaMind were
+  ~9% sharp at 22.05 kHz, SpeechT5 played fast at 16 kHz, and the 44.1 kHz and
+  48 kHz backends played at well under half speed.
+- Long transcriptions on a non-Whisper model are refused before they start when
+  the estimated memory exceeds this machine, instead of exhausting RAM inside
+  the engine — which shows up as a silent crash, or on Windows as a frozen
+  desktop with nothing in the log. Overridable in Settings → Debugging.
+- macOS releases are now Apple-silicon-only, matching the bundled inference
+  engines instead of advertising a nonfunctional Intel slice.
+- Every bundled Mach-O is checked against the app's deployment target. The app
+  now honestly requires macOS 14, including the Xcode 26 Swift runtime, while
+  CrispASR/CrispEmbed are rebuilt with an
+  explicit target instead of inheriting macOS 26 from the build machine.
+- CrispEmbed is built as a self-contained library for the app, eliminating the
+  stale prebuilt ggml collision that could otherwise abort during launch.
+- Large native build phases refuse to start when one-minute system load exceeds
+  the logical CPU count and default to two compile jobs.
+
+## [0.10.0] — 2026-08-21
+
+### Added
+
+- Task-first onboarding recommends a device-conscious starter model and can
+  download the complete model set before opening transcription, meetings,
+  translation, or speech generation.
+- A transcript workspace brings editing, speaker naming, translation, copy,
+  share, and every export format into one responsive screen.
+- Model storage can be copied to a larger volume with free-space checks,
+  per-file verification, persistent macOS sandbox access, and a separate,
+  recoverable cleanup confirmation.
+- A user-reviewed diagnostics report includes exact native-engine revisions,
+  storage health, and sanitized recent logs without transmitting anything.
+
+### Changed
+
+- The default interface is task-oriented and keeps backend, quantization, and
+  experimental tooling behind the existing advanced-features switch.
+- Model cards explain their best use and device fit; the default catalogue
+  view focuses on transcription models.
+- About now reports the exact bundled CrispASR, CrispEmbed, and glint versions
+  and source revisions.
+
+### Fixed
+
+- App Store release signing now fails on any nested-code error and verifies
+  every Mach-O, bundle identity, Team ID, and startup of the exact signed app
+  before packaging.
+- Build scripts no longer hide a failed Flutter build behind filtered output
+  or accidentally package a stale app from a previous run.
+- Kokoro language claims now match the GPL-free bundled phonemizer support.
+
+## [0.9.10] — 2026-08-21
+
+### Fixed
+
+- The first-launch AI transparency notice now uses the app navigator's
+  localized context. Previously it logged an uncaught null-check exception
+  half a second after startup because the app-level context sits above
+  `MaterialApp` and cannot see its localization delegates.
+
+### Changed
+
+- Updated the native sibling bundle to CrispASR 0.8.29, CrispEmbed 0.17.8,
+  and the latest glint 0.11.0 commit. Release workflows pin the exact tested
+  commits so future builds reproduce the submitted binaries.
+
 ## [0.9.9] — 2026-08-05
 
 ### Fixed

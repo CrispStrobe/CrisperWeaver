@@ -254,6 +254,27 @@ class HistoryEntry {
   /// segments.
   bool get hasEmbeddings =>
       segmentEmbeddings != null && segmentEmbeddings!.isNotEmpty;
+
+  HistoryEntry copyWith({
+    List<TranscriptionSegment>? segments,
+    Map<String, String>? speakerNames,
+  }) =>
+      HistoryEntry(
+        id: id,
+        createdAt: createdAt,
+        engineId: engineId,
+        segments: segments ?? this.segments,
+        sourcePath: sourcePath,
+        sourceUrl: sourceUrl,
+        modelId: modelId,
+        language: language,
+        diarizationEnabled: diarizationEnabled,
+        processingTime: processingTime,
+        speakerNames: speakerNames ?? this.speakerNames,
+        audioFingerprint: audioFingerprint,
+        segmentEmbeddings: segmentEmbeddings,
+        audioEmbedding: audioEmbedding,
+      );
 }
 
 /// Persists [HistoryEntry] records as individual JSON files in the app's

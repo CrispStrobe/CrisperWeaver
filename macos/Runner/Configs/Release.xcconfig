@@ -1,2 +1,8 @@
 #include "../../Flutter/Flutter-Release.xcconfig"
 #include "Warnings.xcconfig"
+
+// Every bundled inference engine is currently distributed for Apple silicon.
+// Do not advertise an x86_64 slice whose FFI backends cannot load at runtime.
+ARCHS = arm64
+VALID_ARCHS = arm64
+ONLY_ACTIVE_ARCH = YES

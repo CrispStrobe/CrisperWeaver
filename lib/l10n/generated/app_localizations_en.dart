@@ -630,6 +630,32 @@ class AppLocalizationsEn extends AppLocalizations {
       'Accept downloaded models even if SHA-1 does not match';
 
   @override
+  String get settingsSkipMemoryPreflight => 'Skip memory pre-flight';
+
+  @override
+  String get settingsSkipMemoryPreflightSubtitle =>
+      'Start long transcriptions even when the estimated memory exceeds this machine. Can freeze the system.';
+
+  @override
+  String get advancedSensitivityPreset => 'Sensitivity preset';
+
+  @override
+  String get advancedSensitivityPresetHelper =>
+      'Moves the four thresholds below as a set. Manual keeps the individual sliders.';
+
+  @override
+  String get advancedSensitivityManual => 'Manual';
+
+  @override
+  String get advancedSensitivityConservative => 'Conservative';
+
+  @override
+  String get advancedSensitivityBalanced => 'Balanced';
+
+  @override
+  String get advancedSensitivityAggressive => 'Aggressive';
+
+  @override
   String get settingsGroupBatchByBackend => 'Group batch by backend';
 
   @override
@@ -3313,4 +3339,259 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get advancedAllOptions => 'All options';
+
+  @override
+  String get onboardingTitle => 'Set up CrisperWeaver';
+
+  @override
+  String get onboardingSkip => 'Set up later';
+
+  @override
+  String get onboardingSetUp => 'Download and continue';
+
+  @override
+  String get onboardingContinue => 'Continue';
+
+  @override
+  String get onboardingTaskTitle => 'What do you want to do?';
+
+  @override
+  String get onboardingTaskSubtitle =>
+      'We will configure a sensible starting point.';
+
+  @override
+  String get onboardingTaskTranscribe => 'Transcribe a file';
+
+  @override
+  String get onboardingTaskTranscribeHelp =>
+      'Turn an audio recording into editable text.';
+
+  @override
+  String get onboardingTaskMeeting => 'Record a meeting';
+
+  @override
+  String get onboardingTaskMeetingHelp =>
+      'Record speech and separate speakers when possible.';
+
+  @override
+  String get onboardingTaskTranslate => 'Translate text';
+
+  @override
+  String get onboardingTaskTranslateHelp =>
+      'Run offline translation between supported languages.';
+
+  @override
+  String get onboardingTaskSynthesize => 'Create speech';
+
+  @override
+  String get onboardingTaskSynthesizeHelp =>
+      'Generate speech locally from written text.';
+
+  @override
+  String get onboardingLanguageTitle => 'Language and preference';
+
+  @override
+  String get onboardingLanguageSubtitle =>
+      'These choices determine the starter model.';
+
+  @override
+  String get onboardingLanguageLabel => 'Primary language';
+
+  @override
+  String get onboardingPriorityLabel => 'Optimize for';
+
+  @override
+  String get onboardingPriorityBalanced => 'Balanced';
+
+  @override
+  String get onboardingPrioritySpeed => 'Speed';
+
+  @override
+  String get onboardingPriorityQuality => 'Quality';
+
+  @override
+  String get onboardingPriorityStorage => 'Small size';
+
+  @override
+  String get onboardingRecommendationTitle => 'Your starting setup';
+
+  @override
+  String get onboardingRecommendationSubtitle =>
+      'You can change every choice later.';
+
+  @override
+  String get onboardingChooseModelTitle => 'Choose a model for this language';
+
+  @override
+  String get onboardingChooseModelBody =>
+      'There is no small universal starter for this combination. We will open the compatible model list without downloading anything.';
+
+  @override
+  String onboardingRecommendedSemantics(String model, String size) {
+    return 'Recommended model: $model, download size $size';
+  }
+
+  @override
+  String get onboardingPreparing => 'Preparing model download…';
+
+  @override
+  String onboardingFailed(String error) {
+    return 'Setup could not finish: $error';
+  }
+
+  @override
+  String modelsBestFor(String useCase) {
+    return 'Best for: $useCase';
+  }
+
+  @override
+  String get modelsFitsDevice => 'Fits this device';
+
+  @override
+  String get modelsMemoryTight => 'May be tight on memory';
+
+  @override
+  String get modelsUseMultilingual => 'multilingual transcription';
+
+  @override
+  String get modelsUseFastTranscription => 'fast transcription';
+
+  @override
+  String get modelsUseTranscription => 'transcription';
+
+  @override
+  String get modelsUseSpeech => 'speech generation';
+
+  @override
+  String get modelsUseTranslation => 'offline translation';
+
+  @override
+  String get modelsUseCleanup => 'cleanup and summaries';
+
+  @override
+  String get modelsUseVoice => 'a synthesis voice';
+
+  @override
+  String get modelsUseAdvanced => 'an advanced companion';
+
+  @override
+  String get storageLocation => 'Model location';
+
+  @override
+  String get settingsModelsDirAccessLost =>
+      'Access to the saved folder was lost. Choose it again to restore access.';
+
+  @override
+  String get storageFreeUnknown => 'Free space could not be determined.';
+
+  @override
+  String storageFreeAvailable(String size) {
+    return '$size free on this volume';
+  }
+
+  @override
+  String get storageLowSpaceHelp =>
+      'This volume is running low. Choose a folder on a larger disk before downloading another model.';
+
+  @override
+  String get storageChangeLocation => 'Change model location';
+
+  @override
+  String get storagePickDestination => 'Choose the new model-library folder';
+
+  @override
+  String get storageMoveTitle => 'Move model library?';
+
+  @override
+  String storageMoveExplanation(String path) {
+    return 'Models will be copied and verified in $path. New downloads will use that location. The old copy is kept until you choose to remove it.';
+  }
+
+  @override
+  String get storageMoveConfirm => 'Copy and switch';
+
+  @override
+  String storageMoving(int percent) {
+    return 'Moving… $percent%';
+  }
+
+  @override
+  String get storageMoveCompleteTitle => 'Model library moved';
+
+  @override
+  String storageMoveComplete(int count, String size, String path) {
+    return 'Verified $count files ($size) in $path. Remove the old verified copy now?';
+  }
+
+  @override
+  String get storageKeepOldCopy => 'Keep old copy';
+
+  @override
+  String get storageRemoveOldCopy => 'Remove old copy';
+
+  @override
+  String storageOldCopyRemoved(String size) {
+    return 'Removed $size from the old location.';
+  }
+
+  @override
+  String storageMoveFailed(String error) {
+    return 'Could not move the model library: $error';
+  }
+
+  @override
+  String get aboutBundledEngines => 'Bundled engines';
+
+  @override
+  String get aboutReviewDiagnostics => 'Review diagnostics report';
+
+  @override
+  String get aboutDiagnosticsTitle => 'Diagnostics — review before sharing';
+
+  @override
+  String get workspaceTitle => 'Transcript workspace';
+
+  @override
+  String get workspaceOpen => 'Open workspace';
+
+  @override
+  String get workspaceMissing => 'This transcript could not be found.';
+
+  @override
+  String get workspaceExport => 'Export transcript';
+
+  @override
+  String get workspaceDetails => 'Details';
+
+  @override
+  String get workspaceTranscript => 'Transcript';
+
+  @override
+  String get workspaceCreated => 'Created';
+
+  @override
+  String get workspaceEngine => 'Engine';
+
+  @override
+  String get workspaceModel => 'Model';
+
+  @override
+  String get workspaceLanguage => 'Language';
+
+  @override
+  String get workspaceDuration => 'Duration';
+
+  @override
+  String get workspaceSegments => 'Segments';
+
+  @override
+  String get workspaceEditSegment => 'Edit segment';
+
+  @override
+  String get workspaceRenameSpeaker => 'Rename speaker';
+
+  @override
+  String workspaceSegmentSemantics(int number, String time, String text) {
+    return 'Segment $number at $time: $text';
+  }
 }

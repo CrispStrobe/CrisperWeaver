@@ -613,6 +613,31 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsSkipChecksumSubtitle => '即使 SHA-1 不匹配也接受已下载的模型';
 
   @override
+  String get settingsSkipMemoryPreflight => '跳过内存预检';
+
+  @override
+  String get settingsSkipMemoryPreflightSubtitle =>
+      '即使预估内存超出本机容量也开始长音频转录。可能导致系统冻结。';
+
+  @override
+  String get advancedSensitivityPreset => '灵敏度预设';
+
+  @override
+  String get advancedSensitivityPresetHelper => '将下方四个阈值作为一组调整。“手动”则保留各个滑块。';
+
+  @override
+  String get advancedSensitivityManual => '手动';
+
+  @override
+  String get advancedSensitivityConservative => '保守';
+
+  @override
+  String get advancedSensitivityBalanced => '平衡';
+
+  @override
+  String get advancedSensitivityAggressive => '激进';
+
+  @override
   String get settingsGroupBatchByBackend => '按后端分组批处理';
 
   @override
@@ -3205,4 +3230,249 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get advancedAllOptions => '全部选项';
+
+  @override
+  String get onboardingTitle => '设置 CrisperWeaver';
+
+  @override
+  String get onboardingSkip => '稍后设置';
+
+  @override
+  String get onboardingSetUp => '下载并继续';
+
+  @override
+  String get onboardingContinue => '继续';
+
+  @override
+  String get onboardingTaskTitle => '你想做什么？';
+
+  @override
+  String get onboardingTaskSubtitle => '我们会配置一个合适的起点。';
+
+  @override
+  String get onboardingTaskTranscribe => '转录文件';
+
+  @override
+  String get onboardingTaskTranscribeHelp => '将录音转换为可编辑文本。';
+
+  @override
+  String get onboardingTaskMeeting => '录制会议';
+
+  @override
+  String get onboardingTaskMeetingHelp => '录制语音，并在可能时区分说话人。';
+
+  @override
+  String get onboardingTaskTranslate => '翻译文本';
+
+  @override
+  String get onboardingTaskTranslateHelp => '在支持的语言之间离线翻译。';
+
+  @override
+  String get onboardingTaskSynthesize => '生成语音';
+
+  @override
+  String get onboardingTaskSynthesizeHelp => '在本地将文字生成语音。';
+
+  @override
+  String get onboardingLanguageTitle => '语言和偏好';
+
+  @override
+  String get onboardingLanguageSubtitle => '这些选择用于确定入门模型。';
+
+  @override
+  String get onboardingLanguageLabel => '主要语言';
+
+  @override
+  String get onboardingPriorityLabel => '优化目标';
+
+  @override
+  String get onboardingPriorityBalanced => '均衡';
+
+  @override
+  String get onboardingPrioritySpeed => '速度';
+
+  @override
+  String get onboardingPriorityQuality => '质量';
+
+  @override
+  String get onboardingPriorityStorage => '体积小';
+
+  @override
+  String get onboardingRecommendationTitle => '你的起始配置';
+
+  @override
+  String get onboardingRecommendationSubtitle => '之后可随时更改所有选择。';
+
+  @override
+  String get onboardingChooseModelTitle => '为此语言选择模型';
+
+  @override
+  String get onboardingChooseModelBody => '此组合没有通用的小型入门模型。我们将打开兼容模型列表，不会自动下载。';
+
+  @override
+  String onboardingRecommendedSemantics(String model, String size) {
+    return '推荐模型：$model，下载大小 $size';
+  }
+
+  @override
+  String get onboardingPreparing => '正在准备模型下载…';
+
+  @override
+  String onboardingFailed(String error) {
+    return '设置无法完成：$error';
+  }
+
+  @override
+  String modelsBestFor(String useCase) {
+    return '最适合：$useCase';
+  }
+
+  @override
+  String get modelsFitsDevice => '适合此设备';
+
+  @override
+  String get modelsMemoryTight => '内存可能较紧张';
+
+  @override
+  String get modelsUseMultilingual => '多语言转录';
+
+  @override
+  String get modelsUseFastTranscription => '快速转录';
+
+  @override
+  String get modelsUseTranscription => '转录';
+
+  @override
+  String get modelsUseSpeech => '语音生成';
+
+  @override
+  String get modelsUseTranslation => '离线翻译';
+
+  @override
+  String get modelsUseCleanup => '清理和摘要';
+
+  @override
+  String get modelsUseVoice => '合成语音';
+
+  @override
+  String get modelsUseAdvanced => '高级配套组件';
+
+  @override
+  String get storageLocation => '模型位置';
+
+  @override
+  String get settingsModelsDirAccessLost => '已失去对保存文件夹的访问权限。请重新选择以恢复访问。';
+
+  @override
+  String get storageFreeUnknown => '无法确定可用空间。';
+
+  @override
+  String storageFreeAvailable(String size) {
+    return '此卷剩余 $size';
+  }
+
+  @override
+  String get storageLowSpaceHelp => '此卷空间不足。下载其他模型前，请选择更大磁盘上的文件夹。';
+
+  @override
+  String get storageChangeLocation => '更改模型位置';
+
+  @override
+  String get storagePickDestination => '选择新的模型库文件夹';
+
+  @override
+  String get storageMoveTitle => '移动模型库？';
+
+  @override
+  String storageMoveExplanation(String path) {
+    return '模型将复制并验证到 $path。新下载将使用该位置。旧副本会保留，直到你选择将其删除。';
+  }
+
+  @override
+  String get storageMoveConfirm => '复制并切换';
+
+  @override
+  String storageMoving(int percent) {
+    return '正在移动… $percent%';
+  }
+
+  @override
+  String get storageMoveCompleteTitle => '模型库已移动';
+
+  @override
+  String storageMoveComplete(int count, String size, String path) {
+    return '已在 $path 验证 $count 个文件（$size）。现在删除已验证的旧副本吗？';
+  }
+
+  @override
+  String get storageKeepOldCopy => '保留旧副本';
+
+  @override
+  String get storageRemoveOldCopy => '删除旧副本';
+
+  @override
+  String storageOldCopyRemoved(String size) {
+    return '已从旧位置删除 $size。';
+  }
+
+  @override
+  String storageMoveFailed(String error) {
+    return '无法移动模型库：$error';
+  }
+
+  @override
+  String get aboutBundledEngines => '捆绑引擎';
+
+  @override
+  String get aboutReviewDiagnostics => '查看诊断报告';
+
+  @override
+  String get aboutDiagnosticsTitle => '诊断信息 — 分享前请检查';
+
+  @override
+  String get workspaceTitle => '转录工作区';
+
+  @override
+  String get workspaceOpen => '打开工作区';
+
+  @override
+  String get workspaceMissing => '找不到此转录。';
+
+  @override
+  String get workspaceExport => '导出转录';
+
+  @override
+  String get workspaceDetails => '详细信息';
+
+  @override
+  String get workspaceTranscript => '转录';
+
+  @override
+  String get workspaceCreated => '创建时间';
+
+  @override
+  String get workspaceEngine => '引擎';
+
+  @override
+  String get workspaceModel => '模型';
+
+  @override
+  String get workspaceLanguage => '语言';
+
+  @override
+  String get workspaceDuration => '时长';
+
+  @override
+  String get workspaceSegments => '片段';
+
+  @override
+  String get workspaceEditSegment => '编辑片段';
+
+  @override
+  String get workspaceRenameSpeaker => '重命名说话人';
+
+  @override
+  String workspaceSegmentSemantics(int number, String time, String text) {
+    return '片段 $number，时间 $time：$text';
+  }
 }

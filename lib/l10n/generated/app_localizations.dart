@@ -1168,6 +1168,54 @@ abstract class AppLocalizations {
   /// **'Accept downloaded models even if SHA-1 does not match'**
   String get settingsSkipChecksumSubtitle;
 
+  /// No description provided for @settingsSkipMemoryPreflight.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip memory pre-flight'**
+  String get settingsSkipMemoryPreflight;
+
+  /// No description provided for @settingsSkipMemoryPreflightSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Start long transcriptions even when the estimated memory exceeds this machine. Can freeze the system.'**
+  String get settingsSkipMemoryPreflightSubtitle;
+
+  /// No description provided for @advancedSensitivityPreset.
+  ///
+  /// In en, this message translates to:
+  /// **'Sensitivity preset'**
+  String get advancedSensitivityPreset;
+
+  /// No description provided for @advancedSensitivityPresetHelper.
+  ///
+  /// In en, this message translates to:
+  /// **'Moves the four thresholds below as a set. Manual keeps the individual sliders.'**
+  String get advancedSensitivityPresetHelper;
+
+  /// No description provided for @advancedSensitivityManual.
+  ///
+  /// In en, this message translates to:
+  /// **'Manual'**
+  String get advancedSensitivityManual;
+
+  /// No description provided for @advancedSensitivityConservative.
+  ///
+  /// In en, this message translates to:
+  /// **'Conservative'**
+  String get advancedSensitivityConservative;
+
+  /// No description provided for @advancedSensitivityBalanced.
+  ///
+  /// In en, this message translates to:
+  /// **'Balanced'**
+  String get advancedSensitivityBalanced;
+
+  /// No description provided for @advancedSensitivityAggressive.
+  ///
+  /// In en, this message translates to:
+  /// **'Aggressive'**
+  String get advancedSensitivityAggressive;
+
   /// No description provided for @settingsGroupBatchByBackend.
   ///
   /// In en, this message translates to:
@@ -5595,6 +5643,456 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'All options'**
   String get advancedAllOptions;
+
+  /// No description provided for @onboardingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Set up CrisperWeaver'**
+  String get onboardingTitle;
+
+  /// No description provided for @onboardingSkip.
+  ///
+  /// In en, this message translates to:
+  /// **'Set up later'**
+  String get onboardingSkip;
+
+  /// No description provided for @onboardingSetUp.
+  ///
+  /// In en, this message translates to:
+  /// **'Download and continue'**
+  String get onboardingSetUp;
+
+  /// No description provided for @onboardingContinue.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get onboardingContinue;
+
+  /// No description provided for @onboardingTaskTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'What do you want to do?'**
+  String get onboardingTaskTitle;
+
+  /// No description provided for @onboardingTaskSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'We will configure a sensible starting point.'**
+  String get onboardingTaskSubtitle;
+
+  /// No description provided for @onboardingTaskTranscribe.
+  ///
+  /// In en, this message translates to:
+  /// **'Transcribe a file'**
+  String get onboardingTaskTranscribe;
+
+  /// No description provided for @onboardingTaskTranscribeHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn an audio recording into editable text.'**
+  String get onboardingTaskTranscribeHelp;
+
+  /// No description provided for @onboardingTaskMeeting.
+  ///
+  /// In en, this message translates to:
+  /// **'Record a meeting'**
+  String get onboardingTaskMeeting;
+
+  /// No description provided for @onboardingTaskMeetingHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Record speech and separate speakers when possible.'**
+  String get onboardingTaskMeetingHelp;
+
+  /// No description provided for @onboardingTaskTranslate.
+  ///
+  /// In en, this message translates to:
+  /// **'Translate text'**
+  String get onboardingTaskTranslate;
+
+  /// No description provided for @onboardingTaskTranslateHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Run offline translation between supported languages.'**
+  String get onboardingTaskTranslateHelp;
+
+  /// No description provided for @onboardingTaskSynthesize.
+  ///
+  /// In en, this message translates to:
+  /// **'Create speech'**
+  String get onboardingTaskSynthesize;
+
+  /// No description provided for @onboardingTaskSynthesizeHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Generate speech locally from written text.'**
+  String get onboardingTaskSynthesizeHelp;
+
+  /// No description provided for @onboardingLanguageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Language and preference'**
+  String get onboardingLanguageTitle;
+
+  /// No description provided for @onboardingLanguageSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'These choices determine the starter model.'**
+  String get onboardingLanguageSubtitle;
+
+  /// No description provided for @onboardingLanguageLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Primary language'**
+  String get onboardingLanguageLabel;
+
+  /// No description provided for @onboardingPriorityLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Optimize for'**
+  String get onboardingPriorityLabel;
+
+  /// No description provided for @onboardingPriorityBalanced.
+  ///
+  /// In en, this message translates to:
+  /// **'Balanced'**
+  String get onboardingPriorityBalanced;
+
+  /// No description provided for @onboardingPrioritySpeed.
+  ///
+  /// In en, this message translates to:
+  /// **'Speed'**
+  String get onboardingPrioritySpeed;
+
+  /// No description provided for @onboardingPriorityQuality.
+  ///
+  /// In en, this message translates to:
+  /// **'Quality'**
+  String get onboardingPriorityQuality;
+
+  /// No description provided for @onboardingPriorityStorage.
+  ///
+  /// In en, this message translates to:
+  /// **'Small size'**
+  String get onboardingPriorityStorage;
+
+  /// No description provided for @onboardingRecommendationTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your starting setup'**
+  String get onboardingRecommendationTitle;
+
+  /// No description provided for @onboardingRecommendationSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'You can change every choice later.'**
+  String get onboardingRecommendationSubtitle;
+
+  /// No description provided for @onboardingChooseModelTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a model for this language'**
+  String get onboardingChooseModelTitle;
+
+  /// No description provided for @onboardingChooseModelBody.
+  ///
+  /// In en, this message translates to:
+  /// **'There is no small universal starter for this combination. We will open the compatible model list without downloading anything.'**
+  String get onboardingChooseModelBody;
+
+  /// No description provided for @onboardingRecommendedSemantics.
+  ///
+  /// In en, this message translates to:
+  /// **'Recommended model: {model}, download size {size}'**
+  String onboardingRecommendedSemantics(String model, String size);
+
+  /// No description provided for @onboardingPreparing.
+  ///
+  /// In en, this message translates to:
+  /// **'Preparing model download…'**
+  String get onboardingPreparing;
+
+  /// No description provided for @onboardingFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Setup could not finish: {error}'**
+  String onboardingFailed(String error);
+
+  /// No description provided for @modelsBestFor.
+  ///
+  /// In en, this message translates to:
+  /// **'Best for: {useCase}'**
+  String modelsBestFor(String useCase);
+
+  /// No description provided for @modelsFitsDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'Fits this device'**
+  String get modelsFitsDevice;
+
+  /// No description provided for @modelsMemoryTight.
+  ///
+  /// In en, this message translates to:
+  /// **'May be tight on memory'**
+  String get modelsMemoryTight;
+
+  /// No description provided for @modelsUseMultilingual.
+  ///
+  /// In en, this message translates to:
+  /// **'multilingual transcription'**
+  String get modelsUseMultilingual;
+
+  /// No description provided for @modelsUseFastTranscription.
+  ///
+  /// In en, this message translates to:
+  /// **'fast transcription'**
+  String get modelsUseFastTranscription;
+
+  /// No description provided for @modelsUseTranscription.
+  ///
+  /// In en, this message translates to:
+  /// **'transcription'**
+  String get modelsUseTranscription;
+
+  /// No description provided for @modelsUseSpeech.
+  ///
+  /// In en, this message translates to:
+  /// **'speech generation'**
+  String get modelsUseSpeech;
+
+  /// No description provided for @modelsUseTranslation.
+  ///
+  /// In en, this message translates to:
+  /// **'offline translation'**
+  String get modelsUseTranslation;
+
+  /// No description provided for @modelsUseCleanup.
+  ///
+  /// In en, this message translates to:
+  /// **'cleanup and summaries'**
+  String get modelsUseCleanup;
+
+  /// No description provided for @modelsUseVoice.
+  ///
+  /// In en, this message translates to:
+  /// **'a synthesis voice'**
+  String get modelsUseVoice;
+
+  /// No description provided for @modelsUseAdvanced.
+  ///
+  /// In en, this message translates to:
+  /// **'an advanced companion'**
+  String get modelsUseAdvanced;
+
+  /// No description provided for @storageLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Model location'**
+  String get storageLocation;
+
+  /// No description provided for @settingsModelsDirAccessLost.
+  ///
+  /// In en, this message translates to:
+  /// **'Access to the saved folder was lost. Choose it again to restore access.'**
+  String get settingsModelsDirAccessLost;
+
+  /// No description provided for @storageFreeUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Free space could not be determined.'**
+  String get storageFreeUnknown;
+
+  /// No description provided for @storageFreeAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'{size} free on this volume'**
+  String storageFreeAvailable(String size);
+
+  /// No description provided for @storageLowSpaceHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'This volume is running low. Choose a folder on a larger disk before downloading another model.'**
+  String get storageLowSpaceHelp;
+
+  /// No description provided for @storageChangeLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Change model location'**
+  String get storageChangeLocation;
+
+  /// No description provided for @storagePickDestination.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose the new model-library folder'**
+  String get storagePickDestination;
+
+  /// No description provided for @storageMoveTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Move model library?'**
+  String get storageMoveTitle;
+
+  /// No description provided for @storageMoveExplanation.
+  ///
+  /// In en, this message translates to:
+  /// **'Models will be copied and verified in {path}. New downloads will use that location. The old copy is kept until you choose to remove it.'**
+  String storageMoveExplanation(String path);
+
+  /// No description provided for @storageMoveConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy and switch'**
+  String get storageMoveConfirm;
+
+  /// No description provided for @storageMoving.
+  ///
+  /// In en, this message translates to:
+  /// **'Moving… {percent}%'**
+  String storageMoving(int percent);
+
+  /// No description provided for @storageMoveCompleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Model library moved'**
+  String get storageMoveCompleteTitle;
+
+  /// No description provided for @storageMoveComplete.
+  ///
+  /// In en, this message translates to:
+  /// **'Verified {count} files ({size}) in {path}. Remove the old verified copy now?'**
+  String storageMoveComplete(int count, String size, String path);
+
+  /// No description provided for @storageKeepOldCopy.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep old copy'**
+  String get storageKeepOldCopy;
+
+  /// No description provided for @storageRemoveOldCopy.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove old copy'**
+  String get storageRemoveOldCopy;
+
+  /// No description provided for @storageOldCopyRemoved.
+  ///
+  /// In en, this message translates to:
+  /// **'Removed {size} from the old location.'**
+  String storageOldCopyRemoved(String size);
+
+  /// No description provided for @storageMoveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not move the model library: {error}'**
+  String storageMoveFailed(String error);
+
+  /// No description provided for @aboutBundledEngines.
+  ///
+  /// In en, this message translates to:
+  /// **'Bundled engines'**
+  String get aboutBundledEngines;
+
+  /// No description provided for @aboutReviewDiagnostics.
+  ///
+  /// In en, this message translates to:
+  /// **'Review diagnostics report'**
+  String get aboutReviewDiagnostics;
+
+  /// No description provided for @aboutDiagnosticsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Diagnostics — review before sharing'**
+  String get aboutDiagnosticsTitle;
+
+  /// No description provided for @workspaceTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Transcript workspace'**
+  String get workspaceTitle;
+
+  /// No description provided for @workspaceOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Open workspace'**
+  String get workspaceOpen;
+
+  /// No description provided for @workspaceMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'This transcript could not be found.'**
+  String get workspaceMissing;
+
+  /// No description provided for @workspaceExport.
+  ///
+  /// In en, this message translates to:
+  /// **'Export transcript'**
+  String get workspaceExport;
+
+  /// No description provided for @workspaceDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Details'**
+  String get workspaceDetails;
+
+  /// No description provided for @workspaceTranscript.
+  ///
+  /// In en, this message translates to:
+  /// **'Transcript'**
+  String get workspaceTranscript;
+
+  /// No description provided for @workspaceCreated.
+  ///
+  /// In en, this message translates to:
+  /// **'Created'**
+  String get workspaceCreated;
+
+  /// No description provided for @workspaceEngine.
+  ///
+  /// In en, this message translates to:
+  /// **'Engine'**
+  String get workspaceEngine;
+
+  /// No description provided for @workspaceModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Model'**
+  String get workspaceModel;
+
+  /// No description provided for @workspaceLanguage.
+  ///
+  /// In en, this message translates to:
+  /// **'Language'**
+  String get workspaceLanguage;
+
+  /// No description provided for @workspaceDuration.
+  ///
+  /// In en, this message translates to:
+  /// **'Duration'**
+  String get workspaceDuration;
+
+  /// No description provided for @workspaceSegments.
+  ///
+  /// In en, this message translates to:
+  /// **'Segments'**
+  String get workspaceSegments;
+
+  /// No description provided for @workspaceEditSegment.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit segment'**
+  String get workspaceEditSegment;
+
+  /// No description provided for @workspaceRenameSpeaker.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename speaker'**
+  String get workspaceRenameSpeaker;
+
+  /// No description provided for @workspaceSegmentSemantics.
+  ///
+  /// In en, this message translates to:
+  /// **'Segment {number} at {time}: {text}'**
+  String workspaceSegmentSemantics(int number, String time, String text);
 }
 
 class _AppLocalizationsDelegate

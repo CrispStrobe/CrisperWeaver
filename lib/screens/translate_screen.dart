@@ -21,7 +21,9 @@ import '../utils/ai_text_disclosure.dart';
 /// M2M-100 (any-to-any, 100 langs), WMT21 (en↔X, two dedicated
 /// checkpoints), and MADLAD-400 (419 langs).
 class TranslateScreen extends ConsumerStatefulWidget {
-  const TranslateScreen({super.key});
+  const TranslateScreen({super.key, this.initialText});
+
+  final String? initialText;
 
   @override
   ConsumerState<TranslateScreen> createState() => _TranslateScreenState();
@@ -34,6 +36,7 @@ class _TranslateScreenState extends ConsumerState<TranslateScreen> {
   @override
   void initState() {
     super.initState();
+    _inputController.text = widget.initialText ?? '';
     _refresh();
   }
 
@@ -62,8 +65,8 @@ class _TranslateScreenState extends ConsumerState<TranslateScreen> {
         }
       }
     } catch (e, st) {
-      Log.instance.w('translate', 'failed to refresh model list',
-          error: e, stack: st);
+      Log.instance
+          .w('translate', 'failed to refresh model list', error: e, stack: st);
     } finally {
       if (mounted) n.setLoading(false);
     }
@@ -132,9 +135,9 @@ class _TranslateScreenState extends ConsumerState<TranslateScreen> {
     if (!mounted) return;
     if (modelPath == null) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: const Text(
-            'Download a text language-ID model (CLD3, GlotLID, or '
-            'FastText LID-176) to auto-detect.'),
+        content:
+            const Text('Download a text language-ID model (CLD3, GlotLID, or '
+                'FastText LID-176) to auto-detect.'),
         action: SnackBarAction(
           label: 'Models',
           onPressed: () {
@@ -168,8 +171,7 @@ class _TranslateScreenState extends ConsumerState<TranslateScreen> {
       ));
     } else {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content:
-              Text("Detected '$code' ($pct%) — not a supported source.")));
+          content: Text("Detected '$code' ($pct%) — not a supported source.")));
     }
   }
 
@@ -190,9 +192,8 @@ class _TranslateScreenState extends ConsumerState<TranslateScreen> {
     final translateModels = s.models
         .where((m) => m.kind == ModelKind.translate)
         .toList(growable: false);
-    final downloadedTranslate = translateModels
-        .where((m) => m.isDownloaded)
-        .toList(growable: false);
+    final downloadedTranslate =
+        translateModels.where((m) => m.isDownloaded).toList(growable: false);
 
     if (plat.isWeb) {
       return const _WebTranslateScreen(key: ValueKey('web-translate'));
@@ -259,10 +260,13 @@ class _TranslateScreenState extends ConsumerState<TranslateScreen> {
                     const SizedBox(height: 12),
                     Row(
                       children: [
-                        Expanded(child: _langDropdown(l.translateSourceLang, s.srcLang,
-                            (v) => ref
-                                .read(translateScreenProvider.notifier)
-                                .setSrcLang(v))),
+                        Expanded(
+                            child: _langDropdown(
+                                l.translateSourceLang,
+                                s.srcLang,
+                                (v) => ref
+                                    .read(translateScreenProvider.notifier)
+                                    .setSrcLang(v))),
                         IconButton(
                           tooltip: 'Auto-detect source language (CLD3)',
                           icon: const Icon(Icons.language),
@@ -273,10 +277,13 @@ class _TranslateScreenState extends ConsumerState<TranslateScreen> {
                           icon: const Icon(Icons.swap_horiz),
                           onPressed: _swapLanguages,
                         ),
-                        Expanded(child: _langDropdown(l.translateTargetLang, s.tgtLang,
-                            (v) => ref
-                                .read(translateScreenProvider.notifier)
-                                .setTgtLang(v))),
+                        Expanded(
+                            child: _langDropdown(
+                                l.translateTargetLang,
+                                s.tgtLang,
+                                (v) => ref
+                                    .read(translateScreenProvider.notifier)
+                                    .setTgtLang(v))),
                       ],
                     ),
                   ],
@@ -367,8 +374,8 @@ class _TranslateScreenState extends ConsumerState<TranslateScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(l.translateMaxTokens(s.maxTokens),
-                                style:
-                                    const TextStyle(fontWeight: FontWeight.w500)),
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w500)),
                             Slider(
                               value: s.maxTokens.toDouble(),
                               min: 32,
@@ -399,8 +406,7 @@ class _TranslateScreenState extends ConsumerState<TranslateScreen> {
       decoration: InputDecoration(
         labelText: label,
         isDense: true,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       ),
       initialValue: value,
       isExpanded: true,
@@ -408,8 +414,8 @@ class _TranslateScreenState extends ConsumerState<TranslateScreen> {
         for (final e in TextTranslationService.supportedLanguages)
           DropdownMenuItem(
             value: e.key,
-            child: Text('${e.value} (${e.key})',
-                overflow: TextOverflow.ellipsis),
+            child:
+                Text('${e.value} (${e.key})', overflow: TextOverflow.ellipsis),
           ),
       ],
       onChanged: (v) {
@@ -456,8 +462,7 @@ class _WebTranslateScreenState extends ConsumerState<_WebTranslateScreen> {
   Future<void> _translate() async {
     final text = _inputCtrl.text.trim();
     if (text.isEmpty) return;
-    Log.instance.i('translate-web', 'start',
-        fields: {'text_len': text.length});
+    Log.instance.i('translate-web', 'start', fields: {'text_len': text.length});
     setState(() => _busy = true);
     try {
       final baseUrl = ref.read(settingsServiceProvider).hfSpaceUrl;
@@ -473,8 +478,7 @@ class _WebTranslateScreenState extends ConsumerState<_WebTranslateScreen> {
         },
         options: Options(headers: {'Content-Type': 'application/json'}),
       );
-      final eventId =
-          (r.data as Map<String, dynamic>?)?['event_id'] as String?;
+      final eventId = (r.data as Map<String, dynamic>?)?['event_id'] as String?;
       if (eventId == null) {
         _outputCtrl.text = '(no event_id returned)';
         return;

@@ -5,6 +5,7 @@ import 'dart:ui' show AppExitResponse;
 
 import 'package:audio_session/audio_session.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'utils/platform_utils.dart' as plat;
 import 'l10n/generated/app_localizations.dart';
@@ -38,13 +39,17 @@ import 'screens/voice_bake_screen.dart';
 import 'screens/edit_audio_screen.dart';
 import 'screens/subtitle_overlay_screen.dart';
 import 'screens/transcript_compare_screen.dart';
+import 'screens/onboarding_screen.dart';
+import 'screens/transcript_workspace_screen.dart';
 import 'services/watch_folder_service.dart';
 import 'services/audio_service.dart';
 import 'services/batch_queue_service.dart';
 import 'services/desktop_open_with_bridge.dart';
+import 'services/diagnostics_service.dart';
 import 'native/env_helpers_import.dart';
 import 'services/espeak_data_service.dart';
 import 'services/history_service.dart';
+import 'services/crash_breadcrumb_service.dart';
 import 'services/log_service.dart';
 import 'services/native_licenses.dart';
 import 'services/security_scoped_bookmarks.dart';
@@ -73,6 +78,39 @@ void main(List<String> args) async {
   _bootArgs = List<String>.unmodifiable(args);
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Install the global handlers before any plugin or filesystem bootstrap.
+  // A failure during startup should become a usable recovery window, not a
+  // process that silently disappears before the first Flutter frame.
+  FlutterError.onError = (details) {
+    Log.instance.e(
+      'flutter',
+      details.exceptionAsString(),
+      error: details.exception,
+      stack: details.stack,
+    );
+    FlutterError.presentError(details);
+  };
+  WidgetsBinding.instance.platformDispatcher.onError = (error, stack) {
+    Log.instance.e('uncaught', '$error', error: error, stack: stack);
+    return true;
+  };
+
+  try {
+    await _bootstrap();
+  } catch (error, stack) {
+    debugPrint('CrisperWeaver startup failed: $error\n$stack');
+    try {
+      Log.instance.e('startup', 'Application bootstrap failed',
+          error: error, stack: stack);
+    } catch (_) {
+      // The log sink itself can be the component that failed. The recovery UI
+      // below intentionally has no plugin or provider dependencies.
+    }
+    runApp(_StartupFailureApp(error: error, stack: stack));
+  }
+}
+
+Future<void> _bootstrap() async {
   // Pin kokoro's F0Ntrain + decoder-body compute graphs to CPU on
   // Apple Silicon Metal. Set BEFORE any libcrispasr session opens —
   // the C side reads these via env_bool() inside
@@ -116,21 +154,19 @@ void main(List<String> args) async {
   Log.instance.i('main', 'CrisperWeaver starting',
       fields: {'level': Log.instance.minLevel.tag});
 
-  FlutterError.onError = (details) {
-    Log.instance.e(
-      'flutter',
-      details.exceptionAsString(),
-      error: details.exception,
-      stack: details.stack,
-    );
-    FlutterError.presentError(details);
-  };
-
-  // Surface uncaught platform/dispatcher errors too.
-  WidgetsBinding.instance.platformDispatcher.onError = (error, stack) {
-    Log.instance.e('uncaught', '$error', error: error, stack: stack);
-    return true;
-  };
+  // A native abort inside libcrispasr kills this process without unwinding
+  // Dart, so the rolling log above never gets flushed and the user has
+  // nothing to report (#33, #34, #21). The breadcrumb is a separate,
+  // synchronously-written file that records what we were about to ask the
+  // native side to do; if it is still here now, the previous run died doing
+  // it. Read it before anything else can decide to overwrite it.
+  await CrashBreadcrumb.initialize();
+  CrashBreadcrumb.consumePendingAtStartup();
+  final priorCrash = CrashBreadcrumb.pendingAtStartup;
+  if (priorCrash != null) {
+    Log.instance.w('main', 'previous run ended inside a native call',
+        fields: priorCrash.toJson().map((k, v) => MapEntry(k, v ?? '')));
+  }
 
   await _requestPermissions();
   await _initializeServices();
@@ -144,6 +180,7 @@ void main(List<String> args) async {
 
   final prefs = await SharedPreferences.getInstance();
   final settingsService = SettingsService(prefs);
+  await _restoreModelsDirectoryAccess(settingsService);
 
   // Honour persisted user choice for log level. If unset, Log's default
   // (trace in debug, info in release) holds.
@@ -167,6 +204,146 @@ void main(List<String> args) async {
       child: const CrisperWeaverApp(),
     ),
   );
+}
+
+class _StartupFailureApp extends StatefulWidget {
+  const _StartupFailureApp({required this.error, required this.stack});
+
+  final Object error;
+  final StackTrace stack;
+
+  @override
+  State<_StartupFailureApp> createState() => _StartupFailureAppState();
+}
+
+class _StartupFailureAppState extends State<_StartupFailureApp> {
+  late Object _error = widget.error;
+  late StackTrace _stack = widget.stack;
+  bool _retrying = false;
+
+  String get _details => DiagnosticsService.sanitize('$_error\n\n$_stack');
+
+  Future<void> _retry() async {
+    if (_retrying) return;
+    setState(() => _retrying = true);
+    try {
+      await _bootstrap();
+    } catch (error, stack) {
+      if (!mounted) return;
+      setState(() {
+        _error = error;
+        _stack = stack;
+        _retrying = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xff6750a4)),
+        useMaterial3: true,
+      ),
+      home: Scaffold(
+        body: SafeArea(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 680),
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.health_and_safety_outlined, size: 52),
+                    const SizedBox(height: 20),
+                    Text('CrisperWeaver could not finish starting',
+                        style: Theme.of(context).textTheme.headlineSmall),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Your recordings and models were not changed. You can '
+                      'retry now or copy the technical details for support.',
+                    ),
+                    const SizedBox(height: 20),
+                    Container(
+                      constraints: const BoxConstraints(maxHeight: 180),
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: SingleChildScrollView(
+                        child: SelectableText(
+                          DiagnosticsService.sanitize(_error.toString()),
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      children: [
+                        FilledButton.icon(
+                          onPressed: _retrying ? null : _retry,
+                          icon: _retrying
+                              ? const SizedBox.square(
+                                  dimension: 16,
+                                  child:
+                                      CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : const Icon(Icons.refresh),
+                          label: Text(_retrying ? 'Retrying…' : 'Try again'),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: () async {
+                            await Clipboard.setData(
+                                ClipboardData(text: _details));
+                            if (!context.mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content: Text('Technical details copied')),
+                            );
+                          },
+                          icon: const Icon(Icons.copy_outlined),
+                          label: const Text('Copy details'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+Future<void> _restoreModelsDirectoryAccess(SettingsService settings) async {
+  final bookmark = settings.modelsDirBookmark;
+  if (!plat.isMacOS || bookmark == null || settings.customModelsDir.isEmpty) {
+    return;
+  }
+  final bookmarks = SecurityScopedBookmarks();
+  final resolved = await bookmarks.resolve(bookmark);
+  if (resolved == null) {
+    settings.modelsDirAccessLost = true;
+    Log.instance.w('models',
+        'saved models-directory bookmark no longer resolves; user must pick it again');
+    return;
+  }
+  settings.modelsDirAccessLost = false;
+  settings.customModelsDir = resolved.path;
+  if (resolved.stale) {
+    settings.modelsDirBookmark = await bookmarks.create(resolved.path);
+  }
 }
 
 Future<void> _requestPermissions() async {
@@ -212,8 +389,8 @@ Future<void> _configureAudioSession() async {
     final session = await AudioSession.instance;
     await session.configure(const AudioSessionConfiguration.speech());
   } catch (e, st) {
-    Log.instance.w('main', 'audio_session configure failed',
-        error: e, stack: st);
+    Log.instance
+        .w('main', 'audio_session configure failed', error: e, stack: st);
   }
 }
 
@@ -251,8 +428,7 @@ class _CrisperWeaverAppState extends ConsumerState<CrisperWeaverApp> {
       // Swift-side buffer of cold-launch file paths and listens
       // for live opens after the app is up. No-op on other
       // platforms (the channel isn't registered there).
-      unawaited(
-          DesktopOpenWithBridge(sink: intake.acceptPaths).start());
+      unawaited(DesktopOpenWithBridge(sink: intake.acceptPaths).start());
       // Hydrate the batch queue from disk so jobs survive restarts
       // (§5.23 Q1). Running-when-killed jobs are demoted back to
       // queued so the next drain pass picks them up; a separate
@@ -293,7 +469,7 @@ class _CrisperWeaverAppState extends ConsumerState<CrisperWeaverApp> {
       }
 
       // EU AI Act Art. 52: first-use AI transparency notice.
-      _showAiTransparencyNoticeIfNeeded();
+      unawaited(_showFirstRunExperienceIfNeeded());
     });
 
     // On desktop, the user clicking the red close button fires
@@ -342,9 +518,10 @@ class _CrisperWeaverAppState extends ConsumerState<CrisperWeaverApp> {
           if (fresh != null) settings.watchFolderBookmark = fresh;
         }
       } else {
-        Log.instance.w('watch-folder',
+        Log.instance.w(
+            'watch-folder',
             'security-scoped bookmark no longer resolves — the folder must be '
-            'picked again');
+                'picked again');
       }
     }
 
@@ -366,42 +543,53 @@ class _CrisperWeaverAppState extends ConsumerState<CrisperWeaverApp> {
   /// and which of them can leave the device once enabled. (Art. 52 in the
   /// draft numbering; Art. 50 in Regulation (EU) 2024/1689 as adopted.)
   /// Dismissal is persisted so the dialog only shows once.
-  void _showAiTransparencyNoticeIfNeeded() {
+  Future<void> _showFirstRunExperienceIfNeeded() async {
     final settings = ref.read(settingsServiceProvider);
-    if (settings.aiTransparencyNoticeSeen) return;
-
     // Show after a short delay so the app has fully rendered.
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (!mounted) return;
-      final l = AppLocalizations.of(context);
-      showDialog<void>(
-        context: context,
+    await Future<void>.delayed(const Duration(milliseconds: 500));
+    if (!mounted) return;
+    if (!settings.aiTransparencyNoticeSeen) {
+      // This State's context sits above MaterialApp.router, so it cannot see
+      // the Localizations inserted by MaterialApp. Use the root Navigator's
+      // context, which is below MaterialApp and remains valid across routes.
+      final dialogContext = _rootNavigatorKey.currentContext;
+      if (dialogContext == null || !dialogContext.mounted) return;
+      await showDialog<void>(
+        context: dialogContext,
         barrierDismissible: false,
-        builder: (ctx) => AlertDialog(
-          icon: const Icon(Icons.smart_toy_outlined, size: 32),
-          title: Text(l.aiTransparencyTitle),
-          content: SingleChildScrollView(
-            // The web build has no on-device engine — EngineFactory
-            // defaults it to the HF Space — so the body text's
-            // "runs on your device by default" is true of the native apps
-            // and false here. Same string, different platform, so the
-            // difference has to be stated rather than assumed.
-            child: Text(plat.isWeb
-                ? '${l.aiTransparencyBody}\n\n${l.aiTransparencyWebNote}'
-                : l.aiTransparencyBody),
-          ),
-          actions: [
-            FilledButton(
-              onPressed: () {
-                settings.aiTransparencyNoticeSeen = true;
-                Navigator.of(ctx).pop();
-              },
-              child: Text(l.aiTransparencyAcknowledge),
+        builder: (ctx) {
+          // Resolve strings from the dialog builder context. It is guaranteed
+          // to be below MaterialApp's Localizations; a Navigator context can
+          // briefly exist before the localization delegate has completed.
+          final l = AppLocalizations.of(ctx);
+          return AlertDialog(
+            icon: const Icon(Icons.smart_toy_outlined, size: 32),
+            title: Text(l.aiTransparencyTitle),
+            content: SingleChildScrollView(
+              // The web build has no on-device engine — EngineFactory
+              // defaults it to the HF Space — so the body text's
+              // "runs on your device by default" is true of the native apps
+              // and false here. Same string, different platform, so the
+              // difference has to be stated rather than assumed.
+              child: Text(plat.isWeb
+                  ? '${l.aiTransparencyBody}\n\n${l.aiTransparencyWebNote}'
+                  : l.aiTransparencyBody),
             ),
-          ],
-        ),
+            actions: [
+              FilledButton(
+                onPressed: () {
+                  settings.aiTransparencyNoticeSeen = true;
+                  Navigator.of(ctx).pop();
+                },
+                child: Text(l.aiTransparencyAcknowledge),
+              ),
+            ],
+          );
+        },
       );
-    });
+    }
+    if (!mounted || settings.onboardingCompleted) return;
+    _router.go('/onboarding');
   }
 
   Future<AppExitResponse> _onExitRequested() async {
@@ -426,13 +614,22 @@ class _CrisperWeaverAppState extends ConsumerState<CrisperWeaverApp> {
     super.dispose();
   }
 
+  static final GlobalKey<NavigatorState> _rootNavigatorKey =
+      GlobalKey<NavigatorState>();
+
   static final GoRouter _router = GoRouter(
+    navigatorKey: _rootNavigatorKey,
     initialLocation: '/',
     routes: [
       GoRoute(
         path: '/',
         name: 'home',
         builder: (context, state) => const TranscriptionScreen(),
+      ),
+      GoRoute(
+        path: '/onboarding',
+        name: 'onboarding',
+        builder: (context, state) => const OnboardingScreen(),
       ),
       GoRoute(
         path: '/settings',
@@ -493,6 +690,13 @@ class _CrisperWeaverAppState extends ConsumerState<CrisperWeaverApp> {
         builder: (context, state) => const HistoryScreen(),
       ),
       GoRoute(
+        path: '/transcript/:id',
+        name: 'transcript-workspace',
+        builder: (context, state) => TranscriptWorkspaceScreen(
+          entryId: state.pathParameters['id'] ?? '',
+        ),
+      ),
+      GoRoute(
         path: '/logs',
         name: 'logs',
         builder: (context, state) => const LogsScreen(),
@@ -540,7 +744,9 @@ class _CrisperWeaverAppState extends ConsumerState<CrisperWeaverApp> {
       GoRoute(
         path: '/translate',
         name: 'translate',
-        builder: (context, state) => const TranslateScreen(),
+        builder: (context, state) => TranslateScreen(
+          initialText: state.extra is String ? state.extra as String : null,
+        ),
       ),
       GoRoute(
         path: '/voice-bake',
@@ -719,12 +925,14 @@ Future<CrispEmbed?> _tryLoadCrispEmbedWeb() async {
     final result = await (CrispEmbed as dynamic).load(
       nThreads: 1,
       onProgress: (double p) {
-        Log.instance.d('crispembed-web', 'load progress: ${(p * 100).toStringAsFixed(0)}%');
+        Log.instance.d('crispembed-web',
+            'load progress: ${(p * 100).toStringAsFixed(0)}%');
       },
     );
     return result as CrispEmbed?;
   } catch (e, st) {
-    Log.instance.w('crispembed-web', 'WASM load failed — semantic search unavailable',
+    Log.instance.w(
+        'crispembed-web', 'WASM load failed — semantic search unavailable',
         error: e, stack: st);
     return null;
   }
@@ -753,6 +961,7 @@ class AppState {
   final String? errorMessage;
   final List<TranscriptionSegment> segments;
   final PerformanceStats? performance;
+
   /// Per-session map from diariser-emitted speaker labels (e.g.
   /// "Speaker 1", "Speaker 2") to user-chosen names (e.g. "Alice",
   /// "Host"). Applied at render time so future segments arriving
@@ -760,6 +969,7 @@ class AppState {
   /// label is recoverable. Persisted into HistoryEntry on save so
   /// renames survive across launches.
   final Map<String, String> speakerNames;
+
   /// History entry id of the most recent save. Set by the
   /// transcription screen / batch drain loop after a successful
   /// `historyService.save()`. Used by [editSegment] to propagate

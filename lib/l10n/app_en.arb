@@ -361,6 +361,14 @@
   "settingsMirrorLogsSubtitle": "Writes to logs/session.log in the app documents directory",
   "settingsSkipChecksum": "Skip checksum verification",
   "settingsSkipChecksumSubtitle": "Accept downloaded models even if SHA-1 does not match",
+  "settingsSkipMemoryPreflight": "Skip memory pre-flight",
+  "settingsSkipMemoryPreflightSubtitle": "Start long transcriptions even when the estimated memory exceeds this machine. Can freeze the system.",
+  "advancedSensitivityPreset": "Sensitivity preset",
+  "advancedSensitivityPresetHelper": "Moves the four thresholds below as a set. Manual keeps the individual sliders.",
+  "advancedSensitivityManual": "Manual",
+  "advancedSensitivityConservative": "Conservative",
+  "advancedSensitivityBalanced": "Balanced",
+  "advancedSensitivityAggressive": "Aggressive",
   "settingsGroupBatchByBackend": "Group batch by backend",
   "settingsGroupBatchByBackendSubtitle": "Reorder queued files so consecutive jobs reuse the same model session",
   "settingsMaxConcurrent": "Concurrent transcriptions",
@@ -2057,5 +2065,165 @@
   "settingsExperimentalSubtitle": "Adds transcript comparison, subtitle overlay, voice baking, audio editing, the local API server, and the log and storage inspectors.",
   "@settingsExperimentalSubtitle": {},
   "advancedAllOptions": "All options",
-  "@advancedAllOptions": {}
+  "@advancedAllOptions": {},
+  "onboardingTitle": "Set up CrisperWeaver",
+  "onboardingSkip": "Set up later",
+  "onboardingSetUp": "Download and continue",
+  "onboardingContinue": "Continue",
+  "onboardingTaskTitle": "What do you want to do?",
+  "onboardingTaskSubtitle": "We will configure a sensible starting point.",
+  "onboardingTaskTranscribe": "Transcribe a file",
+  "onboardingTaskTranscribeHelp": "Turn an audio recording into editable text.",
+  "onboardingTaskMeeting": "Record a meeting",
+  "onboardingTaskMeetingHelp": "Record speech and separate speakers when possible.",
+  "onboardingTaskTranslate": "Translate text",
+  "onboardingTaskTranslateHelp": "Run offline translation between supported languages.",
+  "onboardingTaskSynthesize": "Create speech",
+  "onboardingTaskSynthesizeHelp": "Generate speech locally from written text.",
+  "onboardingLanguageTitle": "Language and preference",
+  "onboardingLanguageSubtitle": "These choices determine the starter model.",
+  "onboardingLanguageLabel": "Primary language",
+  "onboardingPriorityLabel": "Optimize for",
+  "onboardingPriorityBalanced": "Balanced",
+  "onboardingPrioritySpeed": "Speed",
+  "onboardingPriorityQuality": "Quality",
+  "onboardingPriorityStorage": "Small size",
+  "onboardingRecommendationTitle": "Your starting setup",
+  "onboardingRecommendationSubtitle": "You can change every choice later.",
+  "onboardingChooseModelTitle": "Choose a model for this language",
+  "onboardingChooseModelBody": "There is no small universal starter for this combination. We will open the compatible model list without downloading anything.",
+  "onboardingRecommendedSemantics": "Recommended model: {model}, download size {size}",
+  "@onboardingRecommendedSemantics": {
+    "placeholders": {
+      "model": {
+        "type": "String"
+      },
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "onboardingPreparing": "Preparing model download…",
+  "onboardingFailed": "Setup could not finish: {error}",
+  "@onboardingFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "modelsBestFor": "Best for: {useCase}",
+  "@modelsBestFor": {
+    "placeholders": {
+      "useCase": {
+        "type": "String"
+      }
+    }
+  },
+  "modelsFitsDevice": "Fits this device",
+  "modelsMemoryTight": "May be tight on memory",
+  "modelsUseMultilingual": "multilingual transcription",
+  "modelsUseFastTranscription": "fast transcription",
+  "modelsUseTranscription": "transcription",
+  "modelsUseSpeech": "speech generation",
+  "modelsUseTranslation": "offline translation",
+  "modelsUseCleanup": "cleanup and summaries",
+  "modelsUseVoice": "a synthesis voice",
+  "modelsUseAdvanced": "an advanced companion",
+  "storageLocation": "Model location",
+  "settingsModelsDirAccessLost": "Access to the saved folder was lost. Choose it again to restore access.",
+  "storageFreeUnknown": "Free space could not be determined.",
+  "storageFreeAvailable": "{size} free on this volume",
+  "@storageFreeAvailable": {
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "storageLowSpaceHelp": "This volume is running low. Choose a folder on a larger disk before downloading another model.",
+  "storageChangeLocation": "Change model location",
+  "storagePickDestination": "Choose the new model-library folder",
+  "storageMoveTitle": "Move model library?",
+  "storageMoveExplanation": "Models will be copied and verified in {path}. New downloads will use that location. The old copy is kept until you choose to remove it.",
+  "@storageMoveExplanation": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "storageMoveConfirm": "Copy and switch",
+  "storageMoving": "Moving… {percent}%",
+  "@storageMoving": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "storageMoveCompleteTitle": "Model library moved",
+  "storageMoveComplete": "Verified {count} files ({size}) in {path}. Remove the old verified copy now?",
+  "@storageMoveComplete": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "size": {
+        "type": "String"
+      },
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "storageKeepOldCopy": "Keep old copy",
+  "storageRemoveOldCopy": "Remove old copy",
+  "storageOldCopyRemoved": "Removed {size} from the old location.",
+  "@storageOldCopyRemoved": {
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "storageMoveFailed": "Could not move the model library: {error}",
+  "@storageMoveFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "aboutBundledEngines": "Bundled engines",
+  "aboutReviewDiagnostics": "Review diagnostics report",
+  "aboutDiagnosticsTitle": "Diagnostics — review before sharing",
+  "workspaceTitle": "Transcript workspace",
+  "workspaceOpen": "Open workspace",
+  "workspaceMissing": "This transcript could not be found.",
+  "workspaceExport": "Export transcript",
+  "workspaceDetails": "Details",
+  "workspaceTranscript": "Transcript",
+  "workspaceCreated": "Created",
+  "workspaceEngine": "Engine",
+  "workspaceModel": "Model",
+  "workspaceLanguage": "Language",
+  "workspaceDuration": "Duration",
+  "workspaceSegments": "Segments",
+  "workspaceEditSegment": "Edit segment",
+  "workspaceRenameSpeaker": "Rename speaker",
+  "workspaceSegmentSemantics": "Segment {number} at {time}: {text}",
+  "@workspaceSegmentSemantics": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      },
+      "time": {
+        "type": "String"
+      },
+      "text": {
+        "type": "String"
+      }
+    }
+  }
 }

@@ -89,20 +89,42 @@ if [[ ! -d "$APP" ]]; then
   exit 2
 fi
 
+# Exercise the actual executable and bundled dylibs while the normal build's
+# ad-hoc signature is still locally launchable. An Apple Distribution-signed
+# Mac App Store bundle is intentionally rejected by Gatekeeper until Apple
+# supplies a TestFlight/App Store receipt, so launching it after signing would
+# produce SIGKILL/137 even when the artifact is correct.
+echo "==> startup smoke test (before distribution signing)"
+scripts/smoke_macos_app.sh "$APP"
+
 echo "==> embedding provisioning profile"
 cp "$PROFILE" "$APP/Contents/embedded.provisionprofile"
+
+# Refuse an expired or mismatched profile before spending minutes signing.
+PROFILE_PLIST=$(mktemp)
+trap 'rm -f "$PROFILE_PLIST"' EXIT
+security cms -D -i "$PROFILE" >"$PROFILE_PLIST"
+PROFILE_APP_ID=$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:com.apple.application-identifier' "$PROFILE_PLIST")
+PROFILE_EXPIRY=$(/usr/libexec/PlistBuddy -c 'Print :ExpirationDate' "$PROFILE_PLIST")
+if [[ "$PROFILE_APP_ID" != "${TEAM_ID}.${BUNDLE_ID}" ]]; then
+  echo "!! profile is for $PROFILE_APP_ID, expected ${TEAM_ID}.${BUNDLE_ID}" >&2
+  exit 2
+fi
+echo "   profile: $PROFILE_APP_ID (expires $PROFILE_EXPIRY)"
 
 # Sign inside-out. Every Mach-O under the bundle must carry the same Team ID
 # or library validation refuses to load it at launch.
 echo "==> signing nested code (inside-out)"
-find "$APP/Contents" \( -name '*.dylib' -o -name '*.so' -o -name '*.framework' \) -print0 \
-  | while IFS= read -r -d '' item; do
-      codesign --force --timestamp --options runtime \
-        --keychain "$SIGN_KEYCHAIN" \
-        --sign "$APP_SIGN" "$item" >/dev/null 2>&1 \
-        && echo "   signed $(basename "$item")" \
-        || echo "   !! FAILED $(basename "$item")"
-    done
+while IFS= read -r -d '' item; do
+  if ! codesign --force --timestamp --options runtime \
+      --keychain "$SIGN_KEYCHAIN" \
+      --sign "$APP_SIGN" "$item" >/dev/null 2>&1; then
+    echo "   !! FAILED $(basename "$item")" >&2
+    exit 1
+  fi
+  echo "   signed $(basename "$item")"
+done < <(find "$APP/Contents" \
+  \( -name '*.dylib' -o -name '*.so' -o -name '*.framework' \) -print0)
 
 echo "==> signing app bundle"
 codesign --force --timestamp --options runtime \
@@ -113,6 +135,7 @@ codesign --force --timestamp --options runtime \
 echo "==> verifying"
 codesign --verify --deep --strict --verbose=2 "$APP"
 codesign -d --entitlements - --xml "$APP" >/dev/null
+scripts/verify_macos_release.sh --require-distribution "$APP"
 
 echo "==> building signed installer package"
 rm -f "$OUT_PKG"

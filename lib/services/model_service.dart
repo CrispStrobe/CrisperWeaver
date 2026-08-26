@@ -15,6 +15,7 @@ import 'ios_helpers.dart';
 import '../native/disk_space_import.dart';
 import 'log_service.dart';
 import 'settings_service.dart';
+import 'security_scoped_bookmarks.dart';
 import '../utils/platform_utils.dart' as plat;
 import 'model_catalog.dart';
 
@@ -89,13 +90,13 @@ class ModelService {
           await appGroupContainerPath('group.com.crispstrobe.crisperweaver');
       if (groupPath != null && groupPath.isNotEmpty) {
         baseDirPath = groupPath;
-        Log.instance.i('model',
-            'Using App Group container for models', fields: {'path': groupPath});
+        Log.instance.i('model', 'Using App Group container for models',
+            fields: {'path': groupPath});
       } else {
         final appDir = await getApplicationDocumentsDirectory();
         baseDirPath = appDir.path;
-        Log.instance.w('model',
-            'App Group resolve failed — falling back to docs dir',
+        Log.instance.w(
+            'model', 'App Group resolve failed — falling back to docs dir',
             fields: {'path': appDir.path});
       }
     } else {
@@ -109,8 +110,7 @@ class ModelService {
     // (settingsService.customModelsDir) is consulted by `_whisperCppDir`
     // on every read, so changing the setting takes effect immediately
     // without re-running initialize().
-    await Directory(whisperCppDir())
-        .create(recursive: true);
+    await Directory(whisperCppDir()).create(recursive: true);
 
     // Re-register any HF repos the user added by hand in a prior run.
     // Best-effort and memoised — a network failure here never blocks
@@ -138,8 +138,8 @@ class ModelService {
         if (!dir.existsSync()) dir.createSync(recursive: true);
         return override;
       } catch (e) {
-        Log.instance.w('model',
-            'customModelsDir unusable, falling back to sandbox',
+        Log.instance.w(
+            'model', 'customModelsDir unusable, falling back to sandbox',
             error: e, fields: {'attempted': override});
       }
     }
@@ -260,8 +260,6 @@ class ModelService {
     return lookupDefinition(name);
   }
 
-
-
   /// Whether a probe has succeeded at least once in this session.
   bool get hasProbedQuants => _lastProbeAt != null;
   DateTime? get lastQuantProbeAt => _lastProbeAt;
@@ -343,7 +341,8 @@ class ModelService {
       final sizeBytes = (raw['size'] as num?)?.toInt() ?? 0;
       // Best-effort quantisation extraction from the file stem —
       // matches q4_k / q5_0 / q8_0 / f16 / fp16 / iq2_xs etc.
-      final quantMatch = RegExp(r'(q\d[_a-z0-9]*|f16|fp16|f32|bf16|iq\d[_a-z0-9]*)',
+      final quantMatch = RegExp(
+              r'(q\d[_a-z0-9]*|f16|fp16|f32|bf16|iq\d[_a-z0-9]*)',
               caseSensitive: false)
           .firstMatch(stem);
       final quant = quantMatch?.group(0)?.toLowerCase() ?? 'unknown';
@@ -401,8 +400,8 @@ class ModelService {
     return _userRepoReplay ??= () async {
       final repos = _settingsService.hfUserRepos;
       if (repos.isEmpty) return;
-      Log.instance.i('model',
-          'replaying ${repos.length} user-added HF repo(s)');
+      Log.instance
+          .i('model', 'replaying ${repos.length} user-added HF repo(s)');
       for (final r in repos) {
         final repoId = r['repoId'] ?? '';
         final backend = r['backend'] ?? '';
@@ -536,7 +535,6 @@ class ModelService {
     return m == null ? 'f16' : m.group(1)!;
   }
 
-
   /// Derive ISO 639-1 language codes for a voicepack file from its
   /// naming convention. Different TTS families use different schemes:
   ///   * Kokoro: a single-letter prefix on the voice id —
@@ -591,9 +589,8 @@ class ModelService {
     final siblings = ((resp.data as Map)['siblings'] as List?) ?? const [];
 
     final out = <ModelDefinition>[];
-    final voicepackPrefix = repo.voicepackBaseName == null
-        ? null
-        : '${repo.voicepackBaseName}-';
+    final voicepackPrefix =
+        repo.voicepackBaseName == null ? null : '${repo.voicepackBaseName}-';
     for (final raw in siblings) {
       if (raw is! Map) continue;
       final fname = raw['rfilename'] as String? ?? '';
@@ -801,16 +798,17 @@ class ModelService {
           if (detected != null &&
               detected.isNotEmpty &&
               detected != modelDef.backend) {
-            Log.instance.i('model',
+            Log.instance.i(
+                'model',
                 'auto-detected backend "$detected" for $modelName '
-                '(was "${modelDef.backend}")');
+                    '(was "${modelDef.backend}")');
             final patched = modelDef.copyWith(backend: detected);
             _discoveredModels[modelName] = patched;
           }
         } catch (e, st) {
           // Non-fatal — keep the user-supplied backend.
-          Log.instance.d('model', 'detectBackendFromGguf skipped',
-              error: e, stack: st);
+          Log.instance
+              .d('model', 'detectBackendFromGguf skipped', error: e, stack: st);
         }
       }
 
@@ -1051,6 +1049,135 @@ class ModelService {
     return groupDirByBackend(dir, _buildFilenameBackendMap());
   }
 
+  /// Snapshot of the actual model filesystem used for the next download.
+  /// This probes the resolved override path rather than the app-documents
+  /// volume, because those can be different disks on desktop.
+  Future<ModelStorageHealth> getStorageHealth() async {
+    await initialize();
+    final directory = whisperCppDir();
+    return ModelStorageHealth(
+      directory: directory,
+      usedBytes: await _getDirectorySize(directory),
+      freeBytes: await _getAvailableSpace(),
+      isCustomDirectory: _settingsService.customModelsDir.isNotEmpty,
+    );
+  }
+
+  /// Copy the complete resolved model store to [targetDirectory], verify each
+  /// file, then atomically switch future loads/downloads to the new location.
+  /// The source is retained until the UI asks for a second, explicit cleanup.
+  Future<ModelMoveResult> moveModelsTo(
+    String targetDirectory, {
+    void Function(double progress)? onProgress,
+  }) async {
+    await initialize();
+    final source = Directory(whisperCppDir()).absolute;
+    final target = Directory(targetDirectory).absolute;
+    final sourcePath = path.normalize(source.path);
+    final targetPath = path.normalize(target.path);
+    if (sourcePath == targetPath ||
+        path.isWithin(sourcePath, targetPath) ||
+        path.isWithin(targetPath, sourcePath)) {
+      throw const ModelException(
+          'Choose a different folder, not the current folder or one inside it.');
+    }
+    await target.create(recursive: true);
+
+    final files = <File>[];
+    if (await source.exists()) {
+      await for (final entity in source.list(recursive: true)) {
+        if (entity is File) files.add(entity);
+      }
+    }
+    var totalBytes = 0;
+    for (final file in files) {
+      totalBytes += await file.length();
+    }
+    final free = getAvailableDiskSpace(target.path);
+    if (free >= 0 && free < totalBytes + 256 * 1024 * 1024) {
+      throw ModelException(
+          'The selected volume does not have enough free space for the model library.');
+    }
+
+    var copiedBytes = 0;
+    for (final sourceFile in files) {
+      final relative = path.relative(sourceFile.path, from: source.path);
+      final destination = File(path.join(target.path, relative));
+      await destination.parent.create(recursive: true);
+      final sourceSize = await sourceFile.length();
+      if (await destination.exists()) {
+        if (await destination.length() != sourceSize) {
+          throw ModelException(
+              'A different file already exists at ${destination.path}.');
+        }
+      } else {
+        final partial = File('${destination.path}.crisper-copy');
+        if (await partial.exists()) await partial.delete();
+        await sourceFile.copy(partial.path);
+        if (await partial.length() != sourceSize) {
+          await partial.delete();
+          throw ModelException('Copy verification failed for $relative.');
+        }
+        await partial.rename(destination.path);
+      }
+      copiedBytes += sourceSize;
+      onProgress?.call(totalBytes == 0 ? 1 : copiedBytes / totalBytes);
+    }
+
+    _settingsService.customModelsDir = target.path;
+    _settingsService.modelsDirAccessLost = false;
+    _settingsService.modelsDirBookmark =
+        await SecurityScopedBookmarks().create(target.path);
+    Log.instance.i('storage', 'model library copied and switched', fields: {
+      'source': source.path,
+      'target': target.path,
+      'files': files.length,
+      'bytes': totalBytes,
+    });
+    return ModelMoveResult(
+      sourceDirectory: source.path,
+      targetDirectory: target.path,
+      fileCount: files.length,
+      bytes: totalBytes,
+    );
+  }
+
+  /// Remove only source files that have an identical verified counterpart in
+  /// [targetDirectory]. Used after the user separately confirms cleanup.
+  Future<int> removeVerifiedOldModelCopy(
+      String sourceDirectory, String targetDirectory) async {
+    final source = Directory(sourceDirectory).absolute;
+    final target = Directory(targetDirectory).absolute;
+    if (path.normalize(target.path) != path.normalize(whisperCppDir()) ||
+        path.normalize(source.path) == path.normalize(target.path)) {
+      throw const ModelException('Model cleanup paths no longer match.');
+    }
+    var removed = 0;
+    if (!await source.exists()) return 0;
+    final directories = <Directory>[];
+    await for (final entity in source.list(recursive: true)) {
+      if (entity is Directory) {
+        directories.add(entity);
+        continue;
+      }
+      if (entity is! File) continue;
+      final relative = path.relative(entity.path, from: source.path);
+      final counterpart = File(path.join(target.path, relative));
+      if (!await counterpart.exists()) continue;
+      final size = await entity.length();
+      if (await counterpart.length() != size) continue;
+      await entity.delete();
+      removed += size;
+    }
+    directories.sort((a, b) => b.path.length.compareTo(a.path.length));
+    for (final dir in directories) {
+      if (await dir.exists() && await dir.list().isEmpty) await dir.delete();
+    }
+    Log.instance.i('storage', 'removed verified old model copies',
+        fields: {'source': source.path, 'bytes': removed});
+    return removed;
+  }
+
   /// Pure file-walk + grouping logic, factored out of
   /// [getStorageByBackend] so it can be tested with a temp dir +
   /// fake filenames without spinning up path_provider, an FFI
@@ -1069,9 +1196,8 @@ class ModelService {
     await for (final ent in dir.list(recursive: true)) {
       if (ent is! File) continue;
       final base = path.basename(ent.path);
-      final logical = base.endsWith('.tmp')
-          ? base.substring(0, base.length - 4)
-          : base;
+      final logical =
+          base.endsWith('.tmp') ? base.substring(0, base.length - 4) : base;
       final backend = byFilename[logical] ?? '(other)';
       int sz;
       try {
@@ -1119,8 +1245,8 @@ class ModelService {
     await initialize();
     final dir = Directory(whisperCppDir());
     if (!await dir.exists()) return 0;
-    final freed = await deleteBackendFilesIn(
-        dir, _buildFilenameBackendMap(), backend);
+    final freed =
+        await deleteBackendFilesIn(dir, _buildFilenameBackendMap(), backend);
     Log.instance.i('storage', 'deleted backend models', fields: {
       'backend': backend,
       'freed_bytes': freed,
@@ -1141,9 +1267,8 @@ class ModelService {
     await for (final ent in dir.list(recursive: true)) {
       if (ent is! File) continue;
       final base = path.basename(ent.path);
-      final logical = base.endsWith('.tmp')
-          ? base.substring(0, base.length - 4)
-          : base;
+      final logical =
+          base.endsWith('.tmp') ? base.substring(0, base.length - 4) : base;
       final fileBackend = byFilename[logical];
       if (fileBackend != backend) continue;
       try {
@@ -1255,22 +1380,23 @@ class ModelService {
     final stem = modelDef.fileName.endsWith('.bin')
         ? modelDef.fileName.substring(0, modelDef.fileName.length - 4)
         : modelDef.fileName;
-    final mlmodelcDir = Directory(path.join(modelDir, '$stem-encoder.mlmodelc'));
+    final mlmodelcDir =
+        Directory(path.join(modelDir, '$stem-encoder.mlmodelc'));
     if (await mlmodelcDir.exists()) {
-      Log.instance.d('coreml',
-          'CoreML companion already present for ${modelDef.name}');
+      Log.instance
+          .d('coreml', 'CoreML companion already present for ${modelDef.name}');
       return;
     }
     final zipUrl =
         'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/$stem-encoder.mlmodelc.zip';
     final zipPath = path.join(modelDir, '$stem-encoder.mlmodelc.zip');
     try {
-      Log.instance.i('coreml', 'fetching CoreML companion',
-          fields: {'url': zipUrl});
+      Log.instance
+          .i('coreml', 'fetching CoreML companion', fields: {'url': zipUrl});
       final resp = await _dio.download(zipUrl, zipPath);
       if (resp.statusCode != 200) {
-        Log.instance
-            .d('coreml', 'CoreML companion not on HF (status ${resp.statusCode})');
+        Log.instance.d(
+            'coreml', 'CoreML companion not on HF (status ${resp.statusCode})');
         await File(zipPath).delete().catchError((_) => File(zipPath));
         return;
       }
@@ -1293,8 +1419,8 @@ class ModelService {
       // 404 / network blip / decompression failure all funnel here.
       // CoreML is an optional accelerator; whisper falls back to ggml
       // automatically when the .mlmodelc isn't present.
-      Log.instance.d('coreml', 'CoreML companion fetch skipped',
-          error: e, stack: st);
+      Log.instance
+          .d('coreml', 'CoreML companion fetch skipped', error: e, stack: st);
       try {
         await File(zipPath).delete();
       } catch (e) {

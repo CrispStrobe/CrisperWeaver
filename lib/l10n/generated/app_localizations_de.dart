@@ -634,6 +634,32 @@ class AppLocalizationsDe extends AppLocalizations {
       'Heruntergeladene Modelle auch bei SHA-1-Abweichung akzeptieren';
 
   @override
+  String get settingsSkipMemoryPreflight => 'Speicher-Vorprüfung überspringen';
+
+  @override
+  String get settingsSkipMemoryPreflightSubtitle =>
+      'Lange Transkriptionen auch starten, wenn der geschätzte Speicherbedarf diesen Rechner übersteigt. Kann das System einfrieren.';
+
+  @override
+  String get advancedSensitivityPreset => 'Empfindlichkeits-Voreinstellung';
+
+  @override
+  String get advancedSensitivityPresetHelper =>
+      'Verschiebt die vier Schwellenwerte unten gemeinsam. „Manuell“ behält die einzelnen Regler.';
+
+  @override
+  String get advancedSensitivityManual => 'Manuell';
+
+  @override
+  String get advancedSensitivityConservative => 'Konservativ';
+
+  @override
+  String get advancedSensitivityBalanced => 'Ausgewogen';
+
+  @override
+  String get advancedSensitivityAggressive => 'Aggressiv';
+
+  @override
   String get settingsGroupBatchByBackend => 'Stapel nach Backend gruppieren';
 
   @override
@@ -3333,4 +3359,260 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get advancedAllOptions => 'Alle Optionen';
+
+  @override
+  String get onboardingTitle => 'CrisperWeaver einrichten';
+
+  @override
+  String get onboardingSkip => 'Später einrichten';
+
+  @override
+  String get onboardingSetUp => 'Herunterladen und fortfahren';
+
+  @override
+  String get onboardingContinue => 'Weiter';
+
+  @override
+  String get onboardingTaskTitle => 'Was möchtest du tun?';
+
+  @override
+  String get onboardingTaskSubtitle =>
+      'Wir richten dafür einen sinnvollen Startpunkt ein.';
+
+  @override
+  String get onboardingTaskTranscribe => 'Datei transkribieren';
+
+  @override
+  String get onboardingTaskTranscribeHelp =>
+      'Eine Audioaufnahme in bearbeitbaren Text umwandeln.';
+
+  @override
+  String get onboardingTaskMeeting => 'Besprechung aufnehmen';
+
+  @override
+  String get onboardingTaskMeetingHelp =>
+      'Sprache aufnehmen und Sprecher möglichst trennen.';
+
+  @override
+  String get onboardingTaskTranslate => 'Text übersetzen';
+
+  @override
+  String get onboardingTaskTranslateHelp =>
+      'Offline zwischen unterstützten Sprachen übersetzen.';
+
+  @override
+  String get onboardingTaskSynthesize => 'Sprache erzeugen';
+
+  @override
+  String get onboardingTaskSynthesizeHelp =>
+      'Lokal Sprache aus geschriebenem Text erzeugen.';
+
+  @override
+  String get onboardingLanguageTitle => 'Sprache und Priorität';
+
+  @override
+  String get onboardingLanguageSubtitle => 'Daraus wählen wir das Startmodell.';
+
+  @override
+  String get onboardingLanguageLabel => 'Hauptsprache';
+
+  @override
+  String get onboardingPriorityLabel => 'Optimieren für';
+
+  @override
+  String get onboardingPriorityBalanced => 'Ausgewogen';
+
+  @override
+  String get onboardingPrioritySpeed => 'Tempo';
+
+  @override
+  String get onboardingPriorityQuality => 'Qualität';
+
+  @override
+  String get onboardingPriorityStorage => 'Kleine Größe';
+
+  @override
+  String get onboardingRecommendationTitle => 'Deine Startkonfiguration';
+
+  @override
+  String get onboardingRecommendationSubtitle =>
+      'Alle Einstellungen lassen sich später ändern.';
+
+  @override
+  String get onboardingChooseModelTitle => 'Modell für diese Sprache wählen';
+
+  @override
+  String get onboardingChooseModelBody =>
+      'Für diese Kombination gibt es kein kleines Universalmodell. Wir öffnen die Liste kompatibler Modelle, ohne etwas herunterzuladen.';
+
+  @override
+  String onboardingRecommendedSemantics(String model, String size) {
+    return 'Empfohlenes Modell: $model, Downloadgröße $size';
+  }
+
+  @override
+  String get onboardingPreparing => 'Modelldownload wird vorbereitet…';
+
+  @override
+  String onboardingFailed(String error) {
+    return 'Einrichtung konnte nicht abgeschlossen werden: $error';
+  }
+
+  @override
+  String modelsBestFor(String useCase) {
+    return 'Geeignet für: $useCase';
+  }
+
+  @override
+  String get modelsFitsDevice => 'Passt auf dieses Gerät';
+
+  @override
+  String get modelsMemoryTight => 'Arbeitsspeicher könnte knapp werden';
+
+  @override
+  String get modelsUseMultilingual => 'mehrsprachige Transkription';
+
+  @override
+  String get modelsUseFastTranscription => 'schnelle Transkription';
+
+  @override
+  String get modelsUseTranscription => 'Transkription';
+
+  @override
+  String get modelsUseSpeech => 'Spracherzeugung';
+
+  @override
+  String get modelsUseTranslation => 'Offline-Übersetzung';
+
+  @override
+  String get modelsUseCleanup => 'Bereinigung und Zusammenfassungen';
+
+  @override
+  String get modelsUseVoice => 'eine Synthesestimme';
+
+  @override
+  String get modelsUseAdvanced => 'eine erweiterte Begleitdatei';
+
+  @override
+  String get storageLocation => 'Modellspeicherort';
+
+  @override
+  String get settingsModelsDirAccessLost =>
+      'Der Zugriff auf den gespeicherten Ordner ging verloren. Wähle ihn erneut aus.';
+
+  @override
+  String get storageFreeUnknown =>
+      'Freier Speicher konnte nicht ermittelt werden.';
+
+  @override
+  String storageFreeAvailable(String size) {
+    return '$size auf diesem Laufwerk frei';
+  }
+
+  @override
+  String get storageLowSpaceHelp =>
+      'Auf diesem Laufwerk wird der Speicher knapp. Wähle vor dem nächsten Modelldownload einen Ordner auf einem größeren Laufwerk.';
+
+  @override
+  String get storageChangeLocation => 'Modellspeicherort ändern';
+
+  @override
+  String get storagePickDestination =>
+      'Neuen Ordner für die Modellbibliothek wählen';
+
+  @override
+  String get storageMoveTitle => 'Modellbibliothek verschieben?';
+
+  @override
+  String storageMoveExplanation(String path) {
+    return 'Modelle werden nach $path kopiert und geprüft. Neue Downloads verwenden anschließend diesen Ort. Die alte Kopie bleibt erhalten, bis du sie entfernen lässt.';
+  }
+
+  @override
+  String get storageMoveConfirm => 'Kopieren und wechseln';
+
+  @override
+  String storageMoving(int percent) {
+    return 'Wird verschoben… $percent%';
+  }
+
+  @override
+  String get storageMoveCompleteTitle => 'Modellbibliothek verschoben';
+
+  @override
+  String storageMoveComplete(int count, String size, String path) {
+    return '$count Dateien ($size) wurden in $path geprüft. Alte geprüfte Kopie jetzt entfernen?';
+  }
+
+  @override
+  String get storageKeepOldCopy => 'Alte Kopie behalten';
+
+  @override
+  String get storageRemoveOldCopy => 'Alte Kopie entfernen';
+
+  @override
+  String storageOldCopyRemoved(String size) {
+    return '$size am alten Speicherort entfernt.';
+  }
+
+  @override
+  String storageMoveFailed(String error) {
+    return 'Modellbibliothek konnte nicht verschoben werden: $error';
+  }
+
+  @override
+  String get aboutBundledEngines => 'Enthaltene Engines';
+
+  @override
+  String get aboutReviewDiagnostics => 'Diagnosebericht prüfen';
+
+  @override
+  String get aboutDiagnosticsTitle => 'Diagnose — vor dem Teilen prüfen';
+
+  @override
+  String get workspaceTitle => 'Transkript-Arbeitsbereich';
+
+  @override
+  String get workspaceOpen => 'Arbeitsbereich öffnen';
+
+  @override
+  String get workspaceMissing => 'Dieses Transkript wurde nicht gefunden.';
+
+  @override
+  String get workspaceExport => 'Transkript exportieren';
+
+  @override
+  String get workspaceDetails => 'Details';
+
+  @override
+  String get workspaceTranscript => 'Transkript';
+
+  @override
+  String get workspaceCreated => 'Erstellt';
+
+  @override
+  String get workspaceEngine => 'Engine';
+
+  @override
+  String get workspaceModel => 'Modell';
+
+  @override
+  String get workspaceLanguage => 'Sprache';
+
+  @override
+  String get workspaceDuration => 'Dauer';
+
+  @override
+  String get workspaceSegments => 'Segmente';
+
+  @override
+  String get workspaceEditSegment => 'Segment bearbeiten';
+
+  @override
+  String get workspaceRenameSpeaker => 'Sprecher umbenennen';
+
+  @override
+  String workspaceSegmentSemantics(int number, String time, String text) {
+    return 'Segment $number bei $time: $text';
+  }
 }

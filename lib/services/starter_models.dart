@@ -44,6 +44,24 @@ enum DeviceFit {
   unknown,
 }
 
+enum StarterTask { transcribe, meeting, translate, synthesize }
+
+enum StarterPriority { balanced, speed, quality, storage }
+
+class StarterRecommendation {
+  final String? modelId;
+  final String route;
+  final ModelKind kind;
+  final bool enableDiarization;
+
+  const StarterRecommendation({
+    required this.modelId,
+    required this.route,
+    required this.kind,
+    this.enableDiarization = false,
+  });
+}
+
 class StarterModels {
   StarterModels._();
 
@@ -82,6 +100,81 @@ class StarterModels {
     ],
   };
 
+  /// Task-first recommendation used by onboarding. This deliberately keeps
+  /// the policy small and auditable; the full catalogue remains available
+  /// after setup. Non-English ASR defaults to Whisper because it is the
+  /// smallest broadly multilingual starter in every shipped bundle.
+  static StarterRecommendation recommend({
+    required StarterTask task,
+    required StarterPriority priority,
+    required String language,
+  }) {
+    final lang = language == 'auto' ? 'en' : language;
+    switch (task) {
+      case StarterTask.translate:
+        return const StarterRecommendation(
+          modelId: 'm2m100-418m-q4_k',
+          route: '/translate',
+          kind: ModelKind.translate,
+        );
+      case StarterTask.synthesize:
+        // The GPL-free bundles provide Kokoro phonemisation for these four
+        // languages only. Other languages need a deliberate model choice.
+        if (!const {'en', 'de', 'fr', 'es'}.contains(lang)) {
+          return const StarterRecommendation(
+            modelId: null,
+            route: '/models?kind=tts',
+            kind: ModelKind.tts,
+          );
+        }
+        if (priority == StarterPriority.storage) {
+          if (lang == 'de') {
+            return const StarterRecommendation(
+              modelId: 'piper-de_DE-thorsten-medium-f16',
+              route: '/synthesize',
+              kind: ModelKind.tts,
+            );
+          }
+          if (lang == 'en') {
+            return const StarterRecommendation(
+              modelId: 'piper-en_GB-cori-medium-f16',
+              route: '/synthesize',
+              kind: ModelKind.tts,
+            );
+          }
+        }
+        return const StarterRecommendation(
+          modelId: 'kokoro-82m-q8_0',
+          route: '/synthesize',
+          kind: ModelKind.tts,
+        );
+      case StarterTask.meeting:
+      case StarterTask.transcribe:
+        final meeting = task == StarterTask.meeting;
+        if (lang == 'en') {
+          final id = switch (priority) {
+            StarterPriority.speed ||
+            StarterPriority.storage =>
+              'moonshine-base-q4_k',
+            StarterPriority.quality => 'parakeet-tdt-0.6b-v3-q4_k',
+            StarterPriority.balanced => 'base-q5_0',
+          };
+          return StarterRecommendation(
+            modelId: id,
+            route: '/',
+            kind: ModelKind.asr,
+            enableDiarization: meeting,
+          );
+        }
+        return StarterRecommendation(
+          modelId: 'base-q5_0',
+          route: '/',
+          kind: ModelKind.asr,
+          enableDiarization: meeting,
+        );
+    }
+  }
+
   /// Curated model ids for [kind], most-recommended first.
   ///
   /// Ids rather than resolved objects, because the Models screen works in
@@ -112,9 +205,8 @@ class StarterModels {
   static int? budgetBytes(MemoryEstimator estimator) {
     final ram = estimator.physicalMemoryBytes();
     if (ram == null || ram <= 0) return null;
-    final usable =
-        (ram * MemoryEstimator.memoryHeadroomFraction).round() -
-            MemoryEstimator.baseRssBytes;
+    final usable = (ram * MemoryEstimator.memoryHeadroomFraction).round() -
+        MemoryEstimator.baseRssBytes;
     return usable > 0 ? usable : 0;
   }
 

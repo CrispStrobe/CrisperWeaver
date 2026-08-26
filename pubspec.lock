@@ -191,14 +191,14 @@ packages:
       path: "../CrispASR/flutter/crispasr"
       relative: true
     source: path
-    version: "0.8.25"
+    version: "0.8.29"
   crispembed:
     dependency: "direct main"
     description:
       path: "../CrispEmbed/flutter/crispembed"
       relative: true
     source: path
-    version: "0.16.1"
+    version: "0.17.10"
   cross_file:
     dependency: transitive
     description:
