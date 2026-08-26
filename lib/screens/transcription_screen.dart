@@ -77,22 +77,33 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
   // §8.2 — convenience getters proxying into the Riverpod provider so
   // the 100+ callsites that used the old _field syntax keep compiling
   // without a mechanical rename of every occurrence.
-  String? get _selectedFilePath => ref.read(transcriptionScreenProvider).selectedFilePath;
-  Uint8List? get _selectedFileBytes => ref.read(transcriptionScreenProvider).selectedFileBytes;
-  String? get _selectedFileName => ref.read(transcriptionScreenProvider).selectedFileName;
-  bool get _showAdvancedOptions => ref.read(transcriptionScreenProvider).showAdvancedOptions;
-  bool get _enableDiarization => ref.read(transcriptionScreenProvider).enableDiarization;
+  String? get _selectedFilePath =>
+      ref.read(transcriptionScreenProvider).selectedFilePath;
+  Uint8List? get _selectedFileBytes =>
+      ref.read(transcriptionScreenProvider).selectedFileBytes;
+  String? get _selectedFileName =>
+      ref.read(transcriptionScreenProvider).selectedFileName;
+  bool get _showAdvancedOptions =>
+      ref.read(transcriptionScreenProvider).showAdvancedOptions;
+  bool get _enableDiarization =>
+      ref.read(transcriptionScreenProvider).enableDiarization;
   String get _language => ref.read(transcriptionScreenProvider).language;
   String get _modelName => ref.read(transcriptionScreenProvider).modelName;
   bool get _engineReady => ref.read(transcriptionScreenProvider).engineReady;
-  List<ModelInfo> get _availableModels => ref.read(transcriptionScreenProvider).availableModels;
-  bool get _loadingModels => ref.read(transcriptionScreenProvider).loadingModels;
-  String get _modelNameFilter => ref.read(transcriptionScreenProvider).modelNameFilter;
-  String get _backendFilter => ref.read(transcriptionScreenProvider).backendFilter;
-  bool get _transcribePending => ref.read(transcriptionScreenProvider).transcribePending;
+  List<ModelInfo> get _availableModels =>
+      ref.read(transcriptionScreenProvider).availableModels;
+  bool get _loadingModels =>
+      ref.read(transcriptionScreenProvider).loadingModels;
+  String get _modelNameFilter =>
+      ref.read(transcriptionScreenProvider).modelNameFilter;
+  String get _backendFilter =>
+      ref.read(transcriptionScreenProvider).backendFilter;
+  bool get _transcribePending =>
+      ref.read(transcriptionScreenProvider).transcribePending;
 
   bool get _dropHover => ref.read(transcriptionScreenProvider).dropHover;
-  bool get _tagSegmentLanguages => ref.read(transcriptionScreenProvider).tagSegmentLanguages;
+  bool get _tagSegmentLanguages =>
+      ref.read(transcriptionScreenProvider).tagSegmentLanguages;
 
   @override
   void initState() {
@@ -163,6 +174,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
 
     final ok = await service.initialize(
       preferredEngine: settings.preferredEngine,
+      ignoreMemoryPreflight: settings.ignoreMemoryPreflight,
     );
     if (!ok) return ok;
 
@@ -178,8 +190,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
     // surfaces the same error.
     final downloaded =
         _availableModels.where((m) => m.isDownloaded).toList(growable: false);
-    if (_modelName.isEmpty ||
-        !downloaded.any((m) => m.name == _modelName)) {
+    if (_modelName.isEmpty || !downloaded.any((m) => m.name == _modelName)) {
       if (downloaded.isNotEmpty) {
         // Prefer a whisper one if available (most common pick), else
         // first downloaded.
@@ -189,7 +200,8 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
         final switched = whisperFirst.name;
         Log.instance.i('ui',
             'Auto-switching default model: was=$_modelName now=$switched');
-        if (mounted) ref.read(transcriptionScreenProvider.notifier).setModelName(switched);
+        if (mounted)
+          ref.read(transcriptionScreenProvider.notifier).setModelName(switched);
         settings.defaultModel = switched;
       } else if (mounted) {
         // First-launch / nothing downloaded — the "default model X isn't
@@ -254,7 +266,8 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
         }
       }
     }
-    if (mounted) ref.read(transcriptionScreenProvider.notifier).setEngineReady(ok);
+    if (mounted)
+      ref.read(transcriptionScreenProvider.notifier).setEngineReady(ok);
     return ok;
   }
 
@@ -309,8 +322,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
           models = [];
         }
       } else {
-        models =
-            await ref.read(modelServiceProvider).getWhisperCppModels();
+        models = await ref.read(modelServiceProvider).getWhisperCppModels();
       }
       Log.instance.d('ui', 'Fetched ${models.length} models');
       if (mounted) {
@@ -371,6 +383,8 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
     //                   Presets into a PopupMenuButton overflow.
     final compact = isCompactWidth(context);
     final phone = isPhoneWidth(context);
+    final advancedSurface =
+        ref.read(settingsServiceProvider).experimentalFeatures;
     return Scaffold(
       appBar: AppBar(
         title: compact
@@ -387,178 +401,13 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
                   ),
                 ],
               ),
-        actions: phone
-            ? [
-                IconButton(
-                  icon: const Icon(Icons.settings),
-                  tooltip: l.menuSettings,
-                  onPressed: () => context.push('/settings'),
-                ),
-                PopupMenuButton<String>(
-                  tooltip: l.menuOpenMore,
-                  icon: const Icon(Icons.more_vert),
-                  onSelected: (v) {
-                    switch (v) {
-                      case 'history':
-                        context.push('/history');
-                        break;
-                      case 'models':
-                        context.push('/models');
-                        break;
-                      case 'synthesize':
-                        context.push('/synthesize');
-                        break;
-                      case 'translate':
-                        context.push('/translate');
-                        break;
-                      case 'presets':
-                        _openPresetsDialog();
-                        break;
-                      case 'compare-models':
-                        _showModelComparison();
-                        break;
-                      case 'subtitle-overlay':
-                        context.push('/subtitle-overlay');
-                        break;
-                      case 'verify-watermark':
-                        _verifyWatermark();
-                        break;
-                    }
-                  },
-                  itemBuilder: (_) => [
-                    PopupMenuItem(
-                      value: 'history',
-                      child: ListTile(
-                        leading: const Icon(Icons.history),
-                        title: Text(l.menuHistory),
-                        contentPadding: EdgeInsets.zero,
-                        dense: true,
-                      ),
-                    ),
-                    PopupMenuItem(
-                      value: 'models',
-                      child: ListTile(
-                        leading: const Icon(Icons.download),
-                        title: Text(l.menuModels),
-                        contentPadding: EdgeInsets.zero,
-                        dense: true,
-                      ),
-                    ),
-                    PopupMenuItem(
-                      value: 'synthesize',
-                      child: ListTile(
-                        leading: const Icon(Icons.record_voice_over),
-                        title: Text(l.menuSynthesize),
-                        contentPadding: EdgeInsets.zero,
-                        dense: true,
-                      ),
-                    ),
-                    PopupMenuItem(
-                      value: 'translate',
-                      child: ListTile(
-                        leading: const Icon(Icons.translate),
-                        title: Text(l.menuTranslate),
-                        contentPadding: EdgeInsets.zero,
-                        dense: true,
-                      ),
-                    ),
-                    PopupMenuItem(
-                      value: 'presets',
-                      child: ListTile(
-                        leading: const Icon(Icons.bookmarks_outlined),
-                        title: Text(l.presetsTooltip),
-                        contentPadding: EdgeInsets.zero,
-                        dense: true,
-                      ),
-                    ),
-                    PopupMenuItem(
-                      value: 'compare-models',
-                      child: ListTile(
-                        leading: const Icon(Icons.compare_arrows),
-                        title: Text(l.menuCompareModels),
-                        contentPadding: EdgeInsets.zero,
-                        dense: true,
-                      ),
-                    ),
-                    if (ref.read(settingsServiceProvider).experimentalFeatures)
-                    PopupMenuItem(
-                      value: 'subtitle-overlay',
-                      child: ListTile(
-                        leading: const Icon(Icons.subtitles),
-                        title: Text(l.menuSubtitleOverlay),
-                        contentPadding: EdgeInsets.zero,
-                        dense: true,
-                      ),
-                    ),
-                    const PopupMenuItem(
-                      value: 'verify-watermark',
-                      child: ListTile(
-                        leading: Icon(Icons.verified_user),
-                        title: Text('Verify Watermark'),
-                        contentPadding: EdgeInsets.zero,
-                        dense: true,
-                      ),
-                    ),
-                  ],
-                ),
-              ]
-            : [
-                IconButton(
-                  icon: const Icon(Icons.history),
-                  tooltip: l.menuHistory,
-                  onPressed: () => context.push('/history'),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.settings),
-                  tooltip: l.menuSettings,
-                  onPressed: () => context.push('/settings'),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.download),
-                  tooltip: l.menuModels,
-                  onPressed: () => context.push('/models'),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.record_voice_over),
-                  tooltip: l.menuSynthesize,
-                  onPressed: () => context.push('/synthesize'),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.translate),
-                  tooltip: l.menuTranslate,
-                  onPressed: () => context.push('/translate'),
-                ),
-                // §5.1.7 — Presets: save / load (backend,
-                // modelId, language, AdvancedOptions) bundles.
-                IconButton(
-                  icon: const Icon(Icons.bookmarks_outlined),
-                  tooltip: l.presetsTooltip,
-                  onPressed: _openPresetsDialog,
-                ),
-                // §5.25.13 — Model A/B comparison.
-                IconButton(
-                  icon: const Icon(Icons.compare_arrows),
-                  tooltip: l.menuCompareModels,
-                  onPressed: _showModelComparison,
-                ),
-                // §5.25.3 — Subtitle overlay / teleprompter mode.
-                // Beta: hidden unless the user opted into the extra surface.
-                if (ref.read(settingsServiceProvider).experimentalFeatures)
-                  IconButton(
-                    icon: const Icon(Icons.subtitles),
-                    tooltip: l.menuSubtitleOverlay,
-                    onPressed: () => context.push('/subtitle-overlay'),
-                  ),
-                IconButton(
-                  icon: const Icon(Icons.verified_user),
-                  tooltip: 'Verify Watermark',
-                  onPressed: _verifyWatermark,
-                ),
-              ],
+        actions: _buildAppBarActions(l, phone, advancedSurface),
       ),
       body: DropTarget(
-        onDragEntered: (_) => ref.read(transcriptionScreenProvider.notifier).setDropHover(true),
-        onDragExited: (_) => ref.read(transcriptionScreenProvider.notifier).setDropHover(false),
+        onDragEntered: (_) =>
+            ref.read(transcriptionScreenProvider.notifier).setDropHover(true),
+        onDragExited: (_) =>
+            ref.read(transcriptionScreenProvider.notifier).setDropHover(false),
         onDragDone: _onFilesDropped,
         child: Stack(
             children: [_buildBody(), if (_dropHover) _buildDropOverlay()]),
@@ -568,6 +417,125 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
           : null,
     );
   }
+
+  List<Widget> _buildAppBarActions(
+      AppLocalizations l, bool phone, bool advancedSurface) {
+    void select(String value) {
+      switch (value) {
+        case 'history':
+          context.push('/history');
+          return;
+        case 'models':
+          context.push('/models');
+          return;
+        case 'synthesize':
+          context.push('/synthesize');
+          return;
+        case 'translate':
+          context.push('/translate');
+          return;
+        case 'presets':
+          _openPresetsDialog();
+          return;
+        case 'compare-models':
+          _showModelComparison();
+          return;
+        case 'subtitle-overlay':
+          context.push('/subtitle-overlay');
+          return;
+        case 'verify-watermark':
+          _verifyWatermark();
+          return;
+      }
+    }
+
+    PopupMenuButton<String> more({required bool includePrimary}) =>
+        PopupMenuButton<String>(
+          tooltip: l.menuOpenMore,
+          icon: const Icon(Icons.more_vert),
+          onSelected: select,
+          itemBuilder: (_) => [
+            if (includePrimary) ...[
+              _appBarMenuItem('history', Icons.history, l.menuHistory),
+              _appBarMenuItem('models', Icons.download, l.menuModels),
+            ],
+            _appBarMenuItem(
+                'synthesize', Icons.record_voice_over, l.menuSynthesize),
+            _appBarMenuItem('translate', Icons.translate, l.menuTranslate),
+            if (advancedSurface) ...[
+              _appBarMenuItem(
+                  'presets', Icons.bookmarks_outlined, l.presetsTooltip),
+              _appBarMenuItem(
+                  'compare-models', Icons.compare_arrows, l.menuCompareModels),
+              _appBarMenuItem(
+                  'subtitle-overlay', Icons.subtitles, l.menuSubtitleOverlay),
+              _appBarMenuItem(
+                  'verify-watermark', Icons.verified_user, 'Verify watermark'),
+            ],
+          ],
+        );
+
+    if (phone) {
+      return [
+        IconButton(
+          icon: const Icon(Icons.settings),
+          tooltip: l.menuSettings,
+          onPressed: () => context.push('/settings'),
+        ),
+        more(includePrimary: true),
+      ];
+    }
+
+    final primary = <Widget>[
+      IconButton(
+        icon: const Icon(Icons.history),
+        tooltip: l.menuHistory,
+        onPressed: () => context.push('/history'),
+      ),
+      IconButton(
+        icon: const Icon(Icons.download),
+        tooltip: l.menuModels,
+        onPressed: () => context.push('/models'),
+      ),
+      IconButton(
+        icon: const Icon(Icons.settings),
+        tooltip: l.menuSettings,
+        onPressed: () => context.push('/settings'),
+      ),
+    ];
+    if (!advancedSurface) return [...primary, more(includePrimary: false)];
+    return [
+      ...primary,
+      IconButton(
+        icon: const Icon(Icons.record_voice_over),
+        tooltip: l.menuSynthesize,
+        onPressed: () => context.push('/synthesize'),
+      ),
+      IconButton(
+        icon: const Icon(Icons.translate),
+        tooltip: l.menuTranslate,
+        onPressed: () => context.push('/translate'),
+      ),
+      IconButton(
+        icon: const Icon(Icons.bookmarks_outlined),
+        tooltip: l.presetsTooltip,
+        onPressed: _openPresetsDialog,
+      ),
+      more(includePrimary: false),
+    ];
+  }
+
+  PopupMenuItem<String> _appBarMenuItem(
+          String value, IconData icon, String label) =>
+      PopupMenuItem(
+        value: value,
+        child: ListTile(
+          leading: Icon(icon),
+          title: Text(label),
+          contentPadding: EdgeInsets.zero,
+          dense: true,
+        ),
+      );
 
   /// Called when the OS hands us one or more files dropped on the window.
   /// Multi-drop: first file becomes the active selection; any additional
@@ -592,7 +560,9 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
     }
 
     // First: active single-select pick (for the inline transcribe button).
-    ref.read(transcriptionScreenProvider.notifier).setSelectedFilePath(supported.first.path);
+    ref
+        .read(transcriptionScreenProvider.notifier)
+        .setSelectedFilePath(supported.first.path);
     ref.read(selectedAudioPathProvider.notifier).state = null;
 
     // Rest: enqueue for batch processing. Snapshot
@@ -601,11 +571,10 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
     // was intended to run against — §5.23 Q1 grouping + Q3 resume.
     final extras = supported.skip(1).toList();
     final q = ref.read(batchQueueProvider.notifier);
-    final enqueueBackend = ModelCatalog
-            .crispasrBackendModels[_modelName]
-            ?.backend ??
-        ModelCatalog.whisperCppModels[_modelName]?.backend ??
-        'whisper';
+    final enqueueBackend =
+        ModelCatalog.crispasrBackendModels[_modelName]?.backend ??
+            ModelCatalog.whisperCppModels[_modelName]?.backend ??
+            'whisper';
     final enqueueLang = _language == 'auto' ? null : _language;
     int skippedDups = 0;
     for (final f in extras) {
@@ -619,7 +588,8 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
           backend: enqueueBackend, modelId: _modelName, language: enqueueLang);
     }
     if (skippedDups > 0) {
-      Log.instance.i('batch', 'skipped $skippedDups duplicate(s) by fingerprint');
+      Log.instance
+          .i('batch', 'skipped $skippedDups duplicate(s) by fingerprint');
     }
 
     if (!mounted) return;
@@ -849,8 +819,11 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
                   _showAdvancedOptions ? Icons.expand_less : Icons.expand_more),
               label: Text(l.advancedOptions),
               onPressed: () {
-                final next = !ref.read(transcriptionScreenProvider).showAdvancedOptions;
-                ref.read(transcriptionScreenProvider.notifier).setShowAdvancedOptions(next);
+                final next =
+                    !ref.read(transcriptionScreenProvider).showAdvancedOptions;
+                ref
+                    .read(transcriptionScreenProvider.notifier)
+                    .setShowAdvancedOptions(next);
                 if (next) _loadModels();
               },
             ),
@@ -875,7 +848,9 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
         DiarizationSettingsWidget(
           enabled: ref.watch(transcriptionScreenProvider).enableDiarization,
           onChanged: (enabled) {
-            ref.read(transcriptionScreenProvider.notifier).setEnableDiarization(enabled);
+            ref
+                .read(transcriptionScreenProvider.notifier)
+                .setEnableDiarization(enabled);
           },
         ),
 
@@ -908,13 +883,17 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
             // silently transcribe with a mismatched language.
             if (_language != 'auto' && !codes.contains(_language)) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted) ref.read(transcriptionScreenProvider.notifier).setLanguage('auto');
+                if (mounted)
+                  ref
+                      .read(transcriptionScreenProvider.notifier)
+                      .setLanguage('auto');
               });
             }
             final options = <_LangOption>[
               _LangOption(code: 'auto', displayName: l.languageAuto),
               for (final code in codes)
-                _LangOption(code: code, displayName: _languageDisplayName(code)),
+                _LangOption(
+                    code: code, displayName: _languageDisplayName(code)),
             ];
             return Row(
               children: [
@@ -945,7 +924,9 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
                           .where((o) => o.matches(q))
                           .toList(growable: false);
                     },
-                    onSelected: (o) => ref.read(transcriptionScreenProvider.notifier).setLanguage(o.code),
+                    onSelected: (o) => ref
+                        .read(transcriptionScreenProvider.notifier)
+                        .setLanguage(o.code),
                     fieldViewBuilder:
                         (context, controller, focusNode, onSubmit) {
                       return TextField(
@@ -953,8 +934,8 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
                         focusNode: focusNode,
                         decoration: const InputDecoration(
                           border: OutlineInputBorder(),
-                          contentPadding: EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 8),
+                          contentPadding:
+                              EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                           suffixIcon: Icon(Icons.arrow_drop_down),
                         ),
                         onSubmitted: (_) => onSubmit(),
@@ -998,8 +979,9 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
                                         horizontal: 12, vertical: 10),
                                     child: Text(
                                       option.displayName,
-                                      style:
-                                          Theme.of(context).textTheme.bodyMedium,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodyMedium,
                                     ),
                                   ),
                                 );
@@ -1029,9 +1011,12 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
         // §5.25.5 — Tag segment languages after transcription.
         SwitchListTile(
           title: Text(AppLocalizations.of(context).advancedTagSegmentLanguages),
-          subtitle: Text(AppLocalizations.of(context).advancedTagSegmentLanguagesSubtitle),
+          subtitle: Text(
+              AppLocalizations.of(context).advancedTagSegmentLanguagesSubtitle),
           value: ref.watch(transcriptionScreenProvider).tagSegmentLanguages,
-          onChanged: (v) => ref.read(transcriptionScreenProvider.notifier).setTagSegmentLanguages(v),
+          onChanged: (v) => ref
+              .read(transcriptionScreenProvider.notifier)
+              .setTagSegmentLanguages(v),
           dense: true,
         ),
 
@@ -1067,8 +1052,8 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
         // sections in the panel.
         tilePadding: const EdgeInsets.symmetric(horizontal: 12),
         childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-        title: Text(l.model,
-            style: const TextStyle(fontWeight: FontWeight.bold)),
+        title:
+            Text(l.model, style: const TextStyle(fontWeight: FontWeight.bold)),
         subtitle: Text(
           headerSubtitle,
           maxLines: 1,
@@ -1086,32 +1071,36 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
                     prefixIcon: const Icon(Icons.search, size: 18),
                     hintText: l.modelFilterHint,
                     border: const OutlineInputBorder(),
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 8),
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     suffixIcon: _modelNameFilter.isEmpty
                         ? null
                         : IconButton(
                             icon: const Icon(Icons.clear, size: 18),
                             onPressed: () {
                               _modelFilterController.clear();
-                              ref.read(transcriptionScreenProvider.notifier).setModelNameFilter('');
+                              ref
+                                  .read(transcriptionScreenProvider.notifier)
+                                  .setModelNameFilter('');
                             },
                           ),
                   ),
-                  onChanged: (v) =>
-                      ref.read(transcriptionScreenProvider.notifier).setModelNameFilter(v.toLowerCase()),
+                  onChanged: (v) => ref
+                      .read(transcriptionScreenProvider.notifier)
+                      .setModelNameFilter(v.toLowerCase()),
                 ),
               ),
               const SizedBox(width: 8),
               DropdownButton<String>(
                 value: _backendFilter,
                 items: [
-                  DropdownMenuItem(
-                      value: '', child: Text(l.modelAnyBackend)),
+                  DropdownMenuItem(value: '', child: Text(l.modelAnyBackend)),
                   for (final b in _uniqueBackends())
                     DropdownMenuItem(value: b, child: Text(b)),
                 ],
-                onChanged: (v) => ref.read(transcriptionScreenProvider.notifier).setBackendFilter(v ?? ''),
+                onChanged: (v) => ref
+                    .read(transcriptionScreenProvider.notifier)
+                    .setBackendFilter(v ?? ''),
               ),
             ],
           ),
@@ -1238,8 +1227,8 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
         dense: true,
         leading: Icon(Icons.recommend, color: Colors.green.shade700),
         title: Text(l.transcribeNoBackendModelHint(_backendFilter)),
-        subtitle:
-            Text(l.transcribeDownloadRecommended(model.displayName, model.size)),
+        subtitle: Text(
+            l.transcribeDownloadRecommended(model.displayName, model.size)),
         trailing: const Icon(Icons.download, size: 20),
         onTap: () => _selectModelWithDownloadPrompt(model),
       ),
@@ -1433,7 +1422,8 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
       );
       if (pick.isEmpty || !mounted) return;
 
-      final filePath = pick.localPaths.isNotEmpty ? pick.localPaths.first : null;
+      final filePath =
+          pick.localPaths.isNotEmpty ? pick.localPaths.first : null;
       final displayName = filePath != null
           ? p.basename(filePath)
           : (pick.fileNames?.firstOrNull ?? 'Selected audio');
@@ -1447,8 +1437,9 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
       AiDetectionResult? heuristic;
       if (filePath != null) {
         try {
-          final audio = await ref.read(audioServiceProvider).loadAudioFile(
-              File(filePath));
+          final audio = await ref
+              .read(audioServiceProvider)
+              .loadAudioFile(File(filePath));
           ssScore = SpreadSpectrumWatermark.detect(audio.samples);
           heuristic = AudioWatermarkService.detectAiAudio(audio.samples,
               sampleRate: audio.sampleRate);
@@ -1546,9 +1537,8 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
                           ? Icons.warning_amber
                           : Icons.check_circle,
                       size: 16,
-                      color: heuristic.score > 0.7
-                          ? Colors.orange
-                          : Colors.green,
+                      color:
+                          heuristic.score > 0.7 ? Colors.orange : Colors.green,
                     ),
                     const SizedBox(width: 6),
                     Expanded(
@@ -1663,8 +1653,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
               //     flight, label "Transcribing…".
               //   * idle → "Transcribe".
               Builder(builder: (context) {
-                final loading =
-                    _transcribePending && !appState.isTranscribing;
+                final loading = _transcribePending && !appState.isTranscribing;
                 final busy = appState.isTranscribing || _transcribePending;
                 // Look up the model display name + size during the
                 // load phase so the user sees `Loading <model> (140 MB)…`
@@ -1940,8 +1929,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
           // fires and we switch to the determinate bar.
           if (_transcribePending && !appState.isTranscribing)
             Padding(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 12, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -1951,9 +1939,8 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
                     final l = AppLocalizations.of(context);
                     final svc = ref.read(modelServiceProvider);
                     final def = svc.lookupDefinition(_modelName);
-                    final size = def == null
-                        ? ''
-                        : _formatLoadingSize(def.sizeBytes);
+                    final size =
+                        def == null ? '' : _formatLoadingSize(def.sizeBytes);
                     final name = def?.displayName ?? _modelName;
                     final composed = size.isEmpty ? name : '$name ($size)';
                     return Row(
@@ -1969,12 +1956,17 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
                         // finishes loading in the background and a later
                         // Transcribe click runs against it.
                         TextButton(
-                          onPressed: ref.watch(transcriptionScreenProvider).loadCancelled
+                          onPressed: ref
+                                  .watch(transcriptionScreenProvider)
+                                  .loadCancelled
                               ? null
                               : () {
-                                  ref.read(transcriptionScreenProvider.notifier).setLoadCancelled(true);
-                                  Log.instance.i('ui',
-                                      'User cancelled during model load',
+                                  ref
+                                      .read(
+                                          transcriptionScreenProvider.notifier)
+                                      .setLoadCancelled(true);
+                                  Log.instance.i(
+                                      'ui', 'User cancelled during model load',
                                       fields: {'model': _modelName});
                                 },
                           child: Text(AppLocalizations.of(context).cancel),
@@ -2045,7 +2037,17 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
         // silently ignores (picker never opens or returns empty). Use
         // FileType.any on web and rely on the extension post-filter.
         type: plat.isWeb ? FileType.any : FileType.audio,
-        allowedExtensions: const ['wav', 'mp3', 'flac', 'ogg', 'opus', 'webm', 'm4a', 'aac', 'amr'],
+        allowedExtensions: const [
+          'wav',
+          'mp3',
+          'flac',
+          'ogg',
+          'opus',
+          'webm',
+          'm4a',
+          'aac',
+          'amr'
+        ],
         allowMultiple: true,
       );
     } on FilePickerCloudUriUnsupported catch (e, st) {
@@ -2089,11 +2091,10 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
         final q = ref.read(batchQueueProvider.notifier);
         // Snapshot backend/modelId/language for the batched files so
         // a crash-recovered job knows which model to reload — §5.23.
-        final enqueueBackend = ModelCatalog
-                .crispasrBackendModels[_modelName]
-                ?.backend ??
-            ModelCatalog.whisperCppModels[_modelName]?.backend ??
-            'whisper';
+        final enqueueBackend =
+            ModelCatalog.crispasrBackendModels[_modelName]?.backend ??
+                ModelCatalog.whisperCppModels[_modelName]?.backend ??
+                'whisper';
         final enqueueLang = _language == 'auto' ? null : _language;
         int enqueued = 0;
         for (final p in paths.skip(1)) {
@@ -2109,8 +2110,8 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
         if (mounted && enqueued > 0) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-                content: Text(AppLocalizations.of(context)
-                    .batchEnqueueAdded(enqueued))),
+                content: Text(
+                    AppLocalizations.of(context).batchEnqueueAdded(enqueued))),
           );
         }
       }
@@ -2151,14 +2152,12 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
     // the selected model can stay "base" even after they download "tiny".
     await _loadModels();
     final ts = ref.read(transcriptionScreenProvider);
-    final downloaded = ts.availableModels
-        .where((m) => m.isDownloaded)
-        .toList(growable: false);
+    final downloaded =
+        ts.availableModels.where((m) => m.isDownloaded).toList(growable: false);
     if (ts.modelName.isNotEmpty &&
         !downloaded.any((m) => m.name == ts.modelName) &&
         downloaded.isNotEmpty) {
-      final whisperFirst = downloaded.firstWhere(
-          (m) => m.backend == 'whisper',
+      final whisperFirst = downloaded.firstWhere((m) => m.backend == 'whisper',
           orElse: () => downloaded.first);
       final switched = whisperFirst.name;
       Log.instance.i('ui',
@@ -2188,10 +2187,11 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
           // download and click Transcribe again. Without this
           // the button stays "Transcribing…" forever on a
           // missing-model error.
-          ref.read(transcriptionScreenProvider.notifier).setTranscribePending(false);
+          ref
+              .read(transcriptionScreenProvider.notifier)
+              .setTranscribePending(false);
           final l = AppLocalizations.of(context);
-          final isNotDownloaded =
-              e.toString().contains('is not downloaded');
+          final isNotDownloaded = e.toString().contains('is not downloaded');
           if (isNotDownloaded) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -2224,11 +2224,15 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
     // but honour the intent: don't start transcribing. The model is now
     // resident, so a later Transcribe click starts immediately.
     if (ref.read(transcriptionScreenProvider).loadCancelled) {
-      Log.instance.w('ui',
+      Log.instance.w(
+          'ui',
           'Model load completed after user cancel — leaving model resident, '
-          'skipping transcription start',
+              'skipping transcription start',
           fields: {'model': _modelName});
-      if (mounted) ref.read(transcriptionScreenProvider.notifier).setTranscribePending(false);
+      if (mounted)
+        ref
+            .read(transcriptionScreenProvider.notifier)
+            .setTranscribePending(false);
       return;
     }
 
@@ -2239,7 +2243,10 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
       // ours so the button keeps showing the busy state via
       // appState.isTranscribing.
       appStateNotifier.startTranscription();
-      if (mounted) ref.read(transcriptionScreenProvider.notifier).setTranscribePending(false);
+      if (mounted)
+        ref
+            .read(transcriptionScreenProvider.notifier)
+            .setTranscribePending(false);
 
       final started = DateTime.now();
       List<TranscriptionSegment> segments = [];
@@ -2275,6 +2282,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
         grammarText: adv.grammarText,
         grammarRootRule: adv.grammarRootRule,
         grammarPenalty: adv.grammarPenalty,
+        sensitivityPreset: adv.sensitivityPreset,
         entropyThold: adv.entropyThold,
         logprobThold: adv.logprobThold,
         noSpeechThold: adv.noSpeechThold,
@@ -2440,11 +2448,11 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
                     currentAdv.copyWith(
                   vocabulary: [...currentAdv.vocabulary, ...newTerms],
                 );
-                Log.instance.i('vocab', 'injected speaker-adaptive vocab',
-                    fields: {
-                      'speakers': speakerNames.toList(),
-                      'terms_added': newTerms.length,
-                    });
+                Log.instance
+                    .i('vocab', 'injected speaker-adaptive vocab', fields: {
+                  'speakers': speakerNames.toList(),
+                  'terms_added': newTerms.length,
+                });
               }
             }
           }
@@ -2494,7 +2502,9 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
       // case the model-load path failed in a way that skipped that
       // line — keeps the button re-clickable for a fresh attempt.
       if (mounted && ref.read(transcriptionScreenProvider).transcribePending) {
-        ref.read(transcriptionScreenProvider.notifier).setTranscribePending(false);
+        ref
+            .read(transcriptionScreenProvider.notifier)
+            .setTranscribePending(false);
       }
     }
   }
@@ -2539,6 +2549,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
       grammarText: adv.grammarText,
       grammarRootRule: adv.grammarRootRule,
       grammarPenalty: adv.grammarPenalty,
+      sensitivityPreset: adv.sensitivityPreset,
       entropyThold: adv.entropyThold,
       logprobThold: adv.logprobThold,
       noSpeechThold: adv.noSpeechThold,
@@ -2586,9 +2597,8 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
     // enables; setting == 1 keeps the v0.4 serial behaviour.
     final concurrent = settings.maxConcurrentTranscriptions;
     final prefetchEnabled = concurrent > 1;
-    final prefetchService = prefetchEnabled
-        ? ref.read(audioPrefetchServiceProvider)
-        : null;
+    final prefetchService =
+        prefetchEnabled ? ref.read(audioPrefetchServiceProvider) : null;
 
     // §5.23 Q2 v2 N-way session pool: opt-in slider gated on a
     // memory pre-flight. Pool eligibility is per-job — see
@@ -2621,271 +2631,264 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
     final inFlight = <Future<void>>{};
 
     try {
-    while (true) {
-      final next = queue.nextQueued();
-      if (next == null) {
-        // Pool may still have in-flight work; wait for it to drain.
-        if (inFlight.isNotEmpty) {
-          await Future.any(inFlight);
+      while (true) {
+        final next = queue.nextQueued();
+        if (next == null) {
+          // Pool may still have in-flight work; wait for it to drain.
+          if (inFlight.isNotEmpty) {
+            await Future.any(inFlight);
+            continue;
+          }
+          break;
+        }
+        // §5.23 Q2 v2 parallel dispatch: if the pool is alive AND the
+        // job is pool-eligible (the worker can do everything except
+        // resume-offset / beamSearch / tdrz), fire it on the pool and
+        // keep the main-loop walking. The advanced session knobs
+        // (translate / targetLanguage / askPrompt / temperature /
+        // bestOf / VAD) flow through the worker protocol; diarize +
+        // punctuate run as main-isolate post-processes after the
+        // worker returns.
+        if (pool != null &&
+            poolEligible(next, adv, enableDiarization: _enableDiarization)) {
+          // Wait if the pool is already at capacity.
+          if (inFlight.length >= pool.size) {
+            await Future.any(inFlight);
+            continue;
+          }
+          queue.setRunning(next.id);
+          final fut = _runJobOnPool(
+            pool: pool,
+            job: next,
+            language: language,
+            persistence: persistence,
+            queue: queue,
+            adv: adv,
+            advancedRun: advancedRun,
+            enableDiarization: _enableDiarization,
+            // Diarize speakers bounds: the screen doesn't currently
+            // expose a min/max picker (existing serial path passes
+            // null too), so let pyannote auto-estimate.
+            minSpeakers: null,
+            maxSpeakers: null,
+            vadModelPath: adv.vad
+                ? await transcriptionService.resolveVadModelPath(
+                    backend: adv.vadBackend)
+                : null,
+          );
+          inFlight.add(fut);
+          fut.whenComplete(() => inFlight.remove(fut));
           continue;
         }
-        break;
-      }
-      // §5.23 Q2 v2 parallel dispatch: if the pool is alive AND the
-      // job is pool-eligible (the worker can do everything except
-      // resume-offset / beamSearch / tdrz), fire it on the pool and
-      // keep the main-loop walking. The advanced session knobs
-      // (translate / targetLanguage / askPrompt / temperature /
-      // bestOf / VAD) flow through the worker protocol; diarize +
-      // punctuate run as main-isolate post-processes after the
-      // worker returns.
-      if (pool != null &&
-          poolEligible(next, adv,
-              enableDiarization: _enableDiarization)) {
-        // Wait if the pool is already at capacity.
-        if (inFlight.length >= pool.size) {
+        // If the pool is alive AND busy, give it a chance to clear
+        // before we start a serial job — otherwise we'd starve the
+        // pool on whichever non-vanilla job came in.
+        if (pool != null && inFlight.length >= pool.size) {
           await Future.any(inFlight);
           continue;
         }
         queue.setRunning(next.id);
-        final fut = _runJobOnPool(
-          pool: pool,
-          job: next,
-          language: language,
-          persistence: persistence,
-          queue: queue,
-          adv: adv,
-          advancedRun: advancedRun,
-          enableDiarization: _enableDiarization,
-          // Diarize speakers bounds: the screen doesn't currently
-          // expose a min/max picker (existing serial path passes
-          // null too), so let pyannote auto-estimate.
-          minSpeakers: null,
-          maxSpeakers: null,
-          vadModelPath: adv.vad
-              ? await transcriptionService.resolveVadModelPath(
-                  backend: adv.vadBackend)
-              : null,
-        );
-        inFlight.add(fut);
-        fut.whenComplete(() => inFlight.remove(fut));
-        continue;
-      }
-      // If the pool is alive AND busy, give it a chance to clear
-      // before we start a serial job — otherwise we'd starve the
-      // pool on whichever non-vanilla job came in.
-      if (pool != null && inFlight.length >= pool.size) {
-        await Future.any(inFlight);
-        continue;
-      }
-      queue.setRunning(next.id);
-      // §5.23 Q3 polish: if the job was enqueued against a
-      // different model than the one currently loaded (because the
-      // user switched models mid-queue, or because a crash-resumed
-      // job had a snapshotted modelId from before that switch),
-      // silently load the right one. This is what makes grouping
-      // (§5.23 Q1) actually save time — without it the drain loop
-      // would still use whatever `_modelName` happened to be when
-      // batch started.
-      final jobModelId = next.modelId;
-      if (jobModelId != null && jobModelId.isNotEmpty) {
-        final currentStatus = transcriptionService.getEngineStatus();
-        if (currentStatus.currentModelId != jobModelId) {
-          Log.instance.i('batch', 'switching model for job',
-              fields: {
-                'id': next.id,
-                'from': currentStatus.currentModelId ?? 'none',
-                'to': jobModelId,
-              });
+        // §5.23 Q3 polish: if the job was enqueued against a
+        // different model than the one currently loaded (because the
+        // user switched models mid-queue, or because a crash-resumed
+        // job had a snapshotted modelId from before that switch),
+        // silently load the right one. This is what makes grouping
+        // (§5.23 Q1) actually save time — without it the drain loop
+        // would still use whatever `_modelName` happened to be when
+        // batch started.
+        final jobModelId = next.modelId;
+        if (jobModelId != null && jobModelId.isNotEmpty) {
+          final currentStatus = transcriptionService.getEngineStatus();
+          if (currentStatus.currentModelId != jobModelId) {
+            Log.instance.i('batch', 'switching model for job', fields: {
+              'id': next.id,
+              'from': currentStatus.currentModelId ?? 'none',
+              'to': jobModelId,
+            });
+            try {
+              await transcriptionService.loadModel(jobModelId);
+            } catch (e, st) {
+              // Couldn't load the snapshotted model — fall back to
+              // the currently-loaded one and log. The transcription
+              // might emit wrong-language results but won't crash.
+              Log.instance.w('batch',
+                  'model swap failed; running against current session: $e',
+                  fields: {'id': next.id, 'target': jobModelId}, stack: st);
+            }
+          }
+        }
+        // Kick off prefetch for the file AFTER the current one. The
+        // current file's loadAudioFile call may also consume an
+        // already-pending prefetch from the previous iteration.
+        // Reads `batchQueueProvider` (the public list view) rather
+        // than `queue.state` so we don't poke at StateNotifier
+        // internals from outside.
+        if (prefetchService != null) {
+          final lookahead =
+              _peekNextQueuedAfter(ref.read(batchQueueProvider), next.id);
+          if (lookahead != null) {
+            prefetchService.prefetch(lookahead.filePath);
+          }
+        }
+        // §5.23 Q3 resume: replay any checkpointed segments into the
+        // appState before dispatch so the user sees the partial
+        // transcript that survived the crash, then the new run picks
+        // up at next.resumeOffsetSec (which load() stamped from the
+        // checkpoint's last segment).
+        final resumeOffset = next.resumeOffsetSec ?? 0.0;
+        List<TranscriptionSegment> resumedPrefix = const [];
+        if (resumeOffset > 0) {
           try {
-            await transcriptionService.loadModel(jobModelId);
+            resumedPrefix = await persistence.loadCheckpoint(next.id);
+            // In pool-active mode we already fired
+            // startTranscription() once at batch open. Skip the
+            // per-job restart so the aggregate view stays stable.
+            if (pool == null) appStateNotifier.startTranscription();
+            for (final s in resumedPrefix) {
+              appStateNotifier.addSegment(s);
+            }
           } catch (e, st) {
-            // Couldn't load the snapshotted model — fall back to
-            // the currently-loaded one and log. The transcription
-            // might emit wrong-language results but won't crash.
-            Log.instance.w('batch',
-                'model swap failed; running against current session: $e',
-                fields: {'id': next.id, 'target': jobModelId},
-                stack: st);
+            Log.instance.w('batch', 'checkpoint replay failed',
+                fields: {'id': next.id}, error: e, stack: st);
+            resumedPrefix = const [];
           }
         }
-      }
-      // Kick off prefetch for the file AFTER the current one. The
-      // current file's loadAudioFile call may also consume an
-      // already-pending prefetch from the previous iteration.
-      // Reads `batchQueueProvider` (the public list view) rather
-      // than `queue.state` so we don't poke at StateNotifier
-      // internals from outside.
-      if (prefetchService != null) {
-        final lookahead = _peekNextQueuedAfter(
-            ref.read(batchQueueProvider), next.id);
-        if (lookahead != null) {
-          prefetchService.prefetch(lookahead.filePath);
-        }
-      }
-      // §5.23 Q3 resume: replay any checkpointed segments into the
-      // appState before dispatch so the user sees the partial
-      // transcript that survived the crash, then the new run picks
-      // up at next.resumeOffsetSec (which load() stamped from the
-      // checkpoint's last segment).
-      final resumeOffset = next.resumeOffsetSec ?? 0.0;
-      List<TranscriptionSegment> resumedPrefix = const [];
-      if (resumeOffset > 0) {
-        try {
-          resumedPrefix = await persistence.loadCheckpoint(next.id);
-          // In pool-active mode we already fired
-          // startTranscription() once at batch open. Skip the
-          // per-job restart so the aggregate view stays stable.
-          if (pool == null) appStateNotifier.startTranscription();
-          for (final s in resumedPrefix) {
-            appStateNotifier.addSegment(s);
-          }
-        } catch (e, st) {
-          Log.instance.w('batch', 'checkpoint replay failed',
-              fields: {'id': next.id}, error: e, stack: st);
-          resumedPrefix = const [];
-        }
-      }
-      Log.instance.i('batch', 'job start', fields: {
-        'id': next.id,
-        'file': next.filePath,
-        if (resumeOffset > 0) 'resume_from_sec': resumeOffset.toStringAsFixed(1),
-        if (resumeOffset > 0) 'resumed_segments': resumedPrefix.length,
-      });
-      try {
-        if (resumeOffset == 0 && pool == null) {
-          appStateNotifier.startTranscription();
-        }
-        final started = DateTime.now();
-        // §5.1.2 — merge per-job. `next.modelId` is the
-        // snapshotted model at enqueue; falls back to the
-        // currently-loaded model if missing.
-        final perJobBackend =
-            _resolveBackend(next.modelId ?? _modelName);
-        final perJobInitial = AdvancedOptions.mergeHotwordsIntoPrompt(
-          backend: perJobBackend,
-          hotwords: adv.hotwords,
-          existing: AdvancedOptions
-                  .vocabularyViaInitialPromptBackends
-                  .contains(perJobBackend)
-              ? AdvancedOptions.mergeVocabularyIntoPrompt(
-                  backend: perJobBackend,
-                  vocabulary: adv.vocabulary,
-                  existing: adv.initialPrompt,
-                )
-              : adv.initialPrompt,
-        );
-        final perJobAsk = AdvancedOptions.mergeHotwordsIntoPrompt(
-          backend: perJobBackend,
-          hotwords: adv.hotwords,
-          existing: AdvancedOptions
-                  .vocabularyViaAskPromptBackends
-                  .contains(perJobBackend)
-              ? AdvancedOptions.mergeVocabularyIntoPrompt(
-                  backend: perJobBackend,
-                  vocabulary: adv.vocabulary,
-                  existing: adv.askPrompt,
-                )
-              : adv.askPrompt,
-        );
-        final segments = await transcriptionService.transcribeFile(
-          File(next.filePath),
-          language: language,
-          enableDiarization: _enableDiarization,
-          translate: adv.translate,
-          beamSearch: adv.beamSearch,
-          initialPrompt:
-              perJobInitial.isEmpty ? null : perJobInitial,
-          vad: adv.vad,
-          restorePunctuation: adv.restorePunctuation,
-          targetLanguage:
-              adv.targetLanguage.isEmpty ? null : adv.targetLanguage,
-          askPrompt: perJobAsk.isEmpty ? null : perJobAsk,
-          temperature: adv.temperature,
-          bestOf: adv.bestOf,
-          advanced: advancedRun,
-          startOffsetSec: resumeOffset,
-          onProgress: (p) {
-            queue.setProgress(next.id, p);
-            appStateNotifier.updateProgress(p);
-          },
-          // §5.23 Q3 checkpoint streaming — every segment hits the
-          // appState (visible) AND the per-job .ckpt.jsonl on disk
-          // (resumable). Fire-and-forget: a slow disk shouldn't
-          // back-pressure transcription. In pool-active mode the
-          // queue card is the source of truth (aggregate view), so
-          // we skip the live AppState push to keep parallel files'
-          // segments from interleaving in the same panel.
-          onSegment: (seg) {
-            if (pool == null) appStateNotifier.addSegment(seg);
-            unawaited(
-                persistence.appendSegmentToCheckpoint(next.id, seg));
-          },
-        );
-        // Final transcript = recovered prefix (already in appState +
-        // ckpt) ∪ freshly-emitted tail. Dedupe by endTime in case the
-        // engine emitted a segment that the chunked-whisper resume
-        // path also covered.
-        final fullSegments = <TranscriptionSegment>[
-          ...resumedPrefix,
-          ...segments.where((s) =>
-              resumedPrefix.every((r) => r.endTime != s.endTime)),
-        ];
-        final engine = transcriptionService.currentEngine;
-        final perf = PerformanceStats.fromMetadata(
-          transcriptionService.lastResult?.metadata,
-          engineId: engine?.engineId,
-          modelId: engine?.currentModelId,
-        );
-        // Aggregate batch view: don't fire per-job
-        // completeTranscription while the pool is alive — the
-        // final completion (with last-finishing job's segments)
-        // fires in the finally block below.
-        if (pool == null) {
-          appStateNotifier.completeTranscription(fullSegments,
-              performance: perf);
-        }
-
-        String? historyId;
-        try {
-          final saved = await ref.read(historyServiceProvider).save(
-                engineId: engine?.engineId ?? 'unknown',
-                modelId: engine?.currentModelId,
-                language: language,
-                segments: fullSegments,
-                sourcePath: next.filePath,
-                diarizationEnabled: _enableDiarization,
-                processingTime: DateTime.now().difference(started),
-                speakerNames: ref.read(appStateProvider).speakerNames,
-                embedder: ref.read(crispEmbedProvider).value,
-                audioData: transcriptionService.lastAudioData,
-              );
-          historyId = saved.id;
-        } catch (e, st) {
-          Log.instance.w('batch', 'history save failed', error: e, stack: st);
-        }
-        // setDone clears the .ckpt file via BatchQueueNotifier's
-        // post-mutation hook, so a successful run leaves no stale
-        // checkpoint behind.
-        queue.setDone(next.id,
-            resultText: fullSegments.map((s) => s.text).join(' ').trim(),
-            historyEntryId: historyId);
-        Log.instance.i('batch', 'job done', fields: {
+        Log.instance.i('batch', 'job start', fields: {
           'id': next.id,
-          'segments': fullSegments.length,
-          if (resumeOffset > 0) 'recovered': resumedPrefix.length,
+          'file': next.filePath,
+          if (resumeOffset > 0)
+            'resume_from_sec': resumeOffset.toStringAsFixed(1),
+          if (resumeOffset > 0) 'resumed_segments': resumedPrefix.length,
         });
-      } catch (e, st) {
-        queue.setError(next.id, e.toString());
-        Log.instance.e('batch', 'job failed',
-            fields: {'id': next.id}, error: e, stack: st);
-        // Aggregate-mode: don't surface per-job errors as a global
-        // appState error (it'd kick the screen out of "batch
-        // running" mode while other workers are still going). The
-        // queue card row already shows the error status + message.
-        if (pool == null) appStateNotifier.setError(e.toString());
+        try {
+          if (resumeOffset == 0 && pool == null) {
+            appStateNotifier.startTranscription();
+          }
+          final started = DateTime.now();
+          // §5.1.2 — merge per-job. `next.modelId` is the
+          // snapshotted model at enqueue; falls back to the
+          // currently-loaded model if missing.
+          final perJobBackend = _resolveBackend(next.modelId ?? _modelName);
+          final perJobInitial = AdvancedOptions.mergeHotwordsIntoPrompt(
+            backend: perJobBackend,
+            hotwords: adv.hotwords,
+            existing: AdvancedOptions.vocabularyViaInitialPromptBackends
+                    .contains(perJobBackend)
+                ? AdvancedOptions.mergeVocabularyIntoPrompt(
+                    backend: perJobBackend,
+                    vocabulary: adv.vocabulary,
+                    existing: adv.initialPrompt,
+                  )
+                : adv.initialPrompt,
+          );
+          final perJobAsk = AdvancedOptions.mergeHotwordsIntoPrompt(
+            backend: perJobBackend,
+            hotwords: adv.hotwords,
+            existing: AdvancedOptions.vocabularyViaAskPromptBackends
+                    .contains(perJobBackend)
+                ? AdvancedOptions.mergeVocabularyIntoPrompt(
+                    backend: perJobBackend,
+                    vocabulary: adv.vocabulary,
+                    existing: adv.askPrompt,
+                  )
+                : adv.askPrompt,
+          );
+          final segments = await transcriptionService.transcribeFile(
+            File(next.filePath),
+            language: language,
+            enableDiarization: _enableDiarization,
+            translate: adv.translate,
+            beamSearch: adv.beamSearch,
+            initialPrompt: perJobInitial.isEmpty ? null : perJobInitial,
+            vad: adv.vad,
+            restorePunctuation: adv.restorePunctuation,
+            targetLanguage:
+                adv.targetLanguage.isEmpty ? null : adv.targetLanguage,
+            askPrompt: perJobAsk.isEmpty ? null : perJobAsk,
+            temperature: adv.temperature,
+            bestOf: adv.bestOf,
+            advanced: advancedRun,
+            startOffsetSec: resumeOffset,
+            onProgress: (p) {
+              queue.setProgress(next.id, p);
+              appStateNotifier.updateProgress(p);
+            },
+            // §5.23 Q3 checkpoint streaming — every segment hits the
+            // appState (visible) AND the per-job .ckpt.jsonl on disk
+            // (resumable). Fire-and-forget: a slow disk shouldn't
+            // back-pressure transcription. In pool-active mode the
+            // queue card is the source of truth (aggregate view), so
+            // we skip the live AppState push to keep parallel files'
+            // segments from interleaving in the same panel.
+            onSegment: (seg) {
+              if (pool == null) appStateNotifier.addSegment(seg);
+              unawaited(persistence.appendSegmentToCheckpoint(next.id, seg));
+            },
+          );
+          // Final transcript = recovered prefix (already in appState +
+          // ckpt) ∪ freshly-emitted tail. Dedupe by endTime in case the
+          // engine emitted a segment that the chunked-whisper resume
+          // path also covered.
+          final fullSegments = <TranscriptionSegment>[
+            ...resumedPrefix,
+            ...segments.where(
+                (s) => resumedPrefix.every((r) => r.endTime != s.endTime)),
+          ];
+          final engine = transcriptionService.currentEngine;
+          final perf = PerformanceStats.fromMetadata(
+            transcriptionService.lastResult?.metadata,
+            engineId: engine?.engineId,
+            modelId: engine?.currentModelId,
+          );
+          // Aggregate batch view: don't fire per-job
+          // completeTranscription while the pool is alive — the
+          // final completion (with last-finishing job's segments)
+          // fires in the finally block below.
+          if (pool == null) {
+            appStateNotifier.completeTranscription(fullSegments,
+                performance: perf);
+          }
+
+          String? historyId;
+          try {
+            final saved = await ref.read(historyServiceProvider).save(
+                  engineId: engine?.engineId ?? 'unknown',
+                  modelId: engine?.currentModelId,
+                  language: language,
+                  segments: fullSegments,
+                  sourcePath: next.filePath,
+                  diarizationEnabled: _enableDiarization,
+                  processingTime: DateTime.now().difference(started),
+                  speakerNames: ref.read(appStateProvider).speakerNames,
+                  embedder: ref.read(crispEmbedProvider).value,
+                  audioData: transcriptionService.lastAudioData,
+                );
+            historyId = saved.id;
+          } catch (e, st) {
+            Log.instance.w('batch', 'history save failed', error: e, stack: st);
+          }
+          // setDone clears the .ckpt file via BatchQueueNotifier's
+          // post-mutation hook, so a successful run leaves no stale
+          // checkpoint behind.
+          queue.setDone(next.id,
+              resultText: fullSegments.map((s) => s.text).join(' ').trim(),
+              historyEntryId: historyId);
+          Log.instance.i('batch', 'job done', fields: {
+            'id': next.id,
+            'segments': fullSegments.length,
+            if (resumeOffset > 0) 'recovered': resumedPrefix.length,
+          });
+        } catch (e, st) {
+          queue.setError(next.id, e.toString());
+          Log.instance.e('batch', 'job failed',
+              fields: {'id': next.id}, error: e, stack: st);
+          // Aggregate-mode: don't surface per-job errors as a global
+          // appState error (it'd kick the screen out of "batch
+          // running" mode while other workers are still going). The
+          // queue card row already shows the error status + message.
+          if (pool == null) appStateNotifier.setError(e.toString());
+        }
       }
-    }
     } finally {
       // Drain remaining in-flight pool work before teardown so
       // segments + history saves complete cleanly.
@@ -2901,9 +2904,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
         // canonical "batch segments" so we use whatever the
         // serial fallback left in AppState, or empty.
         final st = ref.read(appStateProvider);
-        appStateNotifier.completeTranscription(
-            st.segments,
-            performance: null);
+        appStateNotifier.completeTranscription(st.segments, performance: null);
       }
     }
   }
@@ -2921,15 +2922,14 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
     final modelDef = ModelCatalog.whisperCppModels[_modelName] ??
         ModelCatalog.crispasrBackendModels[_modelName];
     if (modelDef == null) {
-      Log.instance.d('batch',
-          'pool skipped: $_modelName not in catalog (custom GGUF?)');
+      Log.instance.d(
+          'batch', 'pool skipped: $_modelName not in catalog (custom GGUF?)');
       return null;
     }
     final modelsDir = ref.read(modelServiceProvider).whisperCppDir();
     final modelPath = p.join(modelsDir, modelDef.fileName);
     final estimator = ref.read(memoryEstimatorProvider);
-    final est = estimator.estimate(
-        requested: requested, modelPath: modelPath);
+    final est = estimator.estimate(requested: requested, modelPath: modelPath);
     if (est.affordableWorkers <= 1) {
       Log.instance.i('batch',
           'pool skipped: pre-flight clamped to 1 worker (${est.reason})',
@@ -2943,9 +2943,8 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
         'spawning pool: ${est.affordableWorkers} workers (requested $requested)',
         fields: {
           'model': _modelName,
-          'projected_gb':
-              (est.projectedUsageBytes / (1024 * 1024 * 1024))
-                  .toStringAsFixed(2),
+          'projected_gb': (est.projectedUsageBytes / (1024 * 1024 * 1024))
+              .toStringAsFixed(2),
         });
     try {
       return await TranscriptionWorkerPool.spawn(
@@ -2958,9 +2957,8 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
         nGpuLayers: adv.asrNGpuLayers,
       );
     } catch (e, st) {
-      Log.instance
-          .w('batch', 'pool spawn failed; falling back to serial: $e',
-              stack: st);
+      Log.instance.w('batch', 'pool spawn failed; falling back to serial: $e',
+          stack: st);
       return null;
     }
   }
@@ -3027,9 +3025,8 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
         adv.transcribeWindowStartSec,
         adv.transcribeWindowDurationSec,
       );
-      final windowStartShift = adv.transcribeWindowStartSec > 0
-          ? adv.transcribeWindowStartSec
-          : 0.0;
+      final windowStartShift =
+          adv.transcribeWindowStartSec > 0 ? adv.transcribeWindowStartSec : 0.0;
       // §5.1.2 — vocabulary biasing merges into whichever prompt
       // field the active backend uses (initial_prompt or askPrompt).
       // Pool workers consume both via their sticky setter
@@ -3038,21 +3035,19 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
       final poolAsk = AdvancedOptions.mergeHotwordsIntoPrompt(
         backend: poolBackend,
         hotwords: adv.hotwords,
-        existing: AdvancedOptions
-                .vocabularyViaAskPromptBackends
-                .contains(poolBackend)
-            ? AdvancedOptions.mergeVocabularyIntoPrompt(
-                backend: poolBackend,
-                vocabulary: adv.vocabulary,
-                existing: adv.askPrompt,
-              )
-            : adv.askPrompt,
+        existing:
+            AdvancedOptions.vocabularyViaAskPromptBackends.contains(poolBackend)
+                ? AdvancedOptions.mergeVocabularyIntoPrompt(
+                    backend: poolBackend,
+                    vocabulary: adv.vocabulary,
+                    existing: adv.askPrompt,
+                  )
+                : adv.askPrompt,
       );
       var segments = await pool.dispatch(
         samples: windowedSamples,
         language: language,
-        targetLanguage:
-            adv.targetLanguage.isEmpty ? null : adv.targetLanguage,
+        targetLanguage: adv.targetLanguage.isEmpty ? null : adv.targetLanguage,
         translate: adv.translate,
         askPrompt: poolAsk.isEmpty ? null : poolAsk,
         temperature: adv.temperature,
@@ -3063,8 +3058,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
         // their per-call beam_size through the high-level transcribe
         // API.
         beamSize: adv.beamSearch ? 5 : 1,
-        vadModelPath:
-            (adv.vad && vadModelPath != null) ? vadModelPath : null,
+        vadModelPath: (adv.vad && vadModelPath != null) ? vadModelPath : null,
         vadThreshold: advancedRun.vadThreshold,
         vadMinSpeechMs: advancedRun.vadMinSpeechMs,
         vadMinSilenceMs: advancedRun.vadMinSilenceMs,
@@ -3075,6 +3069,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
         grammarText: adv.grammarText,
         grammarRootRule: adv.grammarRootRule,
         grammarPenalty: adv.grammarPenalty,
+        sensitivityPreset: adv.sensitivityPreset,
         entropyThold: adv.entropyThold,
         logprobThold: adv.logprobThold,
         noSpeechThold: adv.noSpeechThold,
@@ -3092,8 +3087,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
               ? CrispASREngine.shiftSegmentForResume(seg,
                   offsetSeconds: windowStartShift)
               : seg;
-          unawaited(persistence.appendSegmentToCheckpoint(
-              job.id, shifted));
+          unawaited(persistence.appendSegmentToCheckpoint(job.id, shifted));
         },
       );
       // §5.8 — shift every returned segment's timestamps by the
@@ -3128,8 +3122,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
       }
       if (adv.restorePunctuation && segments.isNotEmpty) {
         try {
-          segments =
-              await transcriptionService.restorePunctuation(segments);
+          segments = await transcriptionService.restorePunctuation(segments);
         } catch (e, st) {
           Log.instance.w('batch', 'punc (pool post-process) failed',
               fields: {'id': job.id}, error: e, stack: st);
@@ -3140,8 +3133,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
         try {
           final speakerNames = segments
               .map((s) => s.speaker)
-              .where(
-                  (s) => s != null && !RegExp(r'^Speaker \d+$').hasMatch(s))
+              .where((s) => s != null && !RegExp(r'^Speaker \d+$').hasMatch(s))
               .cast<String>()
               .toSet();
           if (speakerNames.isNotEmpty) {
@@ -3160,17 +3152,18 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
                     currentAdv.copyWith(
                   vocabulary: [...currentAdv.vocabulary, ...newTerms],
                 );
-                Log.instance.i('vocab',
-                    'injected speaker-adaptive vocab (batch)', fields: {
-                  'speakers': speakerNames.toList(),
-                  'terms_added': newTerms.length,
-                });
+                Log.instance.i(
+                    'vocab', 'injected speaker-adaptive vocab (batch)',
+                    fields: {
+                      'speakers': speakerNames.toList(),
+                      'terms_added': newTerms.length,
+                    });
               }
             }
           }
         } catch (e) {
-          Log.instance.w('vocab', 'speaker vocab injection failed (batch)',
-              error: e);
+          Log.instance
+              .w('vocab', 'speaker vocab injection failed (batch)', error: e);
         }
       }
 
@@ -3208,8 +3201,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
   /// Returns the first job after [currentId] that's still queued, or
   /// null when [currentId] is the last queued row. Used by the §5.23
   /// Q2 prefetch hook to kick off the next file's audio decode.
-  static BatchJob? _peekNextQueuedAfter(
-      List<BatchJob> jobs, String currentId) {
+  static BatchJob? _peekNextQueuedAfter(List<BatchJob> jobs, String currentId) {
     var passedCurrent = false;
     for (final j in jobs) {
       if (!passedCurrent) {
@@ -3252,8 +3244,8 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
         Clipboard.setData(ClipboardData(text: marked));
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text(AppLocalizations.of(context)
-                  .transcriptionCopiedToClipboard)),
+              content: Text(
+                  AppLocalizations.of(context).transcriptionCopiedToClipboard)),
         );
         break;
       case 'save_txt':
@@ -3350,8 +3342,8 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            content: Text(AppLocalizations.of(context)
-                .transcriptionSavedTo(file.path))),
+            content: Text(
+                AppLocalizations.of(context).transcriptionSavedTo(file.path))),
       );
       await FileUtils.shareFile(file.path, subject: baseName);
     } catch (e) {
@@ -3403,15 +3395,16 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
         default:
           return;
       }
-      final baseName = 'transcript-$format-${DateTime.now().millisecondsSinceEpoch}';
+      final baseName =
+          'transcript-$format-${DateTime.now().millisecondsSinceEpoch}';
       final dir = await FileUtils.getDocumentsSubdir('exports');
       final file = File('${dir.path}/$baseName.$ext');
       await file.writeAsString(content);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            content: Text(AppLocalizations.of(context)
-                .transcriptionSavedTo(file.path))),
+            content: Text(
+                AppLocalizations.of(context).transcriptionSavedTo(file.path))),
       );
       await FileUtils.shareFile(file.path, subject: baseName);
     } catch (e) {
@@ -3457,8 +3450,8 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            content: Text(AppLocalizations.of(context)
-                .transcriptionSavedTo(file.path))),
+            content: Text(
+                AppLocalizations.of(context).transcriptionSavedTo(file.path))),
       );
       await FileUtils.shareFile(file.path, subject: baseName);
     } catch (e) {
@@ -3524,7 +3517,8 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
     if (pathA == null || pathB == null) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l.abTestFailed(l.transcriptionShareAudioMissing))),
+          SnackBar(
+              content: Text(l.abTestFailed(l.transcriptionShareAudioMissing))),
         );
       }
       return;
@@ -3671,8 +3665,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
           ),
           ElevatedButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child:
-                Text(AppLocalizations.of(context).transcriptionDownload),
+            child: Text(AppLocalizations.of(context).transcriptionDownload),
           ),
         ],
       ),
@@ -3777,7 +3770,6 @@ class _LangOption {
   _LangOption({required this.code, required this.displayName});
   final String code;
   final String displayName;
-  late final String _searchKey =
-      '$code ${displayName.toLowerCase()}';
+  late final String _searchKey = '$code ${displayName.toLowerCase()}';
   bool matches(String query) => _searchKey.contains(query);
 }

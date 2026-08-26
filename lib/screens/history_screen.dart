@@ -30,6 +30,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   // AppBar bottom so the keyboard doesn't push the list around.
   String _searchQuery = '';
   late final TextEditingController _searchController;
+
   /// §5.25.2 — When true, use TF-IDF semantic search instead of
   /// substring matching. Toggle via the search bar suffix icon.
   bool _semanticSearch = false;
@@ -67,8 +68,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     if (_tagFilter.isNotEmpty) {
       final tagNames = _tagFilter.map((t) => t.name).toSet();
       result = result
-          .where((e) => e.segments
-              .any((s) => s.tags.any((t) => tagNames.contains(t))))
+          .where((e) =>
+              e.segments.any((s) => s.tags.any((t) => tagNames.contains(t))))
           .toList(growable: false);
     }
 
@@ -224,11 +225,10 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                 ),
                 filled: true,
                 fillColor: Colors.white.withValues(alpha: 0.12),
-                contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 8, vertical: 0),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
               ),
-              onChanged: (v) =>
-                  setState(() => _searchQuery = v.trim()),
+              onChanged: (v) => setState(() => _searchQuery = v.trim()),
             ),
           ),
         ),
@@ -300,8 +300,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                     alignment: Alignment.centerLeft,
                     child: Text(
                       l.historySearchMatchCount(items.length, all.length),
-                      style: TextStyle(
-                          fontSize: 12, color: Colors.grey.shade600),
+                      style:
+                          TextStyle(fontSize: 12, color: Colors.grey.shade600),
                     ),
                   ),
                 ),
@@ -373,8 +373,10 @@ class _HistoryTile extends StatelessWidget {
 
   final HistoryEntry entry;
   final VoidCallback onDelete;
+
   /// All history entries — needed for "Compare with..." picker (§5.25.7).
   final List<HistoryEntry> allEntries;
+
   /// Active history search query. When non-empty, the expanded
   /// transcript shows a yellow highlight on matching substrings
   /// + auto-expands so the user can see the hit without an extra
@@ -389,9 +391,7 @@ class _HistoryTile extends StatelessWidget {
         // Auto-expand when an active search matches this entry's
         // body so users see the hit without clicking through.
         initiallyExpanded: searchQuery.isNotEmpty &&
-            entry.fullText
-                .toLowerCase()
-                .contains(searchQuery.toLowerCase()),
+            entry.fullText.toLowerCase().contains(searchQuery.toLowerCase()),
         title: _highlightedTitle(context, entry.title, searchQuery),
         subtitle: Text(
           '${fmt.format(entry.createdAt)} · ${entry.engineId}'
@@ -409,6 +409,11 @@ class _HistoryTile extends StatelessWidget {
                   spacing: 8,
                   runSpacing: 4,
                   children: [
+                    FilledButton.icon(
+                      icon: const Icon(Icons.article_outlined, size: 16),
+                      label: Text(AppLocalizations.of(context).workspaceOpen),
+                      onPressed: () => context.push('/transcript/${entry.id}'),
+                    ),
                     OutlinedButton.icon(
                       icon: const Icon(Icons.copy, size: 16),
                       label: Text(AppLocalizations.of(context).historyCopy),
@@ -483,7 +488,9 @@ class _HistoryTile extends StatelessWidget {
     final others = allEntries.where((e) => e.id != entry.id).toList();
     if (others.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context).historyCompareNoOtherEntries)),
+        SnackBar(
+            content: Text(
+                AppLocalizations.of(context).historyCompareNoOtherEntries)),
       );
       return;
     }
@@ -515,8 +522,7 @@ class _HistoryTile extends StatelessWidget {
   /// Returns the body text widget; uses SelectableText.rich so the
   /// user can still copy-paste from the highlighted body. When
   /// the query is empty, falls back to a plain SelectableText.
-  Widget _highlightedBody(
-      BuildContext context, String text, String query) {
+  Widget _highlightedBody(BuildContext context, String text, String query) {
     if (query.isEmpty) return SelectableText(text);
     final spans = _highlightSpans(text, query);
     return SelectableText.rich(TextSpan(children: spans));
@@ -524,8 +530,7 @@ class _HistoryTile extends StatelessWidget {
 
   /// Title-row variant — same highlight machinery but as Text.rich
   /// (titles aren't user-selectable to keep tap-to-expand working).
-  Widget _highlightedTitle(
-      BuildContext context, String text, String query) {
+  Widget _highlightedTitle(BuildContext context, String text, String query) {
     if (query.isEmpty) {
       return Text(text, maxLines: 1, overflow: TextOverflow.ellipsis);
     }

@@ -2,6 +2,12 @@
 // Re-generated before every build via the build scripts and CI workflows.
 // ignore_for_file: constant_identifier_names
 
-const String kBuildGitHash = 'dc97f3a';
-const String kBuildGitHashFull = 'dc97f3a73c0a9a30b1f995a4d1a06fc16ce76541';
-const String kBuildTimestamp = '2026-06-12T16:24:42Z';
+const String kBuildGitHash = '1a6a27c-dirty';
+const String kBuildGitHashFull = '1a6a27c18c25055deb00e04338ba80fefce11ed7-dirty';
+const String kBuildTimestamp = '2026-08-21T13:46:45Z';
+const String kCrispAsrVersion = '0.8.29';
+const String kCrispAsrRevision = '7133415379a557b987286b12b85cc12015261721';
+const String kCrispEmbedVersion = '0.17.8';
+const String kCrispEmbedRevision = '40e7b7dd00bb6b1505c9e6ac74bef0c97efef337';
+const String kGlintVersion = '0.11.0';
+const String kGlintRevision = '77738f3ed9b15f627196cc5bbd7f6406814ba2fb';

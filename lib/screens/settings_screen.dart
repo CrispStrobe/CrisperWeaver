@@ -465,15 +465,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         // §5.8.1 — On-device speaker DB (TitaNet enrolment).
         ListTile(
           title: Text(AppLocalizations.of(context).settingsSpeakers),
-          subtitle:
-              Text(AppLocalizations.of(context).settingsSpeakersSubtitle),
+          subtitle: Text(AppLocalizations.of(context).settingsSpeakersSubtitle),
           trailing: const Icon(Icons.people_outline),
           onTap: () => context.push('/settings/speakers'),
         ),
         // §5.25.4 — Per-speaker vocabulary editor.
         ListTile(
           title: Text(AppLocalizations.of(context).settingsSpeakerVocab),
-          subtitle: Text(AppLocalizations.of(context).settingsSpeakerVocabSubtitle),
+          subtitle:
+              Text(AppLocalizations.of(context).settingsSpeakerVocabSubtitle),
           trailing: const Icon(Icons.spellcheck),
           onTap: () => _showSpeakerVocabEditor(),
         ),
@@ -562,7 +562,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               } on ServerStartException catch (e) {
                 if (!mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(l.settingsServerStartFailed(e.message))),
+                  SnackBar(
+                      content: Text(l.settingsServerStartFailed(e.message))),
                 );
               }
             } else {
@@ -685,14 +686,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
         SwitchListTile(
           title:
-              Text(AppLocalizations.of(context).settingsGroupBatchByBackend),
+              Text(AppLocalizations.of(context).settingsSkipMemoryPreflight),
           subtitle: Text(AppLocalizations.of(context)
-              .settingsGroupBatchByBackendSubtitle),
+              .settingsSkipMemoryPreflightSubtitle),
+          value: settings.ignoreMemoryPreflight,
+          onChanged: (value) {
+            settings.ignoreMemoryPreflight = value;
+            Log.instance.i('settings',
+                'Memory pre-flight ${value ? "bypassed" : "enforced"}');
+          },
+        ),
+        SwitchListTile(
+          title: Text(AppLocalizations.of(context).settingsGroupBatchByBackend),
+          subtitle: Text(
+              AppLocalizations.of(context).settingsGroupBatchByBackendSubtitle),
           value: settings.groupBatchByBackend,
           onChanged: (value) {
             settings.groupBatchByBackend = value;
-            Log.instance.i('settings',
-                'Group batch by backend: ${value ? "ON" : "OFF"}');
+            Log.instance.i(
+                'settings', 'Group batch by backend: ${value ? "ON" : "OFF"}');
           },
         ),
         // §5.23 Q2 v1 — pipeline parallelism slider. 1 = current
@@ -703,8 +715,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           final n = settings.maxConcurrentTranscriptions;
           final cap = settings.maxConcurrentTranscriptionsLimit;
           return ListTile(
-            title: Text(AppLocalizations.of(context)
-                .settingsMaxConcurrentCurrent(n)),
+            title: Text(
+                AppLocalizations.of(context).settingsMaxConcurrentCurrent(n)),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -718,8 +730,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     settings.maxConcurrentTranscriptions = v.round();
                   },
                 ),
-                Text(AppLocalizations.of(context)
-                    .settingsMaxConcurrentSubtitle),
+                Text(
+                    AppLocalizations.of(context).settingsMaxConcurrentSubtitle),
               ],
             ),
           );
@@ -736,8 +748,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           final cap = settings.maxConcurrentSessionsLimit;
           final estimator = ref.read(memoryEstimatorProvider);
           final modelPath = _activeModelPath(ref, settings.defaultModel);
-          final est = estimator.estimate(
-              requested: n, modelPath: modelPath);
+          final est = estimator.estimate(requested: n, modelPath: modelPath);
           return ListTile(
             title: Text(l.settingsMaxConcurrentSessionsCurrent(n)),
             subtitle: Column(
@@ -761,8 +772,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     est.prettyPhysical,
                     est.prettyPerWorker,
                   ),
-                  style: TextStyle(
-                      fontSize: 11, color: Colors.grey.shade700),
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
                 ),
                 if (est.wasClamped)
                   Padding(
@@ -796,9 +806,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         if (!plat.isIOS)
           ListTile(
             title: Text(AppLocalizations.of(context).settingsModelsDir),
-            subtitle: Text(settings.customModelsDir.isEmpty
-                ? AppLocalizations.of(context).settingsModelsDirDefault
-                : settings.customModelsDir),
+            subtitle: Text(settings.modelsDirAccessLost
+                ? AppLocalizations.of(context).settingsModelsDirAccessLost
+                : settings.customModelsDir.isEmpty
+                    ? AppLocalizations.of(context).settingsModelsDirDefault
+                    : settings.customModelsDir),
             trailing: const Icon(Icons.folder_open),
             onTap: () => _showModelsDirDialog(settings),
           ),
@@ -825,13 +837,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
         // §5.1.6 v2 — BYOK cloud-LLM cleanup settings.
         ListTile(
-          title: Text(
-              AppLocalizations.of(context).settingsCloudLlmCleanup),
-          subtitle: Text(settings.cloudLlmApiUrl.isEmpty ||
-                  settings.cloudLlmApiKey.isEmpty
-              ? AppLocalizations.of(context)
-                  .settingsCloudLlmCleanupOff
-              : '${settings.cloudLlmModel} · ${settings.cloudLlmApiUrl}'),
+          title: Text(AppLocalizations.of(context).settingsCloudLlmCleanup),
+          subtitle: Text(
+              settings.cloudLlmApiUrl.isEmpty || settings.cloudLlmApiKey.isEmpty
+                  ? AppLocalizations.of(context).settingsCloudLlmCleanupOff
+                  : '${settings.cloudLlmModel} · ${settings.cloudLlmApiUrl}'),
           trailing: const Icon(Icons.cloud_outlined),
           onTap: () async {
             // Phone → push the sub-screen; wide → keep the
@@ -847,8 +857,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
         // §5.1.6 v3 — on-device chat-LLM cleanup settings.
         ListTile(
-          title: Text(
-              AppLocalizations.of(context).settingsLocalLlmCleanup),
+          title: Text(AppLocalizations.of(context).settingsLocalLlmCleanup),
           subtitle: Text(settings.localLlmModelPath.isEmpty
               ? AppLocalizations.of(context).settingsLocalLlmCleanupOff
               : _shortGgufLabel(settings.localLlmModelPath)),
@@ -897,7 +906,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               shrinkWrap: true,
               children: [
                 for (final name in enrolled) ...[
-                  Text(name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  Text(name,
+                      style: const TextStyle(fontWeight: FontWeight.bold)),
                   Builder(builder: (_) {
                     final vocab = vocabs
                         .where((v) => v.speakerName == name)
@@ -910,26 +920,32 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         if (vocab != null)
                           for (final term in vocab.terms)
                             Chip(
-                              label: Text(term, style: const TextStyle(fontSize: 12)),
+                              label: Text(term,
+                                  style: const TextStyle(fontSize: 12)),
                               onDeleted: () async {
                                 final updated = SpeakerVocab(
                                   speakerName: name,
-                                  terms: vocab.terms.where((t) => t != term).toList(),
+                                  terms: vocab.terms
+                                      .where((t) => t != term)
+                                      .toList(),
                                 );
                                 await updated.save(speakersDir);
-                                vocabs = await SpeakerVocab.listAll(speakersDir);
+                                vocabs =
+                                    await SpeakerVocab.listAll(speakersDir);
                                 setDialogState(() {});
                               },
                               deleteIconColor: Colors.red,
                             ),
                         ActionChip(
-                          label: const Text('+', style: TextStyle(fontSize: 12)),
+                          label:
+                              const Text('+', style: TextStyle(fontSize: 12)),
                           onPressed: () async {
                             final ctrl = TextEditingController();
                             final term = await showDialog<String>(
                               context: ctx,
                               builder: (innerCtx) => AlertDialog(
-                                title: Text(l.settingsSpeakerVocabAddTermTitle(name)),
+                                title: Text(
+                                    l.settingsSpeakerVocabAddTermTitle(name)),
                                 content: TextField(
                                   controller: ctrl,
                                   decoration: InputDecoration(
@@ -1151,15 +1167,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 if (res == null) return;
                 if (!res.ok) {
                   ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
-                    content: Text(
-                        l.settingsHotkeyInvalid(res.invalidCombo!)),
+                    content: Text(l.settingsHotkeyInvalid(res.invalidCombo!)),
                   ));
                   return;
                 }
                 // Re-register with the freshly-saved values.
-                await ref
-                    .read(hotkeyServiceProvider)
-                    .applyFromSettings();
+                await ref.read(hotkeyServiceProvider).applyFromSettings();
                 if (ctx.mounted) Navigator.of(ctx).pop();
               },
               child: Text(l.save),
@@ -1231,6 +1244,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
     if (action == 'reset') {
       settings.customModelsDir = '';
+      settings.modelsDirBookmark = null;
+      settings.modelsDirAccessLost = false;
       Log.instance.i('settings', 'customModelsDir cleared (back to sandbox)');
       return;
     }
@@ -1294,6 +1309,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       }
     }
     settings.customModelsDir = picked;
+    settings.modelsDirAccessLost = false;
+    settings.modelsDirBookmark = await SecurityScopedBookmarks().create(picked);
     Log.instance.i('settings', 'customModelsDir set', fields: {'path': picked});
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -1337,11 +1354,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 settings.hfToken = newToken;
                 ref.read(modelServiceProvider).hfToken = newToken;
                 Navigator.of(context).pop();
-                Log.instance.i(
-                    'settings',
-                    newToken.isEmpty
-                        ? 'HF Token cleared'
-                        : 'HF Token updated');
+                Log.instance.i('settings',
+                    newToken.isEmpty ? 'HF Token cleared' : 'HF Token updated');
               },
               child: Text(l.settingsHfTokenSave),
             ),

@@ -20,6 +20,9 @@
 # Env:
 #   CRISPASR_DIR          path to sibling CrispASR repo (default: ../CrispASR)
 #   CRISPASR_BUILD_SUBDIR cmake binary dir under CRISPASR_DIR (default: build)
+#   CRISPASR_BUILD_DIR    absolute CMake binary dir override
+#   CRISPEMBED_BUILD_DIR  absolute CrispEmbed CMake binary dir override
+#   GLINT_BUILD_DIR       absolute glint CMake binary dir override
 #
 # Default app path: build/macos/Build/Products/{Debug,Release}/crisper_weaver.app
 
@@ -39,12 +42,13 @@ fi
 
 CRISPASR_DIR="${CRISPASR_DIR:-$(cd "$(dirname "$0")/../.." && pwd)/CrispASR}"
 CRISPASR_BUILD_SUBDIR="${CRISPASR_BUILD_SUBDIR:-build}"
-SRCDIR="$CRISPASR_DIR/$CRISPASR_BUILD_SUBDIR/src"
-GGMLDIR="$CRISPASR_DIR/$CRISPASR_BUILD_SUBDIR/ggml/src"
+CRISPASR_BUILD_ROOT="${CRISPASR_BUILD_DIR:-$CRISPASR_DIR/$CRISPASR_BUILD_SUBDIR}"
+SRCDIR="$CRISPASR_BUILD_ROOT/src"
+GGMLDIR="$CRISPASR_BUILD_ROOT/ggml/src"
 
 if [[ ! -d "$SRCDIR" ]]; then
   echo "error: CrispASR build tree not found at $SRCDIR" >&2
-  echo "       Set CRISPASR_DIR / CRISPASR_BUILD_SUBDIR or build CrispASR first." >&2
+  echo "       Set CRISPASR_BUILD_DIR or CRISPASR_DIR / CRISPASR_BUILD_SUBDIR." >&2
   echo "       Tip: scripts/build_macos.sh runs the whole flow end-to-end." >&2
   exit 3
 fi
@@ -68,7 +72,9 @@ mkdir -p "$FRAMEWORKS"
 rm -f "$FRAMEWORKS"/libwhisper*.dylib \
       "$FRAMEWORKS"/libcrispasr*.dylib \
       "$FRAMEWORKS"/libggml*.dylib \
-      "$FRAMEWORKS"/libglint*.dylib
+      "$FRAMEWORKS"/libglint*.dylib \
+      "$FRAMEWORKS"/libogg*.dylib \
+      "$FRAMEWORKS"/libopus*.dylib
 
 # Core library. CrispASR produces libcrispasr.{version}.dylib plus
 # symlinks libcrispasr.dylib and libwhisper.dylib; pick the highest-
@@ -151,13 +157,20 @@ if [[ -d "$GGMLDIR" ]]; then
   find "$GGMLDIR" -name "libggml*.dylib" -exec cp -R {} "$FRAMEWORKS/" \;
 fi
 
-# CrispEmbed (semantic transcript search + math OCR). Normally CocoaPods
-# has already embedded it and the targeted wipe above leaves it alone;
-# this restores it when the bundler runs against an .app built by some
-# other path (or an older one whose copy the blanket wipe ate). Only the
-# crispembed dylib itself — its ggml siblings are deliberately dropped in
-# favour of CrispASR's set, per the note above.
-if ! ls "$FRAMEWORKS"/libcrispembed*.dylib >/dev/null 2>&1; then
+# CrispEmbed (semantic transcript search + math OCR). Prefer the app-specific
+# build made by build_macos.sh: unlike old release tarballs, its shared target
+# embeds ggml and carries the same explicit deployment target as the app.
+CRISPEMBED_BUILD_ROOT="${CRISPEMBED_BUILD_DIR:-}"
+CRISPEMBED_BUILT_LIB=""
+if [[ -n "$CRISPEMBED_BUILD_ROOT" ]]; then
+  CRISPEMBED_BUILT_LIB="$(find "$CRISPEMBED_BUILD_ROOT" -maxdepth 2 -type f -name 'libcrispembed.*.dylib' 2>/dev/null | sort -V | tail -1)"
+fi
+if [[ -n "$CRISPEMBED_BUILT_LIB" ]]; then
+  rm -f "$FRAMEWORKS"/libcrispembed*.dylib
+  CRISPEMBED_SONAME="$(basename "$(otool -D "$CRISPEMBED_BUILT_LIB" | tail -1)")"
+  cp -L "$CRISPEMBED_BUILT_LIB" "$FRAMEWORKS/$CRISPEMBED_SONAME"
+  echo "Bundled locally built $CRISPEMBED_SONAME"
+elif ! ls "$FRAMEWORKS"/libcrispembed*.dylib >/dev/null 2>&1; then
   REPO_ROOT_EARLY="$(cd "$(dirname "$0")/.." && pwd)"
   CRISPEMBED_LIBS=""
   for cand in \
@@ -183,8 +196,10 @@ fi
 # gates on whether this loaded). Build it with:
 #   cmake -B build -DCMAKE_BUILD_TYPE=Release ../glint && cmake --build build
 GLINT_DIR="${GLINT_DIR:-$(cd "$(dirname "$0")/../.." && pwd)/glint}"
+GLINT_BUILD_ROOT="${GLINT_BUILD_DIR:-$GLINT_DIR/build}"
 GLINT_DYLIB=""
 for cand in \
+  "$GLINT_BUILD_ROOT/libglint.dylib" \
   "$GLINT_DIR/build/libglint.dylib" \
   "$GLINT_DIR/build-fixed/libglint.dylib"; do
   if [[ -f "$cand" ]]; then GLINT_DYLIB="$cand"; break; fi

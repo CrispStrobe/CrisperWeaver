@@ -113,6 +113,12 @@ void main() {
         // Not transcript content: diagnostics and build info.
         'lib/screens/logs_screen.dart': 3,
         'lib/screens/settings_screen.dart': 1,
+        // User-reviewed, sanitized diagnostics only.
+        'lib/screens/about_screen.dart': 2,
+        // Startup failure details pass through DiagnosticsService.sanitize.
+        'lib/main.dart': 1,
+        // Transcript copy/share both route through withDisclosure.
+        'lib/screens/transcript_workspace_screen.dart': 2,
       },
       'content exit(s)',
       'A content exit hands text or a file to the OS. If it can carry\n'
@@ -178,6 +184,8 @@ void main() {
         'lib/services/server_service.dart': 1,
         'lib/services/transcription_service.dart': 2,
         'lib/widgets/transcription_output_widget.dart': 1,
+        // Rebuild an already-filtered history segment after a user edit.
+        'lib/screens/transcript_workspace_screen.dart': 1,
         // Parse user-supplied subtitle files, not model output.
         'lib/utils/transcript_parsers.dart': 2,
       },

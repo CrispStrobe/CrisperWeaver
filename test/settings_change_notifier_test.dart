@@ -94,6 +94,25 @@ void main() {
     expect(settings.customModelsDir, '/tmp/models');
   });
 
+  test('model directory bookmark state persists and clears', () {
+    settings.modelsDirBookmark = 'bookmark-data';
+    settings.modelsDirAccessLost = true;
+    expect(settings.modelsDirBookmark, 'bookmark-data');
+    expect(settings.modelsDirAccessLost, isTrue);
+    settings.modelsDirBookmark = null;
+    expect(settings.modelsDirBookmark, isNull);
+  });
+
+  test('onboarding choices persist', () {
+    expect(settings.onboardingCompleted, isFalse);
+    settings.onboardingCompleted = true;
+    settings.onboardingTask = 'meeting';
+    settings.onboardingPriority = 'quality';
+    expect(settings.onboardingCompleted, isTrue);
+    expect(settings.onboardingTask, 'meeting');
+    expect(settings.onboardingPriority, 'quality');
+  });
+
   test('groupBatchByBackend setter persists', () {
     settings.groupBatchByBackend = true;
     expect(settings.groupBatchByBackend, isTrue);

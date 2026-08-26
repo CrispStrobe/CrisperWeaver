@@ -80,6 +80,48 @@ void main() {
     });
   });
 
+  group('Task-first onboarding', () {
+    test('every automatic recommendation resolves', () {
+      final known = _allKnownModelIds();
+      for (final task in StarterTask.values) {
+        for (final priority in StarterPriority.values) {
+          for (final language in ['en', 'de', 'fr', 'es', 'zh']) {
+            final result = StarterModels.recommend(
+              task: task,
+              priority: priority,
+              language: language,
+            );
+            if (result.modelId != null) {
+              expect(known, contains(result.modelId),
+                  reason: '$task / $priority / $language');
+            }
+          }
+        }
+      }
+    });
+
+    test('meeting enables diarization and multilingual ASR uses Whisper', () {
+      final result = StarterModels.recommend(
+        task: StarterTask.meeting,
+        priority: StarterPriority.quality,
+        language: 'de',
+      );
+      expect(result.enableDiarization, isTrue);
+      expect(result.modelId, 'base-q5_0');
+      expect(result.kind, ModelKind.asr);
+    });
+
+    test('unsupported synthesis language never auto-downloads a model', () {
+      final result = StarterModels.recommend(
+        task: StarterTask.synthesize,
+        priority: StarterPriority.balanced,
+        language: 'zh',
+      );
+      expect(result.modelId, isNull);
+      expect(result.route, '/models?kind=tts');
+    });
+  });
+
   group('Device-fit gating', () {
     // 3 GB — the conservative iOS default MemoryEstimator assumes.
     MemoryEstimator phone() =>
@@ -91,8 +133,8 @@ void main() {
     });
 
     test('a 47 MB starter is comfortable', () {
-      expect(
-          StarterModels.fitFor(47 * 1000 * 1000, phone()), DeviceFit.comfortable);
+      expect(StarterModels.fitFor(47 * 1000 * 1000, phone()),
+          DeviceFit.comfortable);
     });
 
     test('unknown RAM never blocks anything', () {

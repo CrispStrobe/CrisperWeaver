@@ -433,6 +433,38 @@ class BackendStorage {
   }
 }
 
+class ModelStorageHealth {
+  final String directory;
+  final int usedBytes;
+
+  /// `-1` when the platform cannot report free space.
+  final int freeBytes;
+  final bool isCustomDirectory;
+
+  const ModelStorageHealth({
+    required this.directory,
+    required this.usedBytes,
+    required this.freeBytes,
+    required this.isCustomDirectory,
+  });
+
+  bool get isLowSpace => freeBytes >= 0 && freeBytes < 2 * 1024 * 1024 * 1024;
+}
+
+class ModelMoveResult {
+  final String sourceDirectory;
+  final String targetDirectory;
+  final int fileCount;
+  final int bytes;
+
+  const ModelMoveResult({
+    required this.sourceDirectory,
+    required this.targetDirectory,
+    required this.fileCount,
+    required this.bytes,
+  });
+}
+
 class ModelException implements Exception {
   final String message;
   const ModelException(this.message);
@@ -487,16 +519,50 @@ abstract final class ModelCatalog {
   // Norwegian (the EU25 ASR set uses Swedish for Scandinavia and
   // omits no).
   static const List<String> langsEU25 = <String>[
-    'en', 'de', 'fr', 'es', 'it', 'pt', 'nl', 'pl', 'ru', 'uk',
-    'cs', 'da', 'sv', 'mt', 'fi', 'el', 'bg', 'ro', 'sk', 'sl',
-    'lt', 'lv', 'et', 'hr', 'hu',
+    'en',
+    'de',
+    'fr',
+    'es',
+    'it',
+    'pt',
+    'nl',
+    'pl',
+    'ru',
+    'uk',
+    'cs',
+    'da',
+    'sv',
+    'mt',
+    'fi',
+    'el',
+    'bg',
+    'ro',
+    'sk',
+    'sl',
+    'lt',
+    'lv',
+    'et',
+    'hr',
+    'hu',
   ];
   // 14-language set Cohere transcribe-03-2026 advertises (added
   // Greek / Dutch / Polish / Vietnamese, dropped Hindi / Russian /
   // Turkish vs the older 13-lang variant).
   static const List<String> langsCohere14 = <String>[
-    'en', 'es', 'fr', 'de', 'it', 'pt', 'zh', 'ja', 'ko',
-    'ar', 'el', 'nl', 'pl', 'vi',
+    'en',
+    'es',
+    'fr',
+    'de',
+    'it',
+    'pt',
+    'zh',
+    'ja',
+    'ko',
+    'ar',
+    'el',
+    'nl',
+    'pl',
+    'vi',
   ];
   // Kept under the old name for any catalogue rows still referring
   // to it — alias to the corrected list so the diff stays consistent.
@@ -505,7 +571,14 @@ abstract final class ModelCatalog {
   // 9th-language addition (Arabic) the user-facing card showed
   // earlier was a card edit; the actual HF API tags list 8.
   static const List<String> langsVoxtral9 = <String>[
-    'en', 'fr', 'es', 'pt', 'it', 'nl', 'de', 'hi',
+    'en',
+    'fr',
+    'es',
+    'pt',
+    'it',
+    'nl',
+    'de',
+    'hi',
   ];
   // Legacy alias retained for older catalogue rows that referred to
   // the earlier 8-language voxtral set. Same list now points at the
@@ -513,61 +586,189 @@ abstract final class ModelCatalog {
   static const List<String> langsVoxtral8 = langsVoxtral9;
   // 6-language set used by Granite Speech 3.x and 4.0 / 4.1 base.
   static const List<String> langsGranite6 = <String>[
-    'en', 'fr', 'de', 'es', 'pt', 'ja',
+    'en',
+    'fr',
+    'de',
+    'es',
+    'pt',
+    'ja',
   ];
   // 5-language set used by Granite Speech 4.1-plus / -nar (dropped
   // Japanese vs the 6-lang base).
   static const List<String> langsGranite5 = <String>[
-    'en', 'fr', 'de', 'es', 'pt',
+    'en',
+    'fr',
+    'de',
+    'es',
+    'pt',
   ];
   // 29-language set used by the Qwen3-ASR family + Mega-ASR. From
   // the upstream HF cards.
   static const List<String> langsQwen3Asr29 = <String>[
-    'ar', 'cs', 'da', 'de', 'el', 'en', 'es', 'fa', 'fi', 'fr',
-    'hi', 'hu', 'id', 'it', 'ja', 'ko', 'mk', 'ms', 'nl', 'pl',
-    'pt', 'ro', 'ru', 'sv', 'th', 'tl', 'tr', 'vi', 'zh',
+    'ar',
+    'cs',
+    'da',
+    'de',
+    'el',
+    'en',
+    'es',
+    'fa',
+    'fi',
+    'fr',
+    'hi',
+    'hu',
+    'id',
+    'it',
+    'ja',
+    'ko',
+    'mk',
+    'ms',
+    'nl',
+    'pl',
+    'pt',
+    'ro',
+    'ru',
+    'sv',
+    'th',
+    'tl',
+    'tr',
+    'vi',
+    'zh',
   ];
   // 10-language set used by the qwen3-tts base + voicedesign + codec
   // repos. customvoice variants use the 9-language subset below (no
   // Russian).
   static const List<String> langsQwen3Tts10 = <String>[
-    'de', 'en', 'es', 'fr', 'it', 'ja', 'ko', 'pt', 'ru', 'zh',
+    'de',
+    'en',
+    'es',
+    'fr',
+    'it',
+    'ja',
+    'ko',
+    'pt',
+    'ru',
+    'zh',
   ];
   static const List<String> langsQwen3TtsCustom9 = <String>[
-    'de', 'en', 'es', 'fr', 'it', 'ja', 'ko', 'pt', 'zh',
+    'de',
+    'en',
+    'es',
+    'fr',
+    'it',
+    'ja',
+    'ko',
+    'pt',
+    'zh',
   ];
   // 8-language set the WMT21 Dense translators advertise.
   static const List<String> langsWmt21_8 = <String>[
-    'cs', 'de', 'en', 'ha', 'is', 'ja', 'ru', 'zh',
+    'cs',
+    'de',
+    'en',
+    'ha',
+    'is',
+    'ja',
+    'ru',
+    'zh',
   ];
   // 10-language set Vibevoice TTS lists (jp/kr/sp are non-standard
   // 2-letter codes mapped to ja/ko/es by the runtime).
   static const List<String> langsVibevoiceTts10 = <String>[
-    'de', 'en', 'fr', 'it', 'ja', 'ko', 'nl', 'pl', 'pt', 'es',
+    'de',
+    'en',
+    'fr',
+    'it',
+    'ja',
+    'ko',
+    'nl',
+    'pl',
+    'pt',
+    'es',
   ];
   // SenseVoice supports zh/en/ja/ko/yue; we surface yue under zh.
   static const List<String> langsSensevoice = <String>['zh', 'en', 'ja', 'ko'];
   // Fullstop-punc multilingual checkpoint.
-  static const List<String> langsFullstopPunc = <String>['en', 'de', 'fr', 'it'];
+  static const List<String> langsFullstopPunc = <String>[
+    'en',
+    'de',
+    'fr',
+    'it'
+  ];
   // Chatterbox base (ResembleAI) advertises 23 langs.
   static const List<String> langsChatterbox23 = <String>[
-    'ar', 'da', 'de', 'el', 'en', 'es', 'fi', 'fr', 'he', 'hi',
-    'it', 'ja', 'ko', 'ms', 'nl', 'no', 'pl', 'pt', 'ru', 'sv',
-    'sw', 'tr', 'zh',
+    'ar',
+    'da',
+    'de',
+    'el',
+    'en',
+    'es',
+    'fi',
+    'fr',
+    'he',
+    'hi',
+    'it',
+    'ja',
+    'ko',
+    'ms',
+    'nl',
+    'no',
+    'pl',
+    'pt',
+    'ru',
+    'sv',
+    'sw',
+    'tr',
+    'zh',
   ];
   // VoxCPM2 (openbmb/VoxCPM2) advertises 29 langs per cstr/voxcpm2-GGUF's
   // cardData. Diffusion AR TTS, 48 kHz native (decimated to 24 kHz in the
   // C API to match the host's fixed-rate playback path).
   static const List<String> langsVoxcpm2_29 = <String>[
-    'en', 'zh', 'ja', 'ko', 'de', 'fr', 'es', 'pt', 'it', 'nl',
-    'ru', 'ar', 'hi', 'vi', 'th', 'id', 'ms', 'tl', 'tr', 'pl',
-    'cs', 'sv', 'da', 'no', 'fi', 'el', 'he', 'uk', 'ro',
+    'en',
+    'zh',
+    'ja',
+    'ko',
+    'de',
+    'fr',
+    'es',
+    'pt',
+    'it',
+    'nl',
+    'ru',
+    'ar',
+    'hi',
+    'vi',
+    'th',
+    'id',
+    'ms',
+    'tl',
+    'tr',
+    'pl',
+    'cs',
+    'sv',
+    'da',
+    'no',
+    'fi',
+    'el',
+    'he',
+    'uk',
+    'ro',
   ];
   // CosyVoice3 0.5B-2512 (FunAudioLLM). cardData also lists 'yue'
   // (Cantonese) but we surface it under 'zh' — same convention as
   // funasr / sensevoice — so the language-parity check stays clean.
   static const List<String> langsCosyvoice10 = <String>[
-    'zh', 'en', 'ja', 'ko', 'fr', 'de', 'es', 'pt', 'it', 'ru',
+    'zh',
+    'en',
+    'ja',
+    'ko',
+    'fr',
+    'de',
+    'es',
+    'pt',
+    'it',
+    'ru',
   ];
   // The 99 languages whisper.cpp supports — from the whisper.cpp
   // source's lang_id table. Codes are ISO 639-1 where one exists;
@@ -575,33 +776,193 @@ abstract final class ModelCatalog {
   // recognises. ggerganov/whisper.cpp's HF cardData doesn't list
   // them so we hardcode rather than read from the API.
   static const List<String> langsWhisper99 = <String>[
-    'en', 'zh', 'de', 'es', 'ru', 'ko', 'fr', 'ja', 'pt', 'tr',
-    'pl', 'ca', 'nl', 'ar', 'sv', 'it', 'id', 'hi', 'fi', 'vi',
-    'he', 'uk', 'el', 'ms', 'cs', 'ro', 'da', 'hu', 'ta', 'no',
-    'th', 'ur', 'hr', 'bg', 'lt', 'la', 'mi', 'ml', 'cy', 'sk',
-    'te', 'fa', 'lv', 'bn', 'sr', 'az', 'sl', 'kn', 'et', 'mk',
-    'br', 'eu', 'is', 'hy', 'ne', 'mn', 'bs', 'kk', 'sq', 'sw',
-    'gl', 'mr', 'pa', 'si', 'km', 'sn', 'yo', 'so', 'af', 'oc',
-    'ka', 'be', 'tg', 'sd', 'gu', 'am', 'yi', 'lo', 'uz', 'fo',
-    'ht', 'ps', 'tk', 'nn', 'mt', 'sa', 'lb', 'my', 'bo', 'tl',
-    'mg', 'as', 'tt', 'haw', 'ln', 'ha', 'ba', 'jw', 'su', 'yue',
+    'en',
+    'zh',
+    'de',
+    'es',
+    'ru',
+    'ko',
+    'fr',
+    'ja',
+    'pt',
+    'tr',
+    'pl',
+    'ca',
+    'nl',
+    'ar',
+    'sv',
+    'it',
+    'id',
+    'hi',
+    'fi',
+    'vi',
+    'he',
+    'uk',
+    'el',
+    'ms',
+    'cs',
+    'ro',
+    'da',
+    'hu',
+    'ta',
+    'no',
+    'th',
+    'ur',
+    'hr',
+    'bg',
+    'lt',
+    'la',
+    'mi',
+    'ml',
+    'cy',
+    'sk',
+    'te',
+    'fa',
+    'lv',
+    'bn',
+    'sr',
+    'az',
+    'sl',
+    'kn',
+    'et',
+    'mk',
+    'br',
+    'eu',
+    'is',
+    'hy',
+    'ne',
+    'mn',
+    'bs',
+    'kk',
+    'sq',
+    'sw',
+    'gl',
+    'mr',
+    'pa',
+    'si',
+    'km',
+    'sn',
+    'yo',
+    'so',
+    'af',
+    'oc',
+    'ka',
+    'be',
+    'tg',
+    'sd',
+    'gu',
+    'am',
+    'yi',
+    'lo',
+    'uz',
+    'fo',
+    'ht',
+    'ps',
+    'tk',
+    'nn',
+    'mt',
+    'sa',
+    'lb',
+    'my',
+    'bo',
+    'tl',
+    'mg',
+    'as',
+    'tt',
+    'haw',
+    'ln',
+    'ha',
+    'ba',
+    'jw',
+    'su',
+    'yue',
   ];
   // VibeVoice ASR's 48-language list (per cstr/vibevoice-asr-GGUF's
   // cardData on HF).
   static const List<String> langsVibevoice48 = <String>[
-    'en', 'zh', 'es', 'pt', 'de', 'ja', 'ko', 'fr', 'ru', 'id',
-    'sv', 'it', 'he', 'nl', 'pl', 'no', 'tr', 'th', 'ar', 'hu',
-    'ca', 'cs', 'da', 'fa', 'af', 'hi', 'fi', 'et', 'el', 'ro',
-    'vi', 'bg', 'is', 'sl', 'sk', 'lt', 'sw', 'uk', 'lv', 'hr',
-    'ne', 'sr', 'tl', 'ms', 'ur', 'mn', 'hy', 'jv',
+    'en',
+    'zh',
+    'es',
+    'pt',
+    'de',
+    'ja',
+    'ko',
+    'fr',
+    'ru',
+    'id',
+    'sv',
+    'it',
+    'he',
+    'nl',
+    'pl',
+    'no',
+    'tr',
+    'th',
+    'ar',
+    'hu',
+    'ca',
+    'cs',
+    'da',
+    'fa',
+    'af',
+    'hi',
+    'fi',
+    'et',
+    'el',
+    'ro',
+    'vi',
+    'bg',
+    'is',
+    'sl',
+    'sk',
+    'lt',
+    'sw',
+    'uk',
+    'lv',
+    'hr',
+    'ne',
+    'sr',
+    'tl',
+    'ms',
+    'ur',
+    'mn',
+    'hy',
+    'jv',
   ];
   // FunASR MLT Nano's 31-language list (per cstr/funasr-mlt-nano-GGUF
   // cardData). The 'yue' (Cantonese) entry maps to 'zh' for the
   // picker since users picking Chinese expect both varieties.
   static const List<String> langsFunasrMlt31 = <String>[
-    'zh', 'en', 'ja', 'ko', 'vi', 'th', 'id', 'ms', 'tl', 'ar',
-    'hi', 'bg', 'ru', 'de', 'fr', 'es', 'it', 'pt', 'nl', 'pl',
-    'cs', 'ro', 'el', 'fi', 'sv', 'tr', 'fa', 'da', 'hu', 'mk',
+    'zh',
+    'en',
+    'ja',
+    'ko',
+    'vi',
+    'th',
+    'id',
+    'ms',
+    'tl',
+    'ar',
+    'hi',
+    'bg',
+    'ru',
+    'de',
+    'fr',
+    'es',
+    'it',
+    'pt',
+    'nl',
+    'pl',
+    'cs',
+    'ro',
+    'el',
+    'fi',
+    'sv',
+    'tr',
+    'fa',
+    'da',
+    'hu',
+    'mk',
   ];
 
   // Enhanced model definitions with proper URLs and checksums
@@ -728,7 +1089,8 @@ abstract final class ModelCatalog {
           'https://huggingface.co/cstr/distil-large-v3-GGUF/resolve/main/distil-large-v3.bin',
       sizeBytes: 1530 * 1024 * 1024,
       checksum: '',
-      description: 'Distilled Whisper Large v3 (English) — ~1.5 GB, faster decode',
+      description:
+          'Distilled Whisper Large v3 (English) — ~1.5 GB, faster decode',
       languages: langsEn,
     ),
     'distil-large-v3-q5_0': ModelDefinition(
@@ -1010,8 +1372,7 @@ abstract final class ModelCatalog {
           'https://huggingface.co/cstr/mega-asr-GGUF/resolve/main/mega-asr-1.7b-q4_k.gguf',
       sizeBytes: 1300 * 1024 * 1024,
       checksum: '',
-      description:
-          'Qwen3-ASR 1.7B + robustness LoRA — multilingual, ~1.3 GB',
+      description: 'Qwen3-ASR 1.7B + robustness LoRA — multilingual, ~1.3 GB',
       quantization: 'q4_k',
       backend: 'mega-asr',
     ),
@@ -1227,8 +1588,7 @@ abstract final class ModelCatalog {
           'https://huggingface.co/cstr/moonshine-streaming-tiny-GGUF/resolve/main/moonshine-streaming-tiny-q4_k.gguf',
       sizeBytes: 32052896,
       checksum: '',
-      description:
-          'Moonshine streaming tiny — for live mic streaming, ~32 MB',
+      description: 'Moonshine streaming tiny — for live mic streaming, ~32 MB',
       quantization: 'q4_k',
       backend: 'moonshine-streaming',
       companions: ['moonshine-tokenizer'],
@@ -1333,11 +1693,13 @@ abstract final class ModelCatalog {
           'https://huggingface.co/cstr/kokoro-82m-GGUF/resolve/main/kokoro-82m-q8_0.gguf',
       sizeBytes: 100 * 1024 * 1024,
       checksum: '',
-      description: 'Kokoro multilingual TTS — needs a kokoro-voice-*.gguf',
+      description: 'Kokoro TTS (EN/DE/FR/ES in GPL-free builds) — '
+          'needs a kokoro-voice-*.gguf',
       quantization: 'q8_0',
       backend: 'kokoro',
       kind: ModelKind.tts,
       companions: ['kokoro-voice-af_heart'],
+      languages: <String>['en', 'de', 'fr', 'es'],
     ),
     // VibeVoice realtime 0.5B — the `-tts-` infix marks the variant that
     // bundles the Tekken tokenizer (the plain `-q4_k` / `-q8_0` variants
@@ -1351,8 +1713,7 @@ abstract final class ModelCatalog {
           'https://huggingface.co/cstr/vibevoice-realtime-0.5b-GGUF/resolve/main/vibevoice-realtime-0.5b-tts-f16.gguf',
       sizeBytes: 2100 * 1024 * 1024,
       checksum: '',
-      description:
-          'VibeVoice realtime TTS with bundled Tekken tokenizer — '
+      description: 'VibeVoice realtime TTS with bundled Tekken tokenizer — '
           'needs a vibevoice-voice-*.gguf voicepack',
       quantization: 'f16',
       backend: 'vibevoice-tts',
@@ -1369,7 +1730,8 @@ abstract final class ModelCatalog {
           'https://huggingface.co/cstr/vibevoice-1.5b-GGUF/resolve/main/vibevoice-1.5b-tts-q4_k.gguf',
       sizeBytes: 1638 * 1024 * 1024,
       checksum: '',
-      description: 'VibeVoice 1.5B TTS — needs a vibevoice-voice-*.gguf voicepack',
+      description:
+          'VibeVoice 1.5B TTS — needs a vibevoice-voice-*.gguf voicepack',
       quantization: 'q4_k',
       backend: 'vibevoice-1.5b',
       kind: ModelKind.tts,
@@ -1435,8 +1797,7 @@ abstract final class ModelCatalog {
           'https://huggingface.co/cstr/qwen3-tts-0.6b-customvoice-GGUF/resolve/main/qwen3-tts-12hz-0.6b-customvoice-q8_0.gguf',
       sizeBytes: 967980192,
       checksum: '',
-      description:
-          'Qwen3-TTS CustomVoice (9 preset speakers) — needs the '
+      description: 'Qwen3-TTS CustomVoice (9 preset speakers) — needs the '
           'qwen3-tts-tokenizer-12hz codec GGUF; pick a speaker in Synthesize',
       quantization: 'q8_0',
       backend: 'qwen3-tts',
@@ -1610,7 +1971,8 @@ abstract final class ModelCatalog {
           'https://huggingface.co/cstr/voxcpm2-GGUF/resolve/main/voxcpm2-f16.gguf',
       sizeBytes: 4972550208,
       checksum: '',
-      description: 'VoxCPM2 diffusion TTS (f16 reference) — 29 languages, 48 kHz',
+      description:
+          'VoxCPM2 diffusion TTS (f16 reference) — 29 languages, 48 kHz',
       quantization: 'f16',
       backend: 'voxcpm2-tts',
       kind: ModelKind.tts,
@@ -1806,6 +2168,28 @@ abstract final class ModelCatalog {
     // list them all as companions — downloading the LLM pulls them into
     // the same models dir, which is what the engine needs. (setCodecPath
     // is a harmless no-op for cosyvoice3.)
+    'cosyvoice3-llm-rl-q4_k': ModelDefinition(
+      name: 'cosyvoice3-llm-rl-q4_k',
+      displayName: 'CosyVoice3 0.5B RL (q4_k)',
+      fileName: 'cosyvoice3-llm-rl-q4_k.gguf',
+      url:
+          'https://huggingface.co/cstr/cosyvoice3-0.5b-2512-GGUF/resolve/main/cosyvoice3-llm-rl-q4_k.gguf',
+      sizeBytes: 383891200,
+      checksum: '',
+      description: 'CosyVoice3 reinforcement-learning-tuned talker — '
+          'optimized for speech quality, pronunciation, and stability',
+      quantization: 'q4_k',
+      backend: 'cosyvoice3-tts-rl',
+      kind: ModelKind.tts,
+      companions: [
+        'cosyvoice3-flow-q8_0',
+        'cosyvoice3-hift-f16',
+        'cosyvoice3-voices',
+        'cosyvoice3-s3tok-q4_k',
+        'cosyvoice3-campplus-f16',
+      ],
+      languages: langsCosyvoice10,
+    ),
     'cosyvoice3-llm-q4_k': ModelDefinition(
       name: 'cosyvoice3-llm-q4_k',
       displayName: 'CosyVoice3 0.5B (q4_k)',
@@ -1888,7 +2272,8 @@ abstract final class ModelCatalog {
           'https://huggingface.co/cstr/cosyvoice3-0.5b-2512-GGUF/resolve/main/cosyvoice3-campplus-f16.gguf',
       sizeBytes: 14153600,
       checksum: '',
-      description: 'CosyVoice3 CAMPPlus speaker-embedding companion (auto-discovered)',
+      description:
+          'CosyVoice3 CAMPPlus speaker-embedding companion (auto-discovered)',
       quantization: 'f16',
       backend: 'cosyvoice3-tts',
       kind: ModelKind.codec,
@@ -1942,7 +2327,8 @@ abstract final class ModelCatalog {
           'https://huggingface.co/cstr/snac-24khz-GGUF/resolve/main/snac-24khz.gguf',
       sizeBytes: 50 * 1024 * 1024,
       checksum: '',
-      description: 'SNAC 24 kHz codec for Orpheus / Mini-Omni2 (load via setCodecPath)',
+      description:
+          'SNAC 24 kHz codec for Orpheus / Mini-Omni2 (load via setCodecPath)',
       quantization: 'f16',
       backend: 'orpheus',
       kind: ModelKind.codec,
@@ -1961,7 +2347,8 @@ abstract final class ModelCatalog {
           'https://huggingface.co/cstr/gemma4-e2b-it-GGUF/resolve/main/gemma4-e2b-it-q4_k.gguf',
       sizeBytes: 2793146016,
       checksum: '',
-      description: 'Multilingual ASR (140+ languages, instruction-tuned) — ~2.8 GB',
+      description:
+          'Multilingual ASR (140+ languages, instruction-tuned) — ~2.8 GB',
       quantization: 'q4_k',
       backend: 'gemma4-e2b',
     ),
@@ -2011,8 +2398,7 @@ abstract final class ModelCatalog {
           'https://huggingface.co/cstr/MOSS-Transcribe-Diarize-GGUF/resolve/main/moss-transcribe-diarize-0.9b-q4_k.gguf',
       sizeBytes: 1200 * 1024 * 1024,
       checksum: '',
-      description:
-          'MOSS-Transcribe-Diarize 0.9B — single-pass ASR + speaker '
+      description: 'MOSS-Transcribe-Diarize 0.9B — single-pass ASR + speaker '
           'diarization + timestamps (Whisper enc + Qwen3-0.6B dec), ~1.2 GB',
       quantization: 'q4_k',
       backend: 'moss-diarize',
@@ -2122,7 +2508,8 @@ abstract final class ModelCatalog {
           'https://huggingface.co/cstr/voxtral-4b-tts-GGUF/resolve/main/voxtral-4b-tts-q4_k.gguf',
       sizeBytes: 2500 * 1024 * 1024,
       checksum: '',
-      description: 'Voxtral 4B TTS (Mistral) — non-commercial use only, ~2.5 GB',
+      description:
+          'Voxtral 4B TTS (Mistral) — non-commercial use only, ~2.5 GB',
       quantization: 'q4_k',
       backend: 'voxtral-tts',
       kind: ModelKind.tts,
@@ -2141,7 +2528,8 @@ abstract final class ModelCatalog {
           'https://huggingface.co/cstr/canary-qwen-2.5b-GGUF/resolve/main/canary-qwen-2.5b-q8_0.gguf',
       sizeBytes: 4100 * 1024 * 1024,
       checksum: '',
-      description: 'Canary-Qwen 2.5B — Canary encoder + Qwen decoder ASR, ~4.1 GB',
+      description:
+          'Canary-Qwen 2.5B — Canary encoder + Qwen decoder ASR, ~4.1 GB',
       quantization: 'q8_0',
       backend: 'canary-qwen',
       languages: langsAll,
@@ -2221,8 +2609,7 @@ abstract final class ModelCatalog {
           'https://huggingface.co/cstr/parakeet-ctc-1.1b-ja-GGUF/resolve/main/parakeet-ctc-1.1b-ja-q8_0.gguf',
       sizeBytes: 1200 * 1024 * 1024,
       checksum: '',
-      description:
-          'Parakeet-CTC 1.1B Japanese — FastConformer-CTC, ~1.2 GB',
+      description: 'Parakeet-CTC 1.1B Japanese — FastConformer-CTC, ~1.2 GB',
       quantization: 'q8_0',
       backend: 'parakeet',
       languages: langsJa,
@@ -2420,8 +2807,7 @@ abstract final class ModelCatalog {
           'https://huggingface.co/cstr/chatterbox-turbo-GGUF/resolve/main/chatterbox-turbo-t3-q8_0.gguf',
       sizeBytes: 658897152,
       checksum: '',
-      description:
-          'Chatterbox turbo TTS T3 (faster AR transformer) — needs a '
+      description: 'Chatterbox turbo TTS T3 (faster AR transformer) — needs a '
           'chatterbox-s3gen-* companion',
       quantization: 'q8_0',
       backend: 'chatterbox',
@@ -2541,8 +2927,7 @@ abstract final class ModelCatalog {
           'https://huggingface.co/cstr/qwen3-tts-1.7b-customvoice-GGUF/resolve/main/qwen3-tts-12hz-1.7b-customvoice-q8_0.gguf',
       sizeBytes: 1900 * 1024 * 1024,
       checksum: '',
-      description:
-          'Qwen3-TTS 1.7B CustomVoice (9 preset speakers) — needs the '
+      description: 'Qwen3-TTS 1.7B CustomVoice (9 preset speakers) — needs the '
           'qwen3-tts-tokenizer-12hz codec GGUF; pick a speaker in Synthesize',
       quantization: 'q8_0',
       backend: 'qwen3-tts',
@@ -2614,6 +2999,24 @@ abstract final class ModelCatalog {
           'Pyannote v3 segmentation for diarisation (up to 3 speakers per slice) — ~5.7 MB',
       quantization: 'f16',
       backend: 'pyannote',
+      kind: ModelKind.diarize,
+    ),
+    // WeSpeaker ResNet34-LM speaker embedder. Pairs with
+    // DiarizeMethod.foxNose (CrispASR #324): embeddings + spectral
+    // clustering, which unlike the stereo energy/xcorr methods works on
+    // mono, and unlike pyannote can be told how many speakers to find.
+    'wespeaker-resnet34-lm': ModelDefinition(
+      name: 'wespeaker-resnet34-lm',
+      displayName: 'WeSpeaker ResNet34-LM',
+      fileName: 'wespeaker-resnet34-lm.gguf',
+      url:
+          'https://huggingface.co/cstr/wespeaker-resnet34-lm-GGUF/resolve/main/wespeaker-resnet34-lm.gguf',
+      sizeBytes: 23904352,
+      checksum: '',
+      description:
+          'WeSpeaker embedder for FoxNose diarisation (mono, speaker-count hints) — ~23 MB',
+      quantization: 'f16',
+      backend: 'wespeaker',
       kind: ModelKind.diarize,
     ),
     // ---------- Alternative VAD backends ----------
@@ -2758,8 +3161,7 @@ abstract final class ModelCatalog {
           'https://huggingface.co/cstr/ecapa-lid-107-GGUF/resolve/main/ecapa-lid-107-f16.gguf',
       sizeBytes: 42 * 1024 * 1024,
       checksum: '',
-      description:
-          'ECAPA-TDNN language identification (107 languages) — '
+      description: 'ECAPA-TDNN language identification (107 languages) — '
           'speechbrain/lang-id-voxlingua107, strong on noisy / accented speech',
       quantization: 'f16',
       backend: 'lid',
@@ -2777,8 +3179,7 @@ abstract final class ModelCatalog {
           'https://huggingface.co/cstr/firered-lid-GGUF/resolve/main/firered-lid-f16.gguf',
       sizeBytes: 300 * 1024 * 1024,
       checksum: '',
-      description:
-          'FireRed language identification (120 languages) — '
+      description: 'FireRed language identification (120 languages) — '
           'highest coverage among bundled LID GGUFs, especially on low-resource languages',
       quantization: 'f16',
       backend: 'lid',
@@ -2836,11 +3237,26 @@ abstract final class ModelCatalog {
           'https://huggingface.co/cstr/bark-small-GGUF/resolve/main/bark-small-q8_0.gguf',
       sizeBytes: 500 * 1024 * 1024,
       checksum: '',
-      description: 'Bark 3-stage GPT-2 TTS — multilingual, 10 DE speakers, ~500 MB',
+      description:
+          'Bark 3-stage GPT-2 TTS — multilingual, 10 DE speakers, ~500 MB',
       quantization: 'q8_0',
       backend: 'bark',
       kind: ModelKind.tts,
-      languages: <String>['de', 'en', 'es', 'fr', 'hi', 'it', 'ja', 'ko', 'pl', 'pt', 'ru', 'tr', 'zh'],
+      languages: <String>[
+        'de',
+        'en',
+        'es',
+        'fr',
+        'hi',
+        'it',
+        'ja',
+        'ko',
+        'pl',
+        'pt',
+        'ru',
+        'tr',
+        'zh'
+      ],
     ),
     // CSM-1B — sesame/csm-1b conversational TTS (Apache 2.0). Llama-3.2 1B
     // backbone + depth decoder + Mimi codec, single built-in EN voice.
@@ -2852,7 +3268,8 @@ abstract final class ModelCatalog {
           'https://huggingface.co/cstr/csm-1b-GGUF/resolve/main/csm-1b-q4_k.gguf',
       sizeBytes: 1400 * 1024 * 1024,
       checksum: '',
-      description: 'Sesame CSM-1B conversational TTS — single EN voice, ~1.4 GB',
+      description:
+          'Sesame CSM-1B conversational TTS — single EN voice, ~1.4 GB',
       quantization: 'q4_k',
       backend: 'csm',
       kind: ModelKind.tts,
@@ -3147,7 +3564,18 @@ abstract final class ModelCatalog {
       backend: 'qwen3-tts',
       kind: ModelKind.tts,
       companions: ['qwen3-tts-tokenizer-12hz'],
-      languages: <String>['vi', 'en', 'zh', 'ja', 'ko', 'de', 'fr', 'es', 'it', 'pt'],
+      languages: <String>[
+        'vi',
+        'en',
+        'zh',
+        'ja',
+        'ko',
+        'de',
+        'fr',
+        'es',
+        'it',
+        'pt'
+      ],
     ),
     // Lahgtna Chatterbox — Arabic T3 finetune of ResembleAI/chatterbox.
     'lahgtna-chatterbox-t3-f16': ModelDefinition(
@@ -3193,7 +3621,8 @@ abstract final class ModelCatalog {
           'https://huggingface.co/cstr/moonshine-base-de-fidoriel-GGUF/resolve/main/moonshine-base-de-fidoriel-q4_k.gguf',
       sizeBytes: 39 * 1024 * 1024,
       checksum: '',
-      description: 'Moonshine base German (6.9% WER CV22, CC-BY-NC-SA) — ~39 MB',
+      description:
+          'Moonshine base German (6.9% WER CV22, CC-BY-NC-SA) — ~39 MB',
       quantization: 'q4_k',
       backend: 'moonshine',
       kind: ModelKind.asr,
@@ -3208,7 +3637,8 @@ abstract final class ModelCatalog {
           'https://huggingface.co/cstr/moonshine-tiny-de-fidoriel-GGUF/resolve/main/moonshine-tiny-de-fidoriel-q4_k.gguf',
       sizeBytes: 17 * 1024 * 1024,
       checksum: '',
-      description: 'Moonshine tiny German (11.4% WER CV22, CC-BY-NC-SA) — ~17 MB',
+      description:
+          'Moonshine tiny German (11.4% WER CV22, CC-BY-NC-SA) — ~17 MB',
       quantization: 'q4_k',
       backend: 'moonshine',
       kind: ModelKind.asr,
@@ -3496,7 +3926,8 @@ abstract final class ModelCatalog {
           'https://huggingface.co/cstr/parakeet-tdt_ctc-1.1b-GGUF/resolve/main/parakeet-tdt_ctc-1.1b-q4_k.gguf',
       sizeBytes: 810 * 1024 * 1024,
       checksum: '',
-      description: 'Parakeet TDT+CTC 1.1B — large hybrid, multilingual, ~810 MB',
+      description:
+          'Parakeet TDT+CTC 1.1B — large hybrid, multilingual, ~810 MB',
       quantization: 'q4_k',
       backend: 'parakeet',
       kind: ModelKind.asr,
@@ -3526,7 +3957,8 @@ abstract final class ModelCatalog {
           'https://huggingface.co/cstr/parakeet-rnnt-1.1b-GGUF/resolve/main/parakeet-rnnt-1.1b-q4_k.gguf',
       sizeBytes: 770 * 1024 * 1024,
       checksum: '',
-      description: 'Parakeet RNNT 1.1B English — larger RNN-Transducer, ~770 MB',
+      description:
+          'Parakeet RNNT 1.1B English — larger RNN-Transducer, ~770 MB',
       quantization: 'q4_k',
       backend: 'parakeet',
       kind: ModelKind.asr,
@@ -4137,6 +4569,7 @@ abstract final class ModelCatalog {
     'voxcpm2-tts': 'voxcpm2-q4_k',
     'piper': 'piper-en-cori',
     'cosyvoice3-tts': 'cosyvoice3-llm-q4_k',
+    'cosyvoice3-tts-rl': 'cosyvoice3-llm-rl-q4_k',
     'chatterbox': 'chatterbox-en-q8_0',
     'indextts': 'indextts-q8_0',
     'f5-tts': 'f5-tts-v1-base-f16',
@@ -4281,7 +4714,8 @@ abstract final class ModelCatalog {
       repoId: 'cstr/gigaam-v3-GGUF',
       baseName: 'gigaam-v3',
       displayPrefix: 'GigaAM v3',
-      description: 'Russian ASR (Conformer 220M) — 8.4% avg WER, punctuation + ITN',
+      description:
+          'Russian ASR (Conformer 220M) — 8.4% avg WER, punctuation + ITN',
       defaultLanguages: langsRuEn,
     ),
     'parakeet': BackendRepo(
@@ -4297,7 +4731,8 @@ abstract final class ModelCatalog {
       repoId: 'cstr/canary-1b-v2-GGUF',
       baseName: 'canary-1b-v2',
       displayPrefix: 'Canary 1B v2',
-      description: 'NVIDIA Canary — multilingual speech translation (25 EU langs)',
+      description:
+          'NVIDIA Canary — multilingual speech translation (25 EU langs)',
       defaultLanguages: langsEU25,
     ),
     'cohere': BackendRepo(
@@ -4321,10 +4756,22 @@ abstract final class ModelCatalog {
       repoId: 'cstr/voxtral-mini-4b-realtime-GGUF',
       baseName: 'voxtral-mini-4b-realtime',
       displayPrefix: 'Voxtral Mini 4B realtime',
-      description: 'Voxtral realtime variant (en/es/fr/de/it/pt/ru/zh/ja/ko/ar/hi/nl)',
+      description:
+          'Voxtral realtime variant (en/es/fr/de/it/pt/ru/zh/ja/ko/ar/hi/nl)',
       defaultLanguages: <String>[
-        'en', 'es', 'fr', 'de', 'it', 'pt', 'ru', 'zh', 'ja', 'ko',
-        'ar', 'hi', 'nl',
+        'en',
+        'es',
+        'fr',
+        'de',
+        'it',
+        'pt',
+        'ru',
+        'zh',
+        'ja',
+        'ko',
+        'ar',
+        'hi',
+        'nl',
       ],
     ),
     'qwen3': BackendRepo(
@@ -4538,16 +4985,16 @@ abstract final class ModelCatalog {
       extension: '.bin',
       defaultLanguages: langsEn,
     ),
-    // Kokoro — multilingual TTS (needs voicepack via setVoice).
+    // Kokoro — GPL-free app bundles have built-in G2P for EN/DE/FR/ES.
     'kokoro': BackendRepo(
       backend: 'kokoro',
       repoId: 'cstr/kokoro-82m-GGUF',
       baseName: 'kokoro-82m',
       displayPrefix: 'Kokoro 82M TTS',
-      description: 'Kokoro multilingual TTS (~100 MB)',
+      description: 'Kokoro TTS, EN/DE/FR/ES in GPL-free builds (~100 MB)',
       kind: ModelKind.tts,
       defaultCompanions: ['kokoro-voice-af_heart'],
-      defaultLanguages: langsAll,
+      defaultLanguages: <String>['en', 'de', 'fr', 'es'],
     ),
     // Kokoro voicepacks — separate HF repo, voicepack-only. Empty
     // baseName means the main-quant probe skips this repo; the
@@ -4671,7 +5118,8 @@ abstract final class ModelCatalog {
       repoId: 'cstr/qwen3-tts-0.6b-base-GGUF',
       baseName: 'qwen3-tts-12hz-0.6b-base',
       displayPrefix: 'Qwen3-TTS 0.6B base',
-      description: 'Qwen3-TTS base talker — needs qwen3-tts-tokenizer-12hz codec',
+      description:
+          'Qwen3-TTS base talker — needs qwen3-tts-tokenizer-12hz codec',
       kind: ModelKind.tts,
       defaultCompanions: ['qwen3-tts-tokenizer-12hz'],
       defaultLanguages: langsQwen3Tts10,
@@ -4681,7 +5129,8 @@ abstract final class ModelCatalog {
       repoId: 'cstr/qwen3-tts-0.6b-customvoice-GGUF',
       baseName: 'qwen3-tts-12hz-0.6b-customvoice',
       displayPrefix: 'Qwen3-TTS 0.6B custom-voice',
-      description: 'Qwen3-TTS 0.6B with ICL voice cloning (9 langs, no Russian)',
+      description:
+          'Qwen3-TTS 0.6B with ICL voice cloning (9 langs, no Russian)',
       kind: ModelKind.tts,
       defaultCompanions: ['qwen3-tts-tokenizer-12hz'],
       defaultLanguages: langsQwen3TtsCustom9,
@@ -4691,7 +5140,8 @@ abstract final class ModelCatalog {
       repoId: 'cstr/qwen3-tts-1.7b-customvoice-GGUF',
       baseName: 'qwen3-tts-12hz-1.7b-customvoice',
       displayPrefix: 'Qwen3-TTS 1.7B custom-voice',
-      description: 'Qwen3-TTS 1.7B with ICL voice cloning (9 langs, no Russian)',
+      description:
+          'Qwen3-TTS 1.7B with ICL voice cloning (9 langs, no Russian)',
       kind: ModelKind.tts,
       defaultCompanions: ['qwen3-tts-tokenizer-12hz'],
       defaultLanguages: langsQwen3TtsCustom9,
@@ -4713,7 +5163,8 @@ abstract final class ModelCatalog {
       repoId: 'cstr/qwen3-tts-tokenizer-12hz-GGUF',
       baseName: 'qwen3-tts-tokenizer-12hz',
       displayPrefix: 'Qwen3-TTS codec',
-      description: 'Qwen3-TTS 12 Hz audio codec — companion to every Qwen3-TTS talker',
+      description:
+          'Qwen3-TTS 12 Hz audio codec — companion to every Qwen3-TTS talker',
       kind: ModelKind.codec,
       defaultLanguages: langsQwen3Tts10,
     ),
@@ -4743,7 +5194,8 @@ abstract final class ModelCatalog {
       repoId: 'cstr/MOSS-Audio-4B-Instruct-GGUF',
       baseName: 'moss-audio-4b-instruct',
       displayPrefix: 'MOSS-Audio 4B',
-      description: 'ASR + audio QA + scene description (Whisper enc + Qwen3 LLM)',
+      description:
+          'ASR + audio QA + scene description (Whisper enc + Qwen3 LLM)',
       defaultLanguages: langsAll,
     ),
     // LFM2-Audio — LiquidAI hybrid conv+attention (ASR + TTS + S2S).
@@ -4834,7 +5286,8 @@ abstract final class ModelCatalog {
       repoId: 'cstr/moss-tts-v1.5-GGUF',
       baseName: 'moss-tts-v1.5',
       displayPrefix: 'MOSS-TTS v1.5',
-      description: 'Voice-cloning TTS (Qwen3-8B) — needs the moss-tts-v1.5-codec',
+      description:
+          'Voice-cloning TTS (Qwen3-8B) — needs the moss-tts-v1.5-codec',
       kind: ModelKind.tts,
       defaultCompanions: ['moss-tts-v1.5-codec'],
       defaultLanguages: langsAll,
@@ -4890,7 +5343,8 @@ abstract final class ModelCatalog {
       repoId: 'cstr/higgs-audio-v3-stt-GGUF',
       baseName: 'higgs-stt',
       displayPrefix: 'Higgs-STT',
-      description: 'Whisper-v3 + Qwen3-1.7B decoder, internal chunking + beam search',
+      description:
+          'Whisper-v3 + Qwen3-1.7B decoder, internal chunking + beam search',
       defaultLanguages: langsAll,
     ),
     // ARK-ASR-3B — Whisper-RoPE enc + Qwen2.5-3B dec, 19 languages.
@@ -5001,6 +5455,15 @@ abstract final class ModelCatalog {
       description: 'Pyannote ML diarisation model',
       kind: ModelKind.diarize,
     ),
+    // WeSpeaker ResNet34-LM — speaker embedder for FoxNose diarisation.
+    'wespeaker': BackendRepo(
+      backend: 'wespeaker',
+      repoId: 'cstr/wespeaker-resnet34-lm-GGUF',
+      baseName: 'wespeaker-resnet34-lm',
+      displayPrefix: 'WeSpeaker ResNet34-LM',
+      description: 'Speaker embedder for FoxNose (spectral) diarisation',
+      kind: ModelKind.diarize,
+    ),
     // M2M-100 — text-to-text translation, 100 languages, any-to-any.
     'm2m100': BackendRepo(
       backend: 'm2m100',
@@ -5096,13 +5559,30 @@ abstract final class ModelCatalog {
       repoId: 'cstr/f5-tts-GGUF',
       baseName: 'f5-tts-v1-base',
       displayPrefix: 'F5-TTS',
-      description: 'F5-TTS DiT flow-matching TTS — zero-shot voice clone (English)',
+      description:
+          'F5-TTS DiT flow-matching TTS — zero-shot voice clone (English)',
       kind: ModelKind.tts,
       defaultLanguages: langsEn,
     ),
     // CosyVoice3 — LLM + flow/hift/voices companions auto-discovered by
     // the engine; the probe walks the cosyvoice3-llm baseName and the
     // companions ride along via defaultCompanions.
+    'cosyvoice3-tts-rl': BackendRepo(
+      backend: 'cosyvoice3-tts-rl',
+      repoId: 'cstr/cosyvoice3-0.5b-2512-GGUF',
+      baseName: 'cosyvoice3-llm-rl',
+      displayPrefix: 'CosyVoice3 0.5B RL',
+      description: 'CosyVoice3 RL-tuned multilingual TTS (11 languages)',
+      kind: ModelKind.tts,
+      defaultCompanions: [
+        'cosyvoice3-flow-q8_0',
+        'cosyvoice3-hift-f16',
+        'cosyvoice3-voices',
+        'cosyvoice3-s3tok-q4_k',
+        'cosyvoice3-campplus-f16',
+      ],
+      defaultLanguages: langsCosyvoice10,
+    ),
     'cosyvoice3-tts': BackendRepo(
       backend: 'cosyvoice3-tts',
       repoId: 'cstr/cosyvoice3-0.5b-2512-GGUF',
@@ -5204,7 +5684,8 @@ abstract final class ModelCatalog {
       repoId: 'cstr/outetts-0.3-1b-GGUF',
       baseName: 'outetts-0.3-1b',
       displayPrefix: 'OuteTTS',
-      description: 'OuteTTS 0.3 1B — OLMo + WavTokenizer, voice clone (English)',
+      description:
+          'OuteTTS 0.3 1B — OLMo + WavTokenizer, voice clone (English)',
       kind: ModelKind.tts,
       defaultCompanions: ['wavtokenizer-decoder-f16'],
       defaultLanguages: langsEn,
@@ -5249,7 +5730,8 @@ abstract final class ModelCatalog {
       repoId: 'cstr/zonos-v0.1-transformer-GGUF',
       baseName: 'zonos-v0.1-transformer',
       displayPrefix: 'Zonos',
-      description: 'Zonos v0.1 TTS — emotion/pitch/rate control, voice cloning, 44.1 kHz',
+      description:
+          'Zonos v0.1 TTS — emotion/pitch/rate control, voice cloning, 44.1 kHz',
       kind: ModelKind.tts,
       defaultCompanions: ['dac-44khz'],
       defaultLanguages: langsAll,
@@ -5499,7 +5981,8 @@ abstract final class ModelCatalog {
       repoId: 'cstr/truecaser-de',
       baseName: 'truecaser',
       displayPrefix: 'Truecaser',
-      description: 'Character-level truecaser (DE/EN/ES/RU) — restores capitalization',
+      description:
+          'Character-level truecaser (DE/EN/ES/RU) — restores capitalization',
       extension: '.bin',
       kind: ModelKind.punc,
       defaultLanguages: <String>['de', 'en', 'es', 'ru'],
@@ -5529,7 +6012,8 @@ abstract final class ModelCatalog {
       repoId: 'cstr/bidirlm-omni-2.5b-GGUF',
       baseName: 'bidirlm-omni-2.5b',
       displayPrefix: 'BidirLM-Omni 2.5B',
-      description: 'Omnimodal embedding model — text + audio + vision (2048 dim)',
+      description:
+          'Omnimodal embedding model — text + audio + vision (2048 dim)',
       kind: ModelKind.embed,
       defaultLanguages: ['*'],
     ),
@@ -5656,8 +6140,7 @@ abstract final class ModelCatalog {
       // Strip .gguf / .bin suffix from the filename so the prefix
       // comparison is against the model stem (matches the baseName
       // shape the catalogue uses).
-      final stem = def.fileName
-          .replaceFirst(RegExp(r'\.(gguf|bin)$'), '');
+      final stem = def.fileName.replaceFirst(RegExp(r'\.(gguf|bin)$'), '');
       BackendRepo? best;
       int bestLen = -1;
       for (final repo in backendRepos.values) {
@@ -5677,8 +6160,7 @@ abstract final class ModelCatalog {
         // backend-only match. Used by HF-direct-import entries
         // whose filename doesn't follow any catalogue convention.
         for (final repo in backendRepos.values) {
-          if (repo.backend == def.backend &&
-              repo.defaultLanguages.isNotEmpty) {
+          if (repo.backend == def.backend && repo.defaultLanguages.isNotEmpty) {
             codes = repo.defaultLanguages;
             break;
           }
@@ -5710,7 +6192,7 @@ abstract final class ModelCatalog {
       'cosyvoice3-tts',
     };
     const punc = {'firered-punc', 'fullstop-punc'};
-    const diarize = {'pyannote'};
+    const diarize = {'pyannote', 'wespeaker'};
     const vad = {'vad'};
     const lid = {'lid', 'titanet'};
     const translate = {'m2m100', 'm2m100-wmt21', 'madlad'};

@@ -56,7 +56,8 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
     // Pre-select the filter chip when the route arrived with
     // `?kind=<name>` (or the host explicitly passed
     // `initialKindFilter:`).
-    _kindFilter = widget.initialKindFilter;
+    final advanced = ref.read(settingsServiceProvider).experimentalFeatures;
+    _kindFilter = widget.initialKindFilter ?? (advanced ? null : ModelKind.asr);
     _loadModels();
     // Auto-probe HuggingFace the first time the screen opens so users see
     // every available quant for every backend without having to know the
@@ -64,7 +65,8 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
     // results (no re-probe unless the user taps the button explicitly).
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final svc = ref.read(modelServiceProvider);
-      if (!svc.hasProbedQuants) {
+      if (ref.read(settingsServiceProvider).experimentalFeatures &&
+          !svc.hasProbedQuants) {
         _probeHf();
       }
     });
@@ -106,13 +108,13 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
       if (!mounted) return;
       final base = result.added == 0
           ? l10n.modelsProbedCountZero
-          : l10n.modelsProbedCount(
-              result.added, result.added == 1 ? '' : 's');
+          : l10n.modelsProbedCount(result.added, result.added == 1 ? '' : 's');
       // Surface gated / 401 repos so the user knows some sources
       // weren't reachable — historically this was silent and they
       // wondered why "we only see q4_k" for everything.
-      final detail =
-          result.hasFailures ? l10n.modelsSkippedRepos(result.failedRepos.length) : '';
+      final detail = result.hasFailures
+          ? l10n.modelsSkippedRepos(result.failedRepos.length)
+          : '';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('$base$detail'),
@@ -210,11 +212,10 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
       // the guesswork can pick a concrete backend from the dropdown.
       final probeBackend =
           result.backend == 'auto' ? 'whisper' : result.backend;
-      final added =
-          await ref.read(modelServiceProvider).probeHfRepoForBackend(
-                repoId: result.repoId,
-                backend: probeBackend,
-              );
+      final added = await ref.read(modelServiceProvider).probeHfRepoForBackend(
+            repoId: result.repoId,
+            backend: probeBackend,
+          );
       if (!mounted) return;
       final msg = added.isEmpty
           ? l10n.modelsHfRepoNoneFound(result.repoId)
@@ -222,9 +223,11 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
       await _loadModels();
     } catch (e, st) {
-      Log.instance.w('models', 'HF custom-repo probe failed', error: e, stack: st);
+      Log.instance
+          .w('models', 'HF custom-repo probe failed', error: e, stack: st);
       if (!mounted) return;
-      _showErrorDialog(l10n.modelsHfRepoProbeFailed(result.repoId, e.toString()));
+      _showErrorDialog(
+          l10n.modelsHfRepoProbeFailed(result.repoId, e.toString()));
     } finally {
       if (mounted) setState(() => _probing = false);
     }
@@ -258,8 +261,8 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
                             dense: true,
                             contentPadding: EdgeInsets.zero,
                             title: Text(r['repoId'] ?? ''),
-                            subtitle:
-                                Text(l10n.modelsHfRepoBackendValue(r['backend'] ?? '')),
+                            subtitle: Text(l10n
+                                .modelsHfRepoBackendValue(r['backend'] ?? '')),
                             trailing: IconButton(
                               icon: const Icon(Icons.delete_outline),
                               tooltip: l10n.modelsHfRepoForget,
@@ -338,6 +341,7 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final advanced = ref.read(settingsServiceProvider).experimentalFeatures;
     return Scaffold(
       appBar: AppBar(
         title: Text(AppLocalizations.of(context).modelsTitle),
@@ -346,29 +350,32 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
           IconButton(
             icon: const Icon(Icons.rocket_launch_outlined),
             tooltip: AppLocalizations.of(context).modelsQuickStartTooltip,
-            onPressed: (_downloadingModel != null) ? null : _showQuickStartSheet,
+            onPressed:
+                (_downloadingModel != null) ? null : _showQuickStartSheet,
           ),
-          IconButton(
-            icon: _probing
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.cloud_download),
-            tooltip: AppLocalizations.of(context).modelsRefreshFromHf,
-            onPressed: _probing ? null : _probeHf,
-          ),
-          IconButton(
-            icon: const Icon(Icons.add_link),
-            tooltip: AppLocalizations.of(context).modelsHfRepoAddTooltip,
-            onPressed: _probing ? null : _showAddHfRepoDialog,
-          ),
-          IconButton(
-            icon: const Icon(Icons.playlist_remove),
-            tooltip: AppLocalizations.of(context).modelsHfReposManageTooltip,
-            onPressed: _probing ? null : _showManageHfReposDialog,
-          ),
+          if (advanced) ...[
+            IconButton(
+              icon: _probing
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.cloud_download),
+              tooltip: AppLocalizations.of(context).modelsRefreshFromHf,
+              onPressed: _probing ? null : _probeHf,
+            ),
+            IconButton(
+              icon: const Icon(Icons.add_link),
+              tooltip: AppLocalizations.of(context).modelsHfRepoAddTooltip,
+              onPressed: _probing ? null : _showAddHfRepoDialog,
+            ),
+            IconButton(
+              icon: const Icon(Icons.playlist_remove),
+              tooltip: AppLocalizations.of(context).modelsHfReposManageTooltip,
+              onPressed: _probing ? null : _showManageHfReposDialog,
+            ),
+          ],
           IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: AppLocalizations.of(context).modelsReloadLocal,
@@ -421,8 +428,7 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
       children: [
         _buildSummaryCard(models),
         _buildKindFilterRow(models),
-        if (_kindFilter == ModelKind.voice)
-          _buildVoiceLangFilterRow(models),
+        if (_kindFilter == ModelKind.voice) _buildVoiceLangFilterRow(models),
         _buildSearchRow(models),
         Expanded(
           child: filtered.isEmpty
@@ -555,6 +561,7 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
       ..sort();
 
     final l = AppLocalizations.of(context);
+    final advanced = ref.read(settingsServiceProvider).experimentalFeatures;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: Row(
@@ -567,8 +574,8 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
                 prefixIcon: const Icon(Icons.search, size: 18),
                 hintText: l.modelFilterHint,
                 border: const OutlineInputBorder(),
-                contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 12, vertical: 8),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 suffixIcon: _nameFilter.isEmpty
                     ? null
                     : IconButton(
@@ -579,28 +586,29 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
                         },
                       ),
               ),
-              onChanged: (v) =>
-                  setState(() => _nameFilter = v.toLowerCase()),
+              onChanged: (v) => setState(() => _nameFilter = v.toLowerCase()),
             ),
           ),
-          const SizedBox(width: 8),
-          // Backend filter — Autocomplete rather than a plain dropdown so
-          // it stays usable as the linked-backend list grows (mirrors the
-          // Transcribe screen's source-language picker). '' is the
-          // "any backend" sentinel, shown as the localized label.
-          SizedBox(
-            width: 200,
-            child: _BackendFilterField(
-              // Re-seed the field text when the selection changes (e.g.
-              // cleared via the kind tabs) — Autocomplete otherwise
-              // latches its controller text on first build.
-              key: ValueKey('backend-filter-$_backendFilter'),
-              backends: backends,
-              selected: _backendFilter,
-              anyLabel: l.modelAnyBackend,
-              onSelected: (b) => setState(() => _backendFilter = b),
+          if (advanced) ...[
+            const SizedBox(width: 8),
+            // Backend filter — Autocomplete rather than a plain dropdown so
+            // it stays usable as the linked-backend list grows (mirrors the
+            // Transcribe screen's source-language picker). '' is the
+            // "any backend" sentinel, shown as the localized label.
+            SizedBox(
+              width: 200,
+              child: _BackendFilterField(
+                // Re-seed the field text when the selection changes (e.g.
+                // cleared via the kind tabs) — Autocomplete otherwise
+                // latches its controller text on first build.
+                key: ValueKey('backend-filter-$_backendFilter'),
+                backends: backends,
+                selected: _backendFilter,
+                anyLabel: l.modelAnyBackend,
+                onSelected: (b) => setState(() => _backendFilter = b),
+              ),
             ),
-          ),
+          ],
           const SizedBox(width: 8),
           // Language dropdown — narrows the list by `matchesLanguage`.
           // Source of options: AppConstants.supportedLanguages (the
@@ -715,157 +723,205 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
 
   Widget _buildModelCard(ModelInfo model) {
     final isDownloading = _downloadingModel == model.name;
+    final fit = StarterModels.fitFor(
+        model.sizeBytes, ref.read(memoryEstimatorProvider));
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor:
-              model.isDownloaded ? Colors.green.shade100 : Colors.grey.shade200,
-          child: Icon(
-            model.isDownloaded ? Icons.check : Icons.download,
-            color: model.isDownloaded
-                ? Colors.green.shade700
-                : Colors.grey.shade600,
-          ),
-        ),
-        title: Row(
-          children: [
-            Flexible(
-              child: Text(
-                model.displayName,
-                style: const TextStyle(fontWeight: FontWeight.bold),
-                overflow: TextOverflow.ellipsis,
-              ),
+    return Semantics(
+      container: true,
+      label: '${model.displayName}, ${_useCase(model)}, ${model.size}',
+      child: Card(
+        margin: const EdgeInsets.only(bottom: 8),
+        child: ListTile(
+          leading: CircleAvatar(
+            backgroundColor: model.isDownloaded
+                ? Colors.green.shade100
+                : Colors.grey.shade200,
+            child: Icon(
+              model.isDownloaded ? Icons.check : Icons.download,
+              color: model.isDownloaded
+                  ? Colors.green.shade700
+                  : Colors.grey.shade600,
             ),
-            const SizedBox(width: 6),
-            if (model.backend.isNotEmpty && model.backend != 'whisper')
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.indigo.shade100,
-                  borderRadius: BorderRadius.circular(6),
-                ),
+          ),
+          title: Row(
+            children: [
+              Flexible(
                 child: Text(
-                  model.backend,
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.indigo.shade900,
-                  ),
+                  model.displayName,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-            if (model.recommendedDefault) ...[
-              const SizedBox(width: 4),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.green.shade100,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  AppLocalizations.of(context).modelsRecommendedBadge,
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.green.shade900,
+              const SizedBox(width: 6),
+              if (model.backend.isNotEmpty && model.backend != 'whisper')
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.indigo.shade100,
+                    borderRadius: BorderRadius.circular(6),
                   ),
-                ),
-              ),
-            ],
-            const SizedBox(width: 4),
-            if (model.quantization.isNotEmpty && model.quantization != 'f16')
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.deepPurple.shade100,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  model.quantization,
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.deepPurple.shade800,
-                  ),
-                ),
-              ),
-          ],
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(AppLocalizations.of(context).modelSize(model.size)),
-            // Marked in the list, not only at the moment of download — the
-            // point is that a tester can see which rows are plausible before
-            // committing to a multi-gigabyte transfer.
-            if (!model.isDownloaded &&
-                StarterModels.fitFor(model.sizeBytes,
-                        ref.read(memoryEstimatorProvider)) ==
-                    DeviceFit.tooLarge)
-              Row(
-                children: [
-                  Icon(Icons.memory,
-                      size: 13, color: Theme.of(context).colorScheme.error),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    child: Text(
-                      AppLocalizations.of(context).modelsTooLargeInline,
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Theme.of(context).colorScheme.error,
-                      ),
+                  child: Text(
+                    model.backend,
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.indigo.shade900,
                     ),
                   ),
-                ],
-              ),
-            Text(model.description),
-            if (model.isDownloaded)
-              Text(
-                AppLocalizations.of(context).modelsDownloaded,
-                style: TextStyle(
-                  color: Colors.green.shade700,
-                  fontWeight: FontWeight.bold,
                 ),
-              )
-            else if (isDownloading)
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    AppLocalizations.of(context).modelsDownloadingPercent(
-                        (_downloadProgress * 100).toStringAsFixed(1)),
-                    style: TextStyle(color: Colors.blue.shade700),
+              if (model.recommendedDefault) ...[
+                const SizedBox(width: 4),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade100,
+                    borderRadius: BorderRadius.circular(6),
                   ),
-                  const SizedBox(height: 4),
-                  LinearProgressIndicator(value: _downloadProgress),
-                ],
-              )
-            else
-              Text(AppLocalizations.of(context).modelsNotDownloaded),
-          ],
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (model.isDownloaded) ...[
-              IconButton(
-                icon: const Icon(Icons.delete_outline),
-                onPressed: () => _deleteModel(model),
-                tooltip: AppLocalizations.of(context).modelsDelete,
-              ),
-            ] else if (!isDownloading) ...[
-              ElevatedButton.icon(
-                icon: const Icon(Icons.download),
-                label: Text(AppLocalizations.of(context).modelsDownload),
-                onPressed: () => _downloadModel(model),
-              ),
+                  child: Text(
+                    AppLocalizations.of(context).modelsRecommendedBadge,
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green.shade900,
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(width: 4),
+              if (model.quantization.isNotEmpty && model.quantization != 'f16')
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.deepPurple.shade100,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    model.quantization,
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.deepPurple.shade800,
+                    ),
+                  ),
+                ),
             ],
-          ],
+          ),
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Text(AppLocalizations.of(context)
+                      .modelsBestFor(_useCase(model))),
+                  Text(AppLocalizations.of(context).modelSize(model.size)),
+                  if (fit == DeviceFit.comfortable)
+                    Text(AppLocalizations.of(context).modelsFitsDevice,
+                        style: TextStyle(color: Colors.green.shade700)),
+                  if (fit == DeviceFit.tight)
+                    Text(AppLocalizations.of(context).modelsMemoryTight,
+                        style: TextStyle(color: Colors.orange.shade800)),
+                ],
+              ),
+              // Marked in the list, not only at the moment of download — the
+              // point is that a tester can see which rows are plausible before
+              // committing to a multi-gigabyte transfer.
+              if (!model.isDownloaded &&
+                  StarterModels.fitFor(
+                          model.sizeBytes, ref.read(memoryEstimatorProvider)) ==
+                      DeviceFit.tooLarge)
+                Row(
+                  children: [
+                    Icon(Icons.memory,
+                        size: 13, color: Theme.of(context).colorScheme.error),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        AppLocalizations.of(context).modelsTooLargeInline,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              Text(model.description),
+              if (model.isDownloaded)
+                Text(
+                  AppLocalizations.of(context).modelsDownloaded,
+                  style: TextStyle(
+                    color: Colors.green.shade700,
+                    fontWeight: FontWeight.bold,
+                  ),
+                )
+              else if (isDownloading)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      AppLocalizations.of(context).modelsDownloadingPercent(
+                          (_downloadProgress * 100).toStringAsFixed(1)),
+                      style: TextStyle(color: Colors.blue.shade700),
+                    ),
+                    const SizedBox(height: 4),
+                    LinearProgressIndicator(value: _downloadProgress),
+                  ],
+                )
+              else
+                Text(AppLocalizations.of(context).modelsNotDownloaded),
+            ],
+          ),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (model.isDownloaded) ...[
+                IconButton(
+                  icon: const Icon(Icons.delete_outline),
+                  onPressed: () => _deleteModel(model),
+                  tooltip: AppLocalizations.of(context).modelsDelete,
+                ),
+              ] else if (!isDownloading) ...[
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.download),
+                  label: Text(AppLocalizations.of(context).modelsDownload),
+                  onPressed: () => _downloadModel(model),
+                ),
+              ],
+            ],
+          ),
+          isThreeLine: isDownloading,
         ),
-        isThreeLine: isDownloading,
       ),
     );
+  }
+
+  String _useCase(ModelInfo model) {
+    final l = AppLocalizations.of(context);
+    switch (model.kind) {
+      case ModelKind.asr:
+        if (model.backend == 'whisper') return l.modelsUseMultilingual;
+        if (model.backend.contains('parakeet') ||
+            model.backend.contains('moonshine')) {
+          return l.modelsUseFastTranscription;
+        }
+        return l.modelsUseTranscription;
+      case ModelKind.tts:
+        return l.modelsUseSpeech;
+      case ModelKind.translate:
+        return l.modelsUseTranslation;
+      case ModelKind.chatLlm:
+        return l.modelsUseCleanup;
+      case ModelKind.voice:
+        return l.modelsUseVoice;
+      default:
+        return l.modelsUseAdvanced;
+    }
   }
 
   Widget _buildEmptyState() {
@@ -1141,7 +1197,8 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
       final summary = fetched.length == 1
           ? l10n.modelsDownloadedOne(fetched.first)
           : l10n.modelsDownloadedMany(fetched.length, fetched.join(', '));
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(summary)));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(summary)));
       await _loadModels();
     } catch (e) {
       _showErrorDialog(l10n.modelsDownloadFailedReason(e.toString()));
@@ -1284,8 +1341,7 @@ class _BackendFilterField extends StatelessWidget {
           decoration: const InputDecoration(
             isDense: true,
             border: OutlineInputBorder(),
-            contentPadding:
-                EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             suffixIcon: Icon(Icons.arrow_drop_down),
           ),
           onSubmitted: (_) => onSubmit(),

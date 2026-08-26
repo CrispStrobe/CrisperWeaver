@@ -1,9 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../build_info.dart';
 import '../l10n/generated/app_localizations.dart';
+import '../main.dart' show modelServiceProvider;
+import '../services/diagnostics_service.dart';
 
 /// About / legal info screen — mirrors the layout used by our sibling
 /// CrispSorter app: service provider, contact, disclaimer, then the
@@ -60,6 +66,16 @@ class AboutScreen extends ConsumerWidget {
             child: Text(l.aboutPrivacyText),
           ),
           _SectionCard(
+            icon: Icons.memory_outlined,
+            label: l.aboutBundledEngines,
+            child: SelectableText(
+              'CrispASR $kCrispAsrVersion (${_short(kCrispAsrRevision)})\n'
+              'CrispEmbed $kCrispEmbedVersion (${_short(kCrispEmbedRevision)})\n'
+              'glint $kGlintVersion (${_short(kGlintRevision)})\n'
+              'App ${_short(kBuildGitHashFull)} • $kBuildTimestamp',
+            ),
+          ),
+          _SectionCard(
             icon: Icons.verified_user,
             label: l.aboutSyntheticCompliance,
             child: Text(l.aboutSyntheticComplianceText),
@@ -93,6 +109,12 @@ class AboutScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 4),
           OutlinedButton.icon(
+            icon: const Icon(Icons.bug_report_outlined),
+            label: Text(l.aboutReviewDiagnostics),
+            onPressed: () => _showDiagnostics(context, ref),
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
             icon: const Icon(Icons.description_outlined),
             label: Text(l.aboutOpenSourceLicenses),
             onPressed: () async {
@@ -122,6 +144,53 @@ class AboutScreen extends ConsumerWidget {
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri);
     }
+  }
+
+  static String _short(String revision) =>
+      revision.length > 7 ? revision.substring(0, 7) : revision;
+
+  static Future<void> _showDiagnostics(
+      BuildContext context, WidgetRef ref) async {
+    final report = await DiagnosticsService.buildReport(
+      modelService: ref.read(modelServiceProvider),
+    );
+    if (!context.mounted) return;
+    final l = AppLocalizations.of(context);
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l.aboutDiagnosticsTitle),
+        content: SizedBox(
+          width: 680,
+          child: SingleChildScrollView(child: SelectableText(report)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              await Clipboard.setData(ClipboardData(text: report));
+              if (ctx.mounted) Navigator.of(ctx).pop();
+            },
+            child: Text(l.historyCopy),
+          ),
+          if (!kIsWeb)
+            FilledButton.icon(
+              icon: const Icon(Icons.share_outlined),
+              onPressed: () async {
+                final file = await DiagnosticsService.exportReport(report);
+                await SharePlus.instance.share(ShareParams(
+                  files: [XFile(file.path)],
+                  subject: 'CrisperWeaver diagnostics',
+                ));
+              },
+              label: Text(l.logsShare),
+            ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text(l.close),
+          ),
+        ],
+      ),
+    );
   }
 }
 
