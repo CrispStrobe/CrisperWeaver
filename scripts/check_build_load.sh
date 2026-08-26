@@ -15,9 +15,23 @@
 # A genuinely saturated machine — the case this exists for — still refuses,
 # just BUILD_LOAD_WAIT_SECS later. A machine that merely looks busy proceeds.
 #
+# On CI the guard is OFF by default, because the thing it protects against
+# does not exist there. It was written after a day when every agent on a
+# shared Mac wedged at once; a GitHub runner is exclusively ours for the
+# duration of the job, so there is no neighbour to starve. The parallel-job
+# cap (JOBS=2) is what prevents the OOM-kill on a 3-vCPU runner, not this.
+#
+# Measured on macos-latest, 3 logical CPUs, 2026-08-26: the 1-minute average
+# read 30.94 at the start of the build step and decayed steadily to 4.86 over
+# the following 300 seconds, with nothing of ours running — it was still
+# carrying three repo checkouts, a Flutter install and a cache restore that
+# had already finished. Waiting it out costs six minutes of CI time to learn
+# nothing. Set BUILD_LOAD_MAX explicitly to opt back in.
+#
 # Env:
 #   BUILD_LOAD_MAX        max 1-minute load before a large compile starts
-#                         (default: logical CPU count)
+#                         (default: logical CPU count; setting it also
+#                         re-enables the guard on CI)
 #   BUILD_LOAD_WAIT_SECS  how long to wait for it to fall (default: 300;
 #                         0 disables waiting and restores check-once)
 #   BUILD_LOAD_POLL_SECS  seconds between polls (default: 10)
@@ -38,9 +52,16 @@ under_limit() {
   awk -v load="$1" -v limit="$2" 'BEGIN { exit !(load <= limit) }'
 }
 
-MAX_LOAD="${BUILD_LOAD_MAX:-$CPUS}"
 WAIT_SECS="${BUILD_LOAD_WAIT_SECS:-300}"
 POLL_SECS="${BUILD_LOAD_POLL_SECS:-10}"
+
+if [[ -n "${CI:-}" && -z "${BUILD_LOAD_MAX:-}" ]]; then
+  printf '==> system load preflight: 1m=%s, logical CPUs=%s (CI: advisory only)\n' \
+    "$(read_load)" "$CPUS"
+  exit 0
+fi
+
+MAX_LOAD="${BUILD_LOAD_MAX:-$CPUS}"
 
 LOAD="$(read_load)"
 printf '==> system load preflight: 1m=%s, limit=%s, logical CPUs=%s\n' \
