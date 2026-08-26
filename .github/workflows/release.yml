@@ -241,14 +241,24 @@ jobs:
   # forbids both, so the two are different products built from one source
   # and they cannot share a signing pass. See scripts/build_macos_appstore.sh.
   #
-  # continue-on-error while this path is young: a signing or validation
-  # hiccup must not fail a release whose other five artefacts are fine.
+  # NOT continue-on-error. It was, "while this path is young", so that a
+  # signing hiccup could not fail a release whose other artefacts were fine.
+  # That reasoning has a hole: GitHub reports a continue-on-error job's
+  # conclusion as SUCCESS even when steps inside it failed, so a green tick
+  # here never meant a build reached Apple. That is exactly how builds 70-71
+  # shipped nothing across several green release runs (see ../appstore.md),
+  # and on 2026-08-26 it nearly hid the same thing again — the uploads had to
+  # be confirmed from altool output and GET /v1/builds instead.
+  #
+  # Removing it is safe for the reason the flag was added: the ".pkg to
+  # GitHub Release" step below is `if: always()`, so the artefact is still
+  # attached when signing or upload fails. The release just now reports the
+  # failure instead of swallowing it.
   build-macos-appstore:
     name: macOS (App Store .pkg)
     needs: validate-tag
     runs-on: macos-latest
     timeout-minutes: 120
-    continue-on-error: true
     permissions:
       contents: write
     steps:
@@ -337,9 +347,10 @@ jobs:
       # when it isn't there. Only build-ios materialised that file, so this
       # job built and signed a perfectly good .pkg and then failed at
       # validation on every release — invisible from the outside because the
-      # job is continue-on-error and the .pkg still got attached. Same
-      # decode-then-fallback handling as build-ios; keep the key id in step
-      # with API_KEY in scripts/build_macos_appstore.sh.
+      # job WAS continue-on-error and the .pkg still got attached. That flag
+      # is gone now (see the job header), so this class of failure is visible.
+      # Same decode-then-fallback handling as build-ios; keep the key id in
+      # step with API_KEY in scripts/build_macos_appstore.sh.
       - name: Install App Store Connect API key
         if: steps.signing.outputs.signing_ready == 'true'
         env:
@@ -925,8 +936,17 @@ jobs:
   # Unsigned iOS IPA — sideload-compatible (AltStore / SideStore / Feather).
   # End-users re-sign with their own free Apple ID (7-day renewal); developers
   # with a paid Apple Developer Program can re-sign for 1-year installs.
-  # This job is marked continue-on-error since the iOS build path isn't yet
-  # verified end-to-end (first release in which we attempt it).
+  # No longer continue-on-error. It was, because the iOS path was unverified
+  # end-to-end — but it is now: build 83 (v0.10.1, 2026-08-26) went unsigned
+  # archive -> Distribution export -> validate -> upload with no intervention,
+  # the first iOS build since 0.9.9. Meanwhile the flag was actively harmful:
+  # GitHub reports such a job as SUCCESS even when its steps fail, which is
+  # how builds 70-71 uploaded nothing while CI stayed green.
+  #
+  # Safe to remove because "Upload IPA" below is `if: always()` — the unsigned
+  # sideload IPA still reaches the GitHub release even if the App Store path
+  # fails. The step-level continue-on-error inside this job stay: those are
+  # deliberate (optional secrets, advisory altool validate).
   build-ios:
     name: iOS IPA (unsigned, sideload-ready)
     needs: validate-tag
@@ -937,7 +957,6 @@ jobs:
     runs-on: macos-26
     permissions:
       contents: write
-    continue-on-error: true
     steps:
       - name: Check out CrisperWeaver
         uses: actions/checkout@v5
