@@ -36,7 +36,7 @@ concurrency:
 
 env:
   FLUTTER_VERSION: "3.44.1"
-  # Pinned to release tags rather than `main` for reproducible builds.
+  # Pinned to immutable commits rather than `main` for reproducible builds.
   #
   # These are shared clones that parallel workers rebuild, and the drift
   # is not hypothetical: on 2026-08-01 a `main` pin put the app 13
@@ -47,18 +47,18 @@ env:
   # ref is necessary but not sufficient; it bounds the source, not the
   # artefact.
   #
-  # Bumping: raise the tag, run `flutter analyze` + the full test suite
+  # Bumping: update the commit, run `flutter analyze` + the full test suite
   # (backend_dispatch_test is the drift canary), catalogue any new
   # backends or add them to its documented `engineOnly` set, then commit
   # the bump on its own so a regression bisects cleanly.
   CRISPASR_REPO: CrispStrobe/CrispASR
-  CRISPASR_REF: v0.8.25
+  CRISPASR_REF: 110fd5ced6db4fb126108a0bf8fbaa8d51df9127
   CRISPEMBED_REPO: CrispStrobe/CrispEmbed
-  CRISPEMBED_REF: v0.17.3
+  CRISPEMBED_REF: 40e7b7dd00bb6b1505c9e6ac74bef0c97efef337
   GLINT_REPO: CrispStrobe/glint
   # NB glint uses a per-package tag scheme; the bare `vX.Y.Z` tags are a
   # stale legacy series (v0.9.0 still carries Dart package 0.1.0).
-  GLINT_REF: glint_audio-v0.11.0
+  GLINT_REF: 77738f3ed9b15f627196cc5bbd7f6406814ba2fb
 
 jobs:
   # Fail fast rather than publishing a release under a branch name. Belt
@@ -142,6 +142,8 @@ jobs:
           # `brew install espeak-ng` so CMake can't find + link it. Built-in
           # G2P covers EN/DE/FR/ES; a user can add their own libespeak-ng.
           cmake -B build -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=13.3 \
+            -DCMAKE_OSX_ARCHITECTURES=arm64 \
             -DBUILD_SHARED_LIBS=ON -DWHISPER_METAL=ON \
             -DCRISPASR_WITH_ESPEAK_NG=AUTO \
             -DCRISPASR_OPUS_FETCH=ON
@@ -153,9 +155,30 @@ jobs:
       - name: Build libglint.dylib (codec suite)
         working-directory: repos/glint
         run: |
-          cmake -B build -DCMAKE_BUILD_TYPE=Release
+          cmake -B build -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 \
+            -DCMAKE_OSX_ARCHITECTURES=arm64
           cmake --build build --config Release --parallel 2 --target glint_shared
           ls -lh build/libglint.dylib
+
+      - name: Build libcrispembed.dylib (self-contained)
+        working-directory: repos/CrispEmbed
+        run: |
+          cmake -B build-crisperweaver -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0 \
+            -DCMAKE_OSX_ARCHITECTURES=arm64 \
+            -DBUILD_SHARED_LIBS=OFF \
+            -DCRISPEMBED_BUILD_SHARED=ON \
+            -DGGML_NATIVE=OFF \
+            -DGGML_METAL=ON \
+            -DGGML_METAL_EMBED_LIBRARY=ON \
+            -DCRISP_AUDIO_DIR="$PWD/build-crisperweaver/disabled/crisp_audio" \
+            -DCRISP_PUNC_DIR="$PWD/build-crisperweaver/disabled/crisp_punc" \
+            -DCRISP_LID_DIR="$PWD/build-crisperweaver/disabled/crisp_lid" \
+            -DCRISP_TRUECASE_DIR="$PWD/build-crisperweaver/disabled/crisp_truecase"
+          cmake --build build-crisperweaver --config Release --parallel 2 \
+            --target crispembed-shared
+          ls -lh build-crisperweaver/libcrispembed*.dylib
 
       - name: Pub get
         working-directory: repos/CrisperWeaver
@@ -183,9 +206,15 @@ jobs:
         working-directory: repos/CrisperWeaver
         run: |
           CRISPASR_DIR="$GITHUB_WORKSPACE/repos/CrispASR" \
+            CRISPEMBED_DIR="$GITHUB_WORKSPACE/repos/CrispEmbed" \
+            CRISPEMBED_BUILD_DIR="$GITHUB_WORKSPACE/repos/CrispEmbed/build-crisperweaver" \
             GLINT_DIR="$GITHUB_WORKSPACE/repos/glint" \
             APP=build/macos/Build/Products/Release/crisper_weaver.app \
             ./scripts/bundle_macos_dylibs.sh
+
+      - name: Verify macOS compatibility metadata
+        working-directory: repos/CrisperWeaver
+        run: ./scripts/verify_macos_release.sh build/macos/Build/Products/Release/crisper_weaver.app
 
       - name: Zip .app
         working-directory: repos/CrisperWeaver/build/macos/Build/Products/Release

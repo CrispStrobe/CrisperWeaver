@@ -15,7 +15,7 @@ env:
   FLUTTER_VERSION: "3.44.1"
   # Where we expect the sibling CrispASR checkout to live. The Dart pubspec
   # references the Flutter package inside it at `../CrispASR/flutter/crispasr`.
-  # Pinned to release tags rather than `main` for reproducible builds.
+  # Pinned to immutable commits rather than `main` for reproducible builds.
   #
   # These are shared clones that parallel workers rebuild, and the drift
   # is not hypothetical: on 2026-08-01 a `main` pin put the app 13
@@ -26,20 +26,20 @@ env:
   # ref is necessary but not sufficient; it bounds the source, not the
   # artefact.
   #
-  # Bumping: raise the tag, run `flutter analyze` + the full test suite
+  # Bumping: update the commit, run `flutter analyze` + the full test suite
   # (backend_dispatch_test is the drift canary), catalogue any new
   # backends or add them to its documented `engineOnly` set, then commit
   # the bump on its own so a regression bisects cleanly.
   CRISPASR_REPO: CrispStrobe/CrispASR
-  CRISPASR_REF: v0.8.25
+  CRISPASR_REF: 110fd5ced6db4fb126108a0bf8fbaa8d51df9127
   # CrispEmbed — on-device embeddings. pubspec path: `../CrispEmbed/flutter/crispembed`.
   CRISPEMBED_REPO: CrispStrobe/CrispEmbed
-  CRISPEMBED_REF: v0.17.3
+  CRISPEMBED_REF: 40e7b7dd00bb6b1505c9e6ac74bef0c97efef337
   # glint — MP3/AAC/Opus codec suite. pubspec path: `../glint/bindings/dart`.
   GLINT_REPO: CrispStrobe/glint
   # NB glint uses a per-package tag scheme; the bare `vX.Y.Z` tags are a
   # stale legacy series (v0.9.0 still carries Dart package 0.1.0).
-  GLINT_REF: glint_audio-v0.11.0
+  GLINT_REF: 77738f3ed9b15f627196cc5bbd7f6406814ba2fb
 
 jobs:
   analyze-and-test:
