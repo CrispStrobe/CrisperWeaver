@@ -107,6 +107,29 @@ class MemoryEstimator {
   /// model doesn't claim it can run 50 workers.
   static const int baseRssBytes = 400 * 1024 * 1024; // 400 MB
 
+  /// Everything that scales with the LENGTH of the audio, per second.
+  ///
+  /// Measured 2026-08-26, qwen3-asr-0.6b-q4_k (631 MB GGUF) on macOS/Metal,
+  /// 16 GB, via the CrispASR CLI — the same unchunked `crispasr_c_api`
+  /// session path the app takes. Peak RSS went 1.415 GB at 11 s of audio to
+  /// 1.576 GB at 1804 s, a slope of ~90 KB per audio-second, of which 64 KB
+  /// is the f32 PCM itself (16 kHz × 4 bytes) and the rest is encoder output
+  /// plus KV growth.
+  ///
+  /// We budget 256 KB/s rather than the measured 90 KB/s because the app
+  /// holds more copies of the PCM than the CLI does: the decoded buffer, the
+  /// copy handed across the worker-isolate boundary, and the native side's
+  /// own. Deliberately conservative — the cost of over-estimating is a
+  /// refusal the user can override, and the cost of under-estimating is a
+  /// frozen machine.
+  static const int bytesPerAudioSecond = 256 * 1024;
+
+  /// Ceiling for a SINGLE transcription, as a fraction of system RAM. More
+  /// permissive than [memoryHeadroomFraction] (which sizes a whole pool of
+  /// concurrent workers) because one foreground decode is the thing the user
+  /// explicitly asked for — we only refuse what cannot plausibly succeed.
+  static const double transcribeHeadroomFraction = 0.8;
+
   int? _cachedPhysical;
   bool _haveReadPhysical = false;
 
@@ -256,3 +279,114 @@ class MemoryEstimator {
 /// avoids a second shell-out.
 final memoryEstimatorProvider =
     Provider<MemoryEstimator>((ref) => MemoryEstimator());
+
+/// Verdict from [MemoryEstimator.estimateTranscribe] — the pre-flight for a
+/// SINGLE transcription, as opposed to [MemoryEstimate] which sizes a worker
+/// *pool*.
+///
+/// The pool estimate only ever asked "how many copies of this model fit".
+/// That misses the failure the field reports actually hit (#33, #34): one
+/// worker, one model, but an audio file long enough that the decoder's own
+/// buffers dwarf the weights. A whole-OS freeze on a CPU-only Windows build
+/// is what memory exhaustion looks like from the outside — the box starts
+/// thrashing the pagefile and the UI stops repainting, so there is no crash
+/// log to read afterwards.
+class TranscribeMemoryEstimate {
+  const TranscribeMemoryEstimate({
+    required this.fits,
+    required this.physicalMemoryBytes,
+    required this.modelBytes,
+    required this.audioBytes,
+    required this.projectedUsageBytes,
+    required this.audioSeconds,
+    required this.reason,
+  });
+
+  /// False when the projection exceeds the budget. Callers should refuse
+  /// rather than start the decode.
+  final bool fits;
+  final int physicalMemoryBytes;
+
+  /// Weights, already multiplied by [MemoryEstimator.modelOverheadMultiplier].
+  final int modelBytes;
+
+  /// Everything that scales with audio length — see
+  /// [MemoryEstimator.bytesPerAudioSecond].
+  final int audioBytes;
+  final int projectedUsageBytes;
+  final double audioSeconds;
+
+  /// One of `fits`, `too-large`, `unknown-mem` (host refused to report RAM,
+  /// or the model file could not be stat'ed — we do not block on a guess).
+  final String reason;
+
+  String get prettyProjected =>
+      '${(projectedUsageBytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
+  String get prettyPhysical =>
+      '${(physicalMemoryBytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
+  String get prettyAudio {
+    final m = audioSeconds ~/ 60;
+    final s = (audioSeconds % 60).round();
+    return m > 0 ? '${m}m ${s}s' : '${s}s';
+  }
+}
+
+/// Pre-flight guard for one transcription. Kept as an extension so the
+/// pool-sizing class above stays exactly as it was.
+extension TranscribePreflight on MemoryEstimator {
+  /// Projected footprint of transcribing [audioSeconds] of audio with the
+  /// model at [modelPath].
+  ///
+  /// `projected = baseRss + modelBytes×1.6 + audioSeconds×bytesPerAudioSecond`
+  ///
+  /// Refuses when that exceeds [transcribeHeadroomFraction] of system RAM.
+  /// The fraction is more permissive than the pool's 0.5 on purpose: a single
+  /// foreground transcription is what the user actually asked for, so we only
+  /// stand in the way when it cannot plausibly succeed.
+  ///
+  /// This is a FLOOR, not a bound. The linear term is calibrated against
+  /// LLM-style backends on a GPU path (see [bytesPerAudioSecond]); backends
+  /// that materialise a dense N×N attention mask grow superlinearly in audio
+  /// length, and on a CPU-only build there is no flash-attention path to save
+  /// them. So `fits == true` means "not obviously impossible", never
+  /// "guaranteed".
+  TranscribeMemoryEstimate estimateTranscribe({
+    required String? modelPath,
+    required double audioSeconds,
+  }) {
+    final phys = physicalMemoryBytes();
+    final modelBytes =
+        (MemoryEstimator.modelFileSizeBytes(modelPath) *
+                MemoryEstimator.modelOverheadMultiplier)
+            .round();
+    final audioBytes =
+        (audioSeconds * MemoryEstimator.bytesPerAudioSecond).round();
+    if (phys == null || phys <= 0 || modelBytes <= 0) {
+      // Never block on a guess. An unreadable model path is a different
+      // failure and the load below will report it properly.
+      return TranscribeMemoryEstimate(
+        fits: true,
+        physicalMemoryBytes: phys ?? 0,
+        modelBytes: modelBytes,
+        audioBytes: audioBytes,
+        projectedUsageBytes: MemoryEstimator.baseRssBytes + audioBytes,
+        audioSeconds: audioSeconds,
+        reason: 'unknown-mem',
+      );
+    }
+    final projected =
+        MemoryEstimator.baseRssBytes + modelBytes + audioBytes;
+    final budget =
+        (phys * MemoryEstimator.transcribeHeadroomFraction).round();
+    final fits = projected <= budget;
+    return TranscribeMemoryEstimate(
+      fits: fits,
+      physicalMemoryBytes: phys,
+      modelBytes: modelBytes,
+      audioBytes: audioBytes,
+      projectedUsageBytes: projected,
+      audioSeconds: audioSeconds,
+      reason: fits ? 'fits' : 'too-large',
+    );
+  }
+}

@@ -243,6 +243,13 @@ class AdvancedOptions {
   /// * [temperatureInc] (0.2) — temperature step per fallback
   ///   pass. 0.0 disables the fallback loop entirely
   ///   (the CLI's `--no-fallback`).
+  /// Named bundle of the four thresholds below (CrispASR `--sensitivity`).
+  /// Empty = manual, i.e. the individual sliders drive the decode. Set to a
+  /// preset name and the preset is applied INSTEAD — the C side treats a
+  /// later set_fallback_thresholds() as overriding it, so sending both
+  /// would discard the preset every time.
+  final String sensitivityPreset;
+
   final double entropyThold;
   final double logprobThold;
   final double noSpeechThold;
@@ -380,6 +387,7 @@ class AdvancedOptions {
     this.grammarText = '',
     this.grammarRootRule = 'root',
     this.grammarPenalty = 100.0,
+    this.sensitivityPreset = '',
     this.entropyThold = 2.4,
     this.logprobThold = -1.0,
     this.noSpeechThold = 0.6,
@@ -433,6 +441,7 @@ class AdvancedOptions {
     String? grammarText,
     String? grammarRootRule,
     double? grammarPenalty,
+    String? sensitivityPreset,
     double? entropyThold,
     double? logprobThold,
     double? noSpeechThold,
@@ -486,6 +495,7 @@ class AdvancedOptions {
         grammarText: grammarText ?? this.grammarText,
         grammarRootRule: grammarRootRule ?? this.grammarRootRule,
         grammarPenalty: grammarPenalty ?? this.grammarPenalty,
+        sensitivityPreset: sensitivityPreset ?? this.sensitivityPreset,
         entropyThold: entropyThold ?? this.entropyThold,
         logprobThold: logprobThold ?? this.logprobThold,
         noSpeechThold: noSpeechThold ?? this.noSpeechThold,
@@ -1601,6 +1611,40 @@ class _AdvancedDecodingSectionState
         style: const TextStyle(fontSize: 11),
       ),
       children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(l.advancedSensitivityPreset,
+                  style: Theme.of(context).textTheme.bodyMedium),
+              const SizedBox(height: 4),
+              SegmentedButton<String>(
+                showSelectedIcon: false,
+                segments: [
+                  ButtonSegment(
+                      value: '', label: Text(l.advancedSensitivityManual)),
+                  ButtonSegment(
+                      value: 'conservative',
+                      label: Text(l.advancedSensitivityConservative)),
+                  ButtonSegment(
+                      value: 'balanced',
+                      label: Text(l.advancedSensitivityBalanced)),
+                  ButtonSegment(
+                      value: 'aggressive',
+                      label: Text(l.advancedSensitivityAggressive)),
+                ],
+                selected: {opts.sensitivityPreset},
+                onSelectionChanged: (sel) =>
+                    ref.read(advancedOptionsProvider.notifier).state =
+                        opts.copyWith(sensitivityPreset: sel.first),
+              ),
+              const SizedBox(height: 4),
+              Text(l.advancedSensitivityPresetHelper,
+                  style: const TextStyle(fontSize: 11)),
+            ],
+          ),
+        ),
         _fallbackSlider(
           context: context,
           label: l.advancedEntropyThold(opts.entropyThold.toStringAsFixed(2)),

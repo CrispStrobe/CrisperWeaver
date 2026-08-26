@@ -114,6 +114,9 @@ enum DiarizeMethod {
   xcorr,
   vadTurns,
   pyannote,
+  // #324 — WeSpeaker embeddings + spectral clustering. Mirrors the FFI
+  // enum; the ordinal has to line up even though nothing here dispatches.
+  foxNose,
 }
 
 class RegistryEntry {
@@ -420,6 +423,22 @@ class StreamingSession {
 
 class CrispasrSession {
   String get backend => '';
+
+  /// #332 — backend-native PCM rates. 0 is the documented "this build does
+  /// not know" answer, which is exactly right for the web stub: it runs no
+  /// backend at all, and callers already fall back when they see 0.
+  int get outputSampleRate => 0;
+  int get inputSampleRate => 0;
+
+  /// Sticky session setters new in the 110fd5ce pin. All no-ops here for the
+  /// same reason every other setter in this file is: web routes through
+  /// HfSpaceEngine and never opens a native session. They must still EXIST,
+  /// though — `flutter analyze` and `flutter test` never compile this file,
+  /// so a missing method surfaces only as a red web build.
+  void setSensitivity(String preset) {}
+  void setSpeakerIdentity(String identity) {}
+  void setTtsReferenceLanguage(String lang) {}
+  void setMinSpeechTokens(int n) {}
   bool get isClosed => true;
 
   factory CrispasrSession.open(String modelPath,
@@ -615,8 +634,19 @@ class CrispasrChatSession {
     throw UnsupportedError('CrispasrChatSession is not available on web');
   }
 
+  /// [shouldContinue] mirrors the real binding's cancellation predicate:
+  /// return false to abort. Unreachable here (open() already throws), but
+  /// the signature has to match — this file is invisible to `flutter
+  /// analyze` and `flutter test`, so a drifted parameter list surfaces only
+  /// as a failed `flutter build web`.
   Future<String> generate(List<ChatMessage> messages,
-      {ChatGenerateParams params = const ChatGenerateParams()}) {
+      {ChatGenerateParams params = const ChatGenerateParams(),
+      bool Function()? shouldContinue}) {
+    throw UnsupportedError('CrispasrChatSession is not available on web');
+  }
+
+  /// Token accounting for a message array (`crispasr_chat_count_tokens`).
+  int countTokens(List<ChatMessage> messages) {
     throw UnsupportedError('CrispasrChatSession is not available on web');
   }
 
@@ -792,6 +822,10 @@ bool diarizeSegments({
   String? pyannoteModelPath,
   int nThreads = 4,
   double sliceT0 = 0.0,
+  String? foxnoseEmbedderPath,
+  int minSpeakers = 0,
+  int maxSpeakers = 0,
+  int numSpeakers = 0,
   dynamic lib,
 }) {
   throw UnsupportedError('diarizeSegments is not available on web');

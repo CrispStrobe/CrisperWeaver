@@ -89,6 +89,29 @@ class DiarizationService {
     return null;
   }
 
+  /// Locate the WeSpeaker embedder GGUF for [crispasr.DiarizeMethod.foxNose].
+  /// Same shape as [_findPyannoteModel]: whatever the user downloaded wins,
+  /// and a miss is reported rather than guessed at.
+  Future<String?> _findFoxnoseEmbedder() async {
+    final svc = modelService;
+    if (svc == null) return null;
+    try {
+      final dir = Directory(svc.whisperCppDir());
+      if (!await dir.exists()) return null;
+      await for (final ent in dir.list()) {
+        if (ent is! File) continue;
+        final base = p.basename(ent.path).toLowerCase();
+        if (base.startsWith('wespeaker') && base.endsWith('.gguf')) {
+          return ent.path;
+        }
+      }
+    } catch (e, st) {
+      Log.instance.w('diarize', 'failed to locate wespeaker GGUF',
+          error: e, stack: st);
+    }
+    return null;
+  }
+
   /// Fill `seg.speaker` for every segment using the shared-lib diarizer.
   ///
   /// When [audioData] has stereo channel data (non-null `rightChannel`),
@@ -96,17 +119,24 @@ class DiarizationService {
   /// available and the right channel is passed to the C layer.
   /// Otherwise falls back to mono-only methods (vad-turns / pyannote).
   ///
-  /// `minSpeakers` / `maxSpeakers` are accepted for API compatibility
-  /// with older callers but currently ignored — the lib methods pick
-  /// speaker counts internally (vad-turns alternates 0/1; pyannote can
-  /// emit up to 3).
+  /// `minSpeakers` / `maxSpeakers` bound the automatic speaker-count
+  /// estimate, and `numSpeakers` > 0 pins it and skips estimation.
+  ///
+  /// These were accepted-but-ignored until CrispASR #324: no method had a
+  /// knob for them, so the library decided alone (vad-turns alternates 0/1;
+  /// pyannote emits up to 3 per slice). [crispasr.DiarizeMethod.foxNose]
+  /// consumes all three, so a caller who knows there are exactly two people
+  /// in the room can finally say so. The other methods still ignore them,
+  /// and the post-hoc re-clustering below still runs regardless.
   Future<List<TranscriptionSegment>> diarizeSegments(
     AudioData audioData,
     List<TranscriptionSegment> segments, {
     int? minSpeakers,
     int? maxSpeakers,
+    int? numSpeakers,
     crispasr.DiarizeMethod method = crispasr.DiarizeMethod.vadTurns,
     String? pyannoteModelPath,
+    String? foxnoseEmbedderPath,
     bool enableSpeakerRecognition = false,
     void Function(double progress)? onProgress,
   }) async {
@@ -131,6 +161,22 @@ class DiarizationService {
         Log.instance.w(
             'diarize',
             'pyannote method requested but pyannote-*.gguf not on disk — '
+                'falling back to vad-turns');
+        method = crispasr.DiarizeMethod.vadTurns;
+      }
+    }
+
+    // Same treatment for foxNose: resolve the embedder, and degrade to
+    // vad-turns rather than handing the C layer a null path (which returns
+    // false and leaves every speaker unassigned with no explanation).
+    String? resolvedFoxnosePath = foxnoseEmbedderPath;
+    if (method == crispasr.DiarizeMethod.foxNose &&
+        (resolvedFoxnosePath == null || resolvedFoxnosePath.isEmpty)) {
+      resolvedFoxnosePath = await _findFoxnoseEmbedder();
+      if (resolvedFoxnosePath == null) {
+        Log.instance.w(
+            'diarize',
+            'foxNose method requested but wespeaker-*.gguf not on disk — '
                 'falling back to vad-turns');
         method = crispasr.DiarizeMethod.vadTurns;
       }
@@ -183,6 +229,13 @@ class DiarizationService {
           isStereo: audioData.isStereo,
           method: method,
           pyannoteModelPath: resolvedPyannotePath,
+          foxnoseEmbedderPath: resolvedFoxnosePath,
+          // 0 is the library's "use your default" for all three, which is
+          // also what null means here — so an unset hint stays unset rather
+          // than becoming a hard bound of zero speakers.
+          minSpeakers: minSpeakers ?? 0,
+          maxSpeakers: maxSpeakers ?? 0,
+          numSpeakers: numSpeakers ?? 0,
         );
         if (!ok) {
           Log.instance.w('diarize',

@@ -129,6 +129,17 @@ class AdvancedTranscribeOptions {
   /// Whisper's `grammar_penalty` scalar (upstream default 100.0).
   final double grammarPenalty;
 
+  /// Named bundle of the four fallback thresholds below —
+  /// `conservative` / `balanced` / `aggressive` (CrispASR `--sensitivity`).
+  ///
+  /// Empty string means "manual": the four sliders are pushed individually,
+  /// which is what the app has always done. When this is set, the preset is
+  /// applied INSTEAD, because the C side documents a later
+  /// `set_fallback_thresholds` as overriding a preset — and the engine fires
+  /// those on every transcribe, so sending both would silently discard the
+  /// preset every time.
+  final String sensitivityPreset;
+
   /// Whisper decoder-fallback thresholds. See AdvancedOptions for
   /// per-field semantics. Whisper-only; other backends silently
   /// ignore because their wparams have no analog.
@@ -231,6 +242,7 @@ class AdvancedTranscribeOptions {
     this.hotwordsBoost = 1.5,
     this.beamSize = 0,
     this.alignerModel,
+    this.sensitivityPreset = '',
     this.chunkSeconds = 0,
   });
 }
@@ -366,6 +378,11 @@ class TranscriptionService {
   Future<bool> initialize({
     EngineType? preferredEngine,
     String? modelName,
+    /// Settings → Debugging → Skip memory pre-flight. Threaded through as
+    /// engine config rather than read from SettingsService here, because
+    /// this service has no settings dependency and gaining one for a single
+    /// debug flag is the wrong trade.
+    bool ignoreMemoryPreflight = false,
   }) async {
     try {
       await _modelService.initialize();
@@ -373,7 +390,10 @@ class TranscriptionService {
       // Initialize with preferred engine or use mock as safe fallback
       final engineType = preferredEngine ?? EngineType.mock;
       final success = await _engineManager.switchEngine(engineType,
-          modelService: _modelService);
+          modelService: _modelService,
+          config: <String, dynamic>{
+            'ignoreMemoryPreflight': ignoreMemoryPreflight,
+          });
 
       if (!success) {
         Log.instance.w('service',
