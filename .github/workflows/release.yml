@@ -52,7 +52,7 @@ env:
   # backends or add them to its documented `engineOnly` set, then commit
   # the bump on its own so a regression bisects cleanly.
   CRISPASR_REPO: CrispStrobe/CrispASR
-  CRISPASR_REF: 110fd5ced6db4fb126108a0bf8fbaa8d51df9127
+  CRISPASR_REF: v0.8.30
   CRISPEMBED_REPO: CrispStrobe/CrispEmbed
   CRISPEMBED_REF: 40e7b7dd00bb6b1505c9e6ac74bef0c97efef337
   GLINT_REPO: CrispStrobe/glint

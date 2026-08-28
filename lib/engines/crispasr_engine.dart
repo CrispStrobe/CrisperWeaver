@@ -110,9 +110,21 @@ class CrispASREngine implements TranscriptionEngine {
     Log.instance.i('crispasr',
         'opening whisper model on first use (deferred from load)',
         fields: {'path': path});
-    final m = crispasr.CrispASR(path);
-    _model = m;
-    return m;
+        
+    CrashBreadcrumb.record(NativeOperationRecord(
+      phase: 'loadModel',
+      startedAtUtc: DateTime.now().toUtc(),
+      backend: 'whisper',
+      modelPath: path,
+    ));
+    
+    try {
+      final m = crispasr.CrispASR(path);
+      _model = m;
+      return m;
+    } finally {
+      CrashBreadcrumb.clear();
+    }
   }
 
   @override
@@ -507,6 +519,13 @@ class CrispASREngine implements TranscriptionEngine {
         final useGpu = (_config['asrUseGpu'] as bool?) ?? true;
         final flashAttn = (_config['asrFlashAttn'] as bool?) ?? true;
         final nGpuLayers = (_config['asrNGpuLayers'] as int?) ?? -1;
+        CrashBreadcrumb.record(NativeOperationRecord(
+          phase: 'loadModel',
+          startedAtUtc: DateTime.now().toUtc(),
+          modelId: modelId,
+          backend: def.backend,
+          modelPath: modelPath,
+        ));
         try {
           _session = crispasr.CrispasrSession.openWithParams(
             modelPath,
@@ -521,6 +540,7 @@ class CrispASREngine implements TranscriptionEngine {
           _session =
               crispasr.CrispasrSession.open(modelPath, backend: def.backend);
         }
+        CrashBreadcrumb.clear();
         // Some backends need a companion file before they can run:
         //   * qwen3-tts → tokenizer GGUF via setCodecPath
         //   * orpheus    → SNAC codec GGUF via setCodecPath

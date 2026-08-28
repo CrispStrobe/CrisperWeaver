@@ -28,6 +28,9 @@ import 'dart:async';
 import 'dart:isolate';
 import 'dart:typed_data';
 
+import 'crash_breadcrumb_service.dart';
+import 'log_service.dart';
+
 import '../engines/transcription_engine.dart';
 import '../utils/affective_prompt_guard.dart';
 import '../widgets/advanced_options_widget.dart';
@@ -190,9 +193,18 @@ class TranscriptionWorkerPool {
     //   2. A {type: 'ready'} or {type: 'error'} confirmation
     SendPort? cmdPort;
     final completer = Completer<_Worker?>();
+    
+    CrashBreadcrumb.record(NativeOperationRecord(
+      phase: 'worker_spawn',
+      startedAtUtc: DateTime.now().toUtc(),
+      backend: backend,
+      modelPath: modelPath,
+    ));
+    
     late StreamSubscription<dynamic> sub;
     final timeout = Timer(const Duration(seconds: 30), () {
       if (!completer.isCompleted) {
+        CrashBreadcrumb.clear();
         Log.instance.w('worker-pool', 'spawn timeout for worker $index');
         sub.cancel();
         readyReceive.close();
@@ -206,6 +218,7 @@ class TranscriptionWorkerPool {
         return;
       }
       if (raw is Map && raw['type'] == 'ready') {
+        CrashBreadcrumb.clear();
         timeout.cancel();
         sub.cancel();
         readyReceive.close();
@@ -213,6 +226,7 @@ class TranscriptionWorkerPool {
         return;
       }
       if (raw is Map && raw['type'] == 'error') {
+        CrashBreadcrumb.clear();
         Log.instance.w('worker-pool',
             'worker $index init failed: ${raw['message']}');
         timeout.cancel();
