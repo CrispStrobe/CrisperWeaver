@@ -8,6 +8,7 @@ import 'package:path/path.dart' as p;
 import '../engines/transcription_engine.dart';
 import '../main.dart' show modelServiceProvider;
 import 'log_service.dart';
+import 'model_catalog.dart';
 import 'model_service.dart';
 
 /// CTC / forced-aligner word timestamp backfill via CrispASR 0.4.7+
@@ -83,19 +84,92 @@ class AlignerService {
     return null;
   }
 
+  /// Map a catalog model *name* (what the Advanced-options aligner
+  /// dropdown stores, e.g. `canary-ctc-aligner-q4_k`) to the file name
+  /// the downloader wrote into the models dir. Static so the pure
+  /// resolver below can be exercised without a ModelService.
+  static String? catalogFileName(String name) =>
+      ModelCatalog.crispasrBackendModels[name]?.fileName ??
+      ModelCatalog.whisperCppModels[name]?.fileName;
+
+  /// Resolve an aligner override to a concrete file path — the fix for
+  /// the dropdown that used to be inert (#35).
+  ///
+  /// [explicit] arrives in one of two shapes and both are honoured:
+  ///   * a filesystem path (what CLI flags / older callers passed) —
+  ///     used as-is when the file exists;
+  ///   * a **catalog key** like `canary-ctc-aligner-q4_k` (what the UI
+  ///     dropdown stores) — resolved through the catalog to
+  ///     `<modelsDir>/<fileName>`.
+  ///
+  /// Returns null when neither form is on disk, which the caller turns
+  /// into a warning + auto-detection fallback. Pure apart from the
+  /// injectable [fileExists] probe, so it is unit-testable.
+  static String? resolveAlignerOverride(
+    String explicit, {
+    required String modelsDirPath,
+    String? Function(String name)? fileNameFor,
+    bool Function(String path)? fileExists,
+  }) {
+    if (explicit.isEmpty) return null;
+    final exists = fileExists ?? ((String path) => File(path).existsSync());
+    // 1) Back-compat: an actual file path.
+    if (exists(explicit)) return explicit;
+    if (modelsDirPath.isEmpty) return null;
+    // 2) Catalog key → downloaded file name, plus the hand-typed
+    //    variants (bare file name, key without the .gguf suffix).
+    final lookup = fileNameFor ?? catalogFileName;
+    final candidates = <String>[];
+    final fromCatalog = lookup(explicit);
+    if (fromCatalog != null && fromCatalog.isNotEmpty) {
+      candidates.add(fromCatalog);
+    }
+    final base = p.basename(explicit);
+    if (base.isNotEmpty && !candidates.contains(base)) candidates.add(base);
+    if (!base.endsWith('.gguf')) {
+      final withExt = '$base.gguf';
+      if (!candidates.contains(withExt)) candidates.add(withExt);
+    }
+    for (final c in candidates) {
+      final full = p.join(modelsDirPath, c);
+      if (exists(full)) return full;
+    }
+    return null;
+  }
+
   /// Return the path to a downloaded aligner GGUF, or null if none found.
   ///
   /// When [language] is provided, prefers a language-specific wav2vec2
   /// aligner (e.g., wav2vec2-large-xlsr-53-french for 'fr') before
   /// falling back to the generic canary-ctc-aligner. When [explicit] is
-  /// provided (e.g., from a user setting or CLI flag), that path is
-  /// returned directly.
+  /// provided (a catalog key from the Advanced-options dropdown, or a
+  /// raw path), it wins over auto-detection — unless the named model
+  /// isn't downloaded, in which case we say so and fall back.
   Future<String?> findAligner({String? language, String? explicit}) async {
-    // Explicit path from user — use as-is.
+    // Explicit override from the user: a path OR a catalog key.
     if (explicit != null && explicit.isNotEmpty) {
       if (File(explicit).existsSync()) return explicit;
-      Log.instance.w('aligner', 'explicit aligner path not found',
-          fields: {'path': explicit});
+      String modelsDirPath = '';
+      try {
+        await modelService?.initialize();
+        modelsDirPath =
+            modelService?.whisperCppDir() ?? await _legacyDefaultModelsDir();
+      } catch (e, st) {
+        Log.instance.w('aligner', 'failed to resolve models dir for override',
+            error: e, stack: st);
+      }
+      final resolved = resolveAlignerOverride(explicit,
+          modelsDirPath: modelsDirPath, fileNameFor: _fileNameFor);
+      if (resolved != null) {
+        Log.instance.i('aligner', 'using aligner override',
+            fields: {'model': explicit, 'path': resolved});
+        return resolved;
+      }
+      Log.instance.w(
+          'aligner',
+          'aligner override "$explicit" is not downloaded — '
+              'falling back to auto-detection',
+          fields: {'model': explicit, 'models_dir': modelsDirPath});
     }
 
     // Cache hit — reuse if the language hasn't changed.
@@ -244,6 +318,12 @@ class AlignerService {
   }) =>
       addWordTimestamps(segments, pcm,
           language: language, alignerModel: alignerModel);
+
+  /// Catalog lookup that prefers the live ModelService view (it also
+  /// knows HF-probed quants and baked-catalog entries) and falls back
+  /// to the static catalog when no service is injected.
+  String? _fileNameFor(String name) =>
+      modelService?.lookupDefinition(name)?.fileName ?? catalogFileName(name);
 
   /// Legacy fallback path when no ModelService is wired (test
   /// fixtures, standalone use). Returns a temp-dir path so the

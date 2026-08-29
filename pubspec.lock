@@ -191,7 +191,7 @@ packages:
       path: "../CrispASR/flutter/crispasr"
       relative: true
     source: path
-    version: "0.8.29"
+    version: "0.8.30"
   crispembed:
     dependency: "direct main"
     description:
@@ -419,7 +419,7 @@ packages:
       path: "../glint/bindings/dart"
       relative: true
     source: path
-    version: "0.11.0"
+    version: "0.9.0"
   glob:
     dependency: transitive
     description:

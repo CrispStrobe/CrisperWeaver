@@ -174,13 +174,31 @@ class AppLocalizationsZh extends AppLocalizations {
   String get diarizationSubtitle => '识别录音中的不同说话人';
 
   @override
+  String get diarizationEnableTooltip =>
+      '为转写结果的每一段标注由谁说出（说话人 1、说话人 2……）。适合访谈和会议，会增加处理时间。';
+
+  @override
   String get diarizationModel => '分离模型';
+
+  @override
+  String get diarizationModelHelper =>
+      '选择运行哪种分离器。语音轮换检测无需额外模型；Pyannote 与 FoxNose 需要各自的 GGUF；立体声方法需要双声道音频。';
 
   @override
   String get minSpeakers => '最少说话人数';
 
   @override
+  String get minSpeakersHelper => '说话人数量的下限。选择“自动”则由说话人分离自行估计。';
+
+  @override
   String get maxSpeakers => '最多说话人数';
+
+  @override
+  String get maxSpeakersHelper => '说话人数量的上限。选择“自动”则由说话人分离自行估计。';
+
+  @override
+  String get diarizationSpeakerBoundsNote =>
+      '只有 FoxNose 会直接使用这些上下限。其他方法中，上限仍会限制说话人重新聚类（需要说话人嵌入模型），下限可能被忽略。';
 
   @override
   String get auto => '自动';
@@ -1167,6 +1185,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get advancedSection => '高级解码';
 
   @override
+  String get advancedSectionTooltip =>
+      '控制模型将音频转成文字的方式。默认值适合大多数录音——仅在转写结果不理想时才需要调整。';
+
+  @override
   String get advancedVadTrim => '静音裁剪（VAD）';
 
   @override
@@ -1217,6 +1239,10 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get advancedInitialPromptHint =>
       '例如：\"CrispASR, Flutter, Riverpod, 说话人区分\"';
+
+  @override
+  String get advancedInitialPromptHelper =>
+      '模型在处理音频前先读取的上下文：人名、术语或希望采用的写法。Whisper 类模型会使用它；CTC 模型（Parakeet、Canary、Wav2Vec2）会忽略。';
 
   @override
   String get advancedRestorePunctuation => '恢复标点（FireRedPunc）';
@@ -1797,11 +1823,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get voiceCloneCaptureClear => '重新开始';
 
   @override
+  String get voiceCloneNonWavWarning =>
+      '该文件不是 WAV。只有 chatterbox 支持从其他格式克隆；qwen3-tts、IndexTTS、VibeVoice、F5-TTS 等都需要 WAV，会拒绝此片段。请在此处录制，或先转换为单声道 16/24 kHz WAV。';
+
+  @override
   String get voiceCloneRefTextHeading => '片段中说了什么？';
 
   @override
   String get voiceCloneRefTextHelp =>
-      '某些克隆器（indextts、vibevoice）需要参考片段的逐字转录用于对齐。其他（chatterbox、qwen3-tts Base）仅从音频克隆 — 如果所选后端不需要，留空即可。';
+      'Qwen3-TTS Base 和 CosyVoice3 没有逐字转录就无法克隆；indextts / vibevoice 用它进行对齐。chatterbox 和 F5-TTS 仅从音频即可克隆。拿不准时就填写 — 准确的转录不会有坏处。';
 
   @override
   String get voiceCloneRefTextLabel => '参考转录';
@@ -1818,7 +1848,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get voiceCloneHandoffModelHint =>
-      '提示：chatterbox / qwen3-tts Base 仅从音频克隆；indextts / vibevoice 还使用参考转录。';
+      '提示：chatterbox / F5-TTS 仅从音频克隆；qwen3-tts Base 和 CosyVoice3 必须提供参考转录；indextts / vibevoice 在提供时会使用它。';
 
   @override
   String get voiceCloneSummaryReference => '参考片段';
@@ -2016,6 +2046,16 @@ class AppLocalizationsZh extends AppLocalizations {
   String get advancedLidMethodEcapa => 'ECAPA-TDNN（107 种语言，约 42 MB GGUF）';
 
   @override
+  String get advancedAlignerModel => '词级时间戳对齐模型';
+
+  @override
+  String get advancedAlignerModelAuto => '自动（选择最佳可用）';
+
+  @override
+  String get advancedAlignerModelHelper =>
+      '当转写模型本身不输出词级时间戳时，用它补齐。“自动”优先选择与语言匹配的 Wav2Vec2 模型，否则使用 Canary CTC 对齐模型。';
+
+  @override
   String get advancedGrammarTitle => 'GBNF 语法（仅 Whisper）';
 
   @override
@@ -2027,6 +2067,10 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get advancedGrammarTextLabel => 'GBNF 源码';
+
+  @override
+  String get advancedGrammarTextHelper =>
+      '用于限制解码器输出内容的 GBNF 规则。普通转写请留空；规则无效会导致本次运行报错中止。';
 
   @override
   String get advancedGrammarRootRule => '根规则';
@@ -2206,6 +2250,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get advancedDiarizeXcorr => '立体声互相关';
+
+  @override
+  String get advancedDiarizeFoxnose => 'FoxNose（WeSpeaker 声纹嵌入，需要 GGUF）';
 
   @override
   String get advancedSpeakerRecognition => '识别已注册说话人';
@@ -2398,6 +2445,40 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get synthCustomVoiceClear => '清除自定义声音';
+
+  @override
+  String synthCloneReferenceActive(String file) {
+    return '正在从 $file 克隆';
+  }
+
+  @override
+  String synthCloneModelCannotClone(String model) {
+    return '$model 无法从参考片段克隆声音 — 它只接受已下载的声音包。请选择支持克隆的模型（chatterbox、IndexTTS、Qwen3-TTS Base、VibeVoice 1.5B、F5-TTS），或清除参考片段。';
+  }
+
+  @override
+  String synthCloneNeedsRefText(String model) {
+    return '$model 需要参考片段的转录文本。请在「高级 → 参考转录」中输入片段内容，然后重新合成。';
+  }
+
+  @override
+  String synthCloneNeedsWav(String model) {
+    return '$model 只能从 WAV 参考克隆。请将片段转换为单声道 16 或 24 kHz WAV，或在声音克隆向导中重新录制。';
+  }
+
+  @override
+  String synthCloneReferenceMissing(String file) {
+    return '参考片段 $file 已不在磁盘上。请重新选择或录制一个新的。';
+  }
+
+  @override
+  String synthCloneNonAsciiPath(String file) {
+    return '在 Windows 上，音频引擎无法打开路径含非英文字符的文件。请将 $file 复制到纯 ASCII 路径的文件夹（例如 C:\\voices\\）后重新选择。';
+  }
+
+  @override
+  String get synthCloneNoCapableModel =>
+      '已下载的 TTS 模型都无法克隆声音。请先在模型管理中下载 chatterbox、IndexTTS、Qwen3-TTS Base、VibeVoice 1.5B 或 F5-TTS。';
 
   @override
   String get recorderStreamSession => '流式（会话）';
@@ -3232,6 +3313,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get advancedAllOptions => '全部选项';
 
   @override
+  String get advancedAllOptionsTooltip =>
+      '专家选项：Whisper 专用解码开关、字幕断行、语法约束以及 CPU/GPU 调优。通常无需改动。';
+
+  @override
   String get onboardingTitle => '设置 CrisperWeaver';
 
   @override
@@ -3470,6 +3555,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get workspaceRenameSpeaker => '重命名说话人';
+
+  @override
+  String get navBackToHome => '返回主页';
 
   @override
   String workspaceSegmentSemantics(int number, String time, String text) {

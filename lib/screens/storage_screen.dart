@@ -6,6 +6,7 @@ import '../l10n/generated/app_localizations.dart';
 import '../main.dart' show modelServiceProvider;
 import '../services/log_service.dart';
 import '../services/model_service.dart';
+import '../widgets/root_aware_back_leading.dart';
 
 class StorageScreen extends ConsumerStatefulWidget {
   const StorageScreen({super.key});
@@ -48,6 +49,9 @@ class _StorageScreenState extends ConsumerState<StorageScreen> {
     final l = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
+        // #35 — no back button when this was reached by a stack-replacing
+        // `go()`; fall back to a home button.
+        leading: rootAwareBackLeading(context),
         title: Text(l.storageTitle),
         actions: [
           IconButton(

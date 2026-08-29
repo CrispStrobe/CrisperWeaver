@@ -112,12 +112,22 @@ void main() {
     test('every companion name resolves to a real ModelDefinition', () {
       final dangling = <String>[];
       // Walk every ModelDefinition.companions and every
-      // BackendRepo.defaultCompanions. Names that don't exist as a
-      // crispasrBackendModels key will throw a ModelLoadException
-      // at runtime (engine line 388 in crispasr_engine.dart).
+      // BackendRepo.defaultCompanions. Names the engine can't resolve
+      // throw a ModelLoadException at runtime (crispasr_engine.dart's
+      // companion loop). Resolution goes through
+      // `ModelService.lookupDefinition`, which also consults the
+      // generated voicepack map — the VibeVoice / Kokoro TTS rows point
+      // their `companions:` straight at a voicepack there (issue #35
+      // repointed Emma from a hand-written duplicate to the generated
+      // `vibevoice-voice-en-Emma_woman`), so checking
+      // `crispasrBackendModels` alone would report a false positive.
+      final resolvable = <String, ModelDefinition>{
+        ...ModelCatalog.crispasrBackendModels,
+        ...ModelCatalog.ttsVoicepacks,
+      };
       for (final entry in ModelCatalog.crispasrBackendModels.entries) {
         for (final companionName in entry.value.companions) {
-          if (!ModelCatalog.crispasrBackendModels.containsKey(companionName)) {
+          if (!resolvable.containsKey(companionName)) {
             dangling
                 .add('${entry.key} → "$companionName" (not in catalogue)');
           }
@@ -125,7 +135,7 @@ void main() {
       }
       for (final repoEntry in ModelCatalog.backendRepos.entries) {
         for (final companionName in repoEntry.value.defaultCompanions) {
-          if (!ModelCatalog.crispasrBackendModels.containsKey(companionName)) {
+          if (!resolvable.containsKey(companionName)) {
             dangling.add(
                 'BackendRepo[${repoEntry.key}] → "$companionName" (not in catalogue)');
           }
@@ -200,9 +210,12 @@ void main() {
     });
 
     test('ModelDefinition.matchesLanguage filter logic', () {
-      // Untagged (`languages: []`) always passes — filter is
-      // permissive when metadata is missing so untagged-but-good
-      // entries don't disappear.
+      // Untagged (`languages: []`) passes for every kind except
+      // `voice` — the filter stays permissive where the catalogue's
+      // metadata is still patchy, so untagged-but-good models don't
+      // disappear. Voices are all tagged now, so an untagged one is
+      // hidden instead (issue #35); see
+      // `test/model_catalog_language_filter_test.dart`.
       const untagged = ModelDefinition(
         name: 'x',
         displayName: 'x',
@@ -331,25 +344,34 @@ void main() {
   });
 
   group('voicepack language extraction (parity)', () {
-    // _voicepackLanguages is private. Indirect test: build a
-    // synthetic BackendRepo for kokoro / vibevoice and verify the
-    // expected language extraction by parsing the public catalogue
-    // — kokoro hardcoded entries (e.g. kokoro-voice-af_heart) AND
-    // any voicepacks the runtime probe adds at first use are
-    // covered by the prefix-mapping rules documented in the helper.
+    // The derivation itself lives in `ModelCatalog.voicepackLanguages`
+    // and is exercised directly in
+    // `test/model_catalog_language_filter_test.dart`. What this group
+    // pins is that the hand-written voicepack rows agree with it.
     test('kokoro hardcoded voicepacks map to the right language', () {
-      // Spot-check: af_heart should be English, dm_bernd German.
       const m = ModelCatalog.crispasrBackendModels;
       final heart = m['kokoro-voice-af_heart'];
-      if (heart != null) {
-        // Hardcoded kokoro voicepacks predate the language field
-        // and may legitimately ship without it — empty list is
-        // OK (filter falls through). But if the field is set,
-        // it must be 'en'.
-        if (heart.languages.isNotEmpty) {
-          expect(heart.languages, contains('en'),
-              reason: 'kokoro-voice-af_heart is an English voicepack');
-        }
+      expect(heart, isNotNull);
+      // No longer optional: untagged voices are hidden from every
+      // language filter now, so a missing tag is a real bug (#35).
+      expect(heart!.languages, contains('en'),
+          reason: 'kokoro-voice-af_heart is an English voicepack');
+      expect(heart.languages,
+          ModelCatalog.voicepackLanguages('kokoro', 'af_heart'),
+          reason: 'the hand-written row must agree with the derivation '
+              'the HF probe and the bake script both use');
+    });
+
+    test('generated voicepacks agree with the derivation helper', () {
+      for (final entry in ModelCatalog.ttsVoicepacks.entries) {
+        final def = entry.value;
+        final voiceId = def.fileName
+            .replaceFirst(RegExp(r'^[a-z0-9]+-voice-'), '')
+            .replaceFirst(RegExp(r'\.gguf$'), '');
+        final derived =
+            ModelCatalog.voicepackLanguages(def.backend, voiceId);
+        if (derived.isEmpty) continue; // no opinion — nothing to check
+        expect(def.languages, derived, reason: entry.key);
       }
     });
   });

@@ -17,9 +17,13 @@
 // after the change and commit the new output.
 //
 // Pure-Dart, no Flutter deps — invoke with `dart run`, no SDK init.
+// (`model_catalog.dart` is deliberately import-free for exactly this
+// reason; keep it that way or this script stops running standalone.)
 
 import 'dart:convert';
 import 'dart:io';
+
+import 'package:crisper_weaver/services/model_catalog.dart';
 
 /// Whether a `.gguf` in an HF repo is something other than loadable weights.
 ///
@@ -705,6 +709,37 @@ const _repos = <RepoSpec>[
     displayPrefix: 'Granite Vision 3.3', description: 'SigLIP + Granite 2B VLM document OCR', kind: 'ocr'),
 ];
 
+/// ISO 639-1 tags for a repo's models, sourced from the single place
+/// they are curated: `ModelCatalog.backendRepos`.
+///
+/// Issue #35 — every baked entry used to ship without a `languages`
+/// field, which meant the Model Manager's language dropdown had nothing
+/// to filter on for all 364 rows and fell back to "untagged passes
+/// anything". Matching on (repoId, baseName) first lets repos that host
+/// several models (chatterbox T3 + S3Gen) resolve individually, with a
+/// repoId-only match as the fallback.
+List<String> _languagesFor(RepoSpec spec) {
+  BackendRepo? exact;
+  BackendRepo? byRepo;
+  for (final r in ModelCatalog.backendRepos.values) {
+    if (r.repoId != spec.repoId) continue;
+    byRepo ??= r;
+    if (r.baseName == spec.baseName) {
+      exact = r;
+      break;
+    }
+  }
+  return (exact ?? byRepo)?.defaultLanguages ?? const <String>[];
+}
+
+/// ISO 639-1 tag for one voicepack file, from the same derivation the
+/// runtime HF probe uses — so a baked voice and a freshly-probed one
+/// carry identical metadata.
+List<String> _voiceLanguagesFor(RepoSpec spec, String voiceId) {
+  final derived = ModelCatalog.voicepackLanguages(spec.backend, voiceId);
+  return derived.isEmpty ? _languagesFor(spec) : derived;
+}
+
 String _formatSize(int bytes) {
   if (bytes <= 0) return '?';
   if (bytes < 1024) return '$bytes B';
@@ -738,6 +773,12 @@ Future<void> main() async {
   int totalRepos = 0;
   int failedRepos = 0;
   final emittedKeys = <String>{};
+  // Issue #35 — `emittedKeys` alone let the same download through twice
+  // when two RepoSpecs share a repo and their baseNames both match a
+  // file (`Orpheus-3b-German-FT-Q8_0` matched both the
+  // `Orpheus-3b-German-FT` and `Orpheus-3b-German-FT-Q8_0` specs, so
+  // the Models screen listed it as two entries). Claim the URL too.
+  final emittedUrls = <String>{};
 
   for (final repo in _repos) {
     totalRepos++;
@@ -770,25 +811,42 @@ Future<void> main() async {
       final stem = fname.substring(0, fname.length - repo.extension.length);
       final sizeBytes = (sib['size'] as num?)?.toInt() ?? 0;
 
+      // Skip files published under a superseded name (the repo keeps
+      // both; the bytes are identical) — baking them would resurrect
+      // the duplicate voice rows issue #35 reported.
+      if (ModelCatalog.legacyModelFileRenames.containsKey(fname)) {
+        stdout.writeln('  skipping superseded duplicate: $fname');
+        continue;
+      }
+
       // Voicepack file?
       if (voicepackPrefix != null && stem.startsWith(voicepackPrefix)) {
         final voiceId = stem.substring(voicepackPrefix.length);
         final key = '${repo.voicepackBaseName}-$voiceId';
-        if (emittedKeys.add(key)) {
+        final voiceUrl =
+            'https://huggingface.co/${repo.repoId}/resolve/main/$fname';
+        if (emittedKeys.add(key) && emittedUrls.add(voiceUrl)) {
+          final langs = _voiceLanguagesFor(repo, voiceId);
+          // Same `[lang=xx]` tag the static voicepack catalogue writes —
+          // the Voices language chips read it as a fallback for rows
+          // whose `languages` never got filled in.
+          final langTag = langs.length == 1 && langs.first != '*'
+              ? ' [lang=${langs.first}]'
+              : '';
           final entry = <String, dynamic>{
             'name': key,
             'displayName': '${repo.displayPrefix} voice — $voiceId',
             'fileName': fname,
-            'url':
-                'https://huggingface.co/${repo.repoId}/resolve/main/$fname',
+            'url': voiceUrl,
             'sizeBytes': sizeBytes,
             'checksum': '',
-            'description':
-                '${repo.displayPrefix} voicepack — ${_formatSize(sizeBytes)}',
+            'description': '${repo.displayPrefix} voicepack — '
+                '${_formatSize(sizeBytes)}$langTag',
             'quantization': 'f16',
             'backend': repo.backend,
             'kind': 'voice',
           };
+          if (langs.isNotEmpty) entry['languages'] = langs;
           if (repo.license != null) entry['license'] = repo.license;
           entries.add(entry);
           repoEntries++;
@@ -810,12 +868,16 @@ Future<void> main() async {
       } else {
         continue;
       }
+      final modelUrl =
+          'https://huggingface.co/${repo.repoId}/resolve/main/$fname';
       if (!emittedKeys.add(key)) continue;
+      if (!emittedUrls.add(modelUrl)) continue;
+      final langs = _languagesFor(repo);
       final entry = <String, dynamic>{
         'name': key,
         'displayName': '${repo.displayPrefix} ($quant)',
         'fileName': fname,
-        'url': 'https://huggingface.co/${repo.repoId}/resolve/main/$fname',
+        'url': modelUrl,
         'sizeBytes': sizeBytes,
         'checksum': '',
         'description': '${repo.description} — ${_formatSize(sizeBytes)}',
@@ -823,6 +885,7 @@ Future<void> main() async {
         'backend': repo.backend,
         'kind': repo.kind,
       };
+      if (langs.isNotEmpty) entry['languages'] = langs;
       if (repo.license != null) entry['license'] = repo.license;
       if (repo.requiresVoice) entry['requiresVoice'] = true;
       entries.add(entry);

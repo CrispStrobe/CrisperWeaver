@@ -24,6 +24,10 @@ void main() {
       expect(svc.preferredEngine, EngineType.crispasr);
       expect(svc.defaultModel, 'base');
       expect(svc.defaultBackend, 'whisper');
+      // #35 — empty means "no onboarding pick"; the Synthesize screen then
+      // falls back to catalogue order.
+      expect(svc.defaultTtsModel, '');
+      expect(svc.defaultTtsVoice, '');
       expect(svc.defaultLanguage, 'auto');
       expect(svc.autoDetectLanguage, isTrue);
       expect(svc.enableWordTimestamps, isFalse);
@@ -43,6 +47,8 @@ void main() {
       svc.preferredEngine = EngineType.mock;
       svc.defaultModel = 'tiny';
       svc.defaultBackend = 'parakeet';
+      svc.defaultTtsModel = 'kokoro-82m-q8_0';
+      svc.defaultTtsVoice = 'kokoro-voice-af_heart';
       svc.defaultLanguage = 'de';
       svc.autoDetectLanguage = false;
       svc.enableWordTimestamps = true;
@@ -62,6 +68,8 @@ void main() {
       expect(reloaded.preferredEngine, EngineType.mock);
       expect(reloaded.defaultModel, 'tiny');
       expect(reloaded.defaultBackend, 'parakeet');
+      expect(reloaded.defaultTtsModel, 'kokoro-82m-q8_0');
+      expect(reloaded.defaultTtsVoice, 'kokoro-voice-af_heart');
       expect(reloaded.defaultLanguage, 'de');
       expect(reloaded.autoDetectLanguage, isFalse);
       expect(reloaded.enableWordTimestamps, isTrue);

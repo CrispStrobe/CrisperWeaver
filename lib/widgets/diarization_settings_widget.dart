@@ -1,35 +1,98 @@
 import 'package:flutter/material.dart';
 
 import '../l10n/generated/app_localizations.dart';
+import '../native/crispasr_import.dart' as crispasr;
 
-class DiarizationSettingsWidget extends StatefulWidget {
+/// The diarisation card at the top of Advanced options.
+///
+/// §35 — this used to be a half-dead control: the model / min / max
+/// pickers lived in the widget's own State and nothing ever read them
+/// back, so every choice except the on/off switch was decoration. It is
+/// now fully controlled — the parent owns the values and every change
+/// is reported upward, which is what puts them into the
+/// `diarizeSegments` call.
+///
+/// The model picker also stopped lying. It used to offer
+/// Default/English/Chinese/… language variants that do not exist
+/// anywhere in the catalogue; the real choice is which diarisation
+/// *method* (and therefore which model file) runs, so that is what it
+/// offers now, with unavailable model files marked.
+class DiarizationSettingsWidget extends StatelessWidget {
   final bool enabled;
   final void Function(bool enabled) onChanged;
+
+  /// The diarisation method — the real "model" choice. Mirrors
+  /// `AdvancedOptions.diarizeMethod`; the parent writes it back there.
+  final crispasr.DiarizeMethod method;
+  final void Function(crispasr.DiarizeMethod method)? onMethodChanged;
+
+  /// Speaker-count bounds. null = "Auto" (let the diarizer estimate).
+  final int? minSpeakers;
+  final int? maxSpeakers;
+  final void Function(int? value)? onMinSpeakersChanged;
+  final void Function(int? value)? onMaxSpeakersChanged;
+
+  /// Methods whose model file isn't on disk. Those entries are marked
+  /// "(Not downloaded)" — picking one is not an error (the service
+  /// degrades to vad-turns and logs why), but the user gets told
+  /// before the run instead of after.
+  final Set<crispasr.DiarizeMethod> unavailableMethods;
+
+  /// Whether the audio in hand is stereo. The energy / xcorr methods
+  /// are channel-based and produce nothing useful on mono, so they are
+  /// only offered when a stereo source is loaded.
+  final bool stereoAvailable;
 
   const DiarizationSettingsWidget({
     super.key,
     required this.enabled,
     required this.onChanged,
+    this.method = crispasr.DiarizeMethod.vadTurns,
+    this.onMethodChanged,
+    this.minSpeakers,
+    this.maxSpeakers,
+    this.onMinSpeakersChanged,
+    this.onMaxSpeakersChanged,
+    this.unavailableMethods = const <crispasr.DiarizeMethod>{},
+    this.stereoAvailable = false,
   });
 
-  @override
-  State<DiarizationSettingsWidget> createState() =>
-      _DiarizationSettingsWidgetState();
-}
+  /// Methods offered by the picker, in the order they appear.
+  List<crispasr.DiarizeMethod> get _methods => [
+        crispasr.DiarizeMethod.vadTurns,
+        crispasr.DiarizeMethod.pyannote,
+        crispasr.DiarizeMethod.foxNose,
+        // Stereo-only methods stay in the list when they're the current
+        // selection, so a value picked in Advanced options never falls
+        // out from under the dropdown.
+        if (stereoAvailable || method == crispasr.DiarizeMethod.energy)
+          crispasr.DiarizeMethod.energy,
+        if (stereoAvailable || method == crispasr.DiarizeMethod.xcorr)
+          crispasr.DiarizeMethod.xcorr,
+      ];
 
-class _DiarizationSettingsWidgetState extends State<DiarizationSettingsWidget> {
-  int? _minSpeakers;
-  int? _maxSpeakers;
-  String _diarizationModel = 'Default';
-
-  final List<String> _availableModels = [
-    'Default',
-    'English',
-    'Chinese',
-    'German',
-    'Spanish',
-    'Japanese',
-  ];
+  String _methodLabel(BuildContext context, crispasr.DiarizeMethod m) {
+    final l = AppLocalizations.of(context);
+    // if-chain rather than a switch: a method the library adds later
+    // then shows its raw name instead of failing to compile or, worse,
+    // being silently mislabelled as one of these.
+    String base = m.name;
+    if (m == crispasr.DiarizeMethod.vadTurns) {
+      base = l.advancedDiarizeVadTurns;
+    } else if (m == crispasr.DiarizeMethod.pyannote) {
+      base = l.advancedDiarizePyannote;
+    } else if (m == crispasr.DiarizeMethod.foxNose) {
+      base = l.advancedDiarizeFoxnose;
+    } else if (m == crispasr.DiarizeMethod.energy) {
+      base = l.advancedDiarizeEnergy;
+    } else if (m == crispasr.DiarizeMethod.xcorr) {
+      base = l.advancedDiarizeXcorr;
+    }
+    if (unavailableMethods.contains(m)) {
+      return '$base  (${l.modelsNotDownloaded})';
+    }
+    return base;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -49,9 +112,15 @@ class _DiarizationSettingsWidgetState extends State<DiarizationSettingsWidget> {
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const Spacer(),
-                Switch(
-                  value: widget.enabled,
-                  onChanged: widget.onChanged,
+                // Hover (desktop) / long-press (touch) help — the
+                // subtitle below says WHAT it is, the tooltip says
+                // when it's worth the extra processing time.
+                Tooltip(
+                  message: AppLocalizations.of(context).diarizationEnableTooltip,
+                  child: Switch(
+                    value: enabled,
+                    onChanged: onChanged,
+                  ),
                 ),
               ],
             ),
@@ -65,9 +134,9 @@ class _DiarizationSettingsWidgetState extends State<DiarizationSettingsWidget> {
                   ),
             ),
 
-            if (widget.enabled) ...[
+            if (enabled) ...[
               const SizedBox(height: 16),
-              _buildDiarizationSettings(),
+              _buildDiarizationSettings(context),
             ],
           ],
         ),
@@ -75,11 +144,11 @@ class _DiarizationSettingsWidgetState extends State<DiarizationSettingsWidget> {
     );
   }
 
-  Widget _buildDiarizationSettings() {
+  Widget _buildDiarizationSettings(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Diarization model selection
+        // Diarization method / model selection
         Row(
           children: [
             Expanded(
@@ -88,26 +157,38 @@ class _DiarizationSettingsWidgetState extends State<DiarizationSettingsWidget> {
                 children: [
                   Text(AppLocalizations.of(context).diarizationModel),
                   const SizedBox(height: 4),
-                  DropdownButtonFormField<String>(
-                    initialValue: _diarizationModel,
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                      contentPadding:
-                          EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  DropdownButtonFormField<crispasr.DiarizeMethod>(
+                    // Keyed on the value so an external change (the
+                    // expert picker in Advanced decoding writes the
+                    // same state) is reflected here — FormField only
+                    // reads initialValue on first build.
+                    key: ValueKey<String>('diarize-method-${method.name}'),
+                    initialValue:
+                        _methods.contains(method) ? method : _methods.first,
+                    // Labels like "VAD turns (fast, less accurate)
+                    // (Not downloaded)" outgrow a narrow card; without
+                    // isExpanded the selected-item Row overflows.
+                    isExpanded: true,
+                    decoration: InputDecoration(
+                      helperText:
+                          AppLocalizations.of(context).diarizationModelHelper,
+                      helperMaxLines: 3,
+                      border: const OutlineInputBorder(),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
                     ),
-                    items: _availableModels.map((model) {
+                    items: _methods.map((m) {
                       return DropdownMenuItem(
-                        value: model,
-                        child: Text(model),
+                        value: m,
+                        child: Text(_methodLabel(context, m),
+                            overflow: TextOverflow.ellipsis),
                       );
                     }).toList(),
-                    onChanged: (value) {
-                      if (value != null) {
-                        setState(() {
-                          _diarizationModel = value;
-                        });
-                      }
-                    },
+                    onChanged: onMethodChanged == null
+                        ? null
+                        : (value) {
+                            if (value != null) onMethodChanged!(value);
+                          },
                   ),
                 ],
               ),
@@ -115,7 +196,7 @@ class _DiarizationSettingsWidgetState extends State<DiarizationSettingsWidget> {
             const SizedBox(width: 8),
             IconButton(
               icon: const Icon(Icons.help_outline),
-              onPressed: _showModelHelp,
+              onPressed: () => _showModelHelp(context),
               tooltip: AppLocalizations.of(context).tooltipModelSelectionHelp,
             ),
           ],
@@ -134,11 +215,15 @@ class _DiarizationSettingsWidgetState extends State<DiarizationSettingsWidget> {
                   Text(AppLocalizations.of(context).minSpeakers),
                   const SizedBox(height: 4),
                   DropdownButtonFormField<int?>(
-                    initialValue: _minSpeakers,
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                      contentPadding:
-                          EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    key: ValueKey<String>('min-speakers-$minSpeakers'),
+                    initialValue: minSpeakers,
+                    decoration: InputDecoration(
+                      helperText:
+                          AppLocalizations.of(context).minSpeakersHelper,
+                      helperMaxLines: 3,
+                      border: const OutlineInputBorder(),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
                     ),
                     hint: Text(AppLocalizations.of(context).diarizationAuto),
                     items: [
@@ -154,17 +239,7 @@ class _DiarizationSettingsWidgetState extends State<DiarizationSettingsWidget> {
                         );
                       }),
                     ],
-                    onChanged: (value) {
-                      setState(() {
-                        _minSpeakers = value;
-                        // Ensure max >= min
-                        if (_maxSpeakers != null &&
-                            value != null &&
-                            _maxSpeakers! < value) {
-                          _maxSpeakers = value;
-                        }
-                      });
-                    },
+                    onChanged: onMinSpeakersChanged,
                   ),
                 ],
               ),
@@ -180,11 +255,15 @@ class _DiarizationSettingsWidgetState extends State<DiarizationSettingsWidget> {
                   Text(AppLocalizations.of(context).maxSpeakers),
                   const SizedBox(height: 4),
                   DropdownButtonFormField<int?>(
-                    initialValue: _maxSpeakers,
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                      contentPadding:
-                          EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    key: ValueKey<String>('max-speakers-$maxSpeakers'),
+                    initialValue: maxSpeakers,
+                    decoration: InputDecoration(
+                      helperText:
+                          AppLocalizations.of(context).maxSpeakersHelper,
+                      helperMaxLines: 3,
+                      border: const OutlineInputBorder(),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
                     ),
                     hint: Text(AppLocalizations.of(context).diarizationAuto),
                     items: [
@@ -200,23 +279,36 @@ class _DiarizationSettingsWidgetState extends State<DiarizationSettingsWidget> {
                         );
                       }),
                     ],
-                    onChanged: (value) {
-                      setState(() {
-                        _maxSpeakers = value;
-                        // Ensure min <= max
-                        if (_minSpeakers != null &&
-                            value != null &&
-                            _minSpeakers! > value) {
-                          _minSpeakers = value;
-                        }
-                      });
-                    },
+                    onChanged: onMaxSpeakersChanged,
                   ),
                 ],
               ),
             ),
           ],
         ),
+
+        // Honest note about what the bounds actually reach. FoxNose is
+        // the one method the library lets us bound directly; for the
+        // others the upper bound still drives the embedding-based
+        // re-clustering pass, and the lower bound is only a hint the
+        // library may ignore.
+        if (method != crispasr.DiarizeMethod.foxNose &&
+            (minSpeakers != null || maxSpeakers != null)) ...[
+          const SizedBox(height: 8),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.info_outline, size: 14, color: Colors.grey.shade600),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  AppLocalizations.of(context).diarizationSpeakerBoundsNote,
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+                ),
+              ),
+            ],
+          ),
+        ],
 
         const SizedBox(height: 16),
 
@@ -249,7 +341,7 @@ class _DiarizationSettingsWidgetState extends State<DiarizationSettingsWidget> {
               Text(
                 '• Use clean audio with minimal background noise\n'
                 '• Recordings where speakers don\'t talk over each other work better\n'
-                '• Choose language-specific models for non-English content\n'
+                '• FoxNose is the method that can be told how many speakers to find\n'
                 '• Set min/max speakers if you know how many to expect',
                 style: TextStyle(
                   fontSize: 12,
@@ -290,7 +382,7 @@ class _DiarizationSettingsWidgetState extends State<DiarizationSettingsWidget> {
     );
   }
 
-  void _showModelHelp() {
+  void _showModelHelp(BuildContext context) {
     showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
@@ -302,20 +394,25 @@ class _DiarizationSettingsWidgetState extends State<DiarizationSettingsWidget> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                'Choose the appropriate diarization model for your audio:\n',
+                'Which diarizer runs over the audio:\n',
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
               SizedBox(height: 8),
-              Text('• Default: General purpose diarization model'),
-              Text('• English: Optimized for English conversations'),
-              Text('• Chinese: Optimized for Mandarin Chinese conversations'),
-              Text('• German: Optimized for German conversations'),
-              Text('• Spanish: Optimized for Spanish conversations'),
-              Text('• Japanese: Optimized for Japanese conversations'),
+              Text('• Speech-turn detection: no extra model, mono-friendly, '
+                  'alternates speakers at pauses. The default.'),
+              Text('• Pyannote v3: ML segmentation (needs pyannote-*.gguf), '
+                  'up to 3 speakers per slice.'),
+              Text('• FoxNose: WeSpeaker embeddings + clustering (needs '
+                  'wespeaker-*.gguf). The only method that honours the '
+                  'min/max speaker bounds directly.'),
+              Text('• Channel energy / cross-correlation: stereo only — '
+                  'one speaker per channel, e.g. a two-track interview.'),
               SizedBox(height: 12),
               Text(
-                'Language-specific models may provide better results for their respective languages, '
-                'especially for phone calls and naturalistic conversations.',
+                'Methods that need a model file are marked "(Not downloaded)" '
+                'until you fetch them in Model Management. Picking one anyway '
+                'is safe: the run falls back to speech-turn detection and logs '
+                'why.',
                 style: TextStyle(fontStyle: FontStyle.italic),
               ),
             ],
@@ -330,9 +427,4 @@ class _DiarizationSettingsWidgetState extends State<DiarizationSettingsWidget> {
       ),
     );
   }
-
-  // Getters for accessing current settings
-  String get diarizationModel => _diarizationModel;
-  int? get minSpeakers => _minSpeakers;
-  int? get maxSpeakers => _maxSpeakers;
 }

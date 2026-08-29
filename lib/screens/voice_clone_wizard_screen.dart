@@ -34,6 +34,7 @@ import 'package:just_audio/just_audio.dart';
 import 'package:path/path.dart' as p;
 
 import '../l10n/generated/app_localizations.dart';
+import '../providers/synthesize_screen_provider.dart';
 import '../services/audio_service.dart';
 import '../services/log_service.dart';
 import '../services/settings_service.dart';
@@ -69,6 +70,13 @@ class _VoiceCloneWizardScreenState
   String? _recordedPath;
   String? _captureError;
 
+  /// #35 — non-fatal note about the picked file. Today it only fires for
+  /// a non-WAV reference: every cloning backend except chatterbox routes
+  /// on the literal `.wav` suffix in `crispasr_session_set_voice()`, so
+  /// an MP3 picked here fails later, deep inside the engine, with a bare
+  /// `rc=-2`. Warn at the picker instead of at synthesis.
+  String? _captureWarning;
+
   // Step 2 state.
   final _refTextController = TextEditingController();
 
@@ -96,6 +104,7 @@ class _VoiceCloneWizardScreenState
         fields: {'target_seconds': _recordSecondsTarget});
     setState(() {
       _captureError = null;
+      _captureWarning = null;
       _recording = true;
       _recordSecondsLeft = _recordSecondsTarget;
     });
@@ -154,14 +163,29 @@ class _VoiceCloneWizardScreenState
   }
 
   Future<void> _pickFile() async {
-    setState(() => _captureError = null);
+    setState(() {
+      _captureError = null;
+      _captureWarning = null;
+    });
     try {
       final pick = await pickFilesRobust(
         type: FileType.audio,
         allowedExtensions: const ['wav', 'flac', 'mp3', 'ogg', 'opus', 'm4a'],
       );
       if (pick.isEmpty) return;
-      setState(() => _recordedPath = pick.localPaths.first);
+      final picked = pick.localPaths.first;
+      final isWav = picked.toLowerCase().endsWith('.wav');
+      if (!isWav) {
+        Log.instance.w('voice-clone', 'non-WAV reference picked',
+            fields: {'ext': p.extension(picked)});
+      }
+      if (!mounted) return;
+      final warning =
+          isWav ? null : AppLocalizations.of(context).voiceCloneNonWavWarning;
+      setState(() {
+        _recordedPath = picked;
+        _captureWarning = warning;
+      });
     } on FilePickerCloudUriUnsupported catch (e, st) {
       Log.instance.w('voice-clone',
           'cloud-URI pick failed even with fallback',
@@ -204,6 +228,7 @@ class _VoiceCloneWizardScreenState
     setState(() {
       _recordedPath = null;
       _captureError = null;
+      _captureWarning = null;
       _previewPlayer?.stop();
     });
   }
@@ -261,6 +286,19 @@ class _VoiceCloneWizardScreenState
   void _finishToSynthesize() {
     final path = _recordedPath;
     if (path == null) return;
+    Log.instance.i('voice-clone', 'hand-off to synthesize', fields: {
+      'ref': p.basename(path),
+      'ref_text_len': _refTextController.text.trim().length,
+    });
+    // #35 — belt and braces. `go('/synthesize')` re-uses the page that is
+    // already at the bottom of the stack (go_router keys pages by matched
+    // path), so the receiving screen gets the clip through
+    // `didUpdateWidget`, not `initState`. Seed the shared state directly
+    // as well, so the clip survives even if that widget-lifecycle detail
+    // ever changes again — the screen's own hand-off code is idempotent.
+    ref
+        .read(synthesizeScreenProvider.notifier)
+        .setCustomVoiceWavPath(path);
     context.go('/synthesize', extra: <String, String>{
       'voiceWavPath': path,
       'refText': _refTextController.text.trim(),
@@ -442,6 +480,12 @@ class _VoiceCloneWizardScreenState
                   Text(_captureError!,
                       style: TextStyle(
                           color: Colors.red.shade700, fontSize: 12)),
+                ],
+                if (_captureWarning != null) ...[
+                  const SizedBox(height: 12),
+                  Text(_captureWarning!,
+                      style: TextStyle(
+                          color: Colors.orange.shade800, fontSize: 12)),
                 ],
               ],
             ),

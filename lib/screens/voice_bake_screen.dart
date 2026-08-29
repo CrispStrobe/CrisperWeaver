@@ -6,6 +6,7 @@ import '../l10n/generated/app_localizations.dart';
 import '../services/log_service.dart';
 import '../services/voice_baking_service.dart';
 import '../utils/file_picker_util.dart';
+import '../widgets/root_aware_back_leading.dart';
 
 /// Wraps `models/bake-chatterbox-voice-from-wav.py` in a UI flow.
 /// Pick a WAV, set the output filename, optionally override the
@@ -161,7 +162,12 @@ class _VoiceBakeScreenState extends ConsumerState<VoiceBakeScreen> {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(title: Text(l.voiceBakeTitle)),
+      appBar: AppBar(
+        // #35 — no back button when this was reached by a stack-replacing
+        // `go()`; fall back to a home button.
+        leading: rootAwareBackLeading(context),
+        title: Text(l.voiceBakeTitle),
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(

@@ -55,9 +55,14 @@
   "perfSlowerThanRealtime": "slower than real-time",
   "diarizationTitle": "Speaker diarization",
   "diarizationSubtitle": "Identify different speakers in audio recordings",
+  "diarizationEnableTooltip": "Labels every part of the transcript with who spoke it (Speaker 1, Speaker 2, …). Turn it on for interviews and meetings; it adds processing time.",
   "diarizationModel": "Diarization model",
+  "diarizationModelHelper": "Which diarizer runs over the audio. Speech-turn detection needs no extra model; Pyannote and FoxNose need their GGUF; the stereo methods need two-channel audio.",
   "minSpeakers": "Min. speakers",
+  "minSpeakersHelper": "Lower bound for the number of speakers. Auto lets the diarizer estimate the count.",
   "maxSpeakers": "Max. speakers",
+  "maxSpeakersHelper": "Upper bound for the number of speakers. Auto lets the diarizer estimate the count.",
+  "diarizationSpeakerBoundsNote": "Only FoxNose is handed these bounds directly. With the other methods the upper bound still caps the speaker re-clustering pass (needs a speaker embedder) and the lower bound may be ignored.",
   "auto": "Auto",
   "settingsTitle": "Settings",
   "settingsAppLanguage": "App language",
@@ -731,6 +736,7 @@
   "batchStop": "Stop batch",
   "batchQueueDropHint": "Drop audio files here to queue them",
   "advancedSection": "Advanced decoding",
+  "advancedSectionTooltip": "Controls how the model turns audio into text. The defaults suit most recordings — change these only when a transcript comes out wrong.",
   "advancedVadTrim": "Trim silence (VAD)",
   "advancedVadTrimSubtitle": "Skip leading and trailing silence via Silero VAD. Faster on meetings / long recordings with silent padding.",
   "advancedTranslate": "Translate to English",
@@ -766,6 +772,7 @@
   "advancedChunkSecondsHelper": "Transcription chunk size in seconds. 0 = per-model default (~30s). Smaller values reduce peak memory on long files.",
   "advancedInitialPrompt": "Initial prompt (vocabulary / context)",
   "advancedInitialPromptHint": "e.g. \"CrispASR, Flutter, Riverpod, Sprecher-Unterscheidung\"",
+  "advancedInitialPromptHelper": "Context the model reads before the audio: names, jargon or a spelling it should follow. Used by Whisper-style models; CTC models (Parakeet, Canary, Wav2Vec2) ignore it.",
   "advancedRestorePunctuation": "Restore punctuation (FireRedPunc)",
   "advancedRestorePunctuationSubtitle": "Capitalize and punctuate raw output. Useful for CTC backends (wav2vec2, fastconformer-ctc, firered-asr). Requires fireredpunc-*.gguf in Model Management.",
   "advancedSourceLanguage": "Source language (override autodetect)",
@@ -1116,13 +1123,14 @@
   "voiceClonePreviewPlay": "Play",
   "voiceClonePreviewPause": "Pause",
   "voiceCloneCaptureClear": "Start over",
+  "voiceCloneNonWavWarning": "That file isn't a WAV. Only chatterbox clones from other formats; qwen3-tts, IndexTTS, VibeVoice, F5-TTS and the rest need a WAV and will refuse this clip. Record one here, or convert it to mono 16/24 kHz WAV first.",
   "voiceCloneRefTextHeading": "What was said in the clip?",
-  "voiceCloneRefTextHelp": "Some cloners (indextts, vibevoice) need a verbatim transcript of the reference clip for alignment. Others (chatterbox, qwen3-tts Base) clone from audio alone — leave this empty if your chosen backend doesn't need it.",
+  "voiceCloneRefTextHelp": "Qwen3-TTS Base and CosyVoice3 refuse to clone without a verbatim transcript of the clip, and indextts / vibevoice use it for alignment. chatterbox and F5-TTS clone from audio alone. When in doubt, fill it in — an accurate transcript never hurts.",
   "voiceCloneRefTextLabel": "Reference transcript",
   "voiceCloneRefTextHint": "Type what was said in the reference clip…",
   "voiceCloneHandoffHeading": "Ready to synthesize",
   "voiceCloneHandoffHelp": "We'll open the Synthesize screen with the clip and reference text pre-populated. Pick a clone-capable model (chatterbox, indextts, qwen3-tts Base, vibevoice-1.5b), type the text you want spoken, and hit Synthesize.",
-  "voiceCloneHandoffModelHint": "Tip: chatterbox / qwen3-tts Base clone from audio alone; indextts / vibevoice also use the reference transcript.",
+  "voiceCloneHandoffModelHint": "Tip: chatterbox / F5-TTS clone from audio alone; qwen3-tts Base and CosyVoice3 require the reference transcript, and indextts / vibevoice use it when given.",
   "voiceCloneSummaryReference": "Reference clip",
   "voiceCloneSummaryRefText": "Reference text",
   "voiceCloneSummaryRefTextEmpty": "(none — audio-only clone)",
@@ -1242,10 +1250,14 @@
   "advancedLidMethodSilero": "Silero (95 languages, ~16 MB GGUF)",
   "advancedLidMethodFirered": "FireRed (120 languages, ~300 MB GGUF)",
   "advancedLidMethodEcapa": "ECAPA-TDNN (107 languages, ~42 MB GGUF)",
+  "advancedAlignerModel": "Word-timing aligner",
+  "advancedAlignerModelAuto": "Auto (best available)",
+  "advancedAlignerModelHelper": "Adds word-level timestamps when the transcription model does not emit them itself. Auto prefers a Wav2Vec2 model matching the language, otherwise the Canary CTC aligner.",
   "advancedGrammarTitle": "GBNF grammar (Whisper only)",
   "advancedGrammarSubtitle": "Force a structured output shape (JSON / SKU / phone numbers / …). Empty = no constraint.",
   "advancedGrammarSubtitleActive": "Grammar active — output will be constrained to this GBNF.",
   "advancedGrammarTextLabel": "GBNF source",
+  "advancedGrammarTextHelper": "GBNF rules restricting what the decoder may output. Leave empty for normal transcription; invalid rules stop the run with an error.",
   "advancedGrammarRootRule": "Root rule",
   "advancedGrammarRootRuleHelper": "Symbol name to start parsing from. The GBNF convention is \"root\".",
   "advancedGrammarPenalty": "Grammar penalty: {value}",
@@ -1354,6 +1366,7 @@
   "advancedDiarizePyannote": "Pyannote v3 (ML, needs GGUF)",
   "advancedDiarizeEnergy": "Stereo L/R energy",
   "advancedDiarizeXcorr": "Stereo cross-correlation",
+  "advancedDiarizeFoxnose": "FoxNose (WeSpeaker embeddings, needs GGUF)",
   "advancedSpeakerRecognition": "Identify enrolled speakers",
   "advancedSpeakerRecognitionSubtitle": "After diarisation, match each speaker cluster against the on-device speaker DB (Settings → Speakers) and replace 'Speaker N' with the enrolled name when confident. Requires the TitaNet GGUF.",
   "advancedTdrz": "Tinydiarize speaker turns (Whisper only)",
@@ -1438,6 +1451,57 @@
   "synthCustomVoicePick": "Pick reference WAV…",
   "synthCustomVoiceReplace": "Replace reference WAV…",
   "synthCustomVoiceClear": "Clear custom voice",
+  "synthCloneReferenceActive": "Cloning from {file}",
+  "@synthCloneReferenceActive": {
+    "description": "Card above the Synthesize button showing which reference clip the next synthesis will clone from.",
+    "placeholders": {
+      "file": {
+        "type": "String"
+      }
+    }
+  },
+  "synthCloneModelCannotClone": "{model} can't clone a voice from a reference clip — it only takes a downloaded voice pack. Pick a clone-capable model (chatterbox, IndexTTS, Qwen3-TTS Base, VibeVoice 1.5B, F5-TTS) or clear the reference clip.",
+  "@synthCloneModelCannotClone": {
+    "placeholders": {
+      "model": {
+        "type": "String"
+      }
+    }
+  },
+  "synthCloneNeedsRefText": "{model} needs the transcript of the reference clip. Type what is said in it under Advanced → Reference transcript, then synthesize again.",
+  "@synthCloneNeedsRefText": {
+    "placeholders": {
+      "model": {
+        "type": "String"
+      }
+    }
+  },
+  "synthCloneNeedsWav": "{model} can only clone from a WAV reference. Convert the clip to mono 16 or 24 kHz WAV, or record a new one in the voice clone wizard.",
+  "@synthCloneNeedsWav": {
+    "placeholders": {
+      "model": {
+        "type": "String"
+      }
+    }
+  },
+  "synthCloneReferenceMissing": "The reference clip {file} is no longer on disk. Pick it again or record a new one.",
+  "@synthCloneReferenceMissing": {
+    "placeholders": {
+      "file": {
+        "type": "String"
+      }
+    }
+  },
+  "synthCloneNonAsciiPath": "On Windows the audio engine can't open a file whose path contains non-English characters. Copy {file} into a plain-ASCII folder (for example C:\\voices\\) and pick it again.",
+  "@synthCloneNonAsciiPath": {
+    "description": "Windows-only: the native C API takes a narrow char* path, so a UTF-8 path under e.g. C:\\Users\\Jörg\\ cannot be opened.",
+    "placeholders": {
+      "file": {
+        "type": "String"
+      }
+    }
+  },
+  "synthCloneNoCapableModel": "None of your downloaded TTS models can clone a voice. Download chatterbox, IndexTTS, Qwen3-TTS Base, VibeVoice 1.5B or F5-TTS in Model management first.",
   "recorderStreamSession": "Stream (session)",
   "recorderStreamSessionTooltip": "Live mic transcribe through the active backend's streaming arm (kyutai-stt / moonshine-streaming / voxtral4b). Falls back to Whisper sliding-window when the backend has no native stream API.",
   "streamingNotAvailableForBackend": "The active backend ({backend}) has no streaming arm. Switch to whisper, kyutai-stt, moonshine-streaming, or voxtral4b.",
@@ -2066,6 +2130,8 @@
   "@settingsExperimentalSubtitle": {},
   "advancedAllOptions": "All options",
   "@advancedAllOptions": {},
+  "advancedAllOptionsTooltip": "Expert settings: Whisper-only decoding flags, subtitle splitting, grammar constraints and CPU/GPU tuning. Safe to leave alone.",
+  "@advancedAllOptionsTooltip": {},
   "onboardingTitle": "Set up CrisperWeaver",
   "onboardingSkip": "Set up later",
   "onboardingSetUp": "Download and continue",
@@ -2212,6 +2278,7 @@
   "workspaceSegments": "Segments",
   "workspaceEditSegment": "Edit segment",
   "workspaceRenameSpeaker": "Rename speaker",
+  "navBackToHome": "Back to home",
   "workspaceSegmentSemantics": "Segment {number} at {time}: {text}",
   "@workspaceSegmentSemantics": {
     "placeholders": {

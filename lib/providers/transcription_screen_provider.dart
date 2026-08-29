@@ -15,6 +15,15 @@ class TranscriptionScreenState {
   final String? selectedFileName;
   final bool showAdvancedOptions;
   final bool enableDiarization;
+
+  /// §35 — Speaker-count bounds from the diarisation card. `null` =
+  /// "Auto" (the library estimates). These reach
+  /// `TranscriptionService.transcribeFile` / `.diarize`, which forward
+  /// them to `crispasr_diarize_*`; `maxSpeakers` additionally caps the
+  /// Dart-side agglomerative re-clustering pass. They used to live in
+  /// the widget's own State and never left it.
+  final int? minSpeakers;
+  final int? maxSpeakers;
   final String language;
   final String modelName;
   final bool engineReady;
@@ -33,6 +42,8 @@ class TranscriptionScreenState {
     this.selectedFileName,
     this.showAdvancedOptions = false,
     this.enableDiarization = false,
+    this.minSpeakers,
+    this.maxSpeakers,
     this.language = 'auto',
     this.modelName = 'base',
     this.engineReady = false,
@@ -52,6 +63,8 @@ class TranscriptionScreenState {
     String? selectedFileName,
     bool? showAdvancedOptions,
     bool? enableDiarization,
+    int? minSpeakers,
+    int? maxSpeakers,
     String? language,
     String? modelName,
     bool? engineReady,
@@ -66,6 +79,10 @@ class TranscriptionScreenState {
     bool clearSelectedFilePath = false,
     bool clearSelectedFileBytes = false,
     bool clearSelectedFileName = false,
+    // Speaker bounds are nullable *values* — "Auto" has to be
+    // expressible, so ?? can't carry it.
+    bool clearMinSpeakers = false,
+    bool clearMaxSpeakers = false,
   }) =>
       TranscriptionScreenState(
         selectedFilePath: clearSelectedFilePath
@@ -81,6 +98,10 @@ class TranscriptionScreenState {
             showAdvancedOptions ?? this.showAdvancedOptions,
         enableDiarization:
             enableDiarization ?? this.enableDiarization,
+        minSpeakers:
+            clearMinSpeakers ? null : (minSpeakers ?? this.minSpeakers),
+        maxSpeakers:
+            clearMaxSpeakers ? null : (maxSpeakers ?? this.maxSpeakers),
         language: language ?? this.language,
         modelName: modelName ?? this.modelName,
         engineReady: engineReady ?? this.engineReady,
@@ -112,6 +133,26 @@ class TranscriptionScreenNotifier
       state = state.copyWith(showAdvancedOptions: v);
   void setEnableDiarization(bool v) =>
       state = state.copyWith(enableDiarization: v);
+
+  /// null = "Auto". Both setters keep min <= max so the pair can never
+  /// describe an impossible range on its way to the diarizer.
+  void setMinSpeakers(int? v) {
+    final max = state.maxSpeakers;
+    state = state.copyWith(
+      minSpeakers: v,
+      clearMinSpeakers: v == null,
+      maxSpeakers: (v != null && max != null && max < v) ? v : null,
+    );
+  }
+
+  void setMaxSpeakers(int? v) {
+    final min = state.minSpeakers;
+    state = state.copyWith(
+      maxSpeakers: v,
+      clearMaxSpeakers: v == null,
+      minSpeakers: (v != null && min != null && min > v) ? v : null,
+    );
+  }
   void setLanguage(String v) => state = state.copyWith(language: v);
   void setModelName(String v) => state = state.copyWith(modelName: v);
   void setEngineReady(bool v) => state = state.copyWith(engineReady: v);

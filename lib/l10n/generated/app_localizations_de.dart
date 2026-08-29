@@ -176,13 +176,33 @@ class AppLocalizationsDe extends AppLocalizations {
       'Verschiedene Sprecher in Aufnahmen identifizieren';
 
   @override
+  String get diarizationEnableTooltip =>
+      'Kennzeichnet im Transkript, wer welchen Abschnitt gesprochen hat (Sprecher 1, Sprecher 2, …). Sinnvoll bei Interviews und Besprechungen; verlängert die Verarbeitung.';
+
+  @override
   String get diarizationModel => 'Unterscheidungs-Modell';
+
+  @override
+  String get diarizationModelHelper =>
+      'Welcher Diarisierer über das Audio läuft. Sprecherwechsel-Erkennung braucht kein Zusatzmodell; Pyannote und FoxNose brauchen ihre GGUF; die Stereo-Methoden brauchen Zweikanal-Audio.';
 
   @override
   String get minSpeakers => 'Min. Sprecher';
 
   @override
+  String get minSpeakersHelper =>
+      'Untergrenze für die Anzahl der Sprecher. „Auto“ überlässt die Schätzung der Sprecher-Unterscheidung.';
+
+  @override
   String get maxSpeakers => 'Max. Sprecher';
+
+  @override
+  String get maxSpeakersHelper =>
+      'Obergrenze für die Anzahl der Sprecher. „Auto“ überlässt die Schätzung der Sprecher-Unterscheidung.';
+
+  @override
+  String get diarizationSpeakerBoundsNote =>
+      'Nur FoxNose erhält diese Grenzen direkt. Bei den anderen Methoden begrenzt der Höchstwert weiterhin das Nach-Clustering der Sprecher (benötigt ein Sprecher-Embedding-Modell); der Mindestwert kann ignoriert werden.';
 
   @override
   String get auto => 'Auto';
@@ -1210,6 +1230,10 @@ class AppLocalizationsDe extends AppLocalizations {
   String get advancedSection => 'Erweiterte Decodierung';
 
   @override
+  String get advancedSectionTooltip =>
+      'Steuert, wie das Modell Audio in Text umwandelt. Die Standardwerte passen für die meisten Aufnahmen – nur ändern, wenn ein Transkript fehlerhaft ausfällt.';
+
+  @override
   String get advancedVadTrim => 'Stille schneiden (VAD)';
 
   @override
@@ -1263,6 +1287,10 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get advancedInitialPromptHint =>
       'z. B. „CrispASR, Flutter, Riverpod, Sprecher-Unterscheidung“';
+
+  @override
+  String get advancedInitialPromptHelper =>
+      'Kontext, den das Modell vor dem Audio liest: Namen, Fachbegriffe oder eine gewünschte Schreibweise. Wird von Whisper-Modellen genutzt; CTC-Modelle (Parakeet, Canary, Wav2Vec2) ignorieren ihn.';
 
   @override
   String get advancedRestorePunctuation =>
@@ -1874,11 +1902,15 @@ class AppLocalizationsDe extends AppLocalizations {
   String get voiceCloneCaptureClear => 'Neu starten';
 
   @override
+  String get voiceCloneNonWavWarning =>
+      'Diese Datei ist keine WAV-Datei. Nur chatterbox klont aus anderen Formaten; qwen3-tts, IndexTTS, VibeVoice, F5-TTS und die übrigen brauchen eine WAV-Datei und lehnen diesen Clip ab. Nimm hier einen Clip auf oder wandle die Datei zuvor in Mono-WAV mit 16/24 kHz um.';
+
+  @override
   String get voiceCloneRefTextHeading => 'Was wurde im Clip gesagt?';
 
   @override
   String get voiceCloneRefTextHelp =>
-      'Einige Cloner (indextts, vibevoice) benötigen einen wortgetreuen Transkriptionstext der Referenz für die Ausrichtung. Andere (chatterbox, qwen3-tts Base) klonen nur aus Audio — leer lassen, wenn dein Backend keine Transkription braucht.';
+      'Qwen3-TTS Base und CosyVoice3 klonen ohne wortgetreue Transkription des Clips gar nicht, indextts / vibevoice nutzen sie zur Ausrichtung. chatterbox und F5-TTS klonen aus Audio allein. Im Zweifel ausfüllen — eine korrekte Transkription schadet nie.';
 
   @override
   String get voiceCloneRefTextLabel => 'Referenztranskription';
@@ -1896,7 +1928,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get voiceCloneHandoffModelHint =>
-      'Tipp: chatterbox / qwen3-tts Base klonen aus Audio allein; indextts / vibevoice nutzen zusätzlich den Referenztext.';
+      'Tipp: chatterbox / F5-TTS klonen aus Audio allein; qwen3-tts Base und CosyVoice3 verlangen den Referenztext, indextts / vibevoice nutzen ihn, wenn er da ist.';
 
   @override
   String get voiceCloneSummaryReference => 'Referenzclip';
@@ -2103,6 +2135,16 @@ class AppLocalizationsDe extends AppLocalizations {
   String get advancedLidMethodEcapa => 'ECAPA-TDNN (107 Sprachen, ~42 MB GGUF)';
 
   @override
+  String get advancedAlignerModel => 'Aligner für Wort-Zeitstempel';
+
+  @override
+  String get advancedAlignerModelAuto => 'Automatisch (bestes verfügbares)';
+
+  @override
+  String get advancedAlignerModelHelper =>
+      'Ergänzt Zeitstempel pro Wort, wenn das Transkriptionsmodell selbst keine liefert. „Automatisch“ bevorzugt ein zur Sprache passendes Wav2Vec2-Modell, sonst den Canary-CTC-Aligner.';
+
+  @override
   String get advancedGrammarTitle => 'GBNF-Grammatik (nur Whisper)';
 
   @override
@@ -2115,6 +2157,10 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get advancedGrammarTextLabel => 'GBNF-Quelltext';
+
+  @override
+  String get advancedGrammarTextHelper =>
+      'GBNF-Regeln, die einschränken, was der Decoder ausgeben darf. Für normale Transkription leer lassen; ungültige Regeln brechen den Lauf mit einer Fehlermeldung ab.';
 
   @override
   String get advancedGrammarRootRule => 'Startregel';
@@ -2299,6 +2345,10 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get advancedDiarizeXcorr => 'Stereo-Kreuzkorrelation';
+
+  @override
+  String get advancedDiarizeFoxnose =>
+      'FoxNose (WeSpeaker-Embeddings, GGUF nötig)';
 
   @override
   String get advancedSpeakerRecognition => 'Eingespeicherte Sprecher erkennen';
@@ -2498,6 +2548,40 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get synthCustomVoiceClear => 'Eigene Stimme entfernen';
+
+  @override
+  String synthCloneReferenceActive(String file) {
+    return 'Klont aus $file';
+  }
+
+  @override
+  String synthCloneModelCannotClone(String model) {
+    return '$model kann keine Stimme aus einem Referenzclip klonen — es nimmt nur ein heruntergeladenes Voicepack. Wähle ein klonfähiges Modell (chatterbox, IndexTTS, Qwen3-TTS Base, VibeVoice 1.5B, F5-TTS) oder entferne den Referenzclip.';
+  }
+
+  @override
+  String synthCloneNeedsRefText(String model) {
+    return '$model braucht die Transkription des Referenzclips. Tippe unter Erweitert → Referenz-Transkript ein, was darin gesagt wird, und synthetisiere erneut.';
+  }
+
+  @override
+  String synthCloneNeedsWav(String model) {
+    return '$model klont nur aus einer WAV-Referenz. Wandle den Clip in Mono-WAV mit 16 oder 24 kHz um oder nimm im Klon-Assistenten einen neuen auf.';
+  }
+
+  @override
+  String synthCloneReferenceMissing(String file) {
+    return 'Der Referenzclip $file liegt nicht mehr auf der Platte. Wähle ihn erneut aus oder nimm einen neuen auf.';
+  }
+
+  @override
+  String synthCloneNonAsciiPath(String file) {
+    return 'Unter Windows kann die Audio-Engine keine Datei öffnen, deren Pfad Sonderzeichen enthält. Kopiere $file in einen Ordner mit reinem ASCII-Pfad (zum Beispiel C:\\voices\\) und wähle sie erneut aus.';
+  }
+
+  @override
+  String get synthCloneNoCapableModel =>
+      'Keines deiner heruntergeladenen TTS-Modelle kann eine Stimme klonen. Lade zuerst chatterbox, IndexTTS, Qwen3-TTS Base, VibeVoice 1.5B oder F5-TTS in der Modellverwaltung herunter.';
 
   @override
   String get recorderStreamSession => 'Stream (Session)';
@@ -3361,6 +3445,10 @@ class AppLocalizationsDe extends AppLocalizations {
   String get advancedAllOptions => 'Alle Optionen';
 
   @override
+  String get advancedAllOptionsTooltip =>
+      'Expertenoptionen: Whisper-spezifische Decodier-Schalter, Untertitel-Umbruch, Grammatik-Einschränkung sowie CPU-/GPU-Feineinstellung. Kann unverändert bleiben.';
+
+  @override
   String get onboardingTitle => 'CrisperWeaver einrichten';
 
   @override
@@ -3610,6 +3698,9 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get workspaceRenameSpeaker => 'Sprecher umbenennen';
+
+  @override
+  String get navBackToHome => 'Zurück zur Startseite';
 
   @override
   String workspaceSegmentSemantics(int number, String time, String text) {

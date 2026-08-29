@@ -10,6 +10,7 @@ import '../services/memory_estimator.dart' show memoryEstimatorProvider;
 import '../services/model_service.dart';
 import '../services/starter_models.dart';
 import '../services/settings_service.dart' show settingsServiceProvider;
+import '../widgets/root_aware_back_leading.dart';
 
 class ModelManagementScreen extends ConsumerStatefulWidget {
   /// Optional deep-link filter — when set, the kind-filter chip
@@ -33,11 +34,13 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
   // Backend dropdown filter; '' means any.
   String _backendFilter = '';
   // Language dropdown filter; '' means any. ISO 639-1 code matched
-  // against [ModelInfo.languages] via `matchesLanguage`. Untagged
-  // entries (languages == []) and explicitly multilingual entries
-  // (`['*']`) pass any filter — so picking "German" narrows the
-  // list to German-tagged + multilingual models without hiding
-  // catalogue entries that don't yet carry language metadata.
+  // against [ModelInfo.languages] via `matchesLanguage`. Explicitly
+  // multilingual entries (`['*']`) pass any filter, and so do untagged
+  // *model* rows — so picking "German" narrows the list to
+  // German-tagged + multilingual models without hiding catalogue
+  // entries that don't yet carry language metadata. Voicepacks are the
+  // exception: they are all tagged, so an untagged one is hidden
+  // rather than shown under every language (issue #35).
   String _languageFilter = '';
   bool _isLoading = true;
   String? _downloadingModel;
@@ -45,9 +48,10 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
   // null = "All". Otherwise filter to entries whose `kind` matches.
   ModelKind? _kindFilter;
   // Secondary filter active when _kindFilter == ModelKind.voice. Empty
-  // means "any language". Each voice catalog entry's description ends
-  // in `[lang=xx]` (xx ∈ en/de/fr/it/jp/kr/nl/pl/pt/sp/in/es) so we
-  // can group them without parsing the filename.
+  // means "any language". Holds an ISO 639-1 code from the same
+  // alphabet as [_languageFilter] — the chip row derives it from each
+  // voice's `languages`, so "ja" here selects the VibeVoice files the
+  // repo happens to name `jp-*`.
   String _voiceLangFilter = '';
 
   @override
@@ -344,6 +348,9 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
     final advanced = ref.read(settingsServiceProvider).experimentalFeatures;
     return Scaffold(
       appBar: AppBar(
+        // #35 — onboarding can `go()` straight here, leaving no route to
+        // pop and so no back button; fall back to a home button.
+        leading: rootAwareBackLeading(context),
         title: Text(AppLocalizations.of(context).modelsTitle),
         actions: [
           // §5.8(b) — one-tap curated starter set (ASR + TTS + chat-LLM).
@@ -397,10 +404,13 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
     var filtered = _kindFilter == null
         ? models
         : models.where((m) => m.kind == _kindFilter).toList();
-    // Sub-filter by language inside the Voices tab.
+    // Sub-filter by language inside the Voices tab. Goes through the
+    // same `matchesLanguage` the dropdown uses rather than a substring
+    // hunt in the description, so a voice tagged only in `languages`
+    // (live HF probe) filters identically to a static catalogue row.
     if (_kindFilter == ModelKind.voice && _voiceLangFilter.isNotEmpty) {
       filtered = filtered
-          .where((m) => m.description.contains('[lang=$_voiceLangFilter]'))
+          .where((m) => m.matchesLanguage(_voiceLangFilter))
           .toList();
     }
     // Backend filter (parakeet, whisper, voxtral, ...). Empty = any.
@@ -636,19 +646,32 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
     );
   }
 
-  /// Sub-filter row shown only when the Voices tab is active. Pulls
-  /// the unique language codes from the voice catalog descriptions
-  /// (each contains `[lang=xx]`) and renders one chip per language
-  /// plus an "All" chip. Counts in parens reveal which languages are
-  /// represented in the bundled catalog.
+  /// Sub-filter row shown only when the Voices tab is active. Renders
+  /// one chip per language present in the voice catalogue, plus an
+  /// "All" chip; the counts in parens reveal how many voices each
+  /// language has.
+  ///
+  /// Codes come from `ModelInfo.languages` (the `[lang=xx]` description
+  /// tag is only a fallback for rows that predate the tagging), and
+  /// they are normalised to ISO 639-1 — the VibeVoice repo's `jp` /
+  /// `kr` / `sp` / `in` filenames used to leak into the chip labels and
+  /// could never match the ISO codes the language dropdown offers
+  /// (issue #35).
   Widget _buildVoiceLangFilterRow(List<ModelInfo> models) {
     final voices = models.where((m) => m.kind == ModelKind.voice).toList();
     final langCounts = <String, int>{};
     final re = RegExp(r'\[lang=([a-z]+)\]');
     for (final m in voices) {
-      final hit = re.firstMatch(m.description);
-      if (hit == null) continue;
-      langCounts.update(hit.group(1)!, (v) => v + 1, ifAbsent: () => 1);
+      var codes = m.languages.where((c) => c != '*');
+      if (codes.isEmpty) {
+        final hit = re.firstMatch(m.description);
+        codes = hit == null ? const <String>[] : <String>[hit.group(1)!];
+      }
+      for (final c in codes) {
+        langCounts.update(ModelCatalog.normalizeLanguageCode(c),
+            (v) => v + 1,
+            ifAbsent: () => 1);
+      }
     }
     final langs = langCounts.keys.toList()..sort();
     if (langs.isEmpty) return const SizedBox.shrink();
@@ -669,7 +692,10 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
         children: [
           chip(AppLocalizations.of(context).modelsFilterAllLangs, '',
               voices.length),
-          for (final l in langs) chip(l, l, langCounts[l]!),
+          // Same label shape as the language dropdown ("German (de)")
+          // so the two filters are visibly the same vocabulary.
+          for (final l in langs)
+            chip('${AppConstants.getLanguageName(l)} ($l)', l, langCounts[l]!),
         ],
       ),
     );

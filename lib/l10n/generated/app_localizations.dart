@@ -430,11 +430,23 @@ abstract class AppLocalizations {
   /// **'Identify different speakers in audio recordings'**
   String get diarizationSubtitle;
 
+  /// No description provided for @diarizationEnableTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Labels every part of the transcript with who spoke it (Speaker 1, Speaker 2, …). Turn it on for interviews and meetings; it adds processing time.'**
+  String get diarizationEnableTooltip;
+
   /// No description provided for @diarizationModel.
   ///
   /// In en, this message translates to:
   /// **'Diarization model'**
   String get diarizationModel;
+
+  /// No description provided for @diarizationModelHelper.
+  ///
+  /// In en, this message translates to:
+  /// **'Which diarizer runs over the audio. Speech-turn detection needs no extra model; Pyannote and FoxNose need their GGUF; the stereo methods need two-channel audio.'**
+  String get diarizationModelHelper;
 
   /// No description provided for @minSpeakers.
   ///
@@ -442,11 +454,29 @@ abstract class AppLocalizations {
   /// **'Min. speakers'**
   String get minSpeakers;
 
+  /// No description provided for @minSpeakersHelper.
+  ///
+  /// In en, this message translates to:
+  /// **'Lower bound for the number of speakers. Auto lets the diarizer estimate the count.'**
+  String get minSpeakersHelper;
+
   /// No description provided for @maxSpeakers.
   ///
   /// In en, this message translates to:
   /// **'Max. speakers'**
   String get maxSpeakers;
+
+  /// No description provided for @maxSpeakersHelper.
+  ///
+  /// In en, this message translates to:
+  /// **'Upper bound for the number of speakers. Auto lets the diarizer estimate the count.'**
+  String get maxSpeakersHelper;
+
+  /// No description provided for @diarizationSpeakerBoundsNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Only FoxNose is handed these bounds directly. With the other methods the upper bound still caps the speaker re-clustering pass (needs a speaker embedder) and the lower bound may be ignored.'**
+  String get diarizationSpeakerBoundsNote;
 
   /// No description provided for @auto.
   ///
@@ -2134,6 +2164,12 @@ abstract class AppLocalizations {
   /// **'Advanced decoding'**
   String get advancedSection;
 
+  /// No description provided for @advancedSectionTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Controls how the model turns audio into text. The defaults suit most recordings — change these only when a transcript comes out wrong.'**
+  String get advancedSectionTooltip;
+
   /// No description provided for @advancedVadTrim.
   ///
   /// In en, this message translates to:
@@ -2217,6 +2253,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'e.g. \"CrispASR, Flutter, Riverpod, Sprecher-Unterscheidung\"'**
   String get advancedInitialPromptHint;
+
+  /// No description provided for @advancedInitialPromptHelper.
+  ///
+  /// In en, this message translates to:
+  /// **'Context the model reads before the audio: names, jargon or a spelling it should follow. Used by Whisper-style models; CTC models (Parakeet, Canary, Wav2Vec2) ignore it.'**
+  String get advancedInitialPromptHelper;
 
   /// No description provided for @advancedRestorePunctuation.
   ///
@@ -3232,6 +3274,12 @@ abstract class AppLocalizations {
   /// **'Start over'**
   String get voiceCloneCaptureClear;
 
+  /// No description provided for @voiceCloneNonWavWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'That file isn\'t a WAV. Only chatterbox clones from other formats; qwen3-tts, IndexTTS, VibeVoice, F5-TTS and the rest need a WAV and will refuse this clip. Record one here, or convert it to mono 16/24 kHz WAV first.'**
+  String get voiceCloneNonWavWarning;
+
   /// No description provided for @voiceCloneRefTextHeading.
   ///
   /// In en, this message translates to:
@@ -3241,7 +3289,7 @@ abstract class AppLocalizations {
   /// No description provided for @voiceCloneRefTextHelp.
   ///
   /// In en, this message translates to:
-  /// **'Some cloners (indextts, vibevoice) need a verbatim transcript of the reference clip for alignment. Others (chatterbox, qwen3-tts Base) clone from audio alone — leave this empty if your chosen backend doesn\'t need it.'**
+  /// **'Qwen3-TTS Base and CosyVoice3 refuse to clone without a verbatim transcript of the clip, and indextts / vibevoice use it for alignment. chatterbox and F5-TTS clone from audio alone. When in doubt, fill it in — an accurate transcript never hurts.'**
   String get voiceCloneRefTextHelp;
 
   /// No description provided for @voiceCloneRefTextLabel.
@@ -3271,7 +3319,7 @@ abstract class AppLocalizations {
   /// No description provided for @voiceCloneHandoffModelHint.
   ///
   /// In en, this message translates to:
-  /// **'Tip: chatterbox / qwen3-tts Base clone from audio alone; indextts / vibevoice also use the reference transcript.'**
+  /// **'Tip: chatterbox / F5-TTS clone from audio alone; qwen3-tts Base and CosyVoice3 require the reference transcript, and indextts / vibevoice use it when given.'**
   String get voiceCloneHandoffModelHint;
 
   /// No description provided for @voiceCloneSummaryReference.
@@ -3616,6 +3664,24 @@ abstract class AppLocalizations {
   /// **'ECAPA-TDNN (107 languages, ~42 MB GGUF)'**
   String get advancedLidMethodEcapa;
 
+  /// No description provided for @advancedAlignerModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Word-timing aligner'**
+  String get advancedAlignerModel;
+
+  /// No description provided for @advancedAlignerModelAuto.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto (best available)'**
+  String get advancedAlignerModelAuto;
+
+  /// No description provided for @advancedAlignerModelHelper.
+  ///
+  /// In en, this message translates to:
+  /// **'Adds word-level timestamps when the transcription model does not emit them itself. Auto prefers a Wav2Vec2 model matching the language, otherwise the Canary CTC aligner.'**
+  String get advancedAlignerModelHelper;
+
   /// No description provided for @advancedGrammarTitle.
   ///
   /// In en, this message translates to:
@@ -3639,6 +3705,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'GBNF source'**
   String get advancedGrammarTextLabel;
+
+  /// No description provided for @advancedGrammarTextHelper.
+  ///
+  /// In en, this message translates to:
+  /// **'GBNF rules restricting what the decoder may output. Leave empty for normal transcription; invalid rules stop the run with an error.'**
+  String get advancedGrammarTextHelper;
 
   /// No description provided for @advancedGrammarRootRule.
   ///
@@ -3933,6 +4005,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Stereo cross-correlation'**
   String get advancedDiarizeXcorr;
+
+  /// No description provided for @advancedDiarizeFoxnose.
+  ///
+  /// In en, this message translates to:
+  /// **'FoxNose (WeSpeaker embeddings, needs GGUF)'**
+  String get advancedDiarizeFoxnose;
 
   /// No description provided for @advancedSpeakerRecognition.
   ///
@@ -4263,6 +4341,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Clear custom voice'**
   String get synthCustomVoiceClear;
+
+  /// Card above the Synthesize button showing which reference clip the next synthesis will clone from.
+  ///
+  /// In en, this message translates to:
+  /// **'Cloning from {file}'**
+  String synthCloneReferenceActive(String file);
+
+  /// No description provided for @synthCloneModelCannotClone.
+  ///
+  /// In en, this message translates to:
+  /// **'{model} can\'t clone a voice from a reference clip — it only takes a downloaded voice pack. Pick a clone-capable model (chatterbox, IndexTTS, Qwen3-TTS Base, VibeVoice 1.5B, F5-TTS) or clear the reference clip.'**
+  String synthCloneModelCannotClone(String model);
+
+  /// No description provided for @synthCloneNeedsRefText.
+  ///
+  /// In en, this message translates to:
+  /// **'{model} needs the transcript of the reference clip. Type what is said in it under Advanced → Reference transcript, then synthesize again.'**
+  String synthCloneNeedsRefText(String model);
+
+  /// No description provided for @synthCloneNeedsWav.
+  ///
+  /// In en, this message translates to:
+  /// **'{model} can only clone from a WAV reference. Convert the clip to mono 16 or 24 kHz WAV, or record a new one in the voice clone wizard.'**
+  String synthCloneNeedsWav(String model);
+
+  /// No description provided for @synthCloneReferenceMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'The reference clip {file} is no longer on disk. Pick it again or record a new one.'**
+  String synthCloneReferenceMissing(String file);
+
+  /// Windows-only: the native C API takes a narrow char* path, so a UTF-8 path under e.g. C:\Users\Jörg\ cannot be opened.
+  ///
+  /// In en, this message translates to:
+  /// **'On Windows the audio engine can\'t open a file whose path contains non-English characters. Copy {file} into a plain-ASCII folder (for example C:\\voices\\) and pick it again.'**
+  String synthCloneNonAsciiPath(String file);
+
+  /// No description provided for @synthCloneNoCapableModel.
+  ///
+  /// In en, this message translates to:
+  /// **'None of your downloaded TTS models can clone a voice. Download chatterbox, IndexTTS, Qwen3-TTS Base, VibeVoice 1.5B or F5-TTS in Model management first.'**
+  String get synthCloneNoCapableModel;
 
   /// No description provided for @recorderStreamSession.
   ///
@@ -5644,6 +5764,12 @@ abstract class AppLocalizations {
   /// **'All options'**
   String get advancedAllOptions;
 
+  /// No description provided for @advancedAllOptionsTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Expert settings: Whisper-only decoding flags, subtitle splitting, grammar constraints and CPU/GPU tuning. Safe to leave alone.'**
+  String get advancedAllOptionsTooltip;
+
   /// No description provided for @onboardingTitle.
   ///
   /// In en, this message translates to:
@@ -6087,6 +6213,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Rename speaker'**
   String get workspaceRenameSpeaker;
+
+  /// No description provided for @navBackToHome.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to home'**
+  String get navBackToHome;
 
   /// No description provided for @workspaceSegmentSemantics.
   ///

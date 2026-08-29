@@ -91,6 +91,20 @@ void main(List<String> args) async {
     FlutterError.presentError(details);
   };
   WidgetsBinding.instance.platformDispatcher.onError = (error, stack) {
+    // A Windows GUI process (subsystem:windows, double-clicked from
+    // Explorer) has no console attached, so its stdio handle is invalid.
+    // `IOSink.writeln` only queues the bytes — the write fails later in the
+    // event loop, out of reach of any try/catch, and arrives here as
+    // `FileSystemException: writeFrom failed, path = ''
+    // (OS Error: The handle is invalid, errno = 6)` — issue #35. Logging
+    // *that* would mirror another line to the same dead handle and fail
+    // again, which is why the report shows it repeating at boot. Disarm the
+    // console mirror once and swallow it; the ring buffer, the Logs screen,
+    // and the session log file keep every line.
+    if (Log.isConsoleWriteFailure(error)) {
+      Log.instance.disableConsoleMirror(reason: '$error');
+      return true;
+    }
     Log.instance.e('uncaught', '$error', error: error, stack: stack);
     return true;
   };
@@ -416,9 +430,11 @@ class _CrisperWeaverAppState extends ConsumerState<CrisperWeaverApp> {
       // Desktop argv intake — Linux `.desktop` launches with
       // `Exec=crisper_weaver %F`, so the file paths arrive as
       // positional args. The intake service triages them the
-      // same way Android / iOS shares are routed; non-audio,
-      // non-transcript args (e.g. flutter-tool flags) drop
-      // silently. We only run this on desktop platforms — on
+      // same way Android / iOS shares are routed; command-line
+      // flags are dropped by ShareIntakeService.filterDesktopArgs
+      // (the GUI exe takes paths only — issue #35), and non-audio,
+      // non-transcript paths drop silently after a debug line.
+      // We only run this on desktop platforms — on
       // mobile the args list is always empty and forwarding
       // would be a no-op anyway.
       if (plat.isDesktop) {

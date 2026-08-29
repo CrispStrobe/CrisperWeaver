@@ -87,6 +87,9 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
       ref.read(transcriptionScreenProvider).showAdvancedOptions;
   bool get _enableDiarization =>
       ref.read(transcriptionScreenProvider).enableDiarization;
+  // §35 — speaker-count bounds from the diarisation card. null = Auto.
+  int? get _minSpeakers => ref.read(transcriptionScreenProvider).minSpeakers;
+  int? get _maxSpeakers => ref.read(transcriptionScreenProvider).maxSpeakers;
   String get _language => ref.read(transcriptionScreenProvider).language;
   String get _modelName => ref.read(transcriptionScreenProvider).modelName;
   bool get _engineReady => ref.read(transcriptionScreenProvider).engineReady;
@@ -105,6 +108,44 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
   bool get _tagSegmentLanguages =>
       ref.read(transcriptionScreenProvider).tagSegmentLanguages;
 
+  /// §35 — diarisation methods whose GGUF isn't on disk, so the card
+  /// can mark them "(Not downloaded)" instead of letting the user pick
+  /// a method that will silently degrade to vad-turns mid-run.
+  Set<crispasr.DiarizeMethod> _missingDiarizationModels =
+      const <crispasr.DiarizeMethod>{};
+
+  /// Mirrors `DiarizationService._findPyannoteModel` /
+  /// `_findFoxnoseEmbedder`: whatever `pyannote*.gguf` / `wespeaker*.gguf`
+  /// the user downloaded counts, regardless of quant.
+  Future<void> _scanDiarizationModels() async {
+    try {
+      final svc = ref.read(modelServiceProvider);
+      await svc.initialize();
+      var hasPyannote = false;
+      var hasWespeaker = false;
+      final dir = Directory(svc.whisperCppDir());
+      if (await dir.exists()) {
+        await for (final ent in dir.list()) {
+          if (ent is! File) continue;
+          final base = p.basename(ent.path).toLowerCase();
+          if (!base.endsWith('.gguf')) continue;
+          if (base.startsWith('pyannote')) hasPyannote = true;
+          if (base.startsWith('wespeaker')) hasWespeaker = true;
+        }
+      }
+      if (!mounted) return;
+      setState(() {
+        _missingDiarizationModels = <crispasr.DiarizeMethod>{
+          if (!hasPyannote) crispasr.DiarizeMethod.pyannote,
+          if (!hasWespeaker) crispasr.DiarizeMethod.foxNose,
+        };
+      });
+    } catch (e) {
+      Log.instance.d('ui', 'diarisation model scan failed',
+          fields: {'err': e.toString()});
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -115,6 +156,10 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
     n.setEnableDiarization(settings.enableDiarizationByDefault);
     n.setLanguage(settings.defaultLanguage);
     n.setModelName(settings.defaultModel);
+
+    // §35 — mark diarisation methods whose GGUF isn't downloaded.
+    // Fire-and-forget: it only decorates dropdown labels.
+    unawaited(_scanDiarizationModels());
 
     // Kick off engine initialization after the first frame so the error
     // dialog (if it occurs) has a context to attach to.
@@ -844,7 +889,11 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Speaker Diarization
+        // Speaker Diarization. §35 — the card's method / min / max
+        // pickers used to be write-only widget state; they now drive
+        // advancedOptionsProvider.diarizeMethod and the screen
+        // provider's speaker bounds, which the transcribe / batch
+        // paths below hand to DiarizationService.
         DiarizationSettingsWidget(
           enabled: ref.watch(transcriptionScreenProvider).enableDiarization,
           onChanged: (enabled) {
@@ -852,6 +901,21 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
                 .read(transcriptionScreenProvider.notifier)
                 .setEnableDiarization(enabled);
           },
+          method: ref.watch(advancedOptionsProvider).diarizeMethod,
+          onMethodChanged: (m) {
+            final opts = ref.read(advancedOptionsProvider);
+            ref.read(advancedOptionsProvider.notifier).state =
+                opts.copyWith(diarizeMethod: m);
+          },
+          minSpeakers: ref.watch(transcriptionScreenProvider).minSpeakers,
+          maxSpeakers: ref.watch(transcriptionScreenProvider).maxSpeakers,
+          onMinSpeakersChanged: (v) => ref
+              .read(transcriptionScreenProvider.notifier)
+              .setMinSpeakers(v),
+          onMaxSpeakersChanged: (v) => ref
+              .read(transcriptionScreenProvider.notifier)
+              .setMaxSpeakers(v),
+          unavailableMethods: _missingDiarizationModels,
         ),
 
         const SizedBox(height: 16),
@@ -2353,6 +2417,8 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
           File(filePath),
           language: language,
           enableDiarization: _enableDiarization,
+          minSpeakers: _minSpeakers,
+          maxSpeakers: _maxSpeakers,
           translate: adv.translate,
           beamSearch: adv.beamSearch,
           initialPrompt:
@@ -2373,6 +2439,8 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
           _urlController.text,
           language: language,
           enableDiarization: _enableDiarization,
+          minSpeakers: _minSpeakers,
+          maxSpeakers: _maxSpeakers,
           translate: adv.translate,
           beamSearch: adv.beamSearch,
           initialPrompt:
@@ -2666,11 +2734,11 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
             adv: adv,
             advancedRun: advancedRun,
             enableDiarization: _enableDiarization,
-            // Diarize speakers bounds: the screen doesn't currently
-            // expose a min/max picker (existing serial path passes
-            // null too), so let pyannote auto-estimate.
-            minSpeakers: null,
-            maxSpeakers: null,
+            // §35 — the diarisation card's speaker bounds. null = Auto
+            // (let the library estimate), which is what this used to
+            // hardcode.
+            minSpeakers: _minSpeakers,
+            maxSpeakers: _maxSpeakers,
             vadModelPath: adv.vad
                 ? await transcriptionService.resolveVadModelPath(
                     backend: adv.vadBackend)
@@ -2797,6 +2865,8 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
             File(next.filePath),
             language: language,
             enableDiarization: _enableDiarization,
+            minSpeakers: _minSpeakers,
+            maxSpeakers: _maxSpeakers,
             translate: adv.translate,
             beamSearch: adv.beamSearch,
             initialPrompt: perJobInitial.isEmpty ? null : perJobInitial,

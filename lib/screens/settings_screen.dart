@@ -29,6 +29,7 @@ import '../utils/responsive.dart';
 import '../widgets/cloud_llm_settings_form.dart';
 import '../widgets/hotkey_settings_form.dart';
 import '../widgets/local_llm_settings_form.dart';
+import '../widgets/root_aware_back_leading.dart';
 
 /// True when [path] points into Android's shared external storage
 /// (`/storage/emulated/0/...`, `/sdcard/...`, `/storage/self/primary/...`)
@@ -69,6 +70,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        // #35 — no back button when this was reached by a stack-replacing
+        // `go()`; fall back to a home button.
+        leading: rootAwareBackLeading(context),
         title: Text(l.settingsTitle),
         actions: [
           TextButton(

@@ -25,6 +25,7 @@ import 'package:crispasr/crispasr.dart' as crispasr;
 import 'package:path/path.dart' as p;
 
 import 'package:crisper_weaver/constants/app_constants.dart';
+import 'package:crisper_weaver/native/vad_native.dart' show vadSlicesNative;
 import 'package:crisper_weaver/services/audio_watermark_service.dart';
 import 'package:crisper_weaver/services/content_provenance_service.dart';
 import 'package:crisper_weaver/services/spread_spectrum_watermark.dart';
@@ -220,6 +221,42 @@ abstract class _Base extends Command<int> {
   }
 
   String _abs(String path) => File(path).absolute.path;
+
+  /// Absolute path of an input that must already exist.
+  ///
+  /// A missing file used to reach the decoder / the FFI loader and surface
+  /// as an uncaught exception with a Dart stack trace (exit 255). A typo in
+  /// a path is a usage error.
+  String _absExisting(String path, String what) {
+    if (!File(path).existsSync()) {
+      usageException('$what not found: $path');
+    }
+    return File(path).absolute.path;
+  }
+
+  /// An integer-valued option, or a usage error.
+  ///
+  /// `int.parse` on user input throws FormatException, which nothing caught:
+  /// `--best-of two` printed a stack trace and exited 255 instead of saying
+  /// what was wrong.
+  int _intOpt(String name) {
+    final raw = (argResults![name] as String).trim();
+    final value = int.tryParse(raw);
+    if (value == null) {
+      usageException('--$name expects an integer, got "$raw".');
+    }
+    return value;
+  }
+
+  /// A double-valued option, or a usage error. See [_intOpt].
+  double _doubleOpt(String name) {
+    final raw = (argResults![name] as String).trim();
+    final value = double.tryParse(raw);
+    if (value == null) {
+      usageException('--$name expects a number, got "$raw".');
+    }
+    return value;
+  }
 }
 
 class _BackendsCmd extends _Base {
@@ -260,7 +297,7 @@ class _TranscribeCmd extends _Base {
       ..addOption('frequency-penalty', help: 'Frequency penalty (LLM backends).', defaultsTo: '0.0')
       ..addOption('beam-size', help: 'Beam search width (0 = greedy).', defaultsTo: '0')
       ..addFlag('vad', help: 'Enable Silero VAD pre-filtering.')
-      ..addOption('vad-model', help: 'Path to VAD GGUF (auto-detected if omitted).')
+      ..addOption('vad-model', help: 'Path to the Silero VAD GGUF (required with --vad).')
       ..addOption('ask', help: 'Audio Q&A prompt (instruct LLM backends).');
     _addDisclosureFlag(argParser);
   }
@@ -287,27 +324,50 @@ class _TranscribeCmd extends _Base {
       stderr.writeln(e.message);
       return 2;
     }
-    final audio = crispasr.decodeAudioFile(File(rest.first).absolute.path, libPath: lib);
+    // Generation controls, parsed up front: a bad `--best-of two` should be
+    // a usage error before the decode and the (slow) session open, not a
+    // FormatException stack trace afterwards.
+    final temp = _doubleOpt('temperature');
+    final bestOf = _intOpt('best-of');
+    final hotwords = argResults!['hotwords'] as String?;
+    final hotwordsBoost = _doubleOpt('hotwords-boost');
+    final seed = _intOpt('seed');
+    final maxNewTokens = _intOpt('max-new-tokens');
+    final freqPenalty = _doubleOpt('frequency-penalty');
+    final beamSize = _intOpt('beam-size');
+    final ask = argResults!['ask'] as String?;
+    final targetLang = argResults!['target-language'] as String?;
+    final lang = argResults!['language'] as String?;
+
+    // `--vad` and `--vad-model` were parsed and then dropped on the floor:
+    // the flags have been in `--help` since the CLI shipped but nothing ever
+    // read them, so a headless run decoded the silence too. Route them
+    // through the same C-ABI call the GUI uses
+    // (`crispasr_session_transcribe_vad`). The GUI can auto-detect the model
+    // because it ships Silero as a Flutter asset; a `dart run` entrypoint has
+    // no asset bundle, so here the path is required.
+    final useVad = argResults!['vad'] as bool;
+    final vadModelArg = argResults!['vad-model'] as String?;
+    final String? vadModel;
+    if (useVad) {
+      if (vadModelArg == null || vadModelArg.trim().isEmpty) {
+        usageException('--vad needs --vad-model <silero .gguf/.bin>: the '
+            'bundled VAD asset is only reachable from the app, not from the '
+            'CLI.');
+      }
+      vadModel = _absExisting(vadModelArg, 'VAD model');
+    } else {
+      vadModel = null;
+    }
+    final audio =
+        crispasr.decodeAudioFile(_absExisting(rest.first, 'Audio file'), libPath: lib);
     final backend = argResults!['backend'] as String?;
     final session = crispasr.CrispasrSession.open(
-      File(modelPath).absolute.path,
+      _absExisting(modelPath, 'ASR model'),
       backend: backend,
       libPath: lib,
     );
     try {
-      // Apply generation controls before transcription.
-      final temp = double.parse(argResults!['temperature'] as String);
-      final bestOf = int.parse(argResults!['best-of'] as String);
-      final hotwords = argResults!['hotwords'] as String?;
-      final hotwordsBoost = double.parse(argResults!['hotwords-boost'] as String);
-      final seed = int.parse(argResults!['seed'] as String);
-      final maxNewTokens = int.parse(argResults!['max-new-tokens'] as String);
-      final freqPenalty = double.parse(argResults!['frequency-penalty'] as String);
-      final beamSize = int.parse(argResults!['beam-size'] as String);
-      final ask = argResults!['ask'] as String?;
-      final targetLang = argResults!['target-language'] as String?;
-      final lang = argResults!['language'] as String?;
-
       try { session.setTemperature(temp, seed: seed >= 0 ? seed : 0); } catch (_) {}
       try { session.setBestOf(bestOf); } catch (_) {}
       if (hotwords != null && hotwords.isNotEmpty) {
@@ -335,7 +395,9 @@ class _TranscribeCmd extends _Base {
       }
       try { session.setPunctuation(true); } catch (_) {}
 
-      final segs = session.transcribe(audio.samples, language: lang);
+      final segs = vadModel == null
+          ? session.transcribe(audio.samples, language: lang)
+          : session.transcribeVad(audio.samples, vadModel, language: lang);
 
       // Art. 50(2). Plain transcription of real speech is not synthetic
       // text and needs no mark — but asking for a *translation* makes the
@@ -449,19 +511,17 @@ class _VadCmd extends _Base {
   int run() {
     final rest = argResults!.rest;
     if (rest.isEmpty) usageException('Pass an audio file path.');
-    final audio = crispasr.decodeAudioFile(File(rest.first).absolute.path, libPath: lib);
-    final model = File(argResults!['model'] as String).absolute.path;
-    final cr = crispasr.CrispASR(model, libPath: lib);
-    try {
-      // Use the unified dispatcher (vadSlices), not legacy vad(). See §9.5.
-      // The ctx is loaded from the VAD model here only because the binding
-      // requires an instance; the call ignores it. (CLI tolerates the
-      // wasted ctx; VadService uses the free-function path instead.)
-      for (final s in cr.vadSlices(audio.samples, modelPath: model)) {
-        stdout.writeln('${s.start.toStringAsFixed(3)}\t${s.end.toStringAsFixed(3)}');
-      }
-    } finally {
-      cr.dispose();
+    final model = _absExisting(argResults!['model'] as String, 'VAD model');
+    final audio =
+        crispasr.decodeAudioFile(_absExisting(rest.first, 'Audio file'), libPath: lib);
+    // Call the *free* C function `crispasr_vad_slices` (via vad_native.dart),
+    // not `CrispASR(model).vadSlices(...)`. The instance route loads the VAD
+    // model as a whisper context purely to reach the method, and the
+    // matching `dispose()` then runs `whisper_free` over a context that was
+    // never a whisper model — a SIGABRT of the whole isolate (LEARNINGS §9.5,
+    // the same bug VadService had). No context is needed at all here.
+    for (final s in vadSlicesNative(model, audio.samples, libPath: lib)) {
+      stdout.writeln('${s.start.toStringAsFixed(3)}\t${s.end.toStringAsFixed(3)}');
     }
     return 0;
   }
@@ -484,16 +544,18 @@ class _LidCmd extends _Base {
     if (argResults!['text'] as bool) {
       final model = argResults!['model'] as String?;
       if (model == null) usageException('--model <text-lid GGUF> required for --text.');
-      final r = crispasr.detectTextLanguage(rest.join(' '),
-          File(model).absolute.path, libPath: lib);
+      final r = crispasr.detectTextLanguage(
+          rest.join(' '), _absExisting(model, 'Text-LID model'),
+          libPath: lib);
       if (r == null) { stderr.writeln('detection failed'); return 1; }
       stdout.writeln('${r.code}\t${r.confidence.toStringAsFixed(3)}');
       return 0;
     }
     final model = argResults!['model'] as String?;
     if (model == null) usageException('--model <multilingual ASR model> required.');
-    final audio = crispasr.decodeAudioFile(File(rest.first).absolute.path, libPath: lib);
-    final cr = crispasr.CrispASR(File(model).absolute.path, libPath: lib);
+    final audio =
+        crispasr.decodeAudioFile(_absExisting(rest.first, 'Audio file'), libPath: lib);
+    final cr = crispasr.CrispASR(_absExisting(model, 'ASR model'), libPath: lib);
     try {
       final d = cr.detectLanguage(audio.samples);
       stdout.writeln('${d.code}\t${d.probability.toStringAsFixed(3)}');
@@ -517,7 +579,8 @@ class _PunctuateCmd extends _Base {
     final rest = argResults!.rest;
     final text = rest.isNotEmpty ? rest.join(' ') : stdin.readLineSync() ?? '';
     final model = crispasr.PuncModel.open(
-        File(argResults!['model'] as String).absolute.path, libPath: lib);
+        _absExisting(argResults!['model'] as String, 'Punctuation model'),
+        libPath: lib);
     try {
       stdout.writeln(model.process(text));
     } finally {
@@ -544,7 +607,8 @@ class _TranslateCmd extends _Base {
     final rest = argResults!.rest;
     final text = rest.isNotEmpty ? rest.join(' ') : stdin.readLineSync() ?? '';
     final session = crispasr.CrispasrSession.open(
-        File(argResults!['model'] as String).absolute.path, libPath: lib);
+        _absExisting(argResults!['model'] as String, 'Translation model'),
+        libPath: lib);
     try {
       final out = session.translateText(
           text, argResults!['from'] as String, argResults!['to'] as String);
@@ -602,15 +666,18 @@ class _SynthesizeCmd extends _Base {
       return 2;
     }
 
+    // Validate every argument before the model load: a typo in --rate should
+    // not cost a multi-second session open first.
+    final ttsTemp = _doubleOpt('temperature');
+    final ttsSeed = _intOpt('seed');
+    final rate = _intOpt('rate');
     final session = crispasr.CrispasrSession.open(
-        File(argResults!['model'] as String).absolute.path, libPath: lib);
+        _absExisting(argResults!['model'] as String, 'TTS model'),
+        libPath: lib);
     try {
-      if (isClone) session.setVoice(File(voice).absolute.path);
-      final ttsTemp = double.parse(argResults!['temperature'] as String);
-      final ttsSeed = int.parse(argResults!['seed'] as String);
+      if (isClone) session.setVoice(_absExisting(voice, 'Reference voice'));
       try { session.setTemperature(ttsTemp, seed: ttsSeed >= 0 ? ttsSeed : 0); } catch (_) {}
       final pcm = session.synthesize(text);
-      final rate = int.parse(argResults!['rate'] as String);
       final out = File(argResults!['out'] as String);
       final model = argResults!['model'] as String;
       if (isClone) {
@@ -654,19 +721,27 @@ class _WatermarkCmd extends _Base {
   int run() {
     final rest = argResults!.rest;
     if (rest.isEmpty) usageException('Pass an audio file path.');
-    final audio = crispasr.decodeAudioFile(File(rest.first).absolute.path, libPath: lib);
+    final detect = argResults!['detect'] as bool;
+    final out = argResults!['out'] as String?;
+    // Check the output argument *before* embedding: the old order ran the
+    // whole spread-spectrum embed and only then discovered it had nowhere to
+    // write the result.
+    if (!detect && (out == null || out.isEmpty)) {
+      usageException('--out <file.wav> required in embed mode.');
+    }
+    final rate = detect ? 0 : _intOpt('rate');
+    final audio =
+        crispasr.decodeAudioFile(_absExisting(rest.first, 'Audio file'), libPath: lib);
     // CrispasrWatermark.{embed,detect} take a DynamicLibrary; open the
     // resolved dylib path directly (null → the binding's default loader).
-    final p = lib;
-    final dylib = p == null ? null : DynamicLibrary.open(p);
-    if (argResults!['detect'] as bool) {
+    final libPath = lib;
+    final dylib = libPath == null ? null : DynamicLibrary.open(libPath);
+    if (detect) {
       final c = crispasr.CrispasrWatermark.detect(audio.samples, lib: dylib);
       stdout.writeln(c.toStringAsFixed(4));
     } else {
       final wm = crispasr.CrispasrWatermark.embed(audio.samples, alpha: 0.1, lib: dylib);
-      final out = argResults!['out'] as String?;
-      if (out == null) usageException('--out <file.wav> required in embed mode.');
-      File(out).writeAsBytesSync(_wav(wm, int.parse(argResults!['rate'] as String)));
+      File(out!).writeAsBytesSync(_wav(wm, rate));
       stdout.writeln('embedded -> $out');
     }
     return 0;
@@ -687,11 +762,12 @@ class _DenoiseCmd extends _Base {
   int run() {
     final rest = argResults!.rest;
     if (rest.isEmpty) usageException('Pass an audio file path.');
-    final audio = crispasr.decodeAudioFile(_abs(rest.first), libPath: lib);
+    final rate = _intOpt('rate');
+    final audio =
+        crispasr.decodeAudioFile(_absExisting(rest.first, 'Audio file'), libPath: lib);
     final enhanced = crispasr.enhanceAudioRnnoise(audio.samples, lib: dylib);
     final out = argResults!['out'] as String;
-    File(out).writeAsBytesSync(
-        _wav(enhanced, int.parse(argResults!['rate'] as String)));
+    File(out).writeAsBytesSync(_wav(enhanced, rate));
     stdout.writeln('denoised ${audio.samples.length} samples -> $out');
     return 0;
   }
@@ -713,10 +789,13 @@ class _StreamCmd extends _Base {
   String get description => 'Streaming transcription (rolling-window decode).';
   @override
   int run() {
-    final modelPath = _abs(argResults!['model'] as String);
+    final modelPath = _absExisting(argResults!['model'] as String, 'ASR model');
     final rest = argResults!.rest;
     if (rest.isEmpty) usageException('Pass an audio file path.');
-    final audio = crispasr.decodeAudioFile(_abs(rest.first), libPath: lib);
+    final chunkMs = _intOpt('chunk-ms');
+    if (chunkMs <= 0) usageException('--chunk-ms must be positive.');
+    final audio =
+        crispasr.decodeAudioFile(_absExisting(rest.first, 'Audio file'), libPath: lib);
     final cr = crispasr.CrispASR(modelPath, libPath: lib);
     try {
       // Note: hotwords + temperature from CLI args are not applied to
@@ -726,8 +805,7 @@ class _StreamCmd extends _Base {
       final session =
           cr.openStream(language: argResults!['language'] as String?);
       try {
-        final chunk =
-            int.parse(argResults!['chunk-ms'] as String) * 16; // 16 smp/ms @16k
+        final chunk = chunkMs * 16; // 16 smp/ms @16k
         final buf = StringBuffer();
         for (var off = 0; off < audio.samples.length; off += chunk) {
           final end = (off + chunk) < audio.samples.length
@@ -771,7 +849,8 @@ class _AlignCmd extends _Base {
     if (rest.isEmpty) usageException('Pass an audio file path.');
 
     // Resolve aligner model: explicit > language-matched wav2vec2 > any on disk.
-    String? model = modelArg != null ? _abs(modelArg) : null;
+    String? model =
+        modelArg != null ? _absExisting(modelArg, 'Aligner model') : null;
     if (model == null) {
       // Try language-specific wav2vec2 first, then canary-ctc-aligner.
       final modelsDir = Platform.environment['CRISPASR_MODELS_DIR'] ??
@@ -823,7 +902,8 @@ class _AlignCmd extends _Base {
           'canary-ctc-aligner / wav2vec2-aligner-<lang> via Model Management.');
     }
 
-    final audio = crispasr.decodeAudioFile(_abs(rest.first), libPath: lib);
+    final audio =
+        crispasr.decodeAudioFile(_absExisting(rest.first, 'Audio file'), libPath: lib);
     final words = crispasr.alignWords(
         alignerModel: model, transcript: text, pcm: audio.samples, lib: dylib);
     for (final w in words) {
@@ -849,11 +929,13 @@ class _DiarizeCmd extends _Base {
   String get description => 'Transcribe + label speakers (pyannote).';
   @override
   int run() {
-    final asr = _abs(argResults!['model'] as String);
-    final pyannote = _abs(argResults!['pyannote'] as String);
+    final asr = _absExisting(argResults!['model'] as String, 'ASR model');
+    final pyannote =
+        _absExisting(argResults!['pyannote'] as String, 'pyannote model');
     final rest = argResults!.rest;
     if (rest.isEmpty) usageException('Pass an audio file path.');
-    final audio = crispasr.decodeAudioFile(_abs(rest.first), libPath: lib);
+    final audio =
+        crispasr.decodeAudioFile(_absExisting(rest.first, 'Audio file'), libPath: lib);
     final cr = crispasr.CrispASR(asr, libPath: lib);
     try {
       final segs = cr.transcribePcm(audio.samples,
@@ -940,9 +1022,11 @@ class _SpeakerCmd extends _Base {
           'participants to confirm against.');
       return 1;
     }
-    final audio = crispasr.decodeAudioFile(_abs(rest[1]), libPath: lib);
-    final titanet =
-        crispasr.CrispasrTitaNet(dl, _abs(argResults!['titanet'] as String));
+    final threshold = _doubleOpt('threshold');
+    final audio =
+        crispasr.decodeAudioFile(_absExisting(rest[1], 'Audio file'), libPath: lib);
+    final titanet = crispasr.CrispasrTitaNet(
+        dl, _absExisting(argResults!['titanet'] as String, 'TitaNet model'));
     try {
       final emb = titanet.embed(audio.samples);
       final db = crispasr.CrispasrSpeakerDB(
@@ -959,8 +1043,7 @@ class _SpeakerCmd extends _Base {
           stdout.writeln(ok ? 'enrolled $nm' : 'enroll failed');
           return ok ? 0 : 1;
         }
-        final (matchName, score) = db.match(emb,
-            threshold: double.parse(argResults!['threshold'] as String));
+        final (matchName, score) = db.match(emb, threshold: threshold);
         stdout.writeln('${matchName ?? "(no match)"}\t${score.toStringAsFixed(3)}');
         return 0;
       } finally {
@@ -990,10 +1073,12 @@ class _S2sCmd extends _Base {
   String get description => 'Speech-to-speech: audio in → audio out.';
   @override
   int run() {
-    final model = _abs(argResults!['model'] as String);
+    final model = _absExisting(argResults!['model'] as String, 'S2S model');
     final rest = argResults!.rest;
     if (rest.isEmpty) usageException('Pass an input audio file path.');
-    final audio = crispasr.decodeAudioFile(_abs(rest.first), libPath: lib);
+    final rate = _intOpt('rate');
+    final audio =
+        crispasr.decodeAudioFile(_absExisting(rest.first, 'Audio file'), libPath: lib);
     final session = crispasr.CrispasrSession.open(model,
         backend: argResults!['backend'] as String?, libPath: lib);
     try {
@@ -1004,7 +1089,7 @@ class _S2sCmd extends _Base {
       _writeMarkedWav(
         File(argResults!['out'] as String),
         result.pcm,
-        int.parse(argResults!['rate'] as String),
+        rate,
         modelName: p.basenameWithoutExtension(model),
         deepfake: true,
         disclaimerOverride: argResults!['disclaimer-override'] as String?,

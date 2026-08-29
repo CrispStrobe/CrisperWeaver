@@ -14,9 +14,27 @@ import '../utils/platform_utils.dart' as plat;
 // synchronously but the actual write happens later in the event loop,
 // where its FileSystemException escapes the sync try/catch and lands
 // on platformDispatcher.onError as `[uncaught]` for every log line.
-// `stdioType` returns `other` precisely for those detached streams; we
-// skip stderr in that case (file sink still captures everything).
-final bool _stderrUsable = kIsWeb ? false : stdioType(stderr) != StdioType.other;
+// `stdioType` returns `other` for most detached streams — but not all:
+// issue #35 is a Windows 11 release build where `stdioType` reported
+// something else and the deferred write still failed with
+// `writeFrom failed, path = '' (OS Error: The handle is invalid,
+// errno = 6)`. So on Windows release builds we require a *terminal*,
+// which a double-clicked GUI process never has. The file sink and the
+// in-app ring buffer capture everything either way.
+bool _computeStderrUsable() {
+  if (kIsWeb) return false;
+  try {
+    final type = stdioType(stderr);
+    if (type == StdioType.other) return false;
+    if (!kDebugMode && plat.isWindows) return type == StdioType.terminal;
+    return true;
+  } catch (_) {
+    // Even touching `stderr` can throw where stdio is unavailable.
+    return false;
+  }
+}
+
+final bool _stderrUsable = _computeStderrUsable();
 
 enum LogLevel { trace, debug, info, warn, error }
 
@@ -88,9 +106,82 @@ class LogEntry {
 /// entries in memory for the in-app Logs screen, and (when enabled) mirrors
 /// every entry to `logs/session.log` inside the app documents directory.
 class Log {
-  Log._();
+  Log._() {
+    _armStdioDoneGuards();
+  }
   static final Log _instance = Log._();
   static Log get instance => _instance;
+
+  /// `IOSink.writeln` only *queues* bytes: a write that fails does so later,
+  /// in the event loop, and the failure is delivered on `stdout`/`stderr`'s
+  /// `done` future. With nobody listening it becomes an unhandled async
+  /// error (`platformDispatcher.onError` / a zone handler). Attaching a
+  /// no-op error handler is the documented way to neutralise a broken pipe
+  /// and is safe on every platform with `dart:io` — `done` is an ordinary
+  /// future, listening to it neither closes nor flushes the sink.
+  static bool _stdioGuardsArmed = false;
+  static void _ignoreStdioError(Object error, StackTrace stack) {}
+  static void _armStdioDoneGuards() {
+    if (kIsWeb || _stdioGuardsArmed) return;
+    _stdioGuardsArmed = true;
+    try {
+      stderr.done.catchError(_ignoreStdioError);
+      stdout.done.catchError(_ignoreStdioError);
+    } catch (_) {
+      // Some embedders don't expose stdio at all; nothing to guard then.
+    }
+  }
+
+  /// True while log lines are still mirrored to the console.
+  ///
+  /// Starts from [_stderrUsable] and can be turned off for good by
+  /// [disableConsoleMirror] when a console write is observed to fail.
+  bool _consoleMirror = _stderrUsable || kDebugMode;
+  bool get consoleMirrorEnabled => _consoleMirror;
+
+  /// Does [error] look like a failed write to a dead console handle?
+  ///
+  /// The Windows GUI subsystem hands a detached process an invalid stdio
+  /// handle; the queued write fails asynchronously with
+  /// `FileSystemException: writeFrom failed, path = ''
+  /// (OS Error: The handle is invalid, errno = 6)`. The empty path is what
+  /// separates it from a genuine file-write failure.
+  static bool isConsoleWriteFailure(Object? error) {
+    if (error is StdoutException) return true;
+    if (error is! FileSystemException) return false;
+    final path = error.path;
+    if (path != null && path.isNotEmpty) return false;
+    final msg = error.message.toLowerCase();
+    return msg.contains('writefrom') || msg.contains('write failed');
+  }
+
+  bool _consoleFailureNoted = false;
+
+  /// Stop mirroring log lines to stderr/stdout for the rest of the process.
+  ///
+  /// Called from `main()`'s `platformDispatcher.onError` the first time a
+  /// console write is seen to fail, so one broken handle cannot turn every
+  /// subsequent log line into another uncaught error. Idempotent, and the
+  /// one line it emits is written *after* the flag is cleared, so it can
+  /// only reach the ring buffer, the stream, and the file sink — never the
+  /// console that just failed.
+  void disableConsoleMirror({String? reason}) {
+    // Clear the flag first, unconditionally: the line below must not be able
+    // to reach the console that just failed, and a second failure (from a
+    // plugin's own `print`, say) must not add a second line.
+    _consoleMirror = false;
+    if (_consoleFailureNoted) return;
+    _consoleFailureNoted = true;
+    _emit(LogEntry(
+      timestamp: DateTime.now(),
+      level: LogLevel.info,
+      tag: 'log',
+      message: 'Console mirror disabled — this process has no writable '
+          'console (log lines continue in the in-app Logs screen and the '
+          'session log file)',
+      fields: reason == null ? null : {'reason': reason},
+    ));
+  }
 
   final Queue<LogEntry> _buffer = Queue<LogEntry>();
   final StreamController<LogEntry> _stream =
@@ -267,12 +358,17 @@ class Log {
     // Mirror to stderr so `flutter run` + standalone-launched apps
     // both surface it; debugPrint truncates at 800 chars in release,
     // stderr does not.
-    if (kDebugMode) {
-      debugPrint(formatted);
-    } else if (_stderrUsable) {
-      try {
-        stderr.writeln(formatted);
-      } catch (_) {}
+    // `_consoleMirror` also covers debugPrint: in a release build it falls
+    // through to `print()`, i.e. the same stdout handle that is invalid in a
+    // Windows GUI process.
+    if (_consoleMirror) {
+      if (kDebugMode) {
+        debugPrint(formatted);
+      } else if (_stderrUsable) {
+        try {
+          stderr.writeln(formatted);
+        } catch (_) {}
+      }
     }
     // Mirror to file sink when enabled.
     final sink = _sink;

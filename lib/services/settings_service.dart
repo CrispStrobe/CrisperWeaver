@@ -41,6 +41,29 @@ class SettingsService {
     _prefs.setString('default_backend', backend);
   }
 
+  /// #35 — the TTS model the Synthesize screen should open with.
+  ///
+  /// Written by onboarding when the user picks the "make speech" task, so the
+  /// model that was just downloaded is the one that gets selected. Empty means
+  /// "no preference" and the screen falls back to the first downloaded TTS
+  /// entry in catalogue order — which is how onboarding used to download one
+  /// model and synthesise with another.
+  String get defaultTtsModel => _prefs.getString('default_tts_model') ?? '';
+  set defaultTtsModel(String model) {
+    Log.instance.d('settings', 'Saving defaultTtsModel: $model');
+    _prefs.setString('default_tts_model', model);
+  }
+
+  /// #35 — the voicepack that belongs with [defaultTtsModel]. Same story:
+  /// onboarding downloads the recommended model's first companion voice and
+  /// records it here, so the screen plays the voice that was fetched rather
+  /// than whichever voicepack happens to sort first for that backend.
+  String get defaultTtsVoice => _prefs.getString('default_tts_voice') ?? '';
+  set defaultTtsVoice(String voice) {
+    Log.instance.d('settings', 'Saving defaultTtsVoice: $voice');
+    _prefs.setString('default_tts_voice', voice);
+  }
+
   String get defaultLanguage => _prefs.getString('default_language') ?? 'auto';
   set defaultLanguage(String lang) {
     Log.instance.d('settings', 'Saving defaultLanguage: $lang');

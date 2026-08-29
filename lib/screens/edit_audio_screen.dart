@@ -32,6 +32,7 @@ import '../providers/edit_audio_provider.dart';
 import '../services/audio_edit_service.dart';
 import '../services/log_service.dart';
 import '../services/settings_service.dart';
+import '../widgets/root_aware_back_leading.dart';
 import '../widgets/waveform_painter.dart';
 
 class EditAudioScreen extends ConsumerStatefulWidget {
@@ -454,6 +455,9 @@ class _EditAudioScreenState extends ConsumerState<EditAudioScreen> {
     final eState = ref.watch(editAudioProvider);
     return Scaffold(
       appBar: AppBar(
+        // #35 — no back button when this was reached by a stack-replacing
+        // `go()`; fall back to a home button.
+        leading: rootAwareBackLeading(context),
         title: Text(l.editAudioTitle),
         actions: [
           IconButton(

@@ -10,6 +10,7 @@ import '../build_info.dart';
 import '../l10n/generated/app_localizations.dart';
 import '../main.dart' show modelServiceProvider;
 import '../services/diagnostics_service.dart';
+import '../widgets/root_aware_back_leading.dart';
 
 /// About / legal info screen — mirrors the layout used by our sibling
 /// CrispSorter app: service provider, contact, disclaimer, then the
@@ -25,7 +26,12 @@ class AboutScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(title: Text(l.settingsAboutCrisperWeaver)),
+      appBar: AppBar(
+        // #35 — no back button when this was reached by a stack-replacing
+        // `go()`; fall back to a home button.
+        leading: rootAwareBackLeading(context),
+        title: Text(l.settingsAboutCrisperWeaver),
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [

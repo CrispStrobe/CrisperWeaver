@@ -13,6 +13,7 @@ import '../services/settings_service.dart' show settingsServiceProvider;
 import '../services/semantic_search_service.dart';
 import '../utils/file_utils.dart';
 import '../utils/responsive.dart';
+import '../widgets/root_aware_back_leading.dart';
 
 class HistoryScreen extends ConsumerStatefulWidget {
   const HistoryScreen({super.key});
@@ -161,6 +162,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     final l = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
+        // #35 — no back button when this was reached by a stack-replacing
+        // `go()`; fall back to a home button.
+        leading: rootAwareBackLeading(context),
         title: Text(l.historyTitle),
         actions: [
           // §5.25.2 — Reindex: backfill embeddings for entries that

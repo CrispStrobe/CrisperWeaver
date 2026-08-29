@@ -83,7 +83,7 @@ class _LocalRepo {
   _LocalRepo(this.key, this.repoId, this.backend, this.languages);
 }
 
-/// Parse `lib/services/model_service.dart` for the
+/// Parse `lib/services/model_catalog.dart` for the
 /// `backendRepos` map and return one [_LocalRepo] per entry.
 /// Regex-based — keeps the cross-check pure-Dart so it runs
 /// without the Flutter SDK (and stays in sync with the catalogue
@@ -92,7 +92,7 @@ List<_LocalRepo> _parseBackendRepos(String src) {
   final start = src.indexOf('static const Map<String, BackendRepo> backendRepos');
   if (start < 0) {
     throw StateError(
-        'could not find `backendRepos` map declaration in model_service.dart');
+        'could not find `backendRepos` map declaration in model_catalog.dart');
   }
   // Find the opening brace of the map literal and walk balanced
   // braces to find the matching close — handles the nested
@@ -336,9 +336,12 @@ Future<Set<String>> _fetchReadmeLanguages(
 
 void main(List<String> args) async {
   final dryRun = args.contains('--dry-run');
-  final src = await File('lib/services/model_service.dart').readAsString();
+  // The catalogue data moved out of model_service.dart into
+  // model_catalog.dart; this script kept reading the old file and threw
+  // `could not find backendRepos` on every run.
+  final src = await File('lib/services/model_catalog.dart').readAsString();
   final repos = _parseBackendRepos(src);
-  print('Parsed ${repos.length} BackendRepo entries from model_service.dart\n');
+  print('Parsed ${repos.length} BackendRepo entries from model_catalog.dart\n');
   if (dryRun) {
     for (final r in repos) {
       final pretty =
