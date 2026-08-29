@@ -48,6 +48,26 @@ class OnboardingScreen extends ConsumerStatefulWidget {
     settings.defaultTtsVoice = voice;
   }
 
+  /// #35 — the ASR half of `_persist`, extracted for the same reason
+  /// [persistTtsDefaults] was: what onboarding records is the whole point of
+  /// the fix, and a contract that only exists inside a private method of a
+  /// `ConsumerState` can only be tested by pumping a widget.
+  ///
+  /// [definition] is the catalogue row of [modelId] (the caller resolves it;
+  /// an unknown id is simply `null`), and its backend is what the transcribe
+  /// screen dispatches on — falling back to `whisper`, the backend every
+  /// bundled build can run, rather than leaving the previous default in place.
+  static void persistAsrDefaults(
+    SettingsService settings,
+    String modelId,
+    ModelDefinition? definition, {
+    required bool enableDiarization,
+  }) {
+    settings.defaultModel = modelId;
+    settings.defaultBackend = definition?.backend ?? 'whisper';
+    settings.enableDiarizationByDefault = enableDiarization;
+  }
+
   @override
   ConsumerState<OnboardingScreen> createState() => _OnboardingScreenState();
 }
@@ -389,9 +409,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       final def = ref
           .read(modelServiceProvider)
           .lookupDefinition(recommendation.modelId!);
-      settings.defaultModel = recommendation.modelId!;
-      settings.defaultBackend = def?.backend ?? 'whisper';
-      settings.enableDiarizationByDefault = recommendation.enableDiarization;
+      OnboardingScreen.persistAsrDefaults(
+        settings,
+        recommendation.modelId!,
+        def,
+        enableDiarization: recommendation.enableDiarization,
+      );
     }
     if (recommendation.kind == ModelKind.tts &&
         recommendation.modelId != null) {

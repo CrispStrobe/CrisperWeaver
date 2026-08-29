@@ -76,10 +76,10 @@ Open-source project maintained at
 
 ### 1.3 Version
 
-Current release: v0.9.9 (build 79).
+Current release: v0.11.0.
 Engine dependencies, pinned to release tags in CI (`.github/workflows/`)
-rather than tracking a moving branch: CrispASR v0.8.25, CrispEmbed
-v0.16.1, glint_audio v0.11.0.
+rather than tracking a moving branch: CrispASR v0.8.30, CrispEmbed
+v0.17.8, glint_audio v0.11.0.
 
 ### 1.4 Interaction with Other Systems
 
@@ -182,8 +182,10 @@ inference. No training occurs on-device — inference only.
 
 ### 3.2 Testing
 
-- **Unit tests:** ~1200 tests covering services, providers, utilities,
-  engines, compliance, and catalog integrity.
+- **Unit tests:** 1500+ tests covering services, providers, utilities,
+  engines, compliance, catalog integrity, and — since 2026-08-29 — model
+  downloads against a real localhost HTTP server (partial content,
+  mismatched ranges, truncated bodies, bad checksums).
 - **Live tests:** Integration tests against real ASR/TTS models on
   developer hardware (tagged `@slow`, run separately from CI).
 - **Compliance tests:** dedicated tests for EU AI Act compliance in
@@ -251,6 +253,7 @@ biometric data processing risks.
 | AI-generated audio misattributed as human | Art. 50 | Automatic watermark + C2PA signing + metadata tags, on every generating path (GUI, HTTP server, CLI) |
 | AI-generated text mistaken for authored text | Art. 50(2) | Disclosure attached to OCR, LLM summaries and translations on screen and on copy/export; `x-content-ai-generated` on the HTTP translation endpoint |
 | Voice cloning for impersonation | Art. 50(4) | Consent gate on **every** cloning path (wizard, voice-bake screen, CLI `--i-have-rights`) + mandatory beep disclaimer + audit logging |
+| **A beep that was applied to baked voices only** | Art. 50(4) | The row above was written as already-true and held for a cloning path that loads a baked voice GGUF. Issue #35 (2026-08-29) found the Synthesize screen never passing `customVoiceWavPath` to `writeWav`, so a clone from a user-supplied reference WAV — the route the voice-clone wizard drives — was written unmarked. Passed on that path now; the wizard hand-off itself is covered by `test/voice_clone_handoff_test.dart`. See `AI_ACT_RISK.md` §5.2 |
 | Biometric data misuse | GDPR Art. 9 | Explicit consent + on-device only + right to erasure |
 | Transcript text disclosed to a third party | GDPR | Cloud LLM is opt-in and off by default; local model is the default path; flow disclosed in the first-use notice and `PRIVACY.md` §3.3 |
 | Transcription errors affecting decisions | Accuracy | Word-level confidence scores; user can verify and edit |
@@ -350,6 +353,7 @@ border control, employment decisions, or critical infrastructure.
 
 | Date | Change |
 |---|---|
+| 2026-08-29 | **Issue #35 — a user-reported first-run walkthrough, not an audit.** One §5.1 row added: the Art. 50(4) beep was applied on the baked-voice cloning path and not on the runtime path beside it (`customVoiceWavPath` never reached `writeWav`), so clones made through the voice-clone wizard shipped unmarked. §1.3 version and engine pins refreshed, §3.2 test count updated. Full finding list in `HISTORY.md` §18; the regulatory analysis is in `AI_ACT_RISK.md` §9. |
 | 2026-08-03 | **Sixth audit, remaining gaps closed.** Three §5.1 rows added: the ask prompt is now a type that cannot exist unscreened (`ScreenedAskPrompt`), word tokens are filtered for the first time in any version of this control, and the AAC/Opus export fails closed instead of marking-and-warning. §1.1's description of the prompt control as per-entry-point is superseded. See `AI_ACT_RISK.md` §5.2 and §7.4. |
 | 2026-08-03 | **Sixth audit, structural fix.** §1.1 described the emotion filter as covering "the engine's parse boundary". Seven attempts to enumerate those boundaries have now each missed one — the latest four found inside `CrispasrEngine` itself while building a session wrapper, including the streamed-segment drain that puts interim text in the live UI. The filter moved to the destination type (`TranscriptionSegment.fromModelText`), so it no longer depends on that enumeration being right. §1.1 and §5.1 updated; the planned session wrapper was abandoned as a weaker fix, reasoning in `AI_ACT_RISK.md` §5.2. |
 | 2026-08-03 | **Sixth audit, central finding.** Corrected §1.1, which described the emotion filter and the affective-prompt guard as each sitting at a single entry point; the worker pool is a second one for both, and had neither. Added the corresponding §5.1 row. This was live rather than latent and is the most serious defect the six audits have found. |

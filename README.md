@@ -27,13 +27,13 @@ CrisperWeaver is a cross-platform Flutter app for fully-offline audio transcript
 - **Paste a URL** to a remote file; CrisperWeaver downloads and processes it.
 - **Drag and drop** files onto the transcription screen (desktop) or directly on the batch queue.
 - **Receive shared audio** from the OS share sheet (Android / iOS / macOS).
-- **Choose your model family and quantisation** — q4_0 / q5_0 / q4_k / q5_k / q6_k / q8_0 variants plus f16 originals. Model picker filters by name + backend; Model Management screen auto-probes HuggingFace to discover every available quant.
+- **Choose your model family and quantisation** — q4_0 / q5_0 / q4_k / q5_k / q6_k / q8_0 variants plus f16 originals. Model picker filters by name, backend and language (ISO 639-1 throughout, so the voice chips and the language dropdown share one vocabulary); Model Management screen auto-probes HuggingFace to discover every available quant. A file that the catalogue and the live probe both know under two names is listed once, under the curated name.
 - **Add from HuggingFace repo** — link-icon button on the Models screen accepts any `OWNER/NAME` HF repo (e.g. `cstr/voxtral-mini-3b-2507-GGUF`), lists the GGUF / .bin files under your chosen backend, and registers them as downloadable models. Mirror of `crispasr --hf-repo` on the CLI side; escape hatch for repos not yet in the baked catalogue.
-- **Download and manage models** from a built-in browser — parallel queue, resume, SHA-1 verify, cancel, delete. Companion files (codec / voice / tokenizer GGUFs) auto-download alongside their parent model, including for runtime-discovered HF quants.
+- **Download and manage models** from a built-in browser — parallel queue, resume, SHA-1 verify, cancel, delete. Resume is byte-exact: a partial file is appended to only when the server confirms the offset (`206` + matching `Content-Range`), restarted on a `200` or a range mismatch, and the finished file is checked against the length the *server* reports rather than a catalogue estimate. Interrupting keeps what was already fetched; a checksum failure deletes and re-fetches once before it is reported. Companion files (codec / voice / tokenizer GGUFs) auto-download alongside their parent model, including for runtime-discovered HF quants.
 - **Advanced decoding knobs** — translate-to-English (Whisper), beam search, initial-prompt vocabulary bias (huge win for domain audio), audio Q&A prompt for instruct-tuned LLM backends (Voxtral / Qwen3), source + target language pickers for true speech translation.
 - **Tune the decoder live** — best-of-N slider (1–10, picks the highest-scoring of N decodes; works on every backend) and decoder temperature slider for every backend `crispasr_session_set_temperature` honours (canary, cohere, parakeet, moonshine, voxtral, qwen3, granite, glm-asr, gemma4, omniasr-llm, kyutai-stt).
 - **Tune the VAD** — pick between Silero (bundled), FireRedVAD (F1 97.57%), MarbleNet, Whisper-VAD-EncDec; live sliders for threshold, min-speech-ms, min-silence-ms, speech-pad-ms.
-- **Pick the diarisation method** — vad-turns (default, mono-friendly), pyannote (ML, GGUF), stereo energy, stereo cross-correlation.
+- **Pick the diarisation method** — vad-turns (default, mono-friendly), pyannote (ML, GGUF), FoxNose (WeSpeaker embeddings + spectral clustering), stereo energy, stereo cross-correlation. The method and the minimum / maximum speaker counts are applied to the transcription itself, and every control carries help text explaining what it changes.
 - **Pick the language-detection method** — Whisper-encoder LID (reuses an existing model) or Silero 95-langs (faster + smaller).
 - **See live performance numbers** — real-time factor, words per second, wall-clock.
 - **Get word-level timestamps** and language auto-detection (via Whisper).
@@ -58,7 +58,7 @@ CrisperWeaver is a cross-platform Flutter app for fully-offline audio transcript
 - **Summarise meetings** — Action Items / Key Topics / Decisions as structured Markdown, via either the cloud BYOK endpoint or the on-device chat model — same three-mode chooser as the cleanup pass.
 - **Save presets** — bundle `(backend, modelId, language, AdvancedOptions)` into a named preset. One tap restores all four atomically. JSON-backed with schema-versioned migration so a stale preset on a newer build doesn't crash.
 - **Push-to-transcribe from anywhere** — desktop-only system hotkey (macOS / Linux / Windows). Push-to-talk OR toggle behaviour; combo parser handles modifier aliases (cmd / command / win / super → meta, ctrl → control, option → alt).
-- **Clone a voice in three steps** — guided wizard launched from the *Synthesize* screen: record 10 s OR pick a WAV → type the reference transcript → hand off to *Synthesize* with everything pre-populated. Runs on top of the existing chatterbox / indextts / qwen3-tts-base / vibevoice runtime-cloning surface.
+- **Clone a voice in three steps** — guided wizard launched from the *Synthesize* screen: record 10 s OR pick a WAV → type the reference transcript → hand off to *Synthesize* with everything pre-populated, including a clone-capable model. A banner there names the reference clip in play, a non-WAV reference is flagged at the picker, and anything that would stop the clone (no reference transcript, a model that can't clone, an unreadable clip) is reported before the attempt instead of as a return code afterwards. Runs on top of the existing chatterbox / indextts / qwen3-tts-base / vibevoice runtime-cloning surface; cloned output carries the audible Art. 50(4) disclaimer.
 - **Whisper subtitle formatting** — tokens-per-segment cap + split-on-word toggle in Advanced Options. Produces SRT-friendly short subtitle lines instead of long-paragraph segments. **Split-on-punct** additionally breaks at sentence-ending punctuation (. ! ?) — works with any backend, not just whisper.
 - **Semantic transcript search** — search your history by meaning, not just keywords. When a small embedding model is downloaded (~23 MB), History search uses real vector embeddings (cosine similarity) instead of substring matching. Persisted embeddings avoid re-encoding. Cross-modal audio embeddings supported with larger models.
 - **Subtitle overlay / teleprompter** — fullscreen always-on-top transparent overlay showing live streaming transcription as subtitles. Font size, position, and background controls. On macOS the window floats above other apps via platform channel.
@@ -74,7 +74,7 @@ CrisperWeaver is a cross-platform Flutter app for fully-offline audio transcript
 
 ## Supported models
 
-One dispatcher (`CrispasrSession`) handles every backend; bundled `libcrispasr` reports at startup which are linked in the current build, and the *Models* screen filter chips group them by kind (`ASR / TTS / Voices / Codecs / Post-processors`). The Model Management screen also probes CrispASR's built-in C-side registry on every open, so any backend the bundled libcrispasr knows about appears even if it isn't hardcoded in the app catalog.
+One dispatcher (`CrispasrSession`) handles every backend; bundled `libcrispasr` reports at startup which are linked in the current build, and the *Models* screen filter chips group them by kind (`ASR / TTS / Voices / Codecs / Post-processors`), with a backend dropdown and a language dropdown on top. Under *Voices* a second chip row narrows by voice language ("German (de)"), reading the same tagged language data as the dropdown. The Model Management screen also probes CrispASR's built-in C-side registry on every open, so any backend the bundled libcrispasr knows about appears even if it isn't hardcoded in the app catalog.
 
 ### ASR
 
@@ -241,7 +241,7 @@ flutter run -d macos        # or: linux, windows, android, ios
 
 ## Using it
 
-1. **First run**: open *Settings → Manage models* and download the model you want. Default pick is Whisper base (~140 MB, covers 99 languages).
+1. **First run**: onboarding asks what you want to do — transcribe, run a meeting, translate, or make speech — and downloads a device-appropriate starter set for that task, then drops you on the matching screen (with Home reachable from it). The model and voice it picked become your defaults, so *Synthesize* opens on the voice that was actually downloaded. Prefer to choose yourself? Skip onboarding and open *Settings → Manage models*; the default pick is Whisper base (~140 MB, covers 99 languages).
 2. **Transcribe a file**: back to the main screen, drop a file or click the picker. Language auto-detects by default.
 3. **Record from the mic**: use the recorder card. Stop → transcribe.
 4. **Stream from mic** (Whisper): toggle *Stream* in the recorder. Partial text arrives as you speak.
@@ -270,7 +270,7 @@ The default test pass is fast and offline:
 
 ```bash
 flutter analyze    # 0 issues — see analysis_options.yaml for the strict rule set
-flutter test       # 378 tests, ~20 s — widget unit + service / persistence / batch / dispatch
+flutter test       # 1500+ tests, ~100 s — widget unit + service / persistence / batch / dispatch
 ```
 
 `test/backend_dispatch_test.dart` always runs the cheap dispatch

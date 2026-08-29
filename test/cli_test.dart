@@ -121,4 +121,110 @@ void main() {
       expect('${r.stderr}', contains('--out'));
     });
   });
+
+  // =====================================================================
+  // CLI-level TTS → ASR roundtrip (opt-in).
+  //
+  // test/tts_asr_roundtrip_live_test.dart proves the *engine* survives a
+  // roundtrip. This proves the CLI does — which is not the same claim,
+  // because `synthesize` does a pile of work the engine path never sees:
+  // the Art. 50(4) beep, the spread-spectrum watermark (with a Dart
+  // fallback when the native embed didn't take), the LIST/INFO
+  // provenance chunk and a C2PA manifest are all spliced into the WAV
+  // before it hits disk. Every one of those edits the container or the
+  // samples. If any of them corrupts the audio — a provenance chunk
+  // written where the decoder expects `data`, a watermark loud enough to
+  // mask speech — the words stop coming back, and only a roundtrip
+  // through the real binary can tell us.
+  //
+  // Self-skips unless CRISPASR_TEST_KOKORO_MODEL, CRISPASR_TEST_KOKORO_VOICE
+  // and CRISPASR_TEST_WHISPER_MODEL all point at files on disk. Models are
+  // used from their env paths — nothing is copied anywhere.
+  // =====================================================================
+  group('crisperweaver CLI roundtrip (opt-in)', () {
+    String? env(String name) {
+      final v = Platform.environment[name];
+      return (v != null && v.isNotEmpty && File(v).existsSync()) ? v : null;
+    }
+
+    final kokoro = env('CRISPASR_TEST_KOKORO_MODEL');
+    final voice = env('CRISPASR_TEST_KOKORO_VOICE');
+    final whisper = env('CRISPASR_TEST_WHISPER_MODEL');
+
+    final skip = kokoro == null
+        ? 'set CRISPASR_TEST_KOKORO_MODEL to a kokoro-82m-*.gguf'
+        : voice == null
+            ? 'set CRISPASR_TEST_KOKORO_VOICE to a kokoro-voice-*.gguf'
+            : whisper == null
+                ? 'set CRISPASR_TEST_WHISPER_MODEL to a ggml-*.bin'
+                : null;
+
+    test('synthesize → transcribe preserves the spoken words', () async {
+      final tmp = Directory.systemTemp.createTempSync('cw_cli_roundtrip_');
+      addTearDown(() {
+        try {
+          tmp.deleteSync(recursive: true);
+        } catch (_) {
+          // A leaked temp dir is not worth failing a live run over.
+        }
+      });
+      final wav = '${tmp.path}/spoken.wav';
+      const phrase = 'The quick brown fox jumps over the lazy dog.';
+      const salient = ['quick', 'brown', 'fox', 'jumps', 'lazy', 'dog'];
+
+      // `--voice` is the only way the CLI can hand kokoro its voicepack.
+      // A `.gguf` voicepack is a catalogue voice, so it needs no
+      // --i-have-rights attestation — but it still triggers the Art. 50(4)
+      // beep, which would be the first thing whisper hears. Suppress just
+      // the beep with --disclaimer-override so the ASR leg scores speech
+      // rather than a tone; the watermark, LIST/INFO provenance and C2PA
+      // manifest all still go into the file, which is precisely the part
+      // of the pipeline this test exists to put audio through.
+      final synth = await _cli([
+        'synthesize',
+        '-m', kokoro!,
+        '--voice', voice!,
+        '--disclaimer-override',
+        'automated regression fixture, never distributed',
+        '-o', wav,
+        phrase,
+      ]);
+      expect(synth.exitCode, 0,
+          reason: 'synthesize failed: ${synth.stderr}');
+      expect(File(wav).existsSync(), isTrue,
+          reason: 'synthesize reported success but wrote no WAV');
+      // 44 bytes is a bare header. The marking pipeline adds chunks, so
+      // anything near that means no samples made it through.
+      expect(File(wav).lengthSync(), greaterThan(16000),
+          reason: 'the synthesized WAV is implausibly small '
+              '(${File(wav).lengthSync()} bytes)');
+      expect('${synth.stdout}', contains('synthesized'),
+          reason: 'synthesize did not report what it wrote: ${synth.stdout}');
+
+      final asr = await _cli(['transcribe', '-m', whisper!, '-l', 'en', wav]);
+      expect(asr.exitCode, 0, reason: 'transcribe failed: ${asr.stderr}');
+
+      // Case- and punctuation-insensitive, with a naive plural stem —
+      // the same scoring the engine-level roundtrip uses. An exact match
+      // would be a flake generator through two neural models.
+      String stem(String w) =>
+          (w.length > 3 && w.endsWith('s') && !w.endsWith('ss'))
+              ? w.substring(0, w.length - 1)
+              : w;
+      final got = '${asr.stdout}'
+          .toLowerCase()
+          .replaceAll(RegExp(r"[^a-z0-9']+"), ' ')
+          .split(' ')
+          .where((t) => t.isNotEmpty)
+          .map(stem)
+          .toSet();
+      final hits = salient.map(stem).where(got.contains).length;
+      final score = hits / salient.length;
+      printOnFailure('CLI roundtrip transcript: "${asr.stdout}"');
+      expect(score, greaterThanOrEqualTo(0.6),
+          reason: 'only ${(score * 100).round()}% of $salient survived the '
+              'CLI synthesize → transcribe roundtrip (need 60%); '
+              'transcript was "${asr.stdout}"');
+    }, skip: skip, timeout: const Timeout(Duration(minutes: 15)));
+  });
 }

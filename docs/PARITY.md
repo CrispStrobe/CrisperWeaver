@@ -16,7 +16,7 @@ Legend: ✅ reached · ➖ partial · ❌ not yet · — n/a.
 | List backends | ✅ (implicit) | ✅ `backends` | ✅ `GET /backends` | |
 | File ASR (transcribe) | ✅ | ✅ `transcribe` (+`--srt`/`--vtt`) | ✅ `/v1/audio/transcriptions` | |
 | Live / streaming ASR | ✅ | ✅ `stream` | ✅ WebSocket `/v1/audio/stream` | binary PCM → JSON segments |
-| VAD | ✅ | ✅ `vad` | ✅ `/v1/audio/vad` | |
+| VAD | ✅ | ✅ `vad` · `transcribe --vad --vad-model` | ✅ `/v1/audio/vad` | CLI calls the free `crispasr_vad_slices`; `--vad` needs an explicit model path (#35) |
 | Language ID (audio+text) | ✅ | ✅ `lid` (`--text`) | ✅ `/v1/audio/language` + `/v1/text/language` | |
 | Diarization | ✅ | ✅ `diarize` | ✅ `/v1/audio/diarize` | |
 | Speaker enroll / match | ✅ | ✅ `speaker` | ❌ | server: stateful device DB — deferred |
@@ -67,6 +67,15 @@ are intentionally **not** mirrored to the CLI/server:
   `--vtt`), `stream` (with `--hotwords`, `--temperature`), `vad`, `lid`,
   `diarize`, `align`, `speaker`, `punctuate`, `translate`, `synthesize`
   (with `--temperature`, `--seed`), `s2s`, `watermark`, `denoise`, `backends`.
+  Two CLI-specific rules, both from #35:
+  - **`--vad` requires `--vad-model <silero .gguf>`.** The GUI auto-detects
+    the VAD model because it ships Silero as a Flutter asset; a `dart run`
+    entrypoint has no asset bundle, so the path cannot be inferred. Before
+    #35 the flag was parsed and then ignored, which looked like parity in
+    `--help` and decoded the silence anyway.
+  - **Bad arguments are usage errors (exit 64), not stack traces.** Numeric
+    options are validated and input files are checked for existence *before*
+    the decode and the session open.
 - **Server**: complete — all REST endpoints + WebSocket streaming
   (`/v1/audio/stream`). `GET /backends` lists available backends.
   The transcriptions endpoint now accepts `temperature`, `best_of`,

@@ -80,7 +80,7 @@ class StarterModels {
     ModelKind.asr: [
       // whisper.cpp base q5_0 — the reference starter: multilingual, ~60 MB,
       // and the backend with the widest platform coverage in this app.
-      'base-q5_0',
+      'base-q5_1',
       // Moonshine base — faster than whisper at similar size, English-first.
       'moonshine-base-q4_k',
       // Parakeet 110M — CTC, very fast, good on short clips.
@@ -95,8 +95,8 @@ class StarterModels {
       // lessac is Blizzard-Challenge research-only, and recommending it from
       // inside the app would be pointing users at a licence the project does
       // not itself rely on. These two are the CC0 / public-domain voices.
-      'piper-de_DE-thorsten-medium-f16',
-      'piper-en_GB-cori-medium-f16',
+      'piper-de-thorsten-medium',
+      'piper-en-cori',
     ],
   };
 
@@ -130,14 +130,14 @@ class StarterModels {
         if (priority == StarterPriority.storage) {
           if (lang == 'de') {
             return const StarterRecommendation(
-              modelId: 'piper-de_DE-thorsten-medium-f16',
+              modelId: 'piper-de-thorsten-medium',
               route: '/synthesize',
               kind: ModelKind.tts,
             );
           }
           if (lang == 'en') {
             return const StarterRecommendation(
-              modelId: 'piper-en_GB-cori-medium-f16',
+              modelId: 'piper-en-cori',
               route: '/synthesize',
               kind: ModelKind.tts,
             );
@@ -157,7 +157,7 @@ class StarterModels {
             StarterPriority.storage =>
               'moonshine-base-q4_k',
             StarterPriority.quality => 'parakeet-tdt-0.6b-v3-q4_k',
-            StarterPriority.balanced => 'base-q5_0',
+            StarterPriority.balanced => 'base-q5_1',
           };
           return StarterRecommendation(
             modelId: id,
@@ -167,7 +167,7 @@ class StarterModels {
           );
         }
         return StarterRecommendation(
-          modelId: 'base-q5_0',
+          modelId: 'base-q5_1',
           route: '/',
           kind: ModelKind.asr,
           enableDiarization: meeting,

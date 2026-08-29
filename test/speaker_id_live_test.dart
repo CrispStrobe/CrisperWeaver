@@ -168,17 +168,27 @@ void main() {
             expectedNames: 'jfk', consentAttested: true);
         expect(db.enroll('jfk', emb1), isTrue);
 
+        // The C API's enroll() writes the profile to disk but does NOT
+        // add it to the already-open handle's in-memory roster — a
+        // same-instance match scores -1.0 against an empty roster
+        // (isolated 2026-08-29: same-instance → null/-1.0, reopened →
+        // jfk/1.0). SpeakerIdService honours this by closing its handle
+        // after every enroll; the test follows the same contract.
+        db.close();
+        final db2 = crispasr.CrispasrSpeakerDB(lib, tmp.path,
+            expectedNames: 'jfk', consentAttested: true);
+
         // Re-embed the same clip and match. Self-cosine on TitaNet
         // is essentially 1.0 (the model is deterministic); we
         // assert ≥ the upstream 0.7 confidence floor for a wide
         // margin against floating-point drift on any platform.
         final emb2 = titanet.embed(decoded.samples);
-        final (name, score) = db.match(emb2);
+        final (name, score) = db2.match(emb2);
         expect(name, 'jfk',
             reason: 'same speaker should resolve to the enrolled name');
         expect(score, greaterThanOrEqualTo(0.7),
             reason: 'self-match should clear the upstream threshold');
-        db.close();
+        db2.close();
       } finally {
         titanet.close();
         await tmp.delete(recursive: true);

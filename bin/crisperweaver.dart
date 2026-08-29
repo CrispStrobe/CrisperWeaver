@@ -555,10 +555,27 @@ class _LidCmd extends _Base {
     if (model == null) usageException('--model <multilingual ASR model> required.');
     final audio =
         crispasr.decodeAudioFile(_absExisting(rest.first, 'Audio file'), libPath: lib);
-    final cr = crispasr.CrispASR(_absExisting(model, 'ASR model'), libPath: lib);
+    // Audio LID runs through Whisper's language detector, so the model must
+    // be a MULTILINGUAL whisper checkpoint. Handing it a different family
+    // (a silero-lid GGUF, an English-only .en model) used to die with a raw
+    // stack trace; name the requirement instead.
+    final crispasr.CrispASR cr;
+    try {
+      cr = crispasr.CrispASR(_absExisting(model, 'ASR model'), libPath: lib);
+    } catch (e) {
+      stderr.writeln('Could not open "${p.basename(model)}" for language '
+          'detection: $e\nAudio LID needs a multilingual Whisper model '
+          '(e.g. ggml-tiny.bin / ggml-base.bin — not a .en variant, and not '
+          'a text-LID GGUF; use --text for those).');
+      return 64;
+    }
     try {
       final d = cr.detectLanguage(audio.samples);
       stdout.writeln('${d.code}\t${d.probability.toStringAsFixed(3)}');
+    } catch (e) {
+      stderr.writeln('Language detection failed: $e\nAudio LID needs a '
+          'multilingual Whisper model (not a .en variant).');
+      return 1;
     } finally {
       cr.dispose();
     }
@@ -652,12 +669,18 @@ class _SynthesizeCmd extends _Base {
     final rest = argResults!.rest;
     final text = rest.isNotEmpty ? rest.join(' ') : stdin.readLineSync() ?? '';
     final voice = argResults!['voice'] as String?;
-    final isClone = voice != null && voice.isNotEmpty;
+    final hasVoice = voice != null && voice.isNotEmpty;
+    // A baked .gguf voicepack (kokoro af_heart, VibeVoice Emma, …) is a
+    // catalogue voice, not a recording of a natural person — selecting one
+    // needs no biometric-consent attestation, exactly as in the GUI, where
+    // only the clone wizard's reference-audio path carries the consent
+    // checkbox. Cloning from an audio file keeps the gate.
+    final isRefClone = hasVoice && !voice.toLowerCase().endsWith('.gguf');
 
     // GDPR Art. 9(2)(a) consent gate, matching the GUI wizard. Refuse rather
     // than warn: a headless flag that only prints a warning is a flag nobody
     // reads. Mirrors CrispASR's --i-have-rights.
-    if (isClone && !(argResults!['i-have-rights'] as bool)) {
+    if (isRefClone && !(argResults!['i-have-rights'] as bool)) {
       stderr.writeln(
           'Refusing to clone a voice without --i-have-rights.\n'
           'Voice cloning processes biometric characteristics of a natural '
@@ -675,12 +698,12 @@ class _SynthesizeCmd extends _Base {
         _absExisting(argResults!['model'] as String, 'TTS model'),
         libPath: lib);
     try {
-      if (isClone) session.setVoice(_absExisting(voice, 'Reference voice'));
+      if (hasVoice) session.setVoice(_absExisting(voice, 'Reference voice'));
       try { session.setTemperature(ttsTemp, seed: ttsSeed >= 0 ? ttsSeed : 0); } catch (_) {}
       final pcm = session.synthesize(text);
       final out = File(argResults!['out'] as String);
       final model = argResults!['model'] as String;
-      if (isClone) {
+      if (isRefClone) {
         stdout.writeln('[CONSENT] ts=${DateTime.now().toUtc().toIso8601String()} '
             'model=${p.basename(model)} voice=${p.basename(voice)} '
             'attestation="--i-have-rights"');
@@ -690,8 +713,12 @@ class _SynthesizeCmd extends _Base {
         pcm,
         rate,
         modelName: p.basenameWithoutExtension(model),
-        voiceId: isClone ? p.basenameWithoutExtension(voice) : null,
-        deepfake: isClone,
+        voiceId: hasVoice ? p.basenameWithoutExtension(voice) : null,
+        // Beep disclaimer for ANY voice reference, voicepack included —
+        // identical to the GUI (TtsService.writeWav beeps whenever a
+        // voiceRefPath is set). Only the GDPR consent gate above
+        // distinguishes a catalogue voicepack from reference-audio cloning.
+        deepfake: hasVoice,
         disclaimerOverride: argResults!['disclaimer-override'] as String?,
         dylib: dylib,
       );
@@ -798,12 +825,32 @@ class _StreamCmd extends _Base {
         crispasr.decodeAudioFile(_absExisting(rest.first, 'Audio file'), libPath: lib);
     final cr = crispasr.CrispASR(modelPath, libPath: lib);
     try {
+      // The streaming session decodes EMPTY text when no language is set —
+      // auto-LID is not wired into the rolling-window decoder, on either
+      // .en or multilingual checkpoints (verified against jfk.wav: bare
+      // `stream` printed nothing, `-l en` transcribed fine). Resolve the
+      // language up front instead of streaming silence: `.en` models are
+      // English by construction; for multilingual ones run the ordinary
+      // language detector over the first ~10 s.
+      var language = argResults!['language'] as String?;
+      if (language == null || language.isEmpty || language == 'auto') {
+        if (p.basename(modelPath).contains('.en')) {
+          language = 'en';
+        } else {
+          final probeLen = audio.samples.length < 160000
+              ? audio.samples.length
+              : 160000;
+          final d = cr.detectLanguage(
+              Float32List.sublistView(audio.samples, 0, probeLen));
+          language = d.code;
+        }
+        stderr.writeln('stream: no --language given; using "$language"');
+      }
       // Note: hotwords + temperature from CLI args are not applied to
       // the streaming session because StreamingSession doesn't expose
       // those setters. They are accepted by the parser for forward-
       // compatibility when the C ABI adds stream-level overrides.
-      final session =
-          cr.openStream(language: argResults!['language'] as String?);
+      final session = cr.openStream(language: language);
       try {
         final chunk = chunkMs * 16; // 16 smp/ms @16k
         final buf = StringBuffer();

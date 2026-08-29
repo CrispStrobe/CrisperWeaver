@@ -17,7 +17,14 @@ import 'package:crisper_weaver/services/starter_models.dart';
 /// compiled-in whisper.cpp map. The Models screen merges both, so a pick may
 /// legitimately live in either.
 Set<String> _allKnownModelIds() {
-  final ids = <String>{...ModelCatalog.whisperCppModels.keys};
+  // Mirror ModelService.lookupDefinition's full layering — a pick that only
+  // exists in the baked snapshot under a duplicate-suppressed name (the two
+  // piper starters, issue #35 follow-up) must NOT count as resolving.
+  final ids = <String>{
+    ...ModelCatalog.whisperCppModels.keys,
+    ...ModelCatalog.crispasrBackendModels.keys,
+    ...ModelCatalog.ttsVoicepacks.keys,
+  };
   final file = File('assets/models/catalog.json');
   final baked = jsonDecode(file.readAsStringSync()) as List<dynamic>;
   for (final e in baked) {
@@ -107,7 +114,7 @@ void main() {
         language: 'de',
       );
       expect(result.enableDiarization, isTrue);
-      expect(result.modelId, 'base-q5_0');
+      expect(result.modelId, 'base-q5_1');
       expect(result.kind, ModelKind.asr);
     });
 

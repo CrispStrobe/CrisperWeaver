@@ -496,11 +496,6 @@ abstract final class ModelCatalog {
   static const String whisperCppBaseUrl =
       'https://huggingface.co/ggerganov/whisper.cpp/resolve/main';
 
-  /// Secondary repo under the cstr namespace — used for quantized Whisper
-  /// variants (q4_0 / q5_0 / q8_0) and mirrors.
-  static const String cstrWhisperCppBaseUrl =
-      'https://huggingface.co/cstr/whisper-ggml-quants/resolve/main';
-
   /// A general-purpose cstr GGUF repo (CrispASR-compatible backends:
   /// Parakeet, Canary, Cohere, Voxtral, Qwen3-ASR, Granite, FastConformer-CTC,
   /// Wav2Vec2). Each backend has its own filename convention — see
@@ -1252,45 +1247,51 @@ abstract final class ModelCatalog {
       languages: langsEn,
     ),
 
-    // ----- Quantized variants (cstr mirrors) -----
-    // These are rough size estimates. Checksums are intentionally empty —
-    // size-only validation is used until we have authoritative SHAs.
-    'tiny-q5_0': ModelDefinition(
-      name: 'tiny-q5_0',
-      displayName: 'Whisper Tiny (q5_0)',
-      fileName: 'ggml-tiny-q5_0.bin',
-      url: '$cstrWhisperCppBaseUrl/ggml-tiny-q5_0.bin',
-      sizeBytes: 33 * 1024 * 1024,
+    // ----- Quantized variants (public ggerganov/whisper.cpp files) -----
+    // Every URL here is verified against the PUBLIC repo listing. The
+    // historical cstr/whisper-ggml-quants mirror turned private and
+    // answered 401 to unauthenticated users, which broke the default
+    // onboarding download (issue #35 follow-up, 2026-08-29). ggerganov
+    // publishes q5_1 (not q5_0) for tiny/base/small, so those entries
+    // carry the quant that actually exists; q4_0 / q2_k / large-v3-q8_0
+    // have no public source and were dropped. Checksums intentionally
+    // empty — size-only validation until we have authoritative SHAs.
+    'tiny-q5_1': ModelDefinition(
+      name: 'tiny-q5_1',
+      displayName: 'Whisper Tiny (q5_1)',
+      fileName: 'ggml-tiny-q5_1.bin',
+      url: '$whisperCppBaseUrl/ggml-tiny-q5_1.bin',
+      sizeBytes: 32152673,
       checksum: '',
       description: '5-bit quantized tiny — smaller, ~same accuracy',
-      quantization: 'q5_0',
+      quantization: 'q5_1',
     ),
-    'base-q5_0': ModelDefinition(
-      name: 'base-q5_0',
-      displayName: 'Whisper Base (q5_0)',
-      fileName: 'ggml-base-q5_0.bin',
-      url: '$cstrWhisperCppBaseUrl/ggml-base-q5_0.bin',
-      sizeBytes: 60 * 1024 * 1024,
+    'base-q5_1': ModelDefinition(
+      name: 'base-q5_1',
+      displayName: 'Whisper Base (q5_1)',
+      fileName: 'ggml-base-q5_1.bin',
+      url: '$whisperCppBaseUrl/ggml-base-q5_1.bin',
+      sizeBytes: 59707625,
       checksum: '',
       description: '5-bit quantized base — ~60 MB',
-      quantization: 'q5_0',
+      quantization: 'q5_1',
     ),
-    'small-q5_0': ModelDefinition(
-      name: 'small-q5_0',
-      displayName: 'Whisper Small (q5_0)',
-      fileName: 'ggml-small-q5_0.bin',
-      url: '$cstrWhisperCppBaseUrl/ggml-small-q5_0.bin',
-      sizeBytes: 190 * 1024 * 1024,
+    'small-q5_1': ModelDefinition(
+      name: 'small-q5_1',
+      displayName: 'Whisper Small (q5_1)',
+      fileName: 'ggml-small-q5_1.bin',
+      url: '$whisperCppBaseUrl/ggml-small-q5_1.bin',
+      sizeBytes: 190085487,
       checksum: '',
       description: '5-bit quantized small — ~190 MB',
-      quantization: 'q5_0',
+      quantization: 'q5_1',
     ),
     'medium-q5_0': ModelDefinition(
       name: 'medium-q5_0',
       displayName: 'Whisper Medium (q5_0)',
       fileName: 'ggml-medium-q5_0.bin',
-      url: '$cstrWhisperCppBaseUrl/ggml-medium-q5_0.bin',
-      sizeBytes: 540 * 1024 * 1024,
+      url: '$whisperCppBaseUrl/ggml-medium-q5_0.bin',
+      sizeBytes: 539212467,
       checksum: '',
       description: '5-bit quantized medium — ~540 MB',
       quantization: 'q5_0',
@@ -1299,70 +1300,20 @@ abstract final class ModelCatalog {
       name: 'large-v3-q5_0',
       displayName: 'Whisper Large v3 (q5_0)',
       fileName: 'ggml-large-v3-q5_0.bin',
-      url: '$cstrWhisperCppBaseUrl/ggml-large-v3-q5_0.bin',
-      sizeBytes: 1100 * 1024 * 1024,
+      url: '$whisperCppBaseUrl/ggml-large-v3-q5_0.bin',
+      sizeBytes: 1081140203,
       checksum: '',
       description: '5-bit quantized large-v3 — ~1.1 GB',
       quantization: 'q5_0',
-    ),
-    'large-v3-q4_0': ModelDefinition(
-      name: 'large-v3-q4_0',
-      displayName: 'Whisper Large v3 (q4_0)',
-      fileName: 'ggml-large-v3-q4_0.bin',
-      url: '$cstrWhisperCppBaseUrl/ggml-large-v3-q4_0.bin',
-      sizeBytes: 880 * 1024 * 1024,
-      checksum: '',
-      description: '4-bit quantized large-v3 — ~880 MB',
-      quantization: 'q4_0',
-    ),
-    'large-v3-q2_k': ModelDefinition(
-      name: 'large-v3-q2_k',
-      displayName: 'Whisper Large v3 (q2_k)',
-      fileName: 'ggml-large-v3-q2_k.bin',
-      url: '$cstrWhisperCppBaseUrl/ggml-large-v3-q2_k.bin',
-      sizeBytes: 500 * 1024 * 1024,
-      checksum: '',
-      description: '2-bit quantized large-v3 — ~500 MB',
-      quantization: 'q2_k',
-    ),
-    'base-q4_0': ModelDefinition(
-      name: 'base-q4_0',
-      displayName: 'Whisper Base (q4_0)',
-      fileName: 'ggml-base-q4_0.bin',
-      url: '$cstrWhisperCppBaseUrl/ggml-base-q4_0.bin',
-      sizeBytes: 46 * 1024 * 1024,
-      checksum: '',
-      description: '4-bit quantized base — ~46 MB',
-      quantization: 'q4_0',
-    ),
-    'small-q4_0': ModelDefinition(
-      name: 'small-q4_0',
-      displayName: 'Whisper Small (q4_0)',
-      fileName: 'ggml-small-q4_0.bin',
-      url: '$cstrWhisperCppBaseUrl/ggml-small-q4_0.bin',
-      sizeBytes: 150 * 1024 * 1024,
-      checksum: '',
-      description: '4-bit quantized small — ~150 MB',
-      quantization: 'q4_0',
     ),
     'base-q8_0': ModelDefinition(
       name: 'base-q8_0',
       displayName: 'Whisper Base (q8_0)',
       fileName: 'ggml-base-q8_0.bin',
-      url: '$cstrWhisperCppBaseUrl/ggml-base-q8_0.bin',
-      sizeBytes: 78 * 1024 * 1024,
+      url: '$whisperCppBaseUrl/ggml-base-q8_0.bin',
+      sizeBytes: 81768585,
       checksum: '',
       description: '8-bit quantized base — ~78 MB',
-      quantization: 'q8_0',
-    ),
-    'large-v3-q8_0': ModelDefinition(
-      name: 'large-v3-q8_0',
-      displayName: 'Whisper Large v3 (q8_0)',
-      fileName: 'ggml-large-v3-q8_0.bin',
-      url: '$cstrWhisperCppBaseUrl/ggml-large-v3-q8_0.bin',
-      sizeBytes: 1650 * 1024 * 1024,
-      checksum: '',
-      description: '8-bit quantized large-v3 — ~1.65 GB',
       quantization: 'q8_0',
     ),
     'large-v3-turbo-german': ModelDefinition(
