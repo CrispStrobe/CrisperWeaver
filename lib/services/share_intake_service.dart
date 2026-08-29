@@ -153,21 +153,60 @@ class ShareIntakeService {
     }
   }
 
+  /// Split argv into file paths, dropping anything that looks like a
+  /// command-line flag.
+  ///
+  /// The GUI executable takes file paths only — every flag belongs to the
+  /// `crisperweaver` CLI entrypoint. Before this, `crisper_weaver.exe --help`
+  /// on Windows logged `Shared file does not exist: --help` (issue #35),
+  /// because argv went into the share pipeline verbatim.
+  ///
+  /// The rule is positional: an argument whose first character is `-` is a
+  /// flag. A real file literally named `-weird` is therefore unreachable
+  /// this way — an acceptable trade, since that is exactly the ambiguity
+  /// every POSIX tool resolves the same way, and such a file can still be
+  /// opened from inside the app.
+  ///
+  /// [onFlag] receives each dropped argument (already trimmed) so the caller
+  /// can report it; the filter itself is pure and unit-testable.
+  static List<String> filterDesktopArgs(
+    List<String> args, {
+    void Function(String flag)? onFlag,
+  }) {
+    final paths = <String>[];
+    for (final arg in args) {
+      final trimmed = arg.trim();
+      if (trimmed.isEmpty) continue;
+      if (trimmed.startsWith('-')) {
+        onFlag?.call(trimmed);
+        continue;
+      }
+      paths.add(arg);
+    }
+    return paths;
+  }
+
   /// Public entry-point for desktop-platform argv intake.
   /// Linux's .desktop file passes `%F` as positional args; the
   /// main() bootstrap reads those at launch and calls this
-  /// method. Cross-platform-safe — paths that don't exist or
-  /// don't match a known shape get logged + dropped, same as
-  /// the share-intent pipeline.
+  /// method. Cross-platform-safe — flags are dropped by
+  /// [filterDesktopArgs], and paths that don't exist or don't
+  /// match a known shape get logged + dropped, same as the
+  /// share-intent pipeline.
   ///
   /// Synthesises `SharedMediaFile` shells so it reuses the
   /// existing triage code (`_handleBatch`) verbatim — keeps the
   /// audio/transcript split logic in one place.
   void acceptPaths(List<String> paths) {
     if (paths.isEmpty) return;
+    final candidates = filterDesktopArgs(paths, onFlag: (flag) {
+      Log.instance.i(
+          'share',
+          "ignoring command-line flag '$flag' — the GUI does not take "
+          'flags; see the crisperweaver CLI');
+    });
     final files = <SharedMediaFile>[];
-    for (final p in paths) {
-      if (p.trim().isEmpty) continue;
+    for (final p in candidates) {
       files.add(SharedMediaFile(
         path: p,
         type: SharedMediaType.file,

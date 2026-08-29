@@ -1,5 +1,21 @@
 #!/usr/bin/env python3
-"""Parse baked_models_catalog.dart and emit assets/models/catalog.json.
+"""DEPRECATED — do not use. Kept only as a record of the one-off
+migration that turned the old compiled-in `baked_models_catalog.dart`
+into `assets/models/catalog.json`.
+
+That Dart file no longer exists, so this script now exits 1 on the
+"not found" check rather than silently emitting a wrong catalogue. The
+live generator is `scripts/bake_models_catalog.dart`
+(`dart run scripts/bake_models_catalog.dart`), which probes the HF API
+and writes the JSON directly.
+
+Note the shape difference that made this converter lossy in the first
+place: `PARAM_RE` below matches only strings, ints, bools and
+`ModelKind.*` — it has never been able to parse a list, so
+`languages:` and `companions:` were dropped from every entry it
+converted (issue #35).
+
+Parse baked_models_catalog.dart and emit assets/models/catalog.json.
 
 This avoids needing the Flutter SDK — it uses regex to extract each
 ModelDefinition(...) block and its named parameters, then writes them

@@ -11,6 +11,43 @@ import '../services/starter_models.dart';
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
 
+  /// #35 — record the TTS starter pick so the Synthesize screen opens on the
+  /// model (and voice) onboarding just downloaded.
+  ///
+  /// `_finish` fetches the recommended model *plus every companion in its
+  /// catalogue row* — for the synthesize task that is `kokoro-82m-q8_0` and
+  /// `kokoro-voice-af_heart`. Nothing was persisted for TTS, so the screen
+  /// fell back to "first downloaded TTS model in catalogue order" and "first
+  /// downloaded voicepack for that backend", which is how the app came to
+  /// download one voice and play another.
+  ///
+  /// [companionDefinitions] are the catalogue rows of the model's companions,
+  /// in the order the row lists them (the caller resolves them; unknown ids
+  /// are simply absent). The voice default is the first companion that is a
+  /// [ModelKind.voice] — a codec companion is not a voice and must not be
+  /// stored as one — and is cleared when the model has no voicepack, so a
+  /// later re-run of onboarding can't leave a stale voice from a previous
+  /// pick behind.
+  ///
+  /// Takes the service rather than a `ref` so the contract is unit-testable
+  /// against a SharedPreferences-backed [SettingsService] without pumping
+  /// the widget.
+  static void persistTtsDefaults(
+    SettingsService settings,
+    String modelId,
+    List<ModelDefinition> companionDefinitions,
+  ) {
+    settings.defaultTtsModel = modelId;
+    var voice = '';
+    for (final def in companionDefinitions) {
+      if (def.kind == ModelKind.voice) {
+        voice = def.name;
+        break;
+      }
+    }
+    settings.defaultTtsVoice = voice;
+  }
+
   @override
   ConsumerState<OnboardingScreen> createState() => _OnboardingScreenState();
 }
@@ -308,7 +345,25 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       }
       if (!mounted) return;
       _persist(recommendation);
-      context.go(recommendation.route);
+      // #35 — `go()` replaces the whole stack, so landing straight on
+      // /synthesize or /translate left the user on a screen with no back
+      // button and no way home short of restarting the app. Put home at
+      // the bottom of the stack first, then push the destination on top
+      // of it so the AppBar draws its normal back arrow.
+      final route = recommendation.route;
+      final router = GoRouter.of(context);
+      router.go('/');
+      if (route != '/') {
+        // `push` reads `routerDelegate.currentConfiguration` synchronously
+        // as its base, while `go` only notifies the route-information
+        // provider — pushing in the same turn can therefore stack the
+        // destination on top of /onboarding instead of /. Waiting for the
+        // frame that `go` triggers makes the ordering deterministic. The
+        // router outlives this widget, so no `mounted`/context use here.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          router.push<Object?>(route);
+        });
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -337,6 +392,21 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       settings.defaultModel = recommendation.modelId!;
       settings.defaultBackend = def?.backend ?? 'whisper';
       settings.enableDiarizationByDefault = recommendation.enableDiarization;
+    }
+    if (recommendation.kind == ModelKind.tts &&
+        recommendation.modelId != null) {
+      // #35 — `_finish` downloaded this model *and* the companions listed on
+      // its catalogue row; record both so the Synthesize screen selects what
+      // was fetched instead of the first row that happens to be on disk.
+      final service = ref.read(modelServiceProvider);
+      final def = service.lookupDefinition(recommendation.modelId!);
+      final companionDefs = <ModelDefinition>[];
+      for (final name in def?.companions ?? const <String>[]) {
+        final companion = service.lookupDefinition(name);
+        if (companion != null) companionDefs.add(companion);
+      }
+      OnboardingScreen.persistTtsDefaults(
+          settings, recommendation.modelId!, companionDefs);
     }
   }
 

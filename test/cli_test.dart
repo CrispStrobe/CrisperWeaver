@@ -74,5 +74,51 @@ void main() {
       final r = await _cli(['definitely-not-a-command']);
       expect(r.exitCode, 64);
     });
+
+    test('an unknown flag is a usage error, not a crash', () async {
+      final r = await _cli(['--definitely-not-a-flag']);
+      expect(r.exitCode, 64);
+      expect('${r.stderr}', contains('definitely-not-a-flag'));
+    });
+
+    test('no arguments at all prints usage instead of crashing', () async {
+      final r = await _cli([]);
+      expect(r.exitCode, 0);
+      expect('${r.stdout}', contains('Usage:'));
+    });
+
+    // The checks below all fail before the dylib is touched, so they run
+    // anywhere — no model, no libcrispasr.
+
+    test('a non-numeric numeric option is a usage error (exit 64)', () async {
+      // `int.parse` used to throw an uncaught FormatException here: a Dart
+      // stack trace and exit 255 instead of a sentence about --best-of.
+      final r =
+          await _cli(['transcribe', '-m', 'model.bin', '--best-of', 'two', 'a.wav']);
+      expect(r.exitCode, 64);
+      expect('${r.stderr}', contains('best-of'));
+    });
+
+    test('a missing input file is a usage error, not a decoder crash',
+        () async {
+      final r = await _cli(
+          ['transcribe', '-m', 'model.bin', 'no-such-audio-file-12345.wav']);
+      expect(r.exitCode, 64);
+      expect('${r.stderr}', contains('not found'));
+    });
+
+    test('--vad without --vad-model explains itself', () async {
+      final r =
+          await _cli(['transcribe', '-m', 'model.bin', '--vad', 'a.wav']);
+      expect(r.exitCode, 64);
+      expect('${r.stderr}', contains('vad-model'));
+    });
+
+    test('watermark embed rejects a missing --out before doing the work',
+        () async {
+      final r = await _cli(['watermark', 'a.wav']);
+      expect(r.exitCode, 64);
+      expect('${r.stderr}', contains('--out'));
+    });
   });
 }

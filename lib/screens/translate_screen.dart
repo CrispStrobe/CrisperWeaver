@@ -14,6 +14,7 @@ import '../services/model_service.dart';
 import '../services/settings_service.dart';
 import '../services/text_translation_service.dart';
 import '../utils/ai_text_disclosure.dart';
+import '../widgets/root_aware_back_leading.dart';
 
 /// Text-to-text translation via CrispASR's `crispasr_session_translate_text`.
 /// Mirrors the Synthesize screen's structure: pick a downloaded model,
@@ -200,7 +201,12 @@ class _TranslateScreenState extends ConsumerState<TranslateScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: Text(l.translateTitle)),
+      appBar: AppBar(
+        // #35 — onboarding can `go()` straight here, leaving no route to
+        // pop and so no back button; fall back to a home button.
+        leading: rootAwareBackLeading(context),
+        title: Text(l.translateTitle),
+      ),
       body: s.loading
           ? const Center(child: CircularProgressIndicator())
           : Padding(
@@ -513,7 +519,12 @@ class _WebTranslateScreenState extends ConsumerState<_WebTranslateScreen> {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(title: Text(l.translateTitle)),
+      appBar: AppBar(
+        // #35 — onboarding can `go()` straight here, leaving no route to
+        // pop and so no back button; fall back to a home button.
+        leading: rootAwareBackLeading(context),
+        title: Text(l.translateTitle),
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(

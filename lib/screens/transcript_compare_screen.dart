@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../engines/transcription_engine.dart';
 import '../l10n/generated/app_localizations.dart';
 import '../main.dart' show historyServiceProvider;
+import '../widgets/root_aware_back_leading.dart';
 
 /// §5.25.7 — Transcript diff / comparison view.
 ///
@@ -58,6 +59,9 @@ class _TranscriptCompareScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        // #35 — no back button when this was reached by a stack-replacing
+        // `go()`; fall back to a home button.
+        leading: rootAwareBackLeading(context),
         title: Text(AppLocalizations.of(context).compareTranscriptsTitle),
       ),
       body: _leftSegments == null || _rightSegments == null

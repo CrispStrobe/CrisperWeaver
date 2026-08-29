@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -8,6 +10,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../models/pronunciation_lexicon.dart';
 import '../native/crispasr_import.dart' as crispasr;
+import '../utils/platform_utils.dart' as plat;
 import '../services/voice_baking_service.dart';
 
 import '../l10n/generated/app_localizations.dart';
@@ -18,6 +21,7 @@ import '../services/settings_service.dart' show settingsServiceProvider;
 import '../services/model_service.dart';
 import '../services/tts_service.dart';
 import '../utils/file_picker_util.dart';
+import '../widgets/root_aware_back_leading.dart';
 
 /// Chatterbox emotion/prosody tag that can be inserted inline.
 class ChatterboxEmotionTag {
@@ -25,6 +29,28 @@ class ChatterboxEmotionTag {
   final String label;
   final IconData icon;
   const ChatterboxEmotionTag(this.tag, this.label, this.icon);
+}
+
+/// #35 — why a reference clip can't be used with the current model.
+///
+/// Each value maps 1:1 onto a rejection arm of
+/// `crispasr_session_set_voice()` (CrispASR `src/crispasr_c_api.cpp`),
+/// which answers with a bare `rc` the UI used to relay verbatim as
+/// "Missing required companion file: Exception: setVoice failed
+/// (rc=-2) for backend qwen3-tts".
+enum CloneReferenceProblem {
+  /// The backend's `set_voice` only takes a baked voicepack / preset
+  /// name (kokoro, outetts, speecht5, kugelaudio, zonos …), or has no
+  /// arm at all and falls through to `rc=-3`.
+  backendCannotClone,
+
+  /// The backend clones from clip + transcript and returns `-2` without
+  /// one (qwen3-tts, cosyvoice3).
+  refTextRequired,
+
+  /// The backend routes on the literal `.wav` suffix, so any other
+  /// container is misread as a voicepack name or rejected with `-2`.
+  wavOnly,
 }
 
 /// Tags supported by chatterbox-turbo for emotion-driven prosody.
@@ -67,6 +93,198 @@ class SynthesizeScreen extends ConsumerStatefulWidget {
     if (current != null && speakers.contains(current)) return current;
     return speakers.first;
   }
+
+  /// #35 — backends whose `crispasr_session_set_voice()` accepts a
+  /// reference *clip* (runtime cloning), as opposed to only a baked
+  /// voicepack or a preset name. Mirrors the arms of that function in
+  /// CrispASR's `src/crispasr_c_api.cpp`.
+  ///
+  /// Deliberately excluded even though they have an arm:
+  ///   * `tada` — WAV cloning is opt-in behind `CRISPASR_TADA_WAV_CLONE`
+  ///     and returns `-2` otherwise;
+  ///   * `zonos` — `zonos_tts_set_voice` is a stub that returns `-1`;
+  ///   * `kugelaudio` / `outetts` / `speecht5` / `kokoro` — voicepack,
+  ///     JSON profile, x-vector `.bin`, voicepack respectively;
+  ///   * `moss-tts-local` — no arm; falls through to `rc=-3`.
+  static const cloneCapableBackends = <String>{
+    'chatterbox',
+    'confucius4-tts',
+    'cosyvoice3-tts',
+    'cosyvoice3-tts-rl',
+    'dots-tts',
+    'f5-tts',
+    'indextts',
+    'moss-tts',
+    'omnivoice',
+    'pocket-tts',
+    'qwen3-tts',
+    'vibevoice',
+    'vibevoice-1.5b',
+    'vibevoice-tts',
+    'voxcpm2-tts',
+  };
+
+  /// Backends that need the reference clip's transcript alongside the
+  /// audio: their C arm returns `-2` when `ref_text` is null/empty
+  /// (qwen3-tts: `if (!ref_text_or_null) return -2;`; cosyvoice3 the
+  /// same, unless a CLI-cached transcript happens to sit next to the
+  /// clip). The wizard lets the user skip this step, which is how a
+  /// clone that "just ends with an error" happens.
+  static const cloneRefTextRequiredBackends = <String>{
+    'cosyvoice3-tts',
+    'cosyvoice3-tts-rl',
+    'qwen3-tts',
+  };
+
+  /// Backends that decode whatever container the shared audio loader
+  /// understands (mp3 / flac / m4a …). Every other clone-capable
+  /// backend routes on the literal `.wav` suffix — `ends_with_wav()` —
+  /// and treats anything else as a voicepack path, so an MP3 picked in
+  /// the wizard fails deep inside the engine rather than at the picker.
+  static const cloneAnyAudioFormatBackends = <String>{'chatterbox'};
+
+  /// #35 — which downloaded TTS model should own a reference clip.
+  ///
+  /// A still-valid [current] pick wins so we never yank a model out
+  /// from under the user; otherwise the first downloaded clone-capable
+  /// model. Null when the user has no model that can clone at all —
+  /// the caller surfaces "download one of these" rather than letting
+  /// `setVoice` fail natively. Pure + static so the preference contract
+  /// is testable without an FFI session.
+  static ModelInfo? preferCloneCapableModel(
+      List<ModelInfo> models, String? current) {
+    final downloaded = models
+        .where((m) =>
+            m.kind == ModelKind.tts &&
+            m.isDownloaded &&
+            cloneCapableBackends.contains(m.backend))
+        .toList(growable: false);
+    for (final m in downloaded) {
+      if (m.name == current) return m;
+    }
+    return downloaded.isEmpty ? null : downloaded.first;
+  }
+
+  /// #35 — which TTS model the screen should open on.
+  ///
+  /// [preferred] is `SettingsService.defaultTtsModel` — the model onboarding
+  /// downloaded. It wins when it is actually on disk; otherwise we keep the
+  /// historical behaviour and take the first downloaded TTS entry, which is
+  /// catalogue order and therefore arbitrary. Null when nothing TTS is
+  /// downloaded at all. Pure + static so the preference order is testable
+  /// without pumping the widget.
+  static String? pickDefaultTtsModel(
+      List<ModelInfo> downloaded, String preferred) {
+    final tts = downloaded
+        .where((m) => m.kind == ModelKind.tts && m.isDownloaded)
+        .toList(growable: false);
+    if (tts.isEmpty) return null;
+    if (preferred.isNotEmpty) {
+      for (final m in tts) {
+        if (m.name == preferred) return m.name;
+      }
+    }
+    return tts.first.name;
+  }
+
+  /// #35 — which companion of [kind] belongs with the selected model.
+  ///
+  /// Preference order, highest first:
+  ///   1. [preferred] — what onboarding recorded (`defaultTtsVoice`) — when
+  ///      it is downloaded, of the right kind, and belongs to [backend];
+  ///   2. the selected model's own catalogue [companions], in the order the
+  ///      row lists them, filtered the same way — this is the entry that got
+  ///      downloaded alongside the model;
+  ///   3. the first downloaded companion of that kind for [backend] —
+  ///      the historical fallback, and arbitrary.
+  ///
+  /// Null when the backend has no downloaded companion of that kind. Pure +
+  /// static; [pickDefaultTtsVoice] / [pickDefaultTtsCodec] are the two call
+  /// shapes (a codec is never something onboarding records, so it starts at
+  /// step 2).
+  static String? pickCompanion({
+    required List<ModelInfo> models,
+    required String backend,
+    required ModelKind kind,
+    required List<String> companions,
+    String preferred = '',
+  }) {
+    final candidates = models
+        .where((m) => m.kind == kind && m.backend == backend && m.isDownloaded)
+        .toList(growable: false);
+    if (candidates.isEmpty) return null;
+    if (preferred.isNotEmpty) {
+      for (final m in candidates) {
+        if (m.name == preferred) return m.name;
+      }
+    }
+    for (final name in companions) {
+      for (final m in candidates) {
+        if (m.name == name) return m.name;
+      }
+    }
+    return candidates.first.name;
+  }
+
+  /// [pickCompanion] for [ModelKind.voice] — see its preference order.
+  static String? pickDefaultTtsVoice({
+    required List<ModelInfo> models,
+    required String backend,
+    required List<String> companions,
+    String preferred = '',
+  }) =>
+      pickCompanion(
+        models: models,
+        backend: backend,
+        kind: ModelKind.voice,
+        companions: companions,
+        preferred: preferred,
+      );
+
+  /// [pickCompanion] for [ModelKind.codec] — the model's own companion
+  /// codec first, then the historical first-downloaded fallback.
+  static String? pickDefaultTtsCodec({
+    required List<ModelInfo> models,
+    required String backend,
+    required List<String> companions,
+  }) =>
+      pickCompanion(
+        models: models,
+        backend: backend,
+        kind: ModelKind.codec,
+        companions: companions,
+      );
+
+  /// #35 — what (if anything) stops [referencePath] from being cloned by
+  /// [backend]. Null means the combination is one the engine accepts.
+  /// Pure + static; mirrors the rejection arms documented on
+  /// [CloneReferenceProblem].
+  static CloneReferenceProblem? cloneReferenceProblem({
+    required String backend,
+    required String referencePath,
+    required String refText,
+  }) {
+    if (!cloneCapableBackends.contains(backend)) {
+      return CloneReferenceProblem.backendCannotClone;
+    }
+    if (!cloneAnyAudioFormatBackends.contains(backend) &&
+        !referencePath.toLowerCase().endsWith('.wav')) {
+      return CloneReferenceProblem.wavOnly;
+    }
+    if (refText.trim().isEmpty &&
+        cloneRefTextRequiredBackends.contains(backend)) {
+      return CloneReferenceProblem.refTextRequired;
+    }
+    return null;
+  }
+
+  /// True when every character of [path] is ASCII. The FFI binding hands
+  /// the engine UTF-8 bytes through a narrow `char*`, and Windows' CRT
+  /// reads those in the active ANSI code page — so a clip under
+  /// `C:\Users\Jörg\Documents` cannot be opened by `fopen` at all
+  /// (CrispASR `src/core/wav_reader.h`). Pure + static for testability.
+  static bool isAsciiPath(String path) =>
+      !path.codeUnits.any((c) => c > 127);
 
   /// Insert an emotion tag into [text] at [cursorPos]. Returns
   /// (newText, newCursorPos). Pure + static for testability.
@@ -150,6 +368,37 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
     }
     _refresh();
     _loadLexicon();
+  }
+
+  @override
+  void didUpdateWidget(covariant SynthesizeScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // #35 — this is the hand-off path that actually runs.
+    //
+    // The wizard is opened from *this* screen's AppBar with
+    // `context.push('/voice-clone')` and finishes with
+    // `context.go('/synthesize', extra: …)`. go_router keys its pages by
+    // matched path (`RouteMatch.pageKey = ValueKey('/synthesize')`), so
+    // that `go` does not build a new screen: it re-uses the page — and
+    // hence this very State — that was already at the bottom of the
+    // stack. `initState` never runs a second time, so the captured clip
+    // and transcript were dropped on the floor and the user came back to
+    // an apparently unchanged screen. Apply them here instead.
+    final wav = widget.initialVoiceWavPath;
+    if (wav == null || wav.isEmpty || wav == oldWidget.initialVoiceWavPath) {
+      return;
+    }
+    final rt = widget.initialRefText;
+    // Deferred: writing to a provider from didUpdateWidget would mark
+    // this element dirty while it is being rebuilt.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      Log.instance.i('synth', 'voice-clone hand-off applied to a live screen',
+          fields: {'ref': p.basename(wav), 'ref_text_len': rt?.length ?? 0});
+      ref.read(synthesizeScreenProvider.notifier).setCustomVoiceWavPath(wav);
+      if (rt != null && rt.isNotEmpty) _refTextController.text = rt;
+      _applyCloneModelPreference();
+    });
   }
 
   /// §5.25.9 — Load pronunciation lexicon from disk and inject into TTS.
@@ -261,14 +510,32 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
       svc.refreshFromCrispasrRegistry();
       final all = await svc.getWhisperCppModels();
       n.setAllModels(all);
-      // Auto-select the first downloaded TTS model + matching voice/codec.
+      // Auto-select a downloaded TTS model + matching voice/codec.
+      //
+      // #35 — the pick used to be `ttsDownloaded.first`, i.e. catalogue
+      // order, so a user who took the onboarding starter could land on a
+      // different model from the one onboarding had just downloaded for
+      // them. Prefer what onboarding recorded when it is on disk.
       final ttsDownloaded =
           all.where((m) => m.kind == ModelKind.tts && m.isDownloaded).toList();
       if (ttsDownloaded.isNotEmpty) {
         final current = ref.read(synthesizeScreenProvider).selectedModel;
-        if (current == null) n.setSelectedModel(ttsDownloaded.first.name);
+        if (current == null) {
+          final preferred = ref.read(settingsServiceProvider).defaultTtsModel;
+          final pick =
+              SynthesizeScreen.pickDefaultTtsModel(ttsDownloaded, preferred);
+          if (pick != null) n.setSelectedModel(pick);
+        }
         _autoSelectCompanions();
       }
+      // §5.1.12 / #35 — the auto-pick above lands on the onboarding
+      // starter (or, failing that, whichever TTS model is downloaded
+      // first), which for a user who only took the onboarding starter is
+      // kokoro — a backend whose setVoice() takes a baked voicepack and
+      // nothing else. When we arrive from the
+      // voice-clone wizard with a reference clip, steer the selection to
+      // a model that can actually clone from it.
+      _applyCloneModelPreference();
     } catch (e, st) {
       Log.instance
           .w('synth', 'failed to refresh model list', error: e, stack: st);
@@ -282,6 +549,36 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
     // discovery happens on an explicit model pick (_loadSpeakers in the
     // dropdown's onChanged), and _synthesize has a fallback that auto-picks
     // a speaker for the auto-selected model so the first synth still works.
+  }
+
+  /// #35 — steer the model selection towards a backend that can clone
+  /// from the reference clip currently loaded. No-op when there is no
+  /// reference clip, when the current pick can already clone, or when
+  /// nothing clone-capable is downloaded (the card above the Synthesize
+  /// button then says what to download instead).
+  void _applyCloneModelPreference() {
+    final s = ref.read(synthesizeScreenProvider);
+    final wav = s.customVoiceWavPath;
+    if (wav == null || wav.isEmpty) return;
+    final picked =
+        SynthesizeScreen.preferCloneCapableModel(s.allModels, s.selectedModel);
+    if (picked == null) {
+      Log.instance.w('synth',
+          'voice reference loaded but no downloaded TTS model can clone',
+          fields: {
+            'selected': s.selectedModel ?? '',
+            'ref': p.basename(wav),
+          });
+      return;
+    }
+    if (picked.name == s.selectedModel) return;
+    Log.instance.i('synth', 'auto-selected a clone-capable model', fields: {
+      'was': s.selectedModel ?? '',
+      'now': picked.name,
+      'backend': picked.backend,
+    });
+    ref.read(synthesizeScreenProvider.notifier).setSelectedModel(picked.name);
+    _autoSelectCompanions();
   }
 
   /// Pick the first downloaded voicepack / codec whose backend matches
@@ -360,16 +657,22 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
     final modelDef =
         ref.read(modelServiceProvider).lookupDefinition(s.selectedModel ?? '');
     if (modelDef == null) return;
-    final voices = s.allModels.where((m) =>
-        m.kind == ModelKind.voice &&
-        m.backend == modelDef.backend &&
-        m.isDownloaded);
-    final codecs = s.allModels.where((m) =>
-        m.kind == ModelKind.codec &&
-        m.backend == modelDef.backend &&
-        m.isDownloaded);
-    n.setSelectedVoice(voices.isEmpty ? null : voices.first.name);
-    n.setSelectedCodec(codecs.isEmpty ? null : codecs.first.name);
+    // #35 — this used to take the first downloaded voicepack for the
+    // backend, which for kokoro is whichever `kokoro-voice-*` row sorts
+    // first — not the `af_heart` companion onboarding actually downloaded.
+    // Prefer the recorded default, then the model's own companions, and only
+    // then fall back to "first downloaded for this backend".
+    n.setSelectedVoice(SynthesizeScreen.pickDefaultTtsVoice(
+      models: s.allModels,
+      backend: modelDef.backend,
+      companions: modelDef.companions,
+      preferred: ref.read(settingsServiceProvider).defaultTtsVoice,
+    ));
+    n.setSelectedCodec(SynthesizeScreen.pickDefaultTtsCodec(
+      models: s.allModels,
+      backend: modelDef.backend,
+      companions: modelDef.companions,
+    ));
   }
 
   /// #17 — open the selected model (when its backend can carry preset
@@ -480,22 +783,78 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
     try {
       final refText = _refTextController.text.trim();
       final instructPrompt = _instructController.text.trim();
+      final modelDef =
+          ref.read(modelServiceProvider).lookupDefinition(ss.selectedModel!);
+      final backend = modelDef?.backend ?? '';
+
+      // #35 — pre-flight the voice-clone reference. Every rejection
+      // below is one the C side answers with a bare `rc`, which this
+      // screen relayed as "Missing required companion file: Exception:
+      // setVoice failed (rc=-2) for backend qwen3-tts" — accurate and
+      // useless. Check the same conditions here, where we can name the
+      // fix.
+      String? voiceWavPath = ss.customVoiceWavPath;
+      if (voiceWavPath != null && voiceWavPath.isNotEmpty) {
+        final problem = SynthesizeScreen.cloneReferenceProblem(
+          backend: backend,
+          referencePath: voiceWavPath,
+          refText: refText,
+        );
+        if (problem != null) {
+          Log.instance.w('synth', 'voice reference rejected before the '
+              'native call', fields: {
+            'problem': problem.name,
+            'backend': backend,
+            'model': ss.selectedModel ?? '',
+            'ref': p.basename(voiceWavPath),
+            'ref_text_len': refText.length,
+          });
+          if (!mounted) return;
+          final l = AppLocalizations.of(context);
+          final modelLabel = modelDef?.displayName ?? ss.selectedModel!;
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            duration: const Duration(seconds: 8),
+            content: Text(switch (problem) {
+              CloneReferenceProblem.backendCannotClone =>
+                l.synthCloneModelCannotClone(modelLabel),
+              CloneReferenceProblem.refTextRequired =>
+                l.synthCloneNeedsRefText(modelLabel),
+              CloneReferenceProblem.wavOnly =>
+                l.synthCloneNeedsWav(modelLabel),
+            }),
+          ));
+          return;
+        }
+        // May relocate the clip (Windows non-ASCII paths) or abort with
+        // its own message when the clip is gone.
+        voiceWavPath = await _engineReadableReference(voiceWavPath);
+        if (voiceWavPath == null) return;
+      } else {
+        voiceWavPath = null;
+      }
+      // A reference clip and a preset speaker are mutually exclusive on
+      // the C side — `set_voice` is only reached when no speaker was
+      // set, so a stale speaker selection silently cancels the clone.
+      final cloning = voiceWavPath != null;
+
       Log.instance.i('synth', 'prepare', fields: {
         'model': ss.selectedModel ?? '',
+        'backend': backend,
         'voice': ss.selectedVoice ?? '',
         'codec': ss.selectedCodec ?? '',
         'speaker': ss.selectedSpeaker ?? '',
-        'customWav': ss.customVoiceWavPath != null,
+        'customWav': cloning,
+        'ref_text_len': refText.length,
       });
       final status = await tts.prepare(
         modelName: ss.selectedModel!,
         voiceName: ss.selectedVoice,
         codecName: ss.selectedCodec,
         refText: refText.isEmpty ? null : refText,
-        speakerName: ss.selectedSpeaker,
-        speakerId: ss.selectedSpeakerId,
+        speakerName: cloning ? null : ss.selectedSpeaker,
+        speakerId: cloning ? null : ss.selectedSpeakerId,
         instructPrompt: instructPrompt.isEmpty ? null : instructPrompt,
-        voiceWavPath: ss.customVoiceWavPath,
+        voiceWavPath: voiceWavPath,
       );
       if (!status.ready) {
         Log.instance.w('synth', 'prepare failed', fields: {
@@ -516,12 +875,19 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
           );
           return;
         }
+        // An open/setVoice failure is not a missing companion file —
+        // labelling it as one sent users hunting for a download that
+        // was never the problem. Only the missing-* fields mean that.
         final missing = status.missingModelName ??
             status.missingVoiceName ??
-            status.missingCodecName ??
-            (status.errorMessage ?? '');
+            status.missingCodecName;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l.synthMissingDependency(missing))),
+          SnackBar(
+            duration: const Duration(seconds: 8),
+            content: Text(missing != null
+                ? l.synthMissingDependency(missing)
+                : l.synthesizeFailed(status.errorMessage ?? '')),
+          ),
         );
         return;
       }
@@ -532,8 +898,11 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
       // and re-open with it. Without a speaker these backends emit no
       // audio. instructPrompt is forced null here so prepare() takes the
       // speaker branch rather than the (mutually-exclusive) instruct one.
+      // Skipped while cloning: picking a preset speaker there would
+      // re-open without the reference clip and quietly synthesise the
+      // preset voice instead of the user's clone (#35).
       final curSpeaker = ref.read(synthesizeScreenProvider).selectedSpeaker;
-      if (curSpeaker == null && tts.presetSpeakers.isNotEmpty) {
+      if (!cloning && curSpeaker == null && tts.presetSpeakers.isNotEmpty) {
         final speakers = tts.presetSpeakers;
         if (mounted) {
           sn.setPresetSpeakers(speakers);
@@ -594,7 +963,16 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
       // EU AI Act Art. 50(4): the reference voice has to reach writeWav,
       // otherwise the mandatory beep disclaimer for cloned output never
       // fires. `prepare(voiceName:)` alone is not enough.
-      final wav = await tts.writeWav(audio, voiceRefPath: ss.selectedVoice);
+      //
+      // #35 — and the user's own reference clip is the one case where
+      // that disclaimer is unambiguously owed (prepare() declares it
+      // `real_person` to the C side for exactly this reason). Passing
+      // only `selectedVoice` — a catalog *name*, not a path — meant a
+      // wizard clone on a base model with no voicepack selected shipped
+      // with no beep at all. The catalog voice stays as the fallback:
+      // dropping a disclaimer is the one failure mode worth avoiding.
+      final wav = await tts.writeWav(audio,
+          voiceRefPath: ss.customVoiceWavPath ?? ss.selectedVoice);
       if (mounted) setState(() => _marking = tts.lastMarking);
       sn.setLastWav(wav);
 
@@ -650,6 +1028,65 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
         ],
       ),
     );
+  }
+
+  /// #35 — hand the engine a reference path it can actually open.
+  ///
+  /// Two failure modes, both of which used to reach the user as a bare
+  /// `rc=-1` out of `setVoice`:
+  ///   * the clip is gone — the wizard records into the documents dir,
+  ///     and a cleanup / reinstall / OS temp sweep takes it with it;
+  ///   * the path contains non-ASCII characters and we're on Windows.
+  ///     The FFI binding passes UTF-8 bytes to a narrow `char*` API, and
+  ///     the CRT's `fopen` reads those in the active ANSI code page, so
+  ///     `C:\Users\Jörg\Documents\recording.wav` simply cannot be opened
+  ///     (CrispASR `src/core/wav_reader.h` and every backend reading the
+  ///     reference through it). Copy the clip somewhere ASCII when the
+  ///     temp dir allows it; say so plainly when it doesn't.
+  ///
+  /// Returns the path to hand to `prepare()`, or null when the caller
+  /// should abort — a snackbar has been shown by then.
+  Future<String?> _engineReadableReference(String path) async {
+    final l = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    if (!await File(path).exists()) {
+      Log.instance.w('synth', 'voice reference no longer on disk',
+          fields: {'path': path});
+      if (mounted) {
+        messenger.showSnackBar(SnackBar(
+          duration: const Duration(seconds: 8),
+          content: Text(l.synthCloneReferenceMissing(p.basename(path))),
+        ));
+      }
+      return null;
+    }
+    if (!plat.isWindows || SynthesizeScreen.isAsciiPath(path)) return path;
+    try {
+      final dir = await getTemporaryDirectory();
+      if (SynthesizeScreen.isAsciiPath(dir.path)) {
+        final copy = p.join(
+            dir.path,
+            'crisperweaver-voiceref-'
+            '${DateTime.now().millisecondsSinceEpoch}${p.extension(path)}');
+        await File(path).copy(copy);
+        Log.instance.i('synth', 'relocated the voice reference to an ASCII path',
+            fields: {'to': copy});
+        return copy;
+      }
+    } catch (e, st) {
+      Log.instance.w('synth', 'relocating the voice reference failed',
+          error: e, stack: st);
+    }
+    Log.instance.w('synth',
+        'voice reference path is not ASCII and could not be relocated',
+        fields: {'path': path});
+    if (mounted) {
+      messenger.showSnackBar(SnackBar(
+        duration: const Duration(seconds: 10),
+        content: Text(l.synthCloneNonAsciiPath(p.basename(path))),
+      ));
+    }
+    return null;
   }
 
   /// Show the OS file picker for a WAV reference. Limits to
@@ -785,8 +1222,24 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
             (m) => m.kind == ModelKind.codec && m.backend == modelDef?.backend)
         .toList(growable: false);
 
+    // #35 — the wizard hand-off used to be invisible: the reference clip
+    // landed in a field inside the *collapsed* Advanced section, so the
+    // screen looked untouched and the first sign of trouble was a raw
+    // `setVoice failed (rc=…)` after the user hit Synthesize. Surface the
+    // active reference next to the button that uses it.
+    final cloneRef = ss.customVoiceWavPath;
+    final cloneBackendOk = cloneRef == null ||
+        SynthesizeScreen.cloneCapableBackends.contains(modelDef?.backend);
+    final cloneAlternative = cloneRef == null
+        ? null
+        : SynthesizeScreen.preferCloneCapableModel(
+            ss.allModels, ss.selectedModel);
+
     return Scaffold(
       appBar: AppBar(
+        // #35 — reachable via `go()` (onboarding, voice-clone hand-off),
+        // which leaves nothing to pop; fall back to a home button.
+        leading: rootAwareBackLeading(context),
         title: Text(l.synthTitle),
         actions: [
           // §5.1.12 — guided clone-a-voice wizard. Always
@@ -877,7 +1330,7 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
                                         'on re-encoding — EU AI Act Art. 50(2).'
                                     : 'AI provenance: watermark + C2PA manifest + '
                                         'WAV/ID3 metadata embedded automatically'
-                                        '${ss.selectedVoice != null ? ". Cloned voice — an audible beep disclaimer is prepended (EU AI Act Art. 50(4))" : ""}',
+                                        '${(ss.customVoiceWavPath ?? ss.selectedVoice) != null ? ". Cloned voice — an audible beep disclaimer is prepended (EU AI Act Art. 50(4))" : ""}',
                                 style: Theme.of(context).textTheme.bodySmall,
                               ),
                             ),
@@ -1428,6 +1881,60 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
                     ],
                   ),
                   const SizedBox(height: 12),
+                  // #35 — active voice-clone reference, visible without
+                  // expanding Advanced, plus what to do when the selected
+                  // model can't use it.
+                  if (cloneRef != null) ...[
+                    Card(
+                      elevation: 0,
+                      color: cloneBackendOk
+                          ? Theme.of(context).colorScheme.secondaryContainer
+                          : Theme.of(context).colorScheme.errorContainer,
+                      child: Padding(
+                        padding: const EdgeInsets.all(8),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(Icons.record_voice_over_outlined,
+                                    size: 18),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    l.synthCloneReferenceActive(
+                                        p.basename(cloneRef)),
+                                    style: const TextStyle(fontSize: 12),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                IconButton(
+                                  tooltip: l.synthCustomVoiceClear,
+                                  icon: const Icon(Icons.close, size: 18),
+                                  onPressed: () =>
+                                      sn.setCustomVoiceWavPath(null),
+                                ),
+                              ],
+                            ),
+                            if (!cloneBackendOk)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: Text(
+                                  cloneAlternative == null
+                                      ? l.synthCloneNoCapableModel
+                                      : l.synthCloneModelCannotClone(
+                                          modelDef?.displayName ??
+                                              ss.selectedModel ??
+                                              ''),
+                                  style: const TextStyle(fontSize: 11),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
                   Row(
                     children: [
                       Expanded(

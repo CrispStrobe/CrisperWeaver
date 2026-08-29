@@ -176,13 +176,33 @@ class AppLocalizationsEn extends AppLocalizations {
       'Identify different speakers in audio recordings';
 
   @override
+  String get diarizationEnableTooltip =>
+      'Labels every part of the transcript with who spoke it (Speaker 1, Speaker 2, …). Turn it on for interviews and meetings; it adds processing time.';
+
+  @override
   String get diarizationModel => 'Diarization model';
+
+  @override
+  String get diarizationModelHelper =>
+      'Which diarizer runs over the audio. Speech-turn detection needs no extra model; Pyannote and FoxNose need their GGUF; the stereo methods need two-channel audio.';
 
   @override
   String get minSpeakers => 'Min. speakers';
 
   @override
+  String get minSpeakersHelper =>
+      'Lower bound for the number of speakers. Auto lets the diarizer estimate the count.';
+
+  @override
   String get maxSpeakers => 'Max. speakers';
+
+  @override
+  String get maxSpeakersHelper =>
+      'Upper bound for the number of speakers. Auto lets the diarizer estimate the count.';
+
+  @override
+  String get diarizationSpeakerBoundsNote =>
+      'Only FoxNose is handed these bounds directly. With the other methods the upper bound still caps the speaker re-clustering pass (needs a speaker embedder) and the lower bound may be ignored.';
 
   @override
   String get auto => 'Auto';
@@ -1200,6 +1220,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get advancedSection => 'Advanced decoding';
 
   @override
+  String get advancedSectionTooltip =>
+      'Controls how the model turns audio into text. The defaults suit most recordings — change these only when a transcript comes out wrong.';
+
+  @override
   String get advancedVadTrim => 'Trim silence (VAD)';
 
   @override
@@ -1253,6 +1277,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get advancedInitialPromptHint =>
       'e.g. \"CrispASR, Flutter, Riverpod, Sprecher-Unterscheidung\"';
+
+  @override
+  String get advancedInitialPromptHelper =>
+      'Context the model reads before the audio: names, jargon or a spelling it should follow. Used by Whisper-style models; CTC models (Parakeet, Canary, Wav2Vec2) ignore it.';
 
   @override
   String get advancedRestorePunctuation => 'Restore punctuation (FireRedPunc)';
@@ -1859,11 +1887,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get voiceCloneCaptureClear => 'Start over';
 
   @override
+  String get voiceCloneNonWavWarning =>
+      'That file isn\'t a WAV. Only chatterbox clones from other formats; qwen3-tts, IndexTTS, VibeVoice, F5-TTS and the rest need a WAV and will refuse this clip. Record one here, or convert it to mono 16/24 kHz WAV first.';
+
+  @override
   String get voiceCloneRefTextHeading => 'What was said in the clip?';
 
   @override
   String get voiceCloneRefTextHelp =>
-      'Some cloners (indextts, vibevoice) need a verbatim transcript of the reference clip for alignment. Others (chatterbox, qwen3-tts Base) clone from audio alone — leave this empty if your chosen backend doesn\'t need it.';
+      'Qwen3-TTS Base and CosyVoice3 refuse to clone without a verbatim transcript of the clip, and indextts / vibevoice use it for alignment. chatterbox and F5-TTS clone from audio alone. When in doubt, fill it in — an accurate transcript never hurts.';
 
   @override
   String get voiceCloneRefTextLabel => 'Reference transcript';
@@ -1881,7 +1913,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get voiceCloneHandoffModelHint =>
-      'Tip: chatterbox / qwen3-tts Base clone from audio alone; indextts / vibevoice also use the reference transcript.';
+      'Tip: chatterbox / F5-TTS clone from audio alone; qwen3-tts Base and CosyVoice3 require the reference transcript, and indextts / vibevoice use it when given.';
 
   @override
   String get voiceCloneSummaryReference => 'Reference clip';
@@ -2090,6 +2122,16 @@ class AppLocalizationsEn extends AppLocalizations {
       'ECAPA-TDNN (107 languages, ~42 MB GGUF)';
 
   @override
+  String get advancedAlignerModel => 'Word-timing aligner';
+
+  @override
+  String get advancedAlignerModelAuto => 'Auto (best available)';
+
+  @override
+  String get advancedAlignerModelHelper =>
+      'Adds word-level timestamps when the transcription model does not emit them itself. Auto prefers a Wav2Vec2 model matching the language, otherwise the Canary CTC aligner.';
+
+  @override
   String get advancedGrammarTitle => 'GBNF grammar (Whisper only)';
 
   @override
@@ -2102,6 +2144,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get advancedGrammarTextLabel => 'GBNF source';
+
+  @override
+  String get advancedGrammarTextHelper =>
+      'GBNF rules restricting what the decoder may output. Leave empty for normal transcription; invalid rules stop the run with an error.';
 
   @override
   String get advancedGrammarRootRule => 'Root rule';
@@ -2287,6 +2333,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get advancedDiarizeXcorr => 'Stereo cross-correlation';
+
+  @override
+  String get advancedDiarizeFoxnose =>
+      'FoxNose (WeSpeaker embeddings, needs GGUF)';
 
   @override
   String get advancedSpeakerRecognition => 'Identify enrolled speakers';
@@ -2484,6 +2534,40 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get synthCustomVoiceClear => 'Clear custom voice';
+
+  @override
+  String synthCloneReferenceActive(String file) {
+    return 'Cloning from $file';
+  }
+
+  @override
+  String synthCloneModelCannotClone(String model) {
+    return '$model can\'t clone a voice from a reference clip — it only takes a downloaded voice pack. Pick a clone-capable model (chatterbox, IndexTTS, Qwen3-TTS Base, VibeVoice 1.5B, F5-TTS) or clear the reference clip.';
+  }
+
+  @override
+  String synthCloneNeedsRefText(String model) {
+    return '$model needs the transcript of the reference clip. Type what is said in it under Advanced → Reference transcript, then synthesize again.';
+  }
+
+  @override
+  String synthCloneNeedsWav(String model) {
+    return '$model can only clone from a WAV reference. Convert the clip to mono 16 or 24 kHz WAV, or record a new one in the voice clone wizard.';
+  }
+
+  @override
+  String synthCloneReferenceMissing(String file) {
+    return 'The reference clip $file is no longer on disk. Pick it again or record a new one.';
+  }
+
+  @override
+  String synthCloneNonAsciiPath(String file) {
+    return 'On Windows the audio engine can\'t open a file whose path contains non-English characters. Copy $file into a plain-ASCII folder (for example C:\\voices\\) and pick it again.';
+  }
+
+  @override
+  String get synthCloneNoCapableModel =>
+      'None of your downloaded TTS models can clone a voice. Download chatterbox, IndexTTS, Qwen3-TTS Base, VibeVoice 1.5B or F5-TTS in Model management first.';
 
   @override
   String get recorderStreamSession => 'Stream (session)';
@@ -3341,6 +3425,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get advancedAllOptions => 'All options';
 
   @override
+  String get advancedAllOptionsTooltip =>
+      'Expert settings: Whisper-only decoding flags, subtitle splitting, grammar constraints and CPU/GPU tuning. Safe to leave alone.';
+
+  @override
   String get onboardingTitle => 'Set up CrisperWeaver';
 
   @override
@@ -3589,6 +3677,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get workspaceRenameSpeaker => 'Rename speaker';
+
+  @override
+  String get navBackToHome => 'Back to home';
 
   @override
   String workspaceSegmentSemantics(int number, String time, String text) {

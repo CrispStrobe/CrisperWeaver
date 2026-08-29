@@ -203,6 +203,15 @@ class TtsService {
     }
     String? voicePath;
     if (voiceWavPath != null && voiceWavPath.isNotEmpty) {
+      // #35 — a reference clip the engine can't stat is worth catching
+      // here: the C side answers a missing file with the same bare `rc`
+      // it uses for "this backend can't clone", and the two need very
+      // different fixes.
+      if (!await File(voiceWavPath).exists()) {
+        Log.instance.w('tts', 'voice reference file does not exist',
+            fields: {'path': voiceWavPath});
+        return TtsLoadStatus.missing(voiceName: voiceWavPath);
+      }
       voicePath = voiceWavPath;
     } else if (voiceName != null) {
       voicePath = await _resolvePath(voiceName);

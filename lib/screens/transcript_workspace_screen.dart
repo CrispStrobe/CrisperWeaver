@@ -10,6 +10,7 @@ import '../l10n/generated/app_localizations.dart';
 import '../main.dart' show historyServiceProvider;
 import '../services/history_service.dart';
 import '../utils/file_utils.dart';
+import '../widgets/root_aware_back_leading.dart';
 
 class TranscriptWorkspaceScreen extends ConsumerStatefulWidget {
   const TranscriptWorkspaceScreen({super.key, required this.entryId});
@@ -48,6 +49,9 @@ class _TranscriptWorkspaceScreenState
     final entry = _entry;
     return Scaffold(
       appBar: AppBar(
+        // #35 — no back button when this was reached by a stack-replacing
+        // `go()`; fall back to a home button.
+        leading: rootAwareBackLeading(context),
         title: Text(entry?.title ?? l.workspaceTitle),
         actions: entry == null
             ? const []

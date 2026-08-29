@@ -8,7 +8,7 @@ import 'package:flutter_riverpod/legacy.dart'; // §legacy: advancedOptionsProvi
 // every field — impractical for a 40-field options class.
 
 import '../l10n/generated/app_localizations.dart';
-import '../main.dart' show transcriptionServiceProvider;
+import '../main.dart' show modelServiceProvider, transcriptionServiceProvider;
 import '../services/model_service.dart';
 import '../services/vad_service.dart';
 
@@ -748,6 +748,25 @@ final advancedOptionsProvider =
 /// Collapsible block shown inside Advanced Options on the transcription
 /// screen. Visible only when the active engine is CrispASR (the only one
 /// that can actually use these knobs).
+/// Catalogue keys the forced-aligner picker offers, mapped to their
+/// display labels. Keys must resolve through
+/// `ModelService.lookupDefinition` — `aligner_override_test.dart`
+/// guards that, because a key with no catalogue entry can never be
+/// resolved to a file and would silently behave as "Auto".
+const Map<String, String> alignerModelLabels = <String, String>{
+  'canary-ctc-aligner-q4_k': 'Canary CTC Aligner',
+  'wav2vec2-xlsr-fr-q4_k': 'Wav2Vec2 FR (French)',
+  'wav2vec2-xlsr-es-q4_k': 'Wav2Vec2 ES (Spanish)',
+  'wav2vec2-xlsr-it-q4_k': 'Wav2Vec2 IT (Italian)',
+  'wav2vec2-xlsr-ja-q4_k': 'Wav2Vec2 JA (Japanese)',
+  'wav2vec2-xlsr-zh-q4_k': 'Wav2Vec2 ZH (Chinese)',
+  'wav2vec2-xlsr-nl-q4_k': 'Wav2Vec2 NL (Dutch)',
+  'wav2vec2-xlsr-pt-q4_k': 'Wav2Vec2 PT (Portuguese)',
+  'wav2vec2-xlsr-ar-q4_k': 'Wav2Vec2 AR (Arabic)',
+  'wav2vec2-xlsr-cs-q4_k': 'Wav2Vec2 CS (Czech)',
+  'wav2vec2-xlsr-uk-q4_k': 'Wav2Vec2 UK (Ukrainian)',
+};
+
 class AdvancedDecodingSection extends ConsumerStatefulWidget {
   const AdvancedDecodingSection({super.key});
 
@@ -763,6 +782,12 @@ class _AdvancedDecodingSectionState
   late final TextEditingController _askController;
   late final TextEditingController _vocabAddController;
 
+  /// Which aligner catalogue keys are actually on disk. Empty until
+  /// [_scanAlignerAvailability] finishes; [_alignerScanDone] keeps the
+  /// dropdown from claiming "not downloaded" before we've looked.
+  Set<String> _downloadedAligners = const <String>{};
+  bool _alignerScanDone = false;
+
   @override
   void initState() {
     super.initState();
@@ -770,6 +795,29 @@ class _AdvancedDecodingSectionState
     _promptController = TextEditingController(text: initial.initialPrompt);
     _askController = TextEditingController(text: initial.askPrompt);
     _vocabAddController = TextEditingController();
+    _scanAlignerAvailability();
+  }
+
+  /// Probe the models dir once for each aligner the picker offers so
+  /// undownloaded entries can be marked. Availability is a hint, not a
+  /// gate — a failed probe just leaves the labels unsuffixed.
+  Future<void> _scanAlignerAvailability() async {
+    try {
+      final svc = ref.read(modelServiceProvider);
+      await svc.initialize();
+      final found = <String>{};
+      for (final key in alignerModelLabels.keys) {
+        final path = await svc.getWhisperCppModelPath(key);
+        if (path != null) found.add(key);
+      }
+      if (!mounted) return;
+      setState(() {
+        _downloadedAligners = found;
+        _alignerScanDone = true;
+      });
+    } catch (_) {
+      // Leave _alignerScanDone false — no markers rather than wrong ones.
+    }
   }
 
   @override
@@ -789,13 +837,20 @@ class _AdvancedDecodingSectionState
       tilePadding: const EdgeInsets.symmetric(horizontal: 0),
       initiallyExpanded: _expanded,
       onExpansionChanged: (v) => setState(() => _expanded = v),
-      title: Row(
-        children: [
-          const Icon(Icons.tune, size: 18),
-          const SizedBox(width: 8),
-          Text(l.advancedSection,
-              style: const TextStyle(fontWeight: FontWeight.w600)),
-        ],
+      // §35 — the section header carries the "what am I even looking
+      // at" explanation. Tooltip shows on hover (desktop) and on
+      // long-press (touch), so the block is discoverable without
+      // spending vertical space on a permanent paragraph.
+      title: Tooltip(
+        message: l.advancedSectionTooltip,
+        child: Row(
+          children: [
+            const Icon(Icons.tune, size: 18),
+            const SizedBox(width: 8),
+            Text(l.advancedSection,
+                style: const TextStyle(fontWeight: FontWeight.w600)),
+          ],
+        ),
       ),
       children: [
         SwitchListTile(
@@ -905,6 +960,11 @@ class _AdvancedDecodingSectionState
             decoration: InputDecoration(
               labelText: l.advancedInitialPrompt,
               hintText: l.advancedInitialPromptHint,
+              // The hint only shows an example; the helper says what
+              // the field IS and which backends read it. helperMaxLines
+              // is required — the default of 1 would ellipsise it.
+              helperText: l.advancedInitialPromptHelper,
+              helperMaxLines: 4,
               border: const OutlineInputBorder(),
               isDense: true,
               contentPadding:
@@ -938,13 +998,16 @@ class _AdvancedDecodingSectionState
         // beta is how you ship new bugs.
         ExpansionTile(
           tilePadding: EdgeInsets.zero,
-          title: Row(
-            children: [
-              const Icon(Icons.settings_suggest_outlined, size: 16),
-              const SizedBox(width: 8),
-              Text(l.advancedAllOptions,
-                  style: const TextStyle(fontSize: 13)),
-            ],
+          title: Tooltip(
+            message: l.advancedAllOptionsTooltip,
+            child: Row(
+              children: [
+                const Icon(Icons.settings_suggest_outlined, size: 16),
+                const SizedBox(width: 8),
+                Text(l.advancedAllOptions,
+                    style: const TextStyle(fontSize: 13)),
+              ],
+            ),
           ),
           children: [
           // LID method picker — visible only when the global language
@@ -1287,6 +1350,9 @@ class _AdvancedDecodingSectionState
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: DropdownButtonFormField<crispasr.DiarizeMethod>(
+        // Keyed so a change made in the diarisation card (same state)
+        // is reflected here — FormField reads initialValue once.
+        key: ValueKey<String>('adv-diarize-method-${opts.diarizeMethod.name}'),
         decoration: InputDecoration(
           labelText: l.advancedDiarizeMethod,
           helperText: l.advancedDiarizeMethodHelper,
@@ -1303,6 +1369,13 @@ class _AdvancedDecodingSectionState
           DropdownMenuItem(
               value: crispasr.DiarizeMethod.pyannote,
               child: Text(l.advancedDiarizePyannote)),
+          // #324 / §35 — foxNose is the only method the library lets us
+          // bound with min/max speakers, and the diarisation card can
+          // select it; it has to be in this picker's value domain too,
+          // or a card-picked value would have no matching item here.
+          DropdownMenuItem(
+              value: crispasr.DiarizeMethod.foxNose,
+              child: Text(l.advancedDiarizeFoxnose)),
           DropdownMenuItem(
               value: crispasr.DiarizeMethod.energy,
               child: Text(l.advancedDiarizeEnergy)),
@@ -1460,6 +1533,8 @@ class _AdvancedDecodingSectionState
             labelText: l.advancedGrammarTextLabel,
             hintText:
                 'root ::= "{" key ":" value "}"\nkey   ::= "\\"" [a-zA-Z]+ "\\""\nvalue ::= [0-9]+',
+            helperText: l.advancedGrammarTextHelper,
+            helperMaxLines: 3,
             border: const OutlineInputBorder(),
             isDense: true,
           ),
@@ -2202,50 +2277,46 @@ class _AdvancedDecodingSectionState
   ///   * Wav2Vec2 per-language variants (FR, ES, IT, JA, ZH, etc.)
   /// Only takes effect when word timestamps are enabled and the
   /// active ASR backend doesn't emit them natively.
+  ///
+  /// The values stored here are catalogue *keys*, not paths —
+  /// `AlignerService.resolveAlignerOverride` turns them into the
+  /// downloaded GGUF's path. Entries whose GGUF isn't on disk are
+  /// suffixed "(Not downloaded)" so picking one isn't a silent no-op
+  /// (issue #35: the override used to be dropped on the floor).
   Widget _buildAlignerModelRow(BuildContext context, AdvancedOptions opts) {
-    const items = <String, String>{
-      '': 'Auto (best available)',
-      'canary-ctc-aligner-q4_k': 'Canary CTC Aligner',
-      'wav2vec2-xlsr-fr-q4_k': 'Wav2Vec2 FR (French)',
-      'wav2vec2-xlsr-es-q4_k': 'Wav2Vec2 ES (Spanish)',
-      'wav2vec2-xlsr-it-q4_k': 'Wav2Vec2 IT (Italian)',
-      'wav2vec2-xlsr-ja-q4_k': 'Wav2Vec2 JA (Japanese)',
-      'wav2vec2-xlsr-zh-q4_k': 'Wav2Vec2 ZH (Chinese)',
-      'wav2vec2-xlsr-nl-q4_k': 'Wav2Vec2 NL (Dutch)',
-      'wav2vec2-xlsr-pt-q4_k': 'Wav2Vec2 PT (Portuguese)',
-      'wav2vec2-xlsr-ar-q4_k': 'Wav2Vec2 AR (Arabic)',
-      'wav2vec2-xlsr-cs-q4_k': 'Wav2Vec2 CS (Czech)',
-      'wav2vec2-xlsr-uk-q4_k': 'Wav2Vec2 UK (Ukrainian)',
+    final l = AppLocalizations.of(context);
+    final items = <String, String>{
+      '': l.advancedAlignerModelAuto,
+      for (final e in alignerModelLabels.entries) e.key: e.value,
     };
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          const SizedBox(
-            width: 120,
-            child: Text('Aligner', style: TextStyle(fontSize: 13)),
-          ),
-          Expanded(
-            child: DropdownButtonFormField<String>(
-              initialValue: items.containsKey(opts.alignerModel)
-                  ? opts.alignerModel
-                  : '',
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                isDense: true,
-                contentPadding:
-                    EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              ),
-              items: items.entries
-                  .map((e) => DropdownMenuItem(
-                      value: e.key, child: Text(e.value, style: const TextStyle(fontSize: 13))))
-                  .toList(),
-              onChanged: (v) => ref
-                  .read(advancedOptionsProvider.notifier)
-                  .state = opts.copyWith(alignerModel: v ?? ''),
-            ),
-          ),
-        ],
+      child: DropdownButtonFormField<String>(
+        initialValue:
+            items.containsKey(opts.alignerModel) ? opts.alignerModel : '',
+        decoration: InputDecoration(
+          labelText: l.advancedAlignerModel,
+          helperText: l.advancedAlignerModelHelper,
+          helperMaxLines: 4,
+          border: const OutlineInputBorder(),
+          isDense: true,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        ),
+        items: items.entries
+            .map((e) => DropdownMenuItem(
+                value: e.key,
+                child: Text(
+                    // Auto ('') is always available; the rest need a file.
+                    e.key.isEmpty ||
+                            !_alignerScanDone ||
+                            _downloadedAligners.contains(e.key)
+                        ? e.value
+                        : '${e.value}  (${l.modelsNotDownloaded})',
+                    style: const TextStyle(fontSize: 13))))
+            .toList(),
+        onChanged: (v) => ref.read(advancedOptionsProvider.notifier).state =
+            opts.copyWith(alignerModel: v ?? ''),
       ),
     );
   }

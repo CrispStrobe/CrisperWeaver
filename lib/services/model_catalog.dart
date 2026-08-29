@@ -203,13 +203,20 @@ class ModelDefinition {
   }
 
   /// True when this row should appear under the given language
-  /// filter. Untagged + multilingual rows pass for any picked code.
-  /// `''` (the "Any" sentinel) always passes too. Used by the
-  /// Model Manager filter row.
+  /// filter. `''` (the "Any" sentinel) always passes; `['*']`
+  /// (multilingual) passes any picked code.
+  ///
+  /// Untagged rows (`languages == []`) still pass every filter for the
+  /// *model* kinds, where the catalogue is not yet fully tagged and
+  /// hiding an untagged-but-good entry would be worse than showing it.
+  /// Voicepacks are the exception (issue #35): every voice row carries
+  /// a concrete ISO 639-1 tag now, so an untagged voice is a catalogue
+  /// bug rather than missing metadata — and letting it through is what
+  /// made "English" list the German and French voices.
   bool matchesLanguage(String code) {
     if (code.isEmpty) return true;
-    if (languages.isEmpty) return true;
     if (languages.contains('*')) return true;
+    if (languages.isEmpty) return kind != ModelKind.voice;
     return languages.contains(code.toLowerCase());
   }
 
@@ -228,6 +235,7 @@ class ModelDefinition {
     List<String>? companions,
     List<String>? languages,
     String? license,
+    bool? requiresVoice,
   }) =>
       ModelDefinition(
         name: name ?? this.name,
@@ -243,6 +251,10 @@ class ModelDefinition {
         companions: companions ?? this.companions,
         languages: languages ?? this.languages,
         license: license ?? this.license,
+        // Was silently dropped before: `overrideBackend` copies a
+        // definition to stamp a resolved backend, and a qwen3-tts /
+        // vibevoice Base row came back claiming it needed no voice.
+        requiresVoice: requiresVoice ?? this.requiresVoice,
       );
 }
 
@@ -377,11 +389,15 @@ class ModelInfo {
 
   /// Same filter helper as [ModelDefinition.matchesLanguage] — kept on
   /// the UI-facing type so the Model Manager doesn't have to round-trip
-  /// to the ModelService just to filter a list it already holds.
+  /// to the ModelService just to filter a list it already holds. Keep
+  /// the two implementations in step —
+  /// `test/model_catalog_language_filter_test.dart` cross-checks every
+  /// (kind, languages, probe) combination against
+  /// [ModelDefinition.matchesLanguage].
   bool matchesLanguage(String code) {
     if (code.isEmpty) return true;
-    if (languages.isEmpty) return true;
     if (languages.contains('*')) return true;
+    if (languages.isEmpty) return kind != ModelKind.voice;
     return languages.contains(code.toLowerCase());
   }
 }
@@ -498,6 +514,136 @@ abstract final class ModelCatalog {
   // sentinel — `ModelDefinition.matchesLanguage` treats it as "matches
   // any picked language."
   static const List<String> langsAll = <String>['*'];
+
+  /// Repo-local language tags that are *not* ISO 639-1, mapped to the
+  /// code the rest of the app speaks (issue #35). The VibeVoice
+  /// voicepack repo names its files `jp-…`, `kr-…`, `sp-…` and `in-…`;
+  /// the Model Manager's language dropdown is built from
+  /// `AppConstants.supportedLanguages`, which is ISO 639-1. Without
+  /// this mapping the voice chips said "jp" while the dropdown said
+  /// "ja" and the two filters could never agree.
+  ///
+  /// `in` is Indian *English* in that repo — deliberately mapped to
+  /// `en`, not to Indonesian (`id`).
+  static const Map<String, String> languageCodeAliases = <String, String>{
+    'jp': 'ja',
+    'kr': 'ko',
+    'sp': 'es',
+    'in': 'en',
+    'cn': 'zh',
+    'gr': 'el',
+  };
+
+  /// Fold a repo-local language tag to ISO 639-1. Unknown codes pass
+  /// through lower-cased so a new repo convention degrades to "shows
+  /// under its own chip" rather than vanishing.
+  static String normalizeLanguageCode(String code) {
+    final c = code.trim().toLowerCase();
+    return languageCodeAliases[c] ?? c;
+  }
+
+  /// Derive ISO 639-1 codes for a voicepack from its file naming
+  /// convention. Shared by the live HF probe
+  /// (`ModelService.voicepackLanguages`) and the offline bake script so
+  /// a probed voice and a baked voice are tagged identically.
+  ///
+  ///   * VibeVoice — the voice id starts with the language:
+  ///     `de-Spk1_woman`, `en-Emma_woman`. Folded through
+  ///     [normalizeLanguageCode] because the repo writes `jp` / `kr` /
+  ///     `sp` / `in` where ISO wants `ja` / `ko` / `es` / `en`.
+  ///   * Kokoro — the first character of the voice id is the language
+  ///     (`af_heart` → English, `df_eva` → German); the second is the
+  ///     speaker's gender, not a language hint.
+  ///
+  /// Returns `[]` when the id doesn't match a known scheme — callers
+  /// fall back to the repo's `defaultLanguages`.
+  static List<String> voicepackLanguages(String backend, String voiceId) {
+    if (voiceId.isEmpty) return const <String>[];
+    if (backend == 'vibevoice-tts' || backend == 'vibevoice-1.5b') {
+      final m = RegExp(r'^([a-z]{2})-').firstMatch(voiceId);
+      if (m != null) return <String>[normalizeLanguageCode(m.group(1)!)];
+    }
+    if (backend == 'kokoro') {
+      const kokoroLang = <String, String>{
+        'a': 'en', // American English
+        'b': 'en', // British English
+        'd': 'de', // German
+        'e': 'es', // Spanish
+        'f': 'fr', // French
+        'i': 'it', // Italian
+        'j': 'ja', // Japanese
+        'p': 'pt', // Portuguese
+        'z': 'zh', // Mandarin Chinese
+        'h': 'hi', // Hindi
+      };
+      final code = kokoroLang[voiceId[0].toLowerCase()];
+      if (code != null) return <String>[code];
+    }
+    return const <String>[];
+  }
+
+  /// Issue #35 — catalogue keys to hide from the Models screen because
+  /// a higher-priority row already offers the exact same download.
+  ///
+  /// The baked snapshot keys entries off the HF filename
+  /// (`chatterbox-t3-q8_0`) while the curated catalogue gives the same
+  /// file a friendlier key (`chatterbox-en-q8_0`), so roughly thirty
+  /// downloads were listed twice under different names — the same
+  /// complaint as the two VibeVoice Emma rows, spread across the whole
+  /// catalogue. Priority: hand-curated (readable display names,
+  /// language tags, and the keys `recommendedDefaultModels` /
+  /// `companions` point at) beats a live HF probe beats the baked
+  /// snapshot. Ties break on the name so the result is deterministic.
+  ///
+  /// Only the duplicate *listing* is suppressed — every name stays
+  /// resolvable through `ModelService.lookupDefinition`, so an old
+  /// download or a saved model preference keeps working.
+  static Set<String> duplicateFileNameEntries({
+    required Map<String, ModelDefinition> baked,
+    Map<String, ModelDefinition> discovered = const <String, ModelDefinition>{},
+  }) {
+    int rank(String name) {
+      if (whisperCppModels.containsKey(name) ||
+          crispasrBackendModels.containsKey(name) ||
+          ttsVoicepacks.containsKey(name)) {
+        return 0; // hand-curated
+      }
+      if (discovered.containsKey(name)) return 1; // live HF probe
+      return 2; // baked snapshot
+    }
+
+    final all = <String, ModelDefinition>{
+      ...baked,
+      ...crispasrBackendModels,
+      ...ttsVoicepacks,
+      ...discovered,
+      ...whisperCppModels,
+    };
+    final names = all.keys.toList()
+      ..sort((a, b) {
+        final r = rank(a).compareTo(rank(b));
+        return r != 0 ? r : a.compareTo(b);
+      });
+    final claimed = <String, String>{}; // lowercased fileName -> winning name
+    final suppressed = <String>{};
+    for (final name in names) {
+      final file = all[name]!.fileName.toLowerCase();
+      if (file.isEmpty) continue;
+      if (claimed.putIfAbsent(file, () => name) != name) suppressed.add(name);
+    }
+    return suppressed;
+  }
+
+  /// Files that shipped under one name and now live under another.
+  /// Key = the legacy on-disk filename, value = the current one.
+  /// `ModelService.initialize` renames these in place on first run so a
+  /// user who already downloaded the old file doesn't fetch the same
+  /// bytes twice (issue #35 — VibeVoice's Emma voice is published under
+  /// both names in `cstr/vibevoice-realtime-0.5b-GGUF`).
+  static const Map<String, String> legacyModelFileRenames = <String, String>{
+    'vibevoice-voice-emma.gguf': 'vibevoice-voice-en-Emma_woman.gguf',
+  };
+
   static const List<String> langsEn = <String>['en'];
   static const List<String> langsDe = <String>['de'];
   static const List<String> langsZh = <String>['zh'];
@@ -1718,7 +1864,7 @@ abstract final class ModelCatalog {
       quantization: 'f16',
       backend: 'vibevoice-tts',
       kind: ModelKind.tts,
-      companions: ['vibevoice-voice-emma'],
+      companions: ['vibevoice-voice-en-Emma_woman'],
     ),
     // VibeVoice 1.5B — the larger TTS variant (distinct backend string
     // from the realtime 0.5B `vibevoice-tts` above). Needs a voicepack.
@@ -1736,7 +1882,7 @@ abstract final class ModelCatalog {
       backend: 'vibevoice-1.5b',
       kind: ModelKind.tts,
       languages: langsVibevoiceTts10,
-      companions: ['vibevoice-voice-emma'],
+      companions: ['vibevoice-voice-en-Emma_woman'],
     ),
     // TADA-3B-ML (HumeAI) — Llama-3.2-3B + flow matching + TADA codec.
     // Heavy (f16 only): ~6.6 GB main + ~1 GB codec companion.
@@ -2287,24 +2433,21 @@ abstract final class ModelCatalog {
           'https://huggingface.co/cstr/kokoro-voices-GGUF/resolve/main/kokoro-voice-af_heart.gguf',
       sizeBytes: 1 * 1024 * 1024,
       checksum: '',
-      description: 'Kokoro voicepack — English (af_heart)',
+      description: 'Kokoro voicepack — English (af_heart) [lang=en]',
       quantization: 'f16',
       backend: 'kokoro',
       kind: ModelKind.voice,
+      languages: langsEn,
     ),
-    'vibevoice-voice-emma': ModelDefinition(
-      name: 'vibevoice-voice-emma',
-      displayName: 'VibeVoice voice — Emma',
-      fileName: 'vibevoice-voice-emma.gguf',
-      url:
-          'https://huggingface.co/cstr/vibevoice-realtime-0.5b-GGUF/resolve/main/vibevoice-voice-emma.gguf',
-      sizeBytes: 5 * 1024 * 1024,
-      checksum: '',
-      description: 'VibeVoice voicepack — English (Emma)',
-      quantization: 'f16',
-      backend: 'vibevoice-tts',
-      kind: ModelKind.voice,
-    ),
+    // NOTE (issue #35): the hand-written `vibevoice-voice-emma` row that
+    // used to live here was removed. `cstr/vibevoice-realtime-0.5b-GGUF`
+    // ships the same 2 740 832-byte voice under two filenames
+    // (`vibevoice-voice-emma.gguf` and
+    // `vibevoice-voice-en-Emma_woman.gguf`), so the Model Manager listed
+    // Emma twice. The generated `vibevoice-voice-en-Emma_woman` entry in
+    // [ttsVoicepacks] is the survivor — it matches the naming scheme of
+    // the other 24 VibeVoice voices. `ModelService` renames an
+    // already-downloaded legacy file on first run.
     // ---------------------- TTS codec / tokenizer ----------------
     'qwen3-tts-tokenizer-12hz': ModelDefinition(
       name: 'qwen3-tts-tokenizer-12hz',
@@ -4596,16 +4739,25 @@ abstract final class ModelCatalog {
   /// nl/pl/pt/sp/in) and `cstr/kokoro-voices-GGUF` (7 voices: en/de/es/
   /// fr) as of 2026-05. Tagged `kind: voice` so the Voices filter chip
   /// in Model Management surfaces them grouped from the main TTS
-  /// models. Each entry's `description` carries the language code so
-  /// the UI can group / filter by language without hand-parsing the
-  /// filename.
+  /// models. Every entry carries its language twice: in `languages:`
+  /// (what the Model Manager's dropdown filters on) and as a
+  /// `[lang=xx]` tag in the description (the fallback the Voices chip
+  /// row reads). The two must always agree — see issue #35, where the
+  /// entries had only the tag and the dropdown had nothing to match.
   ///
   /// Computed lazily (not `const`) because the entries are constructed
   /// from a list comprehension. Merged into `lookupDefinition` and
   /// `getWhisperCppModels` alongside the static catalogs above.
+  ///
+  /// The middle column is an **ISO 639-1** code, not the code the repo
+  /// happens to use in the filename. Upstream names four of them the
+  /// non-standard way (`jp-`, `kr-`, `sp-`, and `in-` for Indian
+  /// English); mapping them here is what keeps the voice chips and the
+  /// language dropdown talking about the same alphabet — see
+  /// [normalizeLanguageCode] and issue #35.
   static final Map<String, ModelDefinition> ttsVoicepacks = () {
     const vibevoiceVoices = <List<String>>[
-      // [filename-leaf, language code, display name]
+      // [filename-leaf, ISO 639-1 language code, display name]
       ['de-Spk0_man', 'de', 'German (Spk0, m)'],
       ['de-Spk1_woman', 'de', 'German (Spk1, w)'],
       ['en-Carter_man', 'en', 'English — Carter (m)'],
@@ -4616,13 +4768,14 @@ abstract final class ModelCatalog {
       ['en-Mike_man', 'en', 'English — Mike (m)'],
       ['fr-Spk0_man', 'fr', 'French (Spk0, m)'],
       ['fr-Spk1_woman', 'fr', 'French (Spk1, w)'],
-      ['in-Samuel_man', 'in', 'Indian English — Samuel (m)'],
+      // `in-` is the repo's tag for Indian English, not Indonesian.
+      ['in-Samuel_man', 'en', 'Indian English — Samuel (m)'],
       ['it-Spk0_woman', 'it', 'Italian (Spk0, w)'],
       ['it-Spk1_man', 'it', 'Italian (Spk1, m)'],
-      ['jp-Spk0_man', 'jp', 'Japanese (Spk0, m)'],
-      ['jp-Spk1_woman', 'jp', 'Japanese (Spk1, w)'],
-      ['kr-Spk0_woman', 'kr', 'Korean (Spk0, w)'],
-      ['kr-Spk1_man', 'kr', 'Korean (Spk1, m)'],
+      ['jp-Spk0_man', 'ja', 'Japanese (Spk0, m)'],
+      ['jp-Spk1_woman', 'ja', 'Japanese (Spk1, w)'],
+      ['kr-Spk0_woman', 'ko', 'Korean (Spk0, w)'],
+      ['kr-Spk1_man', 'ko', 'Korean (Spk1, m)'],
       ['nl-Spk0_man', 'nl', 'Dutch (Spk0, m)'],
       ['nl-Spk1_woman', 'nl', 'Dutch (Spk1, w)'],
       ['pl-Spk0_man', 'pl', 'Polish (Spk0, m)'],
@@ -4658,6 +4811,7 @@ abstract final class ModelCatalog {
         quantization: 'f16',
         backend: 'vibevoice-tts',
         kind: ModelKind.voice,
+        languages: <String>[lang],
       );
     }
     for (final v in kokoroVoices) {
@@ -4676,6 +4830,7 @@ abstract final class ModelCatalog {
         quantization: 'f16',
         backend: 'kokoro',
         kind: ModelKind.voice,
+        languages: <String>[lang],
       );
     }
     return out;
@@ -4875,7 +5030,7 @@ abstract final class ModelCatalog {
       description: 'VibeVoice realtime TTS (10 langs)',
       kind: ModelKind.tts,
       voicepackBaseName: 'vibevoice-voice',
-      defaultCompanions: ['vibevoice-voice-emma'],
+      defaultCompanions: ['vibevoice-voice-en-Emma_woman'],
       defaultLanguages: langsVibevoiceTts10,
     ),
     'mimo-asr': BackendRepo(

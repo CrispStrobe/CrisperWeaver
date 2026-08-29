@@ -3,9 +3,20 @@
 // or sliders silently reset their neighbours on each rebuild — the
 // kind of bug that's easy to introduce when adding a new field and
 // hard to spot in the UI.
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:crisper_weaver/l10n/generated/app_localizations.dart';
 import 'package:crisper_weaver/widgets/advanced_options_widget.dart';
+import 'package:crisper_weaver/widgets/diarization_settings_widget.dart';
+
+Widget _host(Widget child) => MaterialApp(
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      // Scrolls so the tall settings card can't trip a RenderFlex
+      // overflow on the default 800x600 test surface.
+      home: Scaffold(body: SingleChildScrollView(child: child)),
+    );
 
 void main() {
   group('AdvancedOptions', () {
@@ -537,6 +548,44 @@ void main() {
         );
         expect(result, contains('kubectl, gRPC'));
       });
+    });
+  });
+
+  // Issue #35 — "no built in help or mouse over to understand what to
+  // select". Every control in the advanced blocks must carry either a
+  // Tooltip (hover on desktop / long-press on touch) or visible helper
+  // text. Pinned here so a future control can't be added bare.
+  group('inline help (#35)', () {
+    testWidgets('diarization controls carry helper text and a tooltip',
+        (tester) async {
+      await tester.pumpWidget(_host(
+        DiarizationSettingsWidget(enabled: true, onChanged: (_) {}),
+      ));
+
+      final l = AppLocalizations.of(
+          tester.element(find.byType(DiarizationSettingsWidget)));
+
+      // Hover / long-press help on the on-off switch.
+      expect(find.byTooltip(l.diarizationEnableTooltip), findsOneWidget);
+      // Helper text under the three pickers.
+      expect(find.text(l.diarizationModelHelper), findsOneWidget);
+      expect(find.text(l.minSpeakersHelper), findsOneWidget);
+      expect(find.text(l.maxSpeakersHelper), findsOneWidget);
+    });
+
+    testWidgets('the speaker pickers are only explained when expanded',
+        (tester) async {
+      // Collapsed (diarization off) the detail pickers aren't built,
+      // so their helper text must be absent rather than dangling.
+      await tester.pumpWidget(_host(
+        DiarizationSettingsWidget(enabled: false, onChanged: (_) {}),
+      ));
+
+      final l = AppLocalizations.of(
+          tester.element(find.byType(DiarizationSettingsWidget)));
+
+      expect(find.byTooltip(l.diarizationEnableTooltip), findsOneWidget);
+      expect(find.text(l.minSpeakersHelper), findsNothing);
     });
   });
 }

@@ -1,5 +1,7 @@
 // LogService — LogEntry formatting, LogLevel ranking, ring buffer basics.
 
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:crisper_weaver/services/log_service.dart';
@@ -113,6 +115,78 @@ void main() {
       final snap = Log.instance.snapshot();
       expect(snap, isNotEmpty);
       expect(snap.last.tag, 'test');
+    });
+  });
+
+  // Issue #35: a Windows GUI process has no console, so the *deferred* stderr
+  // write fails with `writeFrom failed, path = ''` and lands on
+  // platformDispatcher.onError — once per mirrored log line.
+  group('Log.isConsoleWriteFailure', () {
+    test('matches the Windows invalid-handle write with an empty path', () {
+      expect(
+        Log.isConsoleWriteFailure(const FileSystemException(
+          'writeFrom failed',
+          '',
+          OSError('The handle is invalid.', 6),
+        )),
+        isTrue,
+      );
+    });
+
+    test('matches when the path is absent entirely', () {
+      expect(
+        Log.isConsoleWriteFailure(const FileSystemException('writeFrom failed')),
+        isTrue,
+      );
+    });
+
+    test('a real file write failure is not a console failure', () {
+      expect(
+        Log.isConsoleWriteFailure(const FileSystemException(
+          'writeFrom failed',
+          '/tmp/session.log',
+          OSError('No space left on device', 28),
+        )),
+        isFalse,
+      );
+    });
+
+    test('unrelated errors are left alone', () {
+      expect(Log.isConsoleWriteFailure(StateError('nope')), isFalse);
+      expect(Log.isConsoleWriteFailure(null), isFalse);
+      expect(
+        Log.isConsoleWriteFailure(
+            const FileSystemException('Cannot open file', '/tmp/x')),
+        isFalse,
+      );
+    });
+  });
+
+  // Kept last: it flips a process-wide flag on the singleton.
+  group('Log.disableConsoleMirror', () {
+    test('disarms once, is idempotent, and still records the reason', () {
+      Log.instance.disableConsoleMirror(reason: 'unit test');
+      expect(Log.instance.consoleMirrorEnabled, isFalse);
+      final afterFirst = Log.instance
+          .snapshot()
+          .where((e) => e.message.startsWith('Console mirror disabled'))
+          .length;
+      expect(afterFirst, 1);
+
+      // A second failure must not add another line — that is the spam the
+      // disarm exists to stop.
+      Log.instance.disableConsoleMirror(reason: 'unit test again');
+      expect(
+        Log.instance
+            .snapshot()
+            .where((e) => e.message.startsWith('Console mirror disabled'))
+            .length,
+        afterFirst,
+      );
+
+      // Logging still works; it just no longer touches the console.
+      Log.instance.i('test', 'after disarm');
+      expect(Log.instance.snapshot().last.message, 'after disarm');
     });
   });
 }

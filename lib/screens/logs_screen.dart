@@ -7,6 +7,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../l10n/generated/app_localizations.dart';
 import '../services/log_service.dart';
+import '../widgets/root_aware_back_leading.dart';
 
 class LogsScreen extends ConsumerStatefulWidget {
   const LogsScreen({super.key});
@@ -82,6 +83,9 @@ class _LogsScreenState extends ConsumerState<LogsScreen> {
     final l = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
+        // #35 — no back button when this was reached by a stack-replacing
+        // `go()`; fall back to a home button.
+        leading: rootAwareBackLeading(context),
         title: Text(l.logsTitle),
         actions: [
           PopupMenuButton<LogLevel>(

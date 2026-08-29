@@ -112,10 +112,49 @@ class ModelService {
     // without re-running initialize().
     await Directory(whisperCppDir()).create(recursive: true);
 
+    // Rename models whose catalogue filename changed under them, so a
+    // user who already downloaded the old name keeps the bytes.
+    await _migrateLegacyModelFilesOnce();
+
     // Re-register any HF repos the user added by hand in a prior run.
     // Best-effort and memoised — a network failure here never blocks
     // the rest of initialize().
     await _replayUserHfReposOnce();
+  }
+
+  /// Guards [_migrateLegacyModelFilesOnce] — `initialize()` runs on
+  /// every `getWhisperCppModels()` call, and the rename only ever needs
+  /// to happen once per process.
+  bool _legacyRenamesDone = false;
+
+  /// Issue #35 — one-time, best-effort rename of on-disk model files
+  /// whose catalogue filename changed. Only renames when the legacy
+  /// file exists and the current one does not, so a user who has both
+  /// (or only the new one) is left alone. Every failure is logged and
+  /// swallowed: a model that can't be renamed is simply re-downloadable
+  /// under its new name, which is strictly better than blocking startup.
+  Future<void> _migrateLegacyModelFilesOnce() async {
+    if (_legacyRenamesDone) return;
+    _legacyRenamesDone = true;
+    final dir = whisperCppDir();
+    for (final rename in ModelCatalog.legacyModelFileRenames.entries) {
+      try {
+        final legacy = File(path.join(dir, rename.key));
+        if (!await legacy.exists()) continue;
+        final current = File(path.join(dir, rename.value));
+        if (await current.exists()) {
+          Log.instance.i('model', 'legacy model file superseded — leaving it',
+              fields: {'legacy': rename.key, 'current': rename.value});
+          continue;
+        }
+        await legacy.rename(current.path);
+        Log.instance.i('model', 'renamed legacy model file',
+            fields: {'from': rename.key, 'to': rename.value});
+      } catch (e) {
+        Log.instance.w('model', 'legacy model rename failed',
+            error: e, fields: {'from': rename.key, 'to': rename.value});
+      }
+    }
   }
 
   /// Resolved directory where ASR / TTS / companion GGUFs live. When
@@ -146,14 +185,24 @@ class ModelService {
     return path.join(_modelsDir, 'whisper_cpp');
   }
 
+  /// Names to hide from the Models screen because a higher-ranked
+  /// catalogue row already offers the exact same file — see
+  /// [ModelCatalog.duplicateFileNameEntries].
+  Set<String> _duplicateFileNames() => ModelCatalog.duplicateFileNameEntries(
+        baked: BakedCatalogLoader.cached,
+        discovered: _discoveredModels,
+      );
+
   /// Get available Whisper.cpp models with download status
   Future<List<ModelInfo>> getWhisperCppModels() async {
     await initialize();
 
     final modelInfos = <ModelInfo>[];
+    final suppressed = _duplicateFileNames();
 
     for (final entry in ModelCatalog.whisperCppModels.entries) {
       final modelDef = entry.value;
+      if (suppressed.contains(modelDef.name)) continue;
       final localPath = path.join(whisperCppDir(), modelDef.fileName);
       final isDownloaded = await _isModelDownloaded(localPath, modelDef);
 
@@ -189,7 +238,9 @@ class ModelService {
     //     (sizes from those overwrite the baked + hardcoded estimates).
     //
     // Spread order = merge priority (later wins). Live probe beats
-    // hardcoded curated entries beats the baked snapshot.
+    // hardcoded curated entries beats the baked snapshot. That resolves
+    // collisions on the *name*; rows that collide on the *file* under
+    // two different names are resolved by [_duplicateFileNames].
     final merged = <String, ModelDefinition>{
       ...BakedCatalogLoader.cached,
       ...ModelCatalog.crispasrBackendModels,
@@ -198,6 +249,7 @@ class ModelService {
     };
     for (final entry in merged.entries) {
       final modelDef = entry.value;
+      if (suppressed.contains(modelDef.name)) continue;
       final localPath = path.join(whisperCppDir(), modelDef.fileName);
       final isDownloaded = await _isModelDownloaded(localPath, modelDef);
 
@@ -536,44 +588,15 @@ class ModelService {
   }
 
   /// Derive ISO 639-1 language codes for a voicepack file from its
-  /// naming convention. Different TTS families use different schemes:
-  ///   * Kokoro: a single-letter prefix on the voice id —
-  ///     `af_heart` → English (a/b), `df_eva` → German (d),
-  ///     `ef_dora` → Spanish (e), `ff_siwis` → French (f),
-  ///     `if_*` / `im_*` → Italian (i), `jf_*` / `jm_*` → Japanese
-  ///     (j), `pf_*` / `pm_*` → Portuguese (p), `zf_*` / `zm_*` →
-  ///     Mandarin (z), `hf_*` / `hm_*` → Hindi (h). Second char is
-  ///     gender (f/m), not a language hint.
-  ///   * VibeVoice: voice ids embed the language code explicitly —
-  ///     `de-Spk1_woman`, `en-Emma_woman`, `fr-Spk1_woman`. Two-
-  ///     letter prefix matches ISO 639-1 directly.
-  /// Returns `[]` when the scheme doesn't recognise the prefix —
-  /// the caller falls back to the BackendRepo's defaultLanguages.
-  static List<String> _voicepackLanguages(BackendRepo repo, String voiceId) {
-    // VibeVoice convention: `<iso>-<...>`.
-    if (repo.backend == 'vibevoice-tts') {
-      final m = RegExp(r'^([a-z]{2})-').firstMatch(voiceId);
-      if (m != null) return [m.group(1)!];
-    }
-    // Kokoro convention: first character maps to a language.
-    if (repo.backend == 'kokoro' && voiceId.isNotEmpty) {
-      const kokoroLang = <String, String>{
-        'a': 'en', // American English
-        'b': 'en', // British English
-        'd': 'de', // German
-        'e': 'es', // Spanish
-        'f': 'fr', // French
-        'i': 'it', // Italian
-        'j': 'ja', // Japanese
-        'p': 'pt', // Portuguese
-        'z': 'zh', // Mandarin Chinese
-        'h': 'hi', // Hindi
-      };
-      final code = kokoroLang[voiceId[0].toLowerCase()];
-      if (code != null) return [code];
-    }
-    return const [];
-  }
+  /// naming convention — see [ModelCatalog.voicepackLanguages] for the
+  /// per-family schemes. Lives on the catalogue rather than here so the
+  /// offline bake script (`scripts/bake_models_catalog.dart`) tags baked
+  /// voices exactly the way this probe tags live ones (issue #35).
+  ///
+  /// Returns `[]` when the scheme doesn't recognise the id — the caller
+  /// falls back to the BackendRepo's defaultLanguages.
+  static List<String> voicepackLanguages(BackendRepo repo, String voiceId) =>
+      ModelCatalog.voicepackLanguages(repo.backend, voiceId);
 
   Future<List<ModelDefinition>> _probeRepo(BackendRepo repo) async {
     final headers = <String, dynamic>{};
@@ -598,6 +621,12 @@ class ModelService {
       final stem = fname.substring(0, fname.length - repo.extension.length);
       final sizeBytes = (raw['size'] as num?)?.toInt() ?? 0;
 
+      // A file published under a superseded name (the repo keeps both;
+      // the bytes are identical). Listing it again would resurrect the
+      // duplicate row issue #35 reported — skip it here the same way
+      // the bake script does.
+      if (ModelCatalog.legacyModelFileRenames.containsKey(fname)) continue;
+
       // Voicepack file? Stamp as ModelKind.voice, tag with the repo's
       // backend so the synthesize screen's `m.backend == modelDef.backend`
       // filter still groups them under the right main model. The
@@ -608,7 +637,16 @@ class ModelService {
       if (voicepackPrefix != null && stem.startsWith(voicepackPrefix)) {
         final voiceId = stem.substring(voicepackPrefix.length);
         final modelNameKey = '${repo.voicepackBaseName}-$voiceId';
-        final voiceLangs = _voicepackLanguages(repo, voiceId);
+        final voiceLangs = voicepackLanguages(repo, voiceId);
+        final resolvedLangs =
+            voiceLangs.isEmpty ? repo.defaultLanguages : voiceLangs;
+        // Carry the same `[lang=xx]` tag the static voicepack catalogue
+        // writes. A live probe overwrites the static entry by name, so
+        // without this the Voices language chips (which read the tag)
+        // emptied out the moment the HF refresh ran — issue #35.
+        final langTag = resolvedLangs.length == 1 && resolvedLangs.first != '*'
+            ? ' [lang=${resolvedLangs.first}]'
+            : '';
         out.add(ModelDefinition(
           name: modelNameKey,
           displayName: '${repo.displayPrefix} voice — $voiceId',
@@ -616,12 +654,12 @@ class ModelService {
           url: 'https://huggingface.co/${repo.repoId}/resolve/main/$fname',
           sizeBytes: sizeBytes,
           checksum: '',
-          description:
-              '${repo.displayPrefix} voicepack — ${_formatSize(sizeBytes)}',
+          description: '${repo.displayPrefix} voicepack — '
+              '${_formatSize(sizeBytes)}$langTag',
           quantization: 'f16',
           backend: repo.backend,
           kind: ModelKind.voice,
-          languages: voiceLangs.isEmpty ? repo.defaultLanguages : voiceLangs,
+          languages: resolvedLangs,
         ));
         continue;
       }
@@ -726,62 +764,82 @@ class ModelService {
       onStatusChange?.call('Starting download...');
       onProgress?.call(0.0);
 
-      final dlDone =
-          Log.instance.stopwatch('model', msg: 'download done', fields: {
-        'name': modelName,
-        'url': modelDef.url,
-        'expected_bytes': modelDef.sizeBytes,
-        'backend': modelDef.backend,
-        'quant': modelDef.quantization,
-        'target': tempPath,
-      });
-      Log.instance.i('model', 'download start', fields: {
-        'name': modelName,
-        'url': modelDef.url,
-        'expected_bytes': modelDef.sizeBytes,
-        'backend': modelDef.backend,
-        'quant': modelDef.quantization,
-      });
+      // Download → verify → on a checksum failure delete the bad file
+      // and retry ONCE from scratch. A mismatch is almost always a
+      // proxy/CDN hiccup that a clean second attempt fixes; telling the
+      // user to switch verification off (what the old message did) is
+      // terrible advice for a file we *know* is corrupt.
+      var attempt = 0;
+      while (true) {
+        attempt++;
+        final dlDone =
+            Log.instance.stopwatch('model', msg: 'download done', fields: {
+          'name': modelName,
+          'url': modelDef.url,
+          'expected_bytes': modelDef.sizeBytes,
+          'backend': modelDef.backend,
+          'quant': modelDef.quantization,
+          'target': tempPath,
+          'attempt': attempt,
+        });
+        Log.instance.i('model', 'download start', fields: {
+          'name': modelName,
+          'url': modelDef.url,
+          'expected_bytes': modelDef.sizeBytes,
+          'backend': modelDef.backend,
+          'quant': modelDef.quantization,
+          'attempt': attempt,
+        });
 
-      // Download with resume capability
-      try {
-        await _downloadWithResume(
-          modelDef.url,
-          tempPath,
-          expectedSize: modelDef.sizeBytes,
-          onProgress: onProgress,
-          onStatusChange: onStatusChange,
-          cancelToken: cancelToken,
-        );
-        int realBytes = 0;
+        // Download with resume capability
         try {
-          realBytes = await File(tempPath).length();
+          await _downloadWithResume(
+            modelDef.url,
+            tempPath,
+            expectedSize: modelDef.sizeBytes,
+            onProgress: onProgress,
+            onStatusChange: onStatusChange,
+            cancelToken: cancelToken,
+          );
+          int realBytes = 0;
+          try {
+            realBytes = await File(tempPath).length();
+          } catch (e) {
+            Log.instance.d('model-svc', 'post-download size probe failed',
+                fields: {'path': tempPath, 'err': e.toString()});
+          }
+          dlDone(extra: {'actual_bytes': realBytes});
         } catch (e) {
-          Log.instance.d('model-svc', 'post-download size probe failed',
-              fields: {'path': tempPath, 'err': e.toString()});
+          dlDone(error: e);
+          rethrow;
         }
-        dlDone(extra: {'actual_bytes': realBytes});
-      } catch (e) {
-        dlDone(error: e);
-        rethrow;
-      }
 
-      onStatusChange?.call('Verifying download...');
-      onProgress?.call(0.95);
+        onStatusChange?.call('Verifying download...');
+        onProgress?.call(0.95);
 
-      // Verify download
-      if (modelDef.checksum.isNotEmpty && !skipChecksum) {
-        final isValid = await _verifyChecksum(tempPath, modelDef.checksum);
-        if (!isValid) {
-          await File(tempPath).delete();
-          Log.instance.w('model', 'Checksum mismatch for $modelName');
-          throw const ModelException(
-              'Download verification failed. File may be corrupted. '
-              'Enable "Skip checksum verification" in Settings → Debugging to bypass.');
+        // Verify download
+        if (skipChecksum) {
+          Log.instance
+              .i('model', 'Skipping checksum for $modelName (user override)');
+          break;
         }
-      } else if (skipChecksum) {
+        if (modelDef.checksum.isEmpty) break;
+        if (await _verifyChecksum(tempPath, modelDef.checksum)) break;
+
+        // Bad bytes on disk: resuming would only re-verify the same
+        // corruption, so the partial has to go.
+        await _cleanupTempFile(tempPath);
         Log.instance
-            .i('model', 'Skipping checksum for $modelName (user override)');
+            .w('model', 'Checksum mismatch for $modelName (attempt $attempt)');
+        if (attempt >= 2) {
+          throw const ModelException(
+              'Download failed verification twice and was deleted. '
+              'Check your network or proxy; you can retry, or as a last '
+              'resort enable "Skip checksum verification" in '
+              'Settings → Debugging.');
+        }
+        onStatusChange?.call('Verification failed — retrying download...');
+        onProgress?.call(0.0);
       }
 
       // Move temp file to final location
@@ -830,8 +888,21 @@ class ModelService {
       onStatusChange?.call('Download complete');
       return true;
     } catch (e) {
-      // Cleanup on failure
-      await _cleanupTempFile(tempPath);
+      // Cleanup on failure — but only when the bytes on disk are of no
+      // further use. An interrupted transfer (cancel, timeout, reset
+      // connection) leaves a valid *prefix* of the file behind, and
+      // deleting it means the next attempt re-downloads multiple GB
+      // from zero. Corrupt files are deleted at the point we detect
+      // the corruption (checksum mismatch, over-long file), not here.
+      if (_shouldDiscardPartial(e)) {
+        await _cleanupTempFile(tempPath);
+      } else {
+        final kept = await _sizeOrZero(tempPath);
+        if (kept > 0) {
+          Log.instance.i('model', 'keeping partial download for resume',
+              fields: {'path': tempPath, 'bytes': kept});
+        }
+      }
 
       if (e is DioException) {
         final resp = e.response;
@@ -860,6 +931,11 @@ class ModelService {
         }
       }
 
+      // Our own exceptions already carry a user-facing message (the
+      // model-management screen shows it verbatim), so don't bury it
+      // under a "Failed to download model: ModelException: …" prefix.
+      if (e is ModelException) rethrow;
+
       throw ModelException('Failed to download model: $e');
     } finally {
       _activeDowloads.remove(modelName);
@@ -875,7 +951,11 @@ class ModelService {
     }
   }
 
-  /// Download with resume capability and comprehensive error handling
+  /// Download with byte-accurate resume.
+  ///
+  /// Thin wrapper kept for the existing call sites; the protocol lives
+  /// in [DownloadEngine] so it can be exercised against a local
+  /// HttpServer in tests.
   Future<void> _downloadWithResume(
     String url,
     String savePath, {
@@ -883,109 +963,46 @@ class ModelService {
     void Function(double progress)? onProgress,
     void Function(String status)? onStatusChange,
     CancelToken? cancelToken,
-  }) async {
-    final file = File(savePath);
-    int downloadedBytes = 0;
-
-    // Check if partial download exists
-    if (await file.exists()) {
-      downloadedBytes = await file.length();
-      onStatusChange?.call('Resuming download...');
-    }
-
-    // Set range header for resume
-    final headers = <String, dynamic>{
-      'Accept': '*/*',
-      'Accept-Encoding': 'identity', // Disable compression for resume
-    };
-
-    if (downloadedBytes > 0 && downloadedBytes < expectedSize) {
-      headers['Range'] = 'bytes=$downloadedBytes-';
-    }
-
-    final token = hfToken;
-    if (token != null && token.isNotEmpty) {
-      headers['Authorization'] = 'Bearer $token';
-    }
-
-    Log.instance.d('model', 'Request headers: $headers');
-
-    int lastProgressUpdate = DateTime.now().millisecondsSinceEpoch;
-
-    await _dio.download(
+  }) {
+    return DownloadEngine(_dio, authToken: hfToken).download(
       url,
       savePath,
-      options: Options(headers: headers),
+      expectedSize: expectedSize,
+      onProgress: onProgress,
+      onStatusChange: onStatusChange,
       cancelToken: cancelToken,
-      onReceiveProgress: (received, total) {
-        final now = DateTime.now().millisecondsSinceEpoch;
-
-        // Throttle progress updates to ~4 Hz so a multi-GB download
-        // doesn't stutter the UI thread with thousands of rebuilds.
-        if (now - lastProgressUpdate < 250) return;
-        lastProgressUpdate = now;
-
-        final totalBytes = downloadedBytes + received;
-        final progress =
-            total > 0 ? totalBytes / expectedSize : totalBytes / expectedSize;
-
-        onProgress?.call(progress.clamp(0.0, 1.0));
-
-        // Update status periodically
-        if (totalBytes % (1024 * 1024) < 100 * 1024) {
-          // Every MB
-          final downloadedMB = totalBytes / (1024 * 1024);
-          final totalMB = expectedSize / (1024 * 1024);
-          final speed = _calculateDownloadSpeed(totalBytes, DateTime.now());
-          onStatusChange?.call(
-              'Downloaded ${downloadedMB.toStringAsFixed(1)} MB of ${totalMB.toStringAsFixed(1)} MB ($speed)');
-        }
-      },
     );
-
-    // Verify final file size. Hardcoded catalog entries rounded to the
-    // nearest MB so we tolerate up to 5% (or 2 MB, whichever larger)
-    // undershoot before declaring the download incomplete — Dio already
-    // bubbles up real HTTP errors, so at this point a non-zero length
-    // file is almost always a complete download that just disagrees
-    // with our estimate.
-    final finalSize = await file.length();
-    if (expectedSize > 0 && finalSize < expectedSize) {
-      final diff = expectedSize - finalSize;
-      final tolerance = (expectedSize * 0.05).ceil();
-      final absTolerance =
-          tolerance > 2 * 1024 * 1024 ? tolerance : 2 * 1024 * 1024;
-      if (diff > absTolerance) {
-        await file.delete();
-        throw ModelException(
-          'Download incomplete. Expected at least $expectedSize bytes, got $finalSize bytes',
-        );
-      }
-      Log.instance.w(
-        'model',
-        'Download finished at $finalSize bytes, expected $expectedSize '
-            '(diff ${_formatSize(diff)}); accepting within tolerance.',
-      );
-    }
   }
 
-  DateTime? _speedStart;
-  final int _speedStartBytes = 0;
-
-  String _calculateDownloadSpeed(int bytesDownloaded, DateTime currentTime) {
-    _speedStart ??= currentTime;
-
-    final elapsed = currentTime.difference(_speedStart!).inSeconds;
-    if (elapsed <= 0) return '';
-
-    final speed = (bytesDownloaded - _speedStartBytes) / elapsed;
-    if (speed < 1024) {
-      return '${speed.toStringAsFixed(0)} B/s';
-    } else if (speed < 1024 * 1024) {
-      return '${(speed / 1024).toStringAsFixed(1)} KB/s';
-    } else {
-      return '${(speed / (1024 * 1024)).toStringAsFixed(1)} MB/s';
+  /// Whether a failed download attempt should wipe the partial `.tmp`.
+  ///
+  /// The default is *keep*: everything we write is a byte-exact prefix
+  /// of the remote file, so a retry resumes instead of restarting. Only
+  /// a hard "this URL will never serve us the file" answer makes the
+  /// (potentially multi-GB) partial dead weight worth deleting.
+  static bool _shouldDiscardPartial(Object e) {
+    if (e is ResumableDownloadException) return false;
+    if (e is DioException) {
+      final code = e.response?.statusCode ?? 0;
+      if (code == 401 || code == 403 || code == 404 || code == 410) {
+        return true;
+      }
+      // cancel / timeouts / connection errors / 5xx: transport trouble,
+      // the bytes already on disk stay valid.
+      return false;
     }
+    if (e is IOException) return false;
+    return true;
+  }
+
+  static Future<int> _sizeOrZero(String filePath) async {
+    try {
+      final f = File(filePath);
+      if (await f.exists()) return await f.length();
+    } catch (_) {
+      // Ignore — this is only used for a log line.
+    }
+    return 0;
   }
 
   /// Verify file checksum using SHA-1
@@ -1478,6 +1495,395 @@ class ModelService {
 class _BackendBytes {
   int bytes = 0;
   int count = 0;
+}
+
+/// Raised when a transfer stopped early but everything already written
+/// is a byte-exact prefix of the remote file — i.e. the partial on disk
+/// is worth keeping because the next attempt resumes from
+/// [bytesOnDisk] instead of restarting from zero.
+class ResumableDownloadException extends ModelException {
+  const ResumableDownloadException(super.message, {required this.bytesOnDisk});
+
+  /// How many valid bytes are sitting in the `.tmp` file.
+  final int bytesOnDisk;
+}
+
+/// One parsed `Content-Range: bytes START-END/TOTAL` header.
+class _ContentRange {
+  const _ContentRange(this.start, this.end, this.total);
+  final int start;
+  final int end;
+
+  /// `null` when the server sent `*` for the total.
+  final int? total;
+}
+
+/// Streamed HTTP downloader with byte-accurate resume.
+///
+/// Split out of [ModelService] so the resume protocol can be driven
+/// against a local `HttpServer` in tests without a model catalogue, a
+/// settings store, or Flutter bindings.
+///
+/// Why this exists at all: the previous implementation sent a
+/// `Range: bytes=N-` header and then handed the URL to `Dio.download`,
+/// which truncates the destination and writes the response from byte 0.
+/// The server answered `206` with only the tail, so the file ended up
+/// *missing its first N bytes* — a plausible-looking file that failed
+/// checksum verification (issue #35). Streaming the body ourselves is
+/// the only way to append to what is already on disk.
+class DownloadEngine {
+  DownloadEngine(this.dio, {this.authToken});
+
+  final Dio dio;
+
+  /// Optional Hugging Face token, sent as `Authorization: Bearer …`.
+  final String? authToken;
+
+  /// ~4 Hz: fast enough to look live, slow enough that a multi-GB
+  /// download doesn't stutter the UI thread with thousands of rebuilds.
+  static const int _progressIntervalMs = 250;
+
+  DateTime? _speedStart;
+  int _speedStartBytes = 0;
+
+  /// Fetch [url] into [savePath], resuming from whatever is already
+  /// there.
+  ///
+  /// [expectedSize] is only the catalogue's estimate: it is used for
+  /// progress and the completeness check *solely* when the server
+  /// declines to tell us the real length.
+  Future<void> download(
+    String url,
+    String savePath, {
+    required int expectedSize,
+    void Function(double progress)? onProgress,
+    void Function(String status)? onStatusChange,
+    CancelToken? cancelToken,
+  }) async {
+    _speedStart = null;
+    _speedStartBytes = 0;
+
+    final restart = await _attempt(
+      url,
+      savePath,
+      expectedSize: expectedSize,
+      allowResume: true,
+      onProgress: onProgress,
+      onStatusChange: onStatusChange,
+      cancelToken: cancelToken,
+    );
+
+    if (restart) {
+      // The server couldn't (or wouldn't) continue from our offset and
+      // the partial has been deleted. One clean pass from byte 0; the
+      // return value is ignored because a no-Range request can't ask
+      // for another restart.
+      _speedStart = null;
+      _speedStartBytes = 0;
+      await _attempt(
+        url,
+        savePath,
+        expectedSize: expectedSize,
+        allowResume: false,
+        onProgress: onProgress,
+        onStatusChange: onStatusChange,
+        cancelToken: cancelToken,
+      );
+    }
+  }
+
+  /// One HTTP attempt. Returns `true` when the caller must retry from
+  /// scratch (the partial has already been removed in that case).
+  Future<bool> _attempt(
+    String url,
+    String savePath, {
+    required int expectedSize,
+    required bool allowResume,
+    void Function(double progress)? onProgress,
+    void Function(String status)? onStatusChange,
+    CancelToken? cancelToken,
+  }) async {
+    final file = File(savePath);
+    var partialBytes = 0;
+    if (allowResume && await file.exists()) {
+      partialBytes = await file.length();
+    }
+    if (partialBytes > 0) {
+      onStatusChange?.call('Resuming download...');
+    }
+
+    final headers = <String, dynamic>{
+      'Accept': '*/*',
+      // Never let a proxy hand us a compressed body: byte offsets are
+      // meaningless once the transfer is encoded, and offsets are the
+      // whole basis of resume.
+      'Accept-Encoding': 'identity',
+    };
+    if (partialBytes > 0) {
+      headers['Range'] = 'bytes=$partialBytes-';
+    }
+    final token = authToken;
+    if (token != null && token.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $token';
+    }
+
+    Log.instance.d('model', 'download request', fields: {
+      'url': url,
+      'resume_from': partialBytes,
+      'ranged': partialBytes > 0,
+    });
+
+    final response = await dio.get<ResponseBody>(
+      url,
+      options: Options(
+        responseType: ResponseType.stream,
+        headers: headers,
+        // 416 isn't an error here: it means our partial is at or past
+        // the end of the resource, which we resolve by reading
+        // Content-Range rather than by blowing up.
+        validateStatus: (s) => s != null && ((s >= 200 && s < 300) || s == 416),
+      ),
+      cancelToken: cancelToken,
+    );
+
+    final status = response.statusCode ?? 0;
+    final body = response.data;
+    if (body == null) {
+      throw ModelException('Download failed: empty response (HTTP $status)');
+    }
+
+    final contentRange =
+        response.headers.value(HttpHeaders.contentRangeHeader)?.trim();
+
+    if (status == 416) {
+      await _discard(body);
+      final total = _totalFromContentRange(contentRange);
+      if (total != null && partialBytes == total) {
+        // Everything was already fetched by an earlier run that died
+        // before the checksum step. Nothing left to do.
+        Log.instance.i('model', 'resume: file already complete',
+            fields: {'bytes': partialBytes});
+        return false;
+      }
+      Log.instance.w('model', 'server rejected our range (416) — restarting',
+          fields: {'have': partialBytes, 'content_range': contentRange ?? ''});
+      await _deleteQuietly(file);
+      return true;
+    }
+
+    int startOffset;
+    int? serverTotal;
+    if (status == 206) {
+      final range = _parseContentRange(contentRange);
+      if (range == null || range.start != partialBytes) {
+        // The tail we're being offered doesn't line up with the bytes we
+        // have. Splicing it on would corrupt the file, so start over.
+        Log.instance.w('model', 'Content-Range mismatch — restarting',
+            fields: {
+              'have': partialBytes,
+              'content_range': contentRange ?? '(none)',
+            });
+        await _discard(body);
+        await _deleteQuietly(file);
+        return true;
+      }
+      startOffset = partialBytes;
+      serverTotal = range.total;
+    } else {
+      // 200 (or any other 2xx): the server ignored the Range header and
+      // is sending the whole resource. The partial must be dropped or
+      // we'd splice two copies together.
+      if (partialBytes > 0) {
+        Log.instance.w(
+            'model', 'server ignored Range (HTTP $status) — restarting at 0',
+            fields: {'discarded': partialBytes});
+      }
+      startOffset = 0;
+      final len = response.headers.value(HttpHeaders.contentLengthHeader);
+      final parsed = len == null ? null : int.tryParse(len.trim());
+      serverTotal = (parsed != null && parsed > 0) ? parsed : null;
+    }
+
+    // Trust the server's length over the catalogue's estimate; fall back
+    // to the estimate only when the server told us nothing (chunked
+    // transfer, no Content-Length).
+    final totalForProgress =
+        serverTotal ?? (expectedSize > 0 ? expectedSize : 0);
+
+    final sink = file.openWrite(
+        mode: startOffset > 0 ? FileMode.append : FileMode.write);
+    var sinkClosed = false;
+    Future<void> closeSink() async {
+      if (sinkClosed) return;
+      sinkClosed = true;
+      try {
+        await sink.flush();
+      } catch (_) {
+        // Nothing useful to do — the length check below is the arbiter.
+      }
+      try {
+        await sink.close();
+      } catch (_) {
+        // Same.
+      }
+    }
+
+    var received = 0;
+    var lastTick = 0;
+    try {
+      // addStream applies backpressure (the socket pauses while the disk
+      // catches up), which plain `sink.add` in a loop would not.
+      await sink.addStream(body.stream.map((chunk) {
+        received += chunk.length;
+        final onDisk = startOffset + received;
+        final now = DateTime.now();
+        final ms = now.millisecondsSinceEpoch;
+        if (ms - lastTick >= _progressIntervalMs) {
+          lastTick = ms;
+          if (totalForProgress > 0) {
+            onProgress?.call((onDisk / totalForProgress).clamp(0.0, 1.0));
+          }
+          final doneMb = onDisk / (1024 * 1024);
+          final totalMb = totalForProgress / (1024 * 1024);
+          onStatusChange?.call('Downloaded ${doneMb.toStringAsFixed(1)} MB '
+              'of ${totalMb.toStringAsFixed(1)} MB (${_speed(onDisk, now)})');
+        }
+        return chunk;
+      }));
+      await closeSink();
+    } catch (e) {
+      // A cancelled or broken transfer: flush what made it through so the
+      // file stays a valid prefix and a later call can resume from it.
+      await closeSink();
+      Log.instance.w('model', 'download stream failed', fields: {
+        'bytes_on_disk': await _lengthOrZero(file),
+        'err': e.toString(),
+      });
+      rethrow;
+    } finally {
+      await closeSink();
+    }
+
+    final finalSize = await _lengthOrZero(file);
+
+    if (serverTotal != null) {
+      // The server told us exactly how big the file is, so "close
+      // enough" is not a thing: any shortfall is a truncated transfer.
+      if (finalSize == serverTotal) return false;
+      if (finalSize > serverTotal) {
+        await _deleteQuietly(file);
+        throw ModelException(
+            'Download corrupt: got $finalSize bytes for a $serverTotal byte '
+            'file. The partial file was deleted — please retry.');
+      }
+      throw ResumableDownloadException(
+        'Download interrupted at $finalSize of $serverTotal bytes '
+        '(${_humanBytes(serverTotal - finalSize)} still missing). The partial '
+        'file was kept — retrying resumes from $finalSize bytes.',
+        bytesOnDisk: finalSize,
+      );
+    }
+
+    // No server-side length. Fall back to the catalogue estimate, which
+    // is rounded to the nearest MB, so tolerate a 5% (or 2 MB, whichever
+    // is larger) undershoot before calling the download incomplete.
+    if (expectedSize > 0 && finalSize < expectedSize) {
+      final diff = expectedSize - finalSize;
+      final tolerance = (expectedSize * 0.05).ceil();
+      final absTolerance =
+          tolerance > 2 * 1024 * 1024 ? tolerance : 2 * 1024 * 1024;
+      if (diff > absTolerance) {
+        throw ResumableDownloadException(
+          'Download incomplete. Expected at least $expectedSize bytes, got '
+          '$finalSize bytes. The partial file was kept — retrying resumes '
+          'from $finalSize bytes.',
+          bytesOnDisk: finalSize,
+        );
+      }
+      Log.instance.w(
+        'model',
+        'Download finished at $finalSize bytes, expected $expectedSize '
+            '(diff ${_humanBytes(diff)}); server sent no length, accepting '
+            'within tolerance.',
+      );
+    }
+    return false;
+  }
+
+  String _speed(int bytesDownloaded, DateTime now) {
+    if (_speedStart == null) {
+      _speedStart = now;
+      _speedStartBytes = bytesDownloaded;
+      return '';
+    }
+    final elapsedMs = now.difference(_speedStart!).inMilliseconds;
+    if (elapsedMs <= 0) return '';
+    final speed = (bytesDownloaded - _speedStartBytes) * 1000 / elapsedMs;
+    if (speed < 1024) return '${speed.toStringAsFixed(0)} B/s';
+    if (speed < 1024 * 1024) {
+      return '${(speed / 1024).toStringAsFixed(1)} KB/s';
+    }
+    return '${(speed / (1024 * 1024)).toStringAsFixed(1)} MB/s';
+  }
+
+  /// Drop a response body we've decided not to write, closing the
+  /// socket instead of draining (and paying for) the whole tail.
+  static Future<void> _discard(ResponseBody body) async {
+    try {
+      await body.stream.listen(null).cancel();
+    } catch (_) {
+      // Best effort — the connection dies with the response either way.
+    }
+  }
+
+  static Future<void> _deleteQuietly(File f) async {
+    try {
+      if (await f.exists()) await f.delete();
+    } catch (_) {
+      // Best effort.
+    }
+  }
+
+  static Future<int> _lengthOrZero(File f) async {
+    try {
+      if (await f.exists()) return await f.length();
+    } catch (_) {
+      // Best effort.
+    }
+    return 0;
+  }
+
+  /// `bytes 1024-4095/4096` → start 1024, end 4095, total 4096.
+  static _ContentRange? _parseContentRange(String? header) {
+    if (header == null || header.isEmpty) return null;
+    final m = RegExp(r'bytes\s+(\d+)\s*-\s*(\d+)\s*/\s*(\d+|\*)',
+            caseSensitive: false)
+        .firstMatch(header);
+    if (m == null) return null;
+    final start = int.tryParse(m.group(1)!);
+    final end = int.tryParse(m.group(2)!);
+    if (start == null || end == null) return null;
+    final rawTotal = m.group(3)!;
+    return _ContentRange(
+        start, end, rawTotal == '*' ? null : int.tryParse(rawTotal));
+  }
+
+  /// Total from either form of the header, including the `bytes * /N`
+  /// shape a 416 uses.
+  static int? _totalFromContentRange(String? header) {
+    if (header == null || header.isEmpty) return null;
+    final m = RegExp(r'/\s*(\d+)\s*$').firstMatch(header);
+    return m == null ? null : int.tryParse(m.group(1)!);
+  }
+
+  static String _humanBytes(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    if (bytes < 1024 * 1024 * 1024) {
+      return '${(bytes / (1024 * 1024)).toStringAsFixed(0)} MB';
+    }
+    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
+  }
 }
 
 // Retry interceptor for Dio
