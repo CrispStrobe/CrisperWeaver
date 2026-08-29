@@ -5,11 +5,80 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 
 ## [Unreleased]
 
+### Added
+
+- Every top-level screen now shows a Home button when there is nothing to go
+  back to, so arriving somewhere directly — from onboarding, a shared file, or
+  a deep link — is no longer a dead end.
+- The Synthesize screen shows a banner naming the reference clip a voice clone
+  will use, and explains what is missing (reference transcript, a model that
+  cannot clone, an unreadable clip) before the attempt rather than failing
+  afterwards with an error code.
+- Voice cloning warns at the picker when the chosen reference file is not a
+  WAV, instead of failing later without saying why.
+- The decoding and diarisation controls in Advanced Options now carry hover and
+  help text explaining what each one does, in English, German and Chinese.
+- The voice filter in Model Management lists languages by name and code, using
+  the same vocabulary as the model language dropdown.
+
 ### Fixed
 
+- **Resuming an interrupted model download no longer corrupts the file.** A
+  resumed transfer kept only the part downloaded after the interruption and
+  discarded everything before it, producing the "file is incomplete" and
+  checksum-mismatch errors — and, when the shortfall was small enough, a file
+  that was accepted and then failed to load. Downloads now append to the
+  existing partial file when the server confirms the resume point, start over
+  when it does not, treat an already-complete file as done, and check the
+  result against the length the server reports instead of a catalogue
+  estimate. A file that still fails its checksum is deleted and fetched once
+  more before the error is shown.
+- Interrupting a download now keeps what was already fetched, so resuming
+  continues instead of starting from zero.
+- The quantized Whisper entries (tiny/base/small q5_0, the q4_0 and q2_k
+  variants) pointed at a Hugging Face mirror that had gone private, so the
+  onboarding starter download — and every one of those rows — failed with a
+  401 for everyone. They now point at the public `ggerganov/whisper.cpp`
+  files (as q5_1, the quant that actually exists there); variants with no
+  public source are gone.
+- The language filter on the Models screen barely filtered anything: the
+  bundled catalogue shipped without language information. Languages are back,
+  every voice is tagged, and picking a language now narrows the list.
+- The same voice no longer appears twice under two names. One VibeVoice voice
+  (Emma) was a byte-identical duplicate and is gone; 29 further duplicate rows
+  are hidden, keeping the named version.
+- Voice language codes are normalised (`jp` → `ja`, `kr` → `ko`, `sp` → `es`),
+  so the voice chips and the language dropdown finally agree.
+- Onboarding downloaded one voice and the Synthesize screen then opened with a
+  different one. The model and voice chosen during onboarding are remembered
+  and pre-selected.
+- The voice-cloning wizard's hand-off to Synthesize never arrived — the
+  recorded clip was dropped on the way and the clone ended in an error. The
+  reference now carries across, together with a model that can actually clone.
+- Cloned speech was missing its audible AI disclaimer (EU AI Act Art. 50(4))
+  when it came from a custom reference clip.
+- Windows: the app no longer reports a file-system error for every log line at
+  startup, and command-line flags such as `--help` are no longer mistaken for a
+  shared file to open.
+- The aligner override in Advanced Options did nothing; it now resolves the
+  model you pick and marks entries that are not downloaded yet.
+- The diarisation method and the minimum / maximum speaker counts were shown
+  but never applied to a transcription. They are wired through now.
+- Command line: `crisperweaver vad` crashed instead of printing speech spans;
+  `--vad` / `--vad-model` were accepted and ignored; a non-numeric value for an
+  option printed a stack trace instead of a usage message; `--chunk-ms 0` ran
+  forever; a missing input file now reports the path instead of failing deep
+  inside the engine; and `watermark` checks for `--out` before doing the work.
 - Transcript tidying now skips a segment whose prompt will not fit the local
   model's context window instead of silently tidying a truncated version of
   it and returning confident text for words the model never saw.
+
+### Changed
+
+- The bundled model catalogue was rebuilt so language information survives into
+  the app, duplicate files are suppressed at every source (bundled list, live
+  HuggingFace probe, model directory scan), and a legacy duplicate voice
+  already on disk is renamed once to the name that is kept.
 
 ## [0.10.1] — 2026-08-26
 

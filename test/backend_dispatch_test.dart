@@ -666,6 +666,8 @@ void main() {
     final gemma4Model = Platform.environment['CRISPASR_TEST_GEMMA4_E2B_MODEL'];
     final chatterboxModel =
         Platform.environment['CRISPASR_TEST_CHATTERBOX_MODEL'];
+    final chatterboxS3genPath =
+        Platform.environment['CRISPASR_TEST_CHATTERBOX_S3GEN'];
     final chatterboxVoice =
         Platform.environment['CRISPASR_TEST_CHATTERBOX_VOICE'];
     final indextts = Platform.environment['CRISPASR_TEST_INDEXTTS_MODEL'];
@@ -695,6 +697,12 @@ void main() {
       final s = crispasr.CrispasrSession.open(chatterboxModel!,
           backend: 'chatterbox', libPath: libPath);
       addTearDown(s.close);
+      // Chatterbox is a two-model backend: without the S3Gen
+      // flow-matching vocoder the T3 stage produces speech TOKENS but
+      // no audio, and synthesize() returns empty ("S3Gen not loaded.
+      // Call chatterbox_set_s3gen_path first."). Mirror the roundtrip
+      // test below and require both files.
+      s.setCodecPath(chatterboxS3genPath!);
       if (chatterboxVoice != null && chatterboxVoice.isNotEmpty) {
         s.setVoice(chatterboxVoice);
       }
@@ -705,7 +713,9 @@ void main() {
             ? libSkipReason
             : chatterboxModel == null
                 ? 'set CRISPASR_TEST_CHATTERBOX_MODEL to a downloaded chatterbox-*.gguf'
-                : null);
+                : chatterboxS3genPath == null
+                    ? 'set CRISPASR_TEST_CHATTERBOX_S3GEN to a chatterbox-s3gen-*.gguf'
+                    : null);
 
     test('indextts synthesises non-zero PCM (zero-shot WAV clone)',
         tags: ['slow'], () {

@@ -191,6 +191,7 @@ This DPIA should be reviewed:
 
 | Date | Change |
 |---|---|
+| 2026-08-29 | **Issue #35.** The §3.1 mitigation "beep disclaimer mandatory on all of them" was true of the consent gate on every cloning path and not of the beep itself: the Synthesize screen never passed the custom reference WAV through to the writer, so a clone made via the voice-clone wizard was written unmarked. Fixed in code (`HISTORY.md` §18.5); no change to this document's analysis, recorded here because the mitigation was asserted as already-true. Consent attestation was unaffected and applied on every path throughout. |
 | 2026-08-02 | **Third audit.** Scoped §1.2 to the transient TitaNet embeddings derived by **diarisation**, which two prior revisions omitted entirely while assessing the enrolment path in detail — the same failure mode §3.2 already names, one level up: the question asked was "is the gate sound?" and never "what else derives this vector?". Added the corresponding risk row to §3.1, framed as an assumption to keep true rather than a fact already secured, since the Art. 9 analysis depends on it. |
 | 2026-07-16 | Initial DPIA |
 | 2026-08-01 | Audit revision: corrected the third-party data-subject assumption in §5; recorded the consent gate on every enrolment path and the consent-derived match roster. |

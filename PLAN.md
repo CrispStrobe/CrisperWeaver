@@ -28,13 +28,13 @@ archived to HISTORY.md under its original number.
 6. [Adding a new backend](#6-adding-a-new-backend)
 7. [Server modes — built-in vs CrispASR-CLI](#7-server-modes--built-in-vs-crispasr-cli)
 
-Archived to HISTORY.md: §0, §8–§17.
+Archived to HISTORY.md: §0, §8–§18.
 
 ---
 
 ## A. Current state
 
-**Version:** 0.9.8+78. `main` is clean and pushed.
+**Version:** 0.10.1+83, with v0.11.0 in preparation. `main` is clean and pushed.
 
 **Where the ship is.** The app is feature-complete and the current work is
 store submission, not features.
@@ -46,10 +46,12 @@ store submission, not features.
 | TestFlight | Builds are uploading and processing. No evidence in the repo that **external** Beta App Review has been submitted — confirm in App Store Connect before assuming either way. |
 | Google Play | Not started. |
 | Compliance | EU AI Act: seven audit rounds, all closed. 155 compliance tests green. |
+| Issue #35 | Closed by [`e0c8de0`](https://github.com/CrispStrobe/CrisperWeaver/commit/e0c8de0) (2026-08-29), shipping in v0.11.0. Write-up: HISTORY.md §18. |
 
-**Health, as of 2026-08-03:** `flutter analyze` 0 errors (44 info lints);
-full suite **1304 passed, 104 skipped, 0 failures**; `scripts/build_macos.sh`
-builds clean.
+**Health, as of 2026-08-29:** `flutter analyze` 0 errors; full suite
+**1500+ passed, 0 failures**; `scripts/build_macos.sh` builds clean; the
+Linux desktop build was driven end to end under Xvfb against the real
+engine as part of the #35 round.
 
 **The one thing to know before believing any status claim here.** Seven
 audits have now found the same defect shape: a duty or a claim implemented
@@ -59,6 +61,15 @@ when this document says something is done, the useful question is not "is
 that true?" but **"on which surfaces?"** `docs/AI_ACT_RISK.md` §5.2 tells
 the whole story; round 7 (HISTORY.md §17) extended it from code paths to
 build targets and to public claims that are not code at all.
+
+Issue #35 (HISTORY.md §18) extended it once more, to **routes**. A first-run
+walkthrough — onboard, download, synthesise, clone, go back — hit a broken
+step at nearly every stage, and each break was invisible from the screen the
+feature was written on: resume corrupted downloads because nobody resumed
+one, the language filter filtered nothing because the shipped catalogue had
+no languages in it, and cloned output shipped without its Art. 50(4) beep
+because the duty was implemented on the baked-voice path only. So the third
+question is **"has anyone walked this path on a real build?"** — see §B6.
 
 ---
 
@@ -153,6 +164,28 @@ Windows MSI/EXE installer. Details in §5.10.
   recorded re-open triggers (`AI_ACT_RISK.md` §7.2) — stabilised generating
   surface, commercial deployment, or contact from a market surveillance
   authority.
+
+### B6. Walk the first-run path on a real build before every release
+
+New, from issue #35 (HISTORY.md §18). The fix round is done; this is the
+practice that keeps it from recurring, and it is cheap.
+
+Install the built artefact — not `flutter run`, not a test — and use it as
+someone who has never seen it: onboarding through each of the four tasks, a
+model download that gets interrupted and resumed, the language and voice
+filters, the clone wizard end to end, and back / home from every top-level
+screen. The #35 round drives exactly this under Xvfb on the Linux desktop
+build with the real engine; do the same on whichever platform a release
+targets.
+
+- **Done when:** the walkthrough completes with no dead end, no error
+  dialog, and the model that was downloaded is the one that plays.
+- Regression coverage for the defects it already found lives in
+  `test/model_download_resume_test.dart` (a real localhost HTTP server —
+  keep it that way; a mocked Dio asserts nothing about the bytes on disk),
+  `test/model_catalog_language_filter_test.dart`,
+  `test/synthesize_defaults_test.dart`, `test/voice_clone_handoff_test.dart`
+  and `test/root_aware_back_leading_test.dart`.
 
 ---
 
@@ -588,6 +621,9 @@ the in-app server already covers the use case end-to-end.
 | 13 | EU AI Act compliance (July 2026) — the original sweep |
 | 14 | CrispASR 0.8.12 + CrispEmbed 0.15.1 dependency update |
 | 15–17 | EU AI Act audit remediation; audit round 2; store-readiness round 7 |
+
+§18 (issue #35 — every reported workflow break, 2026-08-29) was written
+straight into HISTORY.md; it never lived here.
 
 Audit rounds 3–6 were written up in `docs/AI_ACT_RISK.md` §9 rather than
 here, and that document stays **live**.

@@ -4474,3 +4474,178 @@ Verified end-to-end on macOS: MP3 + Opus encode→decode round-trips against
 the real `libglint.dylib` (`test/glint_codec_test.dart`). Other platforms
 build in CI.
 
+---
+
+## 18. Issue #35 — every reported workflow break (2026-08-29)
+
+Commit [`e0c8de0`](https://github.com/CrispStrobe/CrisperWeaver/commit/e0c8de0).
+Ships in v0.11.0.
+
+Issue #35 was not a bug report about one feature. It was a first-run
+walkthrough — install, onboard, download, synthesise, clone, go back — and
+almost every step in it was broken. That shape matters: none of these
+defects were reachable from the surface each feature was *designed* on, and
+all of them were reachable from the path a new user actually takes. This is
+round 7's lesson (§17.5) arriving from a direction nobody was checking: not
+a second build target and not a public claim, but the **entry path**.
+
+### 18.1 Downloads corrupted themselves on resume
+
+The reported symptom was a wall of checksum mismatches and
+`expected 745121600, got 674342336`. The cause was one line of trust:
+`ModelService` sent a correct `Range: bytes=N-` header and then handed the
+response to `Dio.download()`, which opens its target with truncation. The
+206 tail was written *over* the partial file rather than after it, so the
+result was short by exactly the bytes already fetched — the first N of them
+missing, not the last.
+
+Two things kept it invisible. The old size check accepted anything "within
+tolerance" of the **catalogue's estimate**, so a small shortfall passed
+verification and only failed later at load time; and a failed checksum left
+the corrupt partial on disk, so every retry resumed from the same poisoned
+offset and reproduced the same file.
+
+Rewritten as a streaming `DownloadEngine` (`lib/services/model_service.dart`):
+append only on a `206` whose `Content-Range` matches the offset requested,
+restart from zero on a `200` or on any range mismatch, treat `416` as
+already-complete, verify the finished file against the **server's** length
+(`Content-Length` / `Content-Range` total, never the estimate), preserve
+partials on interruption so a resume is genuinely a resume, and on a
+checksum failure delete and re-fetch once before surfacing an error that
+names what happened.
+
+### 18.2 The shipped catalogue had no languages in it
+
+The language dropdown on the Models screen filtered almost nothing, and the
+voice chips spoke a different alphabet from it. Both had the same root:
+`scripts/convert_baked_to_json.py` used a regex that never matched Dart list
+literals, so `languages` was silently dropped from `assets/models/catalog.json`
+for every entry. The GUI was filtering on a field that did not exist in the
+asset it reads. Fixed in the converter, asset re-baked with every voice
+tagged, and `check_model_languages.dart` extended so the omission cannot
+return unnoticed.
+
+Alongside it, two catalogue defects the same screen exposed:
+
+- **Duplicates.** `vibevoice-voice-emma` was byte-identical to
+  `en-Emma_woman` — the same file under two names, downloadable twice.
+  Removed from the catalogue, skipped at probe and bake time, and a copy
+  already on disk renamed once. A further **29 same-file dual-name rows**
+  are suppressed at merge time (bundled catalogue + live HF probe + on-disk
+  scan), curated names winning.
+- **Two alphabets.** Voice codes came from repo filenames (`jp`, `kr`, `sp`,
+  `in`) and could never match the ISO 639-1 codes the dropdown offers.
+  Normalised on the way in, and the chips now render "German (de)" so the
+  two filters are visibly one vocabulary.
+
+### 18.3 Onboarding downloaded one voice and played another
+
+The Synthesize screen picked the first downloaded TTS entry in catalogue
+order. Onboarding's recommendation was never recorded anywhere, so the model
+it had just fetched was frequently not the one that opened. Onboarding now
+persists `defaultTtsModel` / `defaultTtsVoice` (`SettingsService`), and the
+screen prefers them, then the selected model's own companions, and only then
+falls back to catalogue order.
+
+### 18.4 No back button, anywhere
+
+Onboarding finished with `go()`, which replaces the stack rather than pushing
+onto it, so the destination had nothing beneath it and Flutter drew no back
+button. Onboarding now lands with Home beneath the destination, and
+`lib/widgets/root_aware_back_leading.dart` gives every top-level screen a
+Home button whenever nothing can be popped — which also covers arrival from a
+shared file or a deep link, routes nobody had walked either.
+
+### 18.5 The voice-clone hand-off never arrived
+
+`go('/synthesize')` from the wizard — which is itself a child of
+`/synthesize` — re-uses the page already keyed to that path. The widget is
+updated, not recreated, so `initState` never ran again and the clip the
+wizard passed was dropped on the floor; the clone then failed with a raw
+return code. Applied through `didUpdateWidget` plus a direct provider seed.
+Around it: a banner naming the active reference, pre-flight checks with
+actionable messages instead of rc codes, steering to a clone-capable model,
+a warning when the reference is not a WAV, and relocation of non-ASCII
+reference paths on Windows.
+
+One compliance defect fell out of the same code: `customVoiceWavPath` was
+never passed to `writeWav`, so clones from a custom reference shipped
+**without** the Art. 50(4) beep disclaimer. The duty was implemented — on
+the baked-voice path only. §17.5 again, exactly.
+
+### 18.6 Windows boot noise and argv
+
+The stderr mirror (LEARNINGS, "stderr.writeln on Windows GUI builds throws
+*async*") was guarded by `stdioType(stderr) != StdioType.other`, which is not
+enough on a GUI-subsystem build: the handle can classify as something other
+than `other` and still be dead. Now it requires an actual terminal on Windows
+release builds, disarms itself on the first `writeFrom` failure, and guards
+the stdio done-futures. Separately, desktop argv intake treated `--help` as a
+file to open (`Shared file does not exist: --help`); flags are filtered out
+with a pointer to the CLI.
+
+### 18.7 CLI hardening
+
+Seven fixes in `bin/crisperweaver.dart`, all found by running each command
+rather than by reading it:
+
+- `vad` opened the VAD model as a whisper context purely to reach the
+  binding's method, and `dispose()` then `whisper_free`d a context that was
+  never a whisper model — SIGABRT of the isolate. This is the *same* bug
+  `VadService` had (§9.5); the CLI kept a comment saying it "tolerates the
+  wasted ctx". It does not. Now calls the free `crispasr_vad_slices`.
+- `--vad` / `--vad-model` were parsed and never read, so a headless run
+  decoded the silence too. Routed through `transcribeVad`. `--vad` now
+  requires `--vad-model`: the GUI auto-detects Silero from its asset bundle,
+  and a `dart run` entrypoint has no asset bundle.
+- Numeric options went through bare `int.parse` / `double.parse` — a typo
+  printed a Dart stack trace and exited 255. They validate up front as usage
+  errors (exit 64), before the decode and the session open.
+- `--chunk-ms 0` looped forever (`off += 0`).
+- Missing input files reached the FFI loader; they are usage errors naming
+  the path.
+- `watermark` ran the whole embed and only then discovered it had no `--out`.
+
+### 18.8 Controls that were not connected to anything
+
+- The aligner override in Advanced Options accepted a catalogue key and
+  compared it against file paths, so it was silently inert. It resolves keys
+  now and marks entries `(Not downloaded)`.
+- The diarisation method and the minimum / maximum speaker counts were
+  rendered, persisted, and never passed to the transcribe paths. Wired
+  through (`transcription_screen_provider.dart`).
+- Decoding and diarisation controls gained hover / help text in en / de / zh —
+  the report's "I don't know what any of these do" is a defect too.
+
+### 18.9 Verification
+
+Three passes, deliberately different in kind:
+
+- **Unit / regression — 1500+ tests green.** Nine new files
+  (`model_download_resume_test.dart`, `model_catalog_language_filter_test.dart`,
+  `synthesize_defaults_test.dart`, `voice_clone_handoff_test.dart`,
+  `root_aware_back_leading_test.dart`, `aligner_override_test.dart`,
+  `diarization_wiring_test.dart`, `share_intake_args_test.dart`,
+  `cli_test.dart` additions). The download suite runs against a **real
+  localhost HTTP server** serving partial content, mismatched `Content-Range`,
+  `416`, short bodies and bad checksums — and its regression case reproduces
+  the corruption on the pre-fix code, so the test proves the fix instead of
+  restating it. Mocking Dio would have asserted the bug was fixed while
+  testing nothing about the byte layout on disk.
+- **Full GUI drive under Xvfb** on the Linux desktop build with the real
+  inference engine: onboarding through all four tasks, the model filters, an
+  interrupted and resumed download, the clone wizard hand-off, and back /
+  home from every top-level screen. Every defect in #35 was reproduced on the
+  old build first.
+- **CLI baseline** — each command run before and after, including the failure
+  modes (bad numbers, missing files, `--chunk-ms 0`).
+
+### 18.10 The generalisation, after #35
+
+Round 7 asked "on which surfaces?" of a duty. #35 asks it of a *route*: the
+sequence a first-run user walks is a surface nobody in this repo had ever
+walked end to end, because everyone here arrives at a screen by editing it.
+Every defect above is individually small and all of them are on that one
+path. The check that would have caught the set is not a better test — it is
+installing the build and using it as a stranger, which is what the reporter
+did.

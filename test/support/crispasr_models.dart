@@ -40,6 +40,11 @@ const Map<String, String> _modelFiles = {
   // Language ID
   'glotlid': 'lid-glotlid-q4_k.gguf',
   'cld3': 'cld3-f32.gguf',
+  // Audio LID — the Silero 95-language classifier the app's LidService
+  // drives through `LidMethod.silero`. q8_0 is 13 MB, so unlike the
+  // whisper-encoder LID path it needs no multilingual ggml-*.bin.
+  // Env override: CRISPASR_TEST_SILERO_LID_MODEL.
+  'silero_lid': 'silero-lid-95-q8_0.gguf',
   // VAD
   'whisper_vad': 'whisper-vad-asmr-q4_k.gguf',
   'marblenet_vad': 'marblenet-vad.gguf',

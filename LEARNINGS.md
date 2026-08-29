@@ -284,6 +284,35 @@ We shipped a hardcoded catalog of `ModelDefinition` entries pointing at `hugging
 
 **Corollary:** at most, hardcode repo-level info (repo ID, display prefix), never file-level (filename, URL, size). HF file names drift when model authors republish.
 
+## Model downloads
+
+### `Dio.download()` overwrites the file — a `Range` header alone is not resume
+
+**Symptom (issue #35):** every resumed model download failed its checksum, or reported `expected 745121600, got 674342336`, or — worse — passed verification and then failed to load. Retrying reproduced the identical broken file.
+
+**Reason:** the request was right and the write was wrong. `ModelService` sent `Range: bytes=$existing-`, the server answered `206 Partial Content` with the tail, and `Dio.download()` opened its target with truncation and wrote that tail *over* the partial file. The result is short by exactly the bytes already on disk, and it is missing the **first** N bytes, not the last — which is why nothing about the file's tail looks wrong.
+
+**Fix:** stream the response yourself and control the file mode (`DownloadEngine` in `lib/services/model_service.dart`):
+
+```dart
+// append only when the server confirmed *our* offset
+final ok206 = status == 206 && contentRangeStart == existingBytes;
+final sink = File(part).openWrite(
+    mode: ok206 ? FileMode.append : FileMode.write);
+```
+
+Plus the three cases nobody writes on the first attempt: `200` means the server ignored the range → restart from zero; `416` on a full-length request means the file is already complete → stop, don't error; a `Content-Range` start that isn't the offset you asked for → restart, don't append.
+
+**Lesson:** resume is a property of the *writer*, not of the request. Any HTTP helper whose job is "download a URL to a path" is entitled to truncate that path, and it will do so with a perfectly correct `206` in hand.
+
+### A size "tolerance" masks truncation — verify against the server, not the catalogue
+
+The same bug survived verification because the completeness check compared the file against `ModelDefinition.sizeBytes`, a hand-maintained *estimate*, and accepted anything within a tolerance. A shortfall smaller than the tolerance was declared fine, and the failure moved from the downloader (where the log says which URL and which byte range) to the engine loader hours later (where it says nothing useful at all).
+
+**Fix:** verify against the length the transfer itself reported — `Content-Length` on a `200`, the total in `Content-Range` on a `206` — and require exact equality. Keep the catalogue size for what it is good for: a progress bar and a free-space estimate before the transfer starts.
+
+**Corollary:** on a checksum failure, delete the partial before retrying. Leaving it means every retry resumes from the same poisoned offset and reproduces the same file, which reads to the user as a server-side problem.
+
 ## Logging infrastructure
 
 ### Disable Dio's `LogInterceptor` in apps that have their own log view
@@ -311,6 +340,39 @@ if (kDebugMode) {
 ```
 
 `stdioType` covers terminal, pipe, file, and other (the only category that actually fails). Wrapping `runZonedGuarded` around `main()` is the alternative, but it pushes complexity onto every other site in the app for one specific failure mode.
+
+**Update (issue #35): `stdioType(stderr)` misdetects on the Windows GUI subsystem.** The fix above held for a while and then a Windows 11 release build produced the same `writeFrom failed, path = '' (OS Error: The handle is invalid, errno = 6)` on every log line — with `stdioType` reporting something *other* than `StdioType.other` over a handle that was dead anyway. The classification is a heuristic; a GUI-subsystem process inherits whatever the launcher left behind.
+
+Two changes, and you want both:
+
+1. **Require a terminal, don't merely exclude `other`** — on Windows release builds a double-clicked GUI process never has one, so `type == StdioType.terminal` is the honest test. Wrap the probe itself in `try`/`catch`: touching `stderr` can throw where stdio is unavailable.
+2. **Disarm on the first observed failure.** Detection cannot be trusted, so treat the first failed console write as ground truth and stop mirroring for the rest of the process. `main()`'s `platformDispatcher.onError` recognises the failure (`FileSystemException` with an **empty** `path` — that is what separates it from a genuine file-write error) and clears the flag. Also attach a no-op handler to `stdout.done` / `stderr.done`: `IOSink.writeln` only queues bytes, and the failure of the deferred write is delivered on that future, where nobody is listening.
+
+**Lesson:** when a platform probe is a heuristic, pair it with a disarm-on-failure path. One dead handle should cost you one log line, not one uncaught error per log line for the life of the process.
+
+## Navigation — go_router
+
+### `go()` to a path you are already under re-uses the page: `initState` never runs again
+
+**Symptom (issue #35):** the voice-clone wizard collected a reference clip and called `context.go('/synthesize', extra: clip)`. The Synthesize screen read its hand-off in `initState`, so the clip was silently dropped and the clone then failed with a raw engine return code. It worked in every test that pushed the screen fresh.
+
+**Reason:** the wizard is a child route of `/synthesize`. go_router keys a page by its path, so navigating from `/synthesize/clone` to `/synthesize` *re-uses the existing page instance* — Flutter updates the widget rather than creating a new element. `initState` ran once, when the screen was first opened, long before the clip existed.
+
+**Fix:** `didUpdateWidget` is the hand-off hook, not `initState`:
+
+```dart
+@override
+void didUpdateWidget(covariant SynthesizeScreen old) {
+  super.didUpdateWidget(old);
+  if (widget.handoff != null && widget.handoff != old.handoff) {
+    _applyHandoff(widget.handoff!);
+  }
+}
+```
+
+We also seed the provider directly at the call site, so the state is correct even if the frame never rebuilds with new widget fields.
+
+**Lesson:** any state a route receives as an argument needs an update path as well as an init path, on every router that identifies pages by location. The test that catches it navigates *from a child of the destination*, which is exactly the case a "push the screen and check it renders" widget test never exercises.
 
 ## Theming and dark mode
 
