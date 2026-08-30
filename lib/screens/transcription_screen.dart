@@ -150,12 +150,20 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
   void initState() {
     super.initState();
 
-    // Initialize state from settings
-    final settings = ref.read(settingsServiceProvider);
-    final n = ref.read(transcriptionScreenProvider.notifier);
-    n.setEnableDiarization(settings.enableDiarizationByDefault);
-    n.setLanguage(settings.defaultLanguage);
-    n.setModelName(settings.defaultModel);
+    // Initialize state from settings. Deferred to after the frame:
+    // writing a provider from initState while the page mounts inside a
+    // Router update trips Riverpod's debug-mode "modify a provider
+    // while the widget tree was building" probe and replaces the whole
+    // page with an ErrorWidget in debug builds (found by the GUI
+    // integration suite; release builds never install the probe).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final settings = ref.read(settingsServiceProvider);
+      final n = ref.read(transcriptionScreenProvider.notifier);
+      n.setEnableDiarization(settings.enableDiarizationByDefault);
+      n.setLanguage(settings.defaultLanguage);
+      n.setModelName(settings.defaultModel);
+    });
 
     // §35 — mark diarisation methods whose GGUF isn't downloaded.
     // Fire-and-forget: it only decorates dropdown labels.

@@ -358,15 +358,26 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
     // §5.1.12 — seed from wizard hand-off when present. The
     // user can still clear / change these in the existing UI;
     // we only set them once on screen-open.
-    final wav = widget.initialVoiceWavPath;
-    if (wav != null && wav.isNotEmpty) {
-      ref.read(synthesizeScreenProvider.notifier).setCustomVoiceWavPath(wav);
-    }
+    //
+    // Provider writes are deferred to after the frame: doing them
+    // straight from initState while the page mounts inside a Router
+    // update trips Riverpod's debug-mode "modify a provider while the
+    // widget tree was building" probe and blanks the page with an
+    // ErrorWidget in debug builds (found by the GUI integration
+    // suite; the probe is kDebugMode-only, so release is unaffected —
+    // same pattern didUpdateWidget already uses).
     final rt = widget.initialRefText;
     if (rt != null && rt.isNotEmpty) {
       _refTextController.text = rt;
     }
-    _refresh();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final wav = widget.initialVoiceWavPath;
+      if (wav != null && wav.isNotEmpty) {
+        ref.read(synthesizeScreenProvider.notifier).setCustomVoiceWavPath(wav);
+      }
+      _refresh();
+    });
     _loadLexicon();
   }
 
