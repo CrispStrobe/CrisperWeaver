@@ -173,7 +173,9 @@ jobs:
         id: cache-crispasr
         uses: actions/cache@v4
         with:
-          path: repos/CrispASR/build
+          # The build scripts write to build-flutter-bundle (NOT build/) —
+          # the old path cached an empty dir and never hit.
+          path: repos/CrispASR/build-flutter-bundle
           key: crispasr-macos-${{ steps.crispasr-hash.outputs.hash }}
 
       - name: Build CrispASR + Flutter macOS app (one shot via script)
@@ -241,7 +243,8 @@ jobs:
             clang cmake ninja-build pkg-config \
             libgtk-3-dev liblzma-dev libstdc++-12-dev \
             libsecret-1-dev libjsoncpp-dev libglu1-mesa \
-            libkeybinder-3.0-dev libayatana-appindicator3-dev
+            libkeybinder-3.0-dev libayatana-appindicator3-dev \
+            xvfb
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -261,7 +264,8 @@ jobs:
         id: cache-crispasr
         uses: actions/cache@v4
         with:
-          path: repos/CrispASR/build
+          # Same path fix as the macOS job above.
+          path: repos/CrispASR/build-flutter-bundle
           key: crispasr-linux-${{ steps.crispasr-hash.outputs.hash }}
 
       - name: Build CrispASR + Flutter Linux desktop (one shot via script)
@@ -274,6 +278,30 @@ jobs:
           # spawns one g++ per core, each eating GBs on the large TUs.
           JOBS: 2
         run: bash scripts/build_linux.sh debug
+
+      # Issue #35's regressions were all in the assembled application —
+      # onboarding's persistence + landing route, the go()-reached screens
+      # with no way back, the voice-clone hand-off, the model list's
+      # language filter and duplicate rows. Widget tests cannot see any of
+      # them (they need the real router, the real ModelService and the real
+      # screens together), so they are driven here against the desktop
+      # build the step above just produced. No network, no model weights:
+      # the suite seeds prefs and sparse files in a temp models dir.
+      - name: GUI integration tests (xvfb)
+        working-directory: repos/CrisperWeaver
+        env:
+          # The suite does NOT require the engine — every path it drives
+          # degrades quietly when libcrispasr is absent. Pointing at the
+          # build tree is free and lets the real engine load, so a crash in
+          # the FFI init surfaces here rather than only in manual testing.
+          LD_LIBRARY_PATH: ${{ github.workspace }}/repos/CrispASR/build-flutter-bundle/src:${{ github.workspace }}/repos/CrispASR/build-flutter-bundle/ggml/src
+        # `flutter test <target> -d linux` reuses the debug desktop build
+        # from the step above, so the incremental cost is a relink, not a
+        # full build.
+        run: |
+          xvfb-run -a -s "-screen 0 1280x800x24" \
+            flutter test integration_test/gui_flow_test.dart -d linux \
+            --reporter expanded
 
       - name: Upload Linux bundle
         uses: actions/upload-artifact@v6

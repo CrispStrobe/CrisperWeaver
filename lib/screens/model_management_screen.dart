@@ -83,7 +83,12 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
   }
 
   Future<void> _loadModels() async {
-    final l10n = AppLocalizations.of(context);
+    // No AppLocalizations.of(context) before the first await: this runs
+    // from initState, where dependOnInheritedWidgetOfExactType throws.
+    // Because the method is async that throw landed on an un-awaited
+    // future — the screen rendered but the list never loaded in debug
+    // builds (found by the GUI integration suite). Resolve l10n lazily,
+    // in the error path, where the tree is guaranteed mounted.
     setState(() => _isLoading = true);
 
     try {
@@ -95,9 +100,11 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
       modelService.refreshFromCrispasrRegistry();
       _whisperModels = await modelService.getWhisperCppModels();
     } catch (e) {
-      _showErrorDialog(l10n.modelsLoadFailed(e.toString()));
+      if (!mounted) return;
+      _showErrorDialog(AppLocalizations.of(context).modelsLoadFailed(e.toString()));
     }
 
+    if (!mounted) return;
     setState(() => _isLoading = false);
   }
 
