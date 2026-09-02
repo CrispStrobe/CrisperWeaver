@@ -487,6 +487,9 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get aboutTagline => '通过 ggml / CrispASR 在设备端进行语音识别';
+
+  @override
   String get settingsTranscription => '转录';
 
   @override
@@ -811,6 +814,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsAboutCrisperWeaver => '关于 CrisperWeaver';
 
   @override
+  String get settingsBuildInfoCopied => '已将构建信息复制到剪贴板';
+
+  @override
   String get settingsAboutCrisperWeaverSubtitle => '作者、联系方式、免责声明、许可证';
 
   @override
@@ -960,6 +966,39 @@ class AppLocalizationsZh extends AppLocalizations {
   String get diarizationModelSelectionTitle => '分离模型选择';
 
   @override
+  String get diarizationTipsTitle => '获得更好结果的技巧';
+
+  @override
+  String get diarizationTipsBody =>
+      '• 使用背景噪声尽量少的干净音频\n• 说话人不互相打断的录音效果更好\n• FoxNose 是唯一可以指定说话人数量的方法\n• 如果已知说话人数量，请设置最小/最大值';
+
+  @override
+  String get diarizationPerformanceNote => '说话人分离可能比标准转录耗时更长';
+
+  @override
+  String get diarizationModelHelpIntro => '对音频运行哪种说话人分离器：\n';
+
+  @override
+  String get diarizationModelHelpVadTurns =>
+      '• 话轮检测：无需额外模型，支持单声道，在停顿处交替说话人。默认选项。';
+
+  @override
+  String get diarizationModelHelpPyannote =>
+      '• Pyannote v3：机器学习分段（需要 pyannote-*.gguf），每段最多 3 位说话人。';
+
+  @override
+  String get diarizationModelHelpFoxnose =>
+      '• FoxNose：WeSpeaker 嵌入 + 聚类（需要 wespeaker-*.gguf）。唯一直接遵循最小/最大说话人数量限制的方法。';
+
+  @override
+  String get diarizationModelHelpStereo =>
+      '• 声道能量 / 互相关：仅限立体声 — 每个声道一位说话人，例如双轨录制的访谈。';
+
+  @override
+  String get diarizationModelHelpFooter =>
+      '需要模型文件的方法在你于模型管理中下载之前会标记为“（未下载）”。即便选中也不会出错：运行时会回退到话轮检测并记录原因。';
+
+  @override
   String get aboutServiceProvider => '服务提供商';
 
   @override
@@ -1048,6 +1087,17 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get logsShare => '作为文件分享';
+
+  @override
+  String get logsVisibleCopied => '已复制可见行';
+
+  @override
+  String get logsAllCopied => '已复制全部日志';
+
+  @override
+  String logsExportedTo(String path) {
+    return '已导出到 $path';
+  }
 
   @override
   String get modelsTitle => '模型管理';
@@ -1437,6 +1487,33 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get outputRealignTimestamps => '重新对齐时间戳';
+
+  @override
+  String get outputNoAudioLoaded => '未加载音频文件';
+
+  @override
+  String outputRealigned(int aligned, int total) {
+    return '已重新对齐 $aligned/$total 个片段';
+  }
+
+  @override
+  String outputAlignmentFailed(String error) {
+    return '对齐失败：$error';
+  }
+
+  @override
+  String get outputNoOcrModels => '尚未下载 OCR 模型。请在模型页面下载一个。';
+
+  @override
+  String get outputOcrNoText => '未识别到文本。';
+
+  @override
+  String get outputCopiedToClipboard => '已复制到剪贴板';
+
+  @override
+  String outputOcrFailed(String error) {
+    return 'OCR 失败：$error';
+  }
 
   @override
   String get outputDetectLanguage => '检测语言';
@@ -1917,6 +1994,44 @@ class AppLocalizationsZh extends AppLocalizations {
   String get synthRunButton => '合成';
 
   @override
+  String get synthVoiceReferenceRequired => '该模型需要参考声音 — 请下载语音包或使用声音克隆向导。';
+
+  @override
+  String get synthNoAudioProduced => '未生成音频 — 请尝试其他模型或量化版本（推荐 q8_0）';
+
+  @override
+  String get synthS2sLoadFailed => '无法加载输入音频';
+
+  @override
+  String get synthS2sNoAudio => '语音转语音未生成音频';
+
+  @override
+  String synthS2sError(String error) {
+    return '语音转语音错误：$error';
+  }
+
+  @override
+  String get synthProvenanceNotMarked =>
+      '上次输出无法添加水印（过短或接近静音）。它仅带有容器元数据，重新编码后即会丢失 — 欧盟《人工智能法案》第 50(2) 条。';
+
+  @override
+  String get synthProvenanceMarked => 'AI 来源标记：已自动嵌入水印、C2PA 清单和 WAV/ID3 元数据';
+
+  @override
+  String get synthProvenanceClonedSuffix =>
+      '。克隆声音 — 会在开头附加可听见的提示音（欧盟《人工智能法案》第 50(4) 条）';
+
+  @override
+  String synthSpeakersAvailable(int count) {
+    return '有 $count 个说话人可选（编号从 0 开始）';
+  }
+
+  @override
+  String synthSpeakerIndexed(int index) {
+    return '说话人 $index';
+  }
+
+  @override
   String get synthPlayButton => '播放';
 
   @override
@@ -1939,6 +2054,99 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get noModelsDownloadedYet => '尚未下载任何转录模型 — 请打开模型页面获取一个。';
+
+  @override
+  String get transcribeVerifyWatermark => '验证水印';
+
+  @override
+  String get transcribeDropOverlay => '拖放音频文件以进行转录';
+
+  @override
+  String get transcribeNoModelsMatchFilter => '没有符合此筛选条件的模型。';
+
+  @override
+  String transcribeNoteTitleDated(String date) {
+    return '转录 $date';
+  }
+
+  @override
+  String get transcribeFasterThanRealtime => '快于实时';
+
+  @override
+  String get transcribeSlowerThanRealtime => '慢于实时';
+
+  @override
+  String transcribeEngineInitFailed(String error) {
+    return '引擎初始化失败：$error';
+  }
+
+  @override
+  String get transcribeStoppedByUser => '转录已被用户停止';
+
+  @override
+  String transcribeModelLoadFailedNamed(String name, String error) {
+    return '无法加载模型 $name：$error';
+  }
+
+  @override
+  String get watermarkSelectedAudio => '所选音频';
+
+  @override
+  String get watermarkTitleDetected => '检测到水印';
+
+  @override
+  String get watermarkTitlePossiblyAi => '可能由 AI 生成';
+
+  @override
+  String get watermarkTitleNoMarkers => '未发现 AI 标记';
+
+  @override
+  String get watermarkSynthetic => '合成';
+
+  @override
+  String get watermarkNotSynthetic => '非合成';
+
+  @override
+  String watermarkCwPresent(String kind, String timestamp) {
+    return 'CrisperWeaver 水印：$kind，$timestamp';
+  }
+
+  @override
+  String get watermarkCwAbsent => '无 CrisperWeaver 水印';
+
+  @override
+  String watermarkSpreadPresent(String percent) {
+    return '扩频水印：置信度 $percent%';
+  }
+
+  @override
+  String watermarkSpreadAbsent(String percent) {
+    return '无扩频水印（$percent%）';
+  }
+
+  @override
+  String get watermarkC2paPresentFallback => '存在';
+
+  @override
+  String watermarkC2paUnsigned(String generator) {
+    return 'C2PA 清单：$generator（未签名的 JSON-LD）';
+  }
+
+  @override
+  String get watermarkC2paSigned => 'C2PA 清单：COSE 签名（加密）';
+
+  @override
+  String get watermarkC2paAbsent => '无 C2PA 清单';
+
+  @override
+  String watermarkHeuristic(String percent) {
+    return '启发式判断：AI 可能性 $percent%';
+  }
+
+  @override
+  String watermarkCheckFailed(String error) {
+    return '水印检查失败：$error';
+  }
 
   @override
   String get filePickerCloudFileUnsupported =>
@@ -2488,6 +2696,43 @@ class AppLocalizationsZh extends AppLocalizations {
       '通过活跃后端的流式接口进行实时麦克风转录（kyutai-stt / moonshine-streaming / voxtral4b）。后端无原生流式 API 时回退到 Whisper 滑动窗口。';
 
   @override
+  String get recorderTitle => '录音器';
+
+  @override
+  String get recorderCompleted => '录音完成';
+
+  @override
+  String recorderDurationLabel(String duration) {
+    return '时长：$duration';
+  }
+
+  @override
+  String get recorderStopPlayback => '停止播放';
+
+  @override
+  String get recorderPlayRecording => '播放录音';
+
+  @override
+  String recorderStartFailed(String error) {
+    return '无法开始录音：$error';
+  }
+
+  @override
+  String recorderStopFailed(String error) {
+    return '无法停止录音：$error';
+  }
+
+  @override
+  String recorderPlayFailed(String error) {
+    return '无法播放录音：$error';
+  }
+
+  @override
+  String recorderDeleteFailed(String error) {
+    return '无法删除录音：$error';
+  }
+
+  @override
   String streamingNotAvailableForBackend(String backend) {
     return '活跃后端（$backend）无流式接口。请切换到 whisper、kyutai-stt、moonshine-streaming 或 voxtral4b。';
   }
@@ -3019,6 +3264,17 @@ class AppLocalizationsZh extends AppLocalizations {
   String get historyComparePickerTitle => '与…比较';
 
   @override
+  String get historyNoEmbeddingModel => '没有可用的嵌入模型 — 请在模型页面下载一个。';
+
+  @override
+  String historyReindexed(int count) {
+    return '已为 $count 条记录重建嵌入索引。';
+  }
+
+  @override
+  String get historyReindexTooltip => '重建嵌入索引';
+
+  @override
   String get menuCompareModels => '比较模型';
 
   @override
@@ -3298,6 +3554,25 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get modelsTooLargeInline => '超出本设备可加载的大小';
+
+  @override
+  String get modelsNonCommercialTitle => '非商业许可';
+
+  @override
+  String modelsNonCommercialBody(String name, String license) {
+    return '$name 的许可为：\n\n$license\n\n该许可仅允许非商业 / 研究用途。下载即表示你确认不会将这些权重用于商业目的。';
+  }
+
+  @override
+  String get modelsNonCommercialAccept => '我已知悉';
+
+  @override
+  String get modelsCatalogueHeader => 'CrispASR 模型';
+
+  @override
+  String modelsDownloadedOfTotal(int count, int total) {
+    return '已下载 $count / $total';
+  }
 
   @override
   String get settingsExperimentalSection => '更多功能';

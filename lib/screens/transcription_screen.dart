@@ -74,6 +74,83 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
   // could spawn a parallel init.
   Future<bool>? _initFuture;
 
+  // The "no transcription model is downloaded yet" prompt, held onto so it
+  // can be taken down the moment a model *is* on disk.
+  //
+  // Two things conspired to leave it on screen for the rest of the run
+  // (reported live: onboarding downloads a model, you land on the home
+  // screen, and the nag is still there):
+  //
+  //  * a SnackBar belongs to the app-level ScaffoldMessenger, not to the
+  //    route that showed it. Its auto-dismiss timer only starts once the
+  //    reveal animation completes, and that animation is frozen while an
+  //    opaque route (onboarding, Model Management) covers the Scaffold —
+  //    so the 8-second duration never elapses;
+  //  * onboarding leaves with a stack-replacing `context.go('/')`, which
+  //    builds a *fresh* TranscriptionScreen State. An instance field would
+  //    hand the new State a null controller while the old State's snackbar
+  //    is still the one on screen.
+  //
+  // Hence `static`: there is only ever one such prompt in the app, and
+  // whichever State is alive has to be able to retire it.
+  static ScaffoldFeatureController<SnackBar, SnackBarClosedReason>?
+      _noModelsSnackBar;
+
+  /// Take the "no models downloaded" prompt down once one actually is.
+  ///
+  /// Safe to call repeatedly and from any mount: the controller is cleared
+  /// as soon as the snackbar closes for any other reason (timer, the close
+  /// icon, a later snackbar replacing it), because `close()` asserts it is
+  /// still the current snackbar.
+  /// True from the moment the prompt is shown until it is confirmed gone.
+  ///
+  /// The controller above is NOT enough: `go()`-navigation disposes the
+  /// Scaffold the snackbar was revealed on, the app-level
+  /// ScaffoldMessenger re-attaches the visual to the next Scaffold, and
+  /// the original controller's `closed` completes — nulling the
+  /// controller while the pixels live on, un-closable and with a timer
+  /// that never ran (observed live: the prompt rode under onboarding for
+  /// minutes and survived the return home). The flag remembers that a
+  /// prompt is (or may still be) up so the messenger-level removal below
+  /// can retire the re-attached ghost.
+  static bool _noModelsPromptUp = false;
+
+  void _dismissNoModelsPromptIfSatisfied(List<ModelInfo> models) {
+    if (!_noModelsPromptUp) return;
+    if (!models.any((m) => m.isDownloaded)) return;
+    _noModelsPromptUp = false;
+    final prompt = _noModelsSnackBar;
+    _noModelsSnackBar = null;
+    if (prompt != null) {
+      try {
+        prompt.close();
+      } catch (_) {
+        // The controller can outlive its animation: a route swap disposes
+        // the snackbar's AnimationController while the messenger still
+        // holds the entry, and close() then trips a debug assert. Same
+        // ghost, same remedy as below.
+        if (mounted) ScaffoldMessenger.of(context).clearSnackBars();
+      }
+    } else if (mounted) {
+      // Controller already dead (route swap) — the visual may still be
+      // attached to the current Scaffold. At this instant the no-models
+      // prompt is the only snackbar this screen can have outstanding, so
+      // clearing the messenger is safe.
+      ScaffoldMessenger.of(context).clearSnackBars();
+    }
+  }
+
+  /// Open Model Management and refresh the model list on the way back.
+  ///
+  /// Every entry point to `/models` goes through here so that whatever
+  /// the user downloaded over there is reflected the moment they return
+  /// — which is also what retires the "no models" prompt above.
+  Future<void> _openModels() async {
+    await context.push('/models');
+    if (!mounted) return;
+    await _loadModels();
+  }
+
   // §8.2 — convenience getters proxying into the Riverpod provider so
   // the 100+ callsites that used the old _field syntax keep compiling
   // without a mechanical rename of every occurrence.
@@ -160,6 +237,16 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
       if (!mounted) return;
       final settings = ref.read(settingsServiceProvider);
       final n = ref.read(transcriptionScreenProvider.notifier);
+      // `loadingModels` is provider state and therefore outlives this
+      // screen, but `_loadModels()` treats it as a per-instance re-entrancy
+      // guard. Onboarding replaces the whole stack (`go('/onboarding')`,
+      // then `go('/')`), so a load that was still in flight when the old
+      // State was disposed never got to clear the flag — and the fresh
+      // State's `_loadModels()` then early-returned forever, leaving it
+      // with the stale "nothing is downloaded" list that produces the
+      // "no transcription model is downloaded yet" prompt. No other State
+      // can be loading at this point, so clearing it here is safe.
+      n.setLoadingModels(false);
       n.setEnableDiarization(settings.enableDiarizationByDefault);
       n.setLanguage(settings.defaultLanguage);
       n.setModelName(settings.defaultModel);
@@ -173,6 +260,16 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
     // dialog (if it occurs) has a context to attach to.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _ensureEngineReady();
+      // `engineReady` is provider state: on a REMOUNT (onboarding's
+      // go('/onboarding') → go('/') swaps this screen out and back) the
+      // early-return in _ensureEngineReady skips _doInitialize and with
+      // it _loadModels — leaving availableModels frozen at whatever the
+      // FIRST mount saw, which is "nothing downloaded" on a first run
+      // even though onboarding just downloaded a model. That stale list
+      // is also what kept the "no transcription model" prompt alive
+      // (issue #35 follow-up, user-reported). Refresh it explicitly;
+      // the availableModels listener then retires the prompt.
+      if (_engineReady) unawaited(_loadModels());
       // §5.23 Q3 polish: if main.dart's load() recovered any
       // crash-interrupted jobs, surface a one-shot snackbar so the
       // user knows the queue card is pre-populated and can hit
@@ -211,7 +308,9 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
       await _initFuture;
     } catch (e) {
       if (mounted) {
-        ref.read(appStateProvider.notifier).setError('Engine init failed: $e');
+        ref.read(appStateProvider.notifier).setError(
+            AppLocalizations.of(context).transcribeEngineInitFailed(
+                e.toString()));
       }
     }
   }
@@ -262,7 +361,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
         // which is confusing because the user never picked it. Show a
         // generic "no models yet, open Models" prompt instead.
         final l = AppLocalizations.of(context);
-        ScaffoldMessenger.of(context).showSnackBar(
+        final prompt = ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(l.noModelsDownloadedYet),
             duration: const Duration(seconds: 8),
@@ -270,11 +369,27 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
             action: SnackBarAction(
               label: l.openModels,
               onPressed: () {
-                if (mounted) context.push('/models');
+                if (mounted) _openModels();
               },
             ),
           ),
         );
+        _noModelsSnackBar = prompt;
+        _noModelsPromptUp = true;
+        // Once it has gone for any other reason, stop holding a controller
+        // whose `close()` would assert that it is still the current one.
+        // NB: `closed` completing does NOT always mean the pixels are gone
+        // (route-swap re-attachment — see _noModelsPromptUp above), so the
+        // flag is only cleared on a genuine dismissal reason.
+        prompt.closed.then((reason) {
+          if (identical(_noModelsSnackBar, prompt)) _noModelsSnackBar = null;
+          if (reason == SnackBarClosedReason.dismiss ||
+              reason == SnackBarClosedReason.swipe ||
+              reason == SnackBarClosedReason.timeout ||
+              reason == SnackBarClosedReason.action) {
+            _noModelsPromptUp = false;
+          }
+        });
       }
     }
 
@@ -302,7 +417,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
                 action: SnackBarAction(
                   label: l.openModels,
                   onPressed: () {
-                    if (mounted) context.push('/models');
+                    if (mounted) _openModels();
                   },
                 ),
               ),
@@ -382,6 +497,12 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
         final tn = ref.read(transcriptionScreenProvider.notifier);
         tn.setAvailableModels(models);
         tn.setLoadingModels(false);
+        // Retire the "no models downloaded yet" prompt here as well as via
+        // the provider listener in build(): after onboarding's stack-
+        // replacing `go('/')` this is the first place the *new* State sees
+        // a real model list, and the provider may already hold the same
+        // value, in which case the listener never fires.
+        _dismissNoModelsPromptIfSatisfied(models);
       }
     } catch (e, st) {
       Log.instance.e('ui', 'Failed to load models', error: e, stack: st);
@@ -409,13 +530,16 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
 
       if (success && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${model.displayName} downloaded')),
+          SnackBar(
+              content: Text(AppLocalizations.of(context)
+                  .modelsDownloadedOne(model.displayName))),
         );
         _loadModels(); // Refresh list
       }
     } catch (e) {
       if (mounted) {
-        _showErrorDialog('Download failed: $e');
+        _showErrorDialog(AppLocalizations.of(context)
+            .modelsDownloadFailedReason(e.toString()));
       }
     }
   }
@@ -424,6 +548,12 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
   Widget build(BuildContext context) {
     // §8.2 — watch the provider so all getter proxies below trigger rebuilds.
     ref.watch(transcriptionScreenProvider);
+    // …and retire the "no transcription model is downloaded yet" prompt the
+    // moment one appears on disk, whichever route did the downloading.
+    ref.listen<List<ModelInfo>>(
+      transcriptionScreenProvider.select((s) => s.availableModels),
+      (_, next) => _dismissNoModelsPromptIfSatisfied(next),
+    );
     final l = AppLocalizations.of(context);
     final locale = Localizations.localeOf(context);
     Log.instance.t('ui', 'TranscriptionScreen.build locale=$locale');
@@ -479,7 +609,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
           context.push('/history');
           return;
         case 'models':
-          context.push('/models');
+          _openModels();
           return;
         case 'synthesize':
           context.push('/synthesize');
@@ -523,7 +653,8 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
               _appBarMenuItem(
                   'subtitle-overlay', Icons.subtitles, l.menuSubtitleOverlay),
               _appBarMenuItem(
-                  'verify-watermark', Icons.verified_user, 'Verify watermark'),
+                  'verify-watermark', Icons.verified_user,
+                  l.transcribeVerifyWatermark),
             ],
           ],
         );
@@ -548,7 +679,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
       IconButton(
         icon: const Icon(Icons.download),
         tooltip: l.menuModels,
-        onPressed: () => context.push('/models'),
+        onPressed: _openModels,
       ),
       IconButton(
         icon: const Icon(Icons.settings),
@@ -672,9 +803,9 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
                 color: Theme.of(context).colorScheme.primary,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Text(
-                'Drop audio file to transcribe',
-                style: TextStyle(
+              child: Text(
+                AppLocalizations.of(context).transcribeDropOverlay,
+                style: const TextStyle(
                     color: Colors.white,
                     fontSize: 16,
                     fontWeight: FontWeight.w600),
@@ -1219,7 +1350,8 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
                       child: Padding(
                         padding: const EdgeInsets.all(16),
                         child: Text(
-                          'No models match this filter.',
+                          AppLocalizations.of(context)
+                              .transcribeNoModelsMatchFilter,
                           style: TextStyle(color: Colors.grey.shade600),
                         ),
                       ),
@@ -1498,7 +1630,8 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
           pick.localPaths.isNotEmpty ? pick.localPaths.first : null;
       final displayName = filePath != null
           ? p.basename(filePath)
-          : (pick.fileNames?.firstOrNull ?? 'Selected audio');
+          : (pick.fileNames?.firstOrNull ??
+              AppLocalizations.of(context).watermarkSelectedAudio);
       final bytes = filePath != null
           ? await File(filePath).readAsBytes()
           : pick.fileBytes!.first;
@@ -1535,10 +1668,10 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
             size: 48,
           ),
           title: Text(info != null
-              ? 'Watermark Detected'
+              ? AppLocalizations.of(ctx).watermarkTitleDetected
               : (heuristic != null && heuristic.score > 0.7
-                  ? 'Possibly AI-Generated'
-                  : 'No AI Markers Found')),
+                  ? AppLocalizations.of(ctx).watermarkTitlePossiblyAi
+                  : AppLocalizations.of(ctx).watermarkTitleNoMarkers)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1552,9 +1685,13 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(info != null
-                        ? 'CrisperWeaver watermark: ${info.synthetic ? "synthetic" : "not synthetic"}, '
-                            '${info.timestamp.toLocal()}'
-                        : 'No CrisperWeaver watermark'),
+                        ? AppLocalizations.of(ctx).watermarkCwPresent(
+                            info.synthetic
+                                ? AppLocalizations.of(ctx).watermarkSynthetic
+                                : AppLocalizations.of(ctx)
+                                    .watermarkNotSynthetic,
+                            info.timestamp.toLocal().toString())
+                        : AppLocalizations.of(ctx).watermarkCwAbsent),
                   ),
                 ],
               ),
@@ -1570,8 +1707,10 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(ssScore > 0.65
-                          ? 'Spread-spectrum watermark: ${(ssScore * 100).toStringAsFixed(0)}% confidence'
-                          : 'No spread-spectrum watermark (${(ssScore * 100).toStringAsFixed(0)}%)'),
+                          ? AppLocalizations.of(ctx).watermarkSpreadPresent(
+                              (ssScore * 100).toStringAsFixed(0))
+                          : AppLocalizations.of(ctx).watermarkSpreadAbsent(
+                              (ssScore * 100).toStringAsFixed(0))),
                     ),
                   ],
                 ),
@@ -1591,11 +1730,14 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(c2pa != null
-                        ? 'C2PA manifest: ${c2pa['claim_generator'] ?? 'present'}'
-                            ' (unsigned JSON-LD)'
+                        ? AppLocalizations.of(ctx).watermarkC2paUnsigned(
+                            (c2pa['claim_generator'] ??
+                                    AppLocalizations.of(ctx)
+                                        .watermarkC2paPresentFallback)
+                                .toString())
                         : _hasSignedC2pa(bytes)
-                            ? 'C2PA manifest: COSE-signed (cryptographic)'
-                            : 'No C2PA manifest'),
+                            ? AppLocalizations.of(ctx).watermarkC2paSigned
+                            : AppLocalizations.of(ctx).watermarkC2paAbsent),
                   ),
                 ],
               ),
@@ -1615,8 +1757,11 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
-                        'Heuristic: ${(heuristic.score * 100).toStringAsFixed(0)}% AI likelihood'
-                        '${heuristic.reason.isNotEmpty ? " (${heuristic.reason})" : ""}',
+                        AppLocalizations.of(ctx).watermarkHeuristic(
+                                (heuristic.score * 100).toStringAsFixed(0)) +
+                            (heuristic.reason.isNotEmpty
+                                ? ' (${heuristic.reason})'
+                                : ''),
                       ),
                     ),
                   ],
@@ -1632,7 +1777,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('OK'),
+              child: Text(AppLocalizations.of(ctx).ok),
             ),
           ],
         ),
@@ -1640,7 +1785,9 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Watermark check failed: $e')),
+        SnackBar(
+            content: Text(AppLocalizations.of(context)
+                .watermarkCheckFailed(e.toString()))),
       );
     }
   }
@@ -2271,7 +2418,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
                 action: SnackBarAction(
                   label: l.openModels,
                   onPressed: () {
-                    if (mounted) context.push('/models');
+                    if (mounted) _openModels();
                   },
                 ),
                 duration: const Duration(seconds: 8),
@@ -2590,7 +2737,8 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
     transcriptionService.stopTranscription();
 
     final appStateNotifier = ref.read(appStateProvider.notifier);
-    appStateNotifier.setError('Transcription stopped by user');
+    appStateNotifier
+        .setError(AppLocalizations.of(context).transcribeStoppedByUser);
   }
 
   /// Drain the batch queue serially. One file at a time — concurrent FFI
@@ -2650,7 +2798,9 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
       try {
         await transcriptionService.loadModel(_modelName);
       } catch (e) {
-        _showErrorDialog('Failed to load model $_modelName: $e');
+        if (!mounted) return;
+        _showErrorDialog(AppLocalizations.of(context)
+            .transcribeModelLoadFailedNamed(_modelName, e.toString()));
         return;
       }
     }
@@ -3438,8 +3588,8 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
   Future<void> _saveAsNote(AppState state, String format) async {
     try {
       final segments = state.segments;
-      final title =
-          'Transcription ${DateTime.now().toIso8601String().substring(0, 10)}';
+      final title = AppLocalizations.of(context).transcribeNoteTitleDated(
+          DateTime.now().toIso8601String().substring(0, 10));
       String content;
       String ext;
       switch (format) {
@@ -3788,8 +3938,13 @@ class _PerformanceCard extends StatelessWidget {
           spacing: 14,
           runSpacing: 4,
           children: [
-            _metric('RTF', '${stats.rtf.toStringAsFixed(2)}×',
-                rtfGood ? 'faster than real-time' : 'slower than real-time'),
+            _metric(
+                'RTF',
+                '${stats.rtf.toStringAsFixed(2)}×',
+                rtfGood
+                    ? AppLocalizations.of(context).transcribeFasterThanRealtime
+                    : AppLocalizations.of(context)
+                        .transcribeSlowerThanRealtime),
             _metric('Audio', '${stats.audioSeconds.toStringAsFixed(1)} s'),
             _metric('Wall', '${stats.wallSeconds.toStringAsFixed(2)} s'),
             _metric('Words', '${stats.wordCount}'),

@@ -1413,9 +1413,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             const info = 'git:$kBuildGitHashFull built:$kBuildTimestamp';
             Clipboard.setData(const ClipboardData(text: info));
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                  content: Text('Build info copied to clipboard'),
-                  duration: Duration(seconds: 2)),
+              SnackBar(
+                  content: Text(
+                      AppLocalizations.of(context).settingsBuildInfoCopied),
+                  duration: const Duration(seconds: 2)),
             );
           },
         ),

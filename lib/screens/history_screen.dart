@@ -114,9 +114,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     if (embedder == null) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No embedding model available — '
-                'download one from the Models screen.'),
+          SnackBar(
+            content:
+                Text(AppLocalizations.of(context).historyNoEmbeddingModel),
           ),
         );
       }
@@ -126,7 +126,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     final count = await service.backfillEmbeddings(embedder);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Reindexed $count entries with embeddings.')),
+        SnackBar(
+            content:
+                Text(AppLocalizations.of(context).historyReindexed(count))),
       );
       setState(_reload);
     }
@@ -170,7 +172,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           // §5.25.2 — Reindex: backfill embeddings for entries that
           // were saved before embedding persistence was added.
           IconButton(
-            tooltip: 'Reindex embeddings',
+            tooltip: l.historyReindexTooltip,
             icon: const Icon(Icons.model_training),
             onPressed: _reindexEmbeddings,
           ),

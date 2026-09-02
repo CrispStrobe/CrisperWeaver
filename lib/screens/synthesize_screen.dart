@@ -187,6 +187,44 @@ class SynthesizeScreen extends ConsumerStatefulWidget {
     return tts.first.name;
   }
 
+  /// Which backend a model's *companions* (voicepacks, codec/tokenizer
+  /// GGUFs) are catalogued under.
+  ///
+  /// Usually the model's own backend — but three families file their
+  /// companion rows under a *different* backend than the model carries,
+  /// and matching on the model's own backend then yields an empty
+  /// dropdown even with the companion sitting on disk:
+  ///
+  ///   * `vibevoice-1.5b` — every `vibevoice-voice-*` row is
+  ///     `vibevoice-tts`, so a 1.5b user saw an empty *voice* dropdown;
+  ///   * `cosyvoice3-tts-rl` — the flow / hift / s3tok / campplus / voices
+  ///     codec rows are all `cosyvoice3-tts`;
+  ///   * `zonos` — its one codec companion is `dac-44khz`, the shared DAC
+  ///     row, which is filed under `dia`. `dia` has no other codec row,
+  ///     so this widens zonos' codec dropdown from empty to exactly the
+  ///     companion it declares.
+  ///
+  /// Identity for every other backend, so nothing else changes shape.
+  /// `companionBackendFor` is only ever asked about a *model's* backend,
+  /// so the mapped-to families (`vibevoice-tts`, `cosyvoice3-tts`, `dia`)
+  /// keep resolving to themselves and are unaffected.
+  ///
+  /// Pure + static so the mapping is unit-testable; the catalogue-wide
+  /// invariant test in `synthesize_defaults_test.dart` fails if a new
+  /// split family is added without a mapping here.
+  static String companionBackendFor(String modelBackend) {
+    switch (modelBackend) {
+      case 'vibevoice-1.5b':
+        return 'vibevoice-tts';
+      case 'cosyvoice3-tts-rl':
+        return 'cosyvoice3-tts';
+      case 'zonos':
+        return 'dia';
+      default:
+        return modelBackend;
+    }
+  }
+
   /// #35 — which companion of [kind] belongs with the selected model.
   ///
   /// Preference order, highest first:
@@ -673,15 +711,21 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
     // first — not the `af_heart` companion onboarding actually downloaded.
     // Prefer the recorded default, then the model's own companions, and only
     // then fall back to "first downloaded for this backend".
+    // …and the companions of a split family (vibevoice-1.5b,
+    // cosyvoice3-tts-rl) are filed under the family's base backend, so
+    // ask for those rather than for the model's own backend — otherwise
+    // there is nothing to select at all.
+    final companionBackend =
+        SynthesizeScreen.companionBackendFor(modelDef.backend);
     n.setSelectedVoice(SynthesizeScreen.pickDefaultTtsVoice(
       models: s.allModels,
-      backend: modelDef.backend,
+      backend: companionBackend,
       companions: modelDef.companions,
       preferred: ref.read(settingsServiceProvider).defaultTtsVoice,
     ));
     n.setSelectedCodec(SynthesizeScreen.pickDefaultTtsCodec(
       models: s.allModels,
-      backend: modelDef.backend,
+      backend: companionBackend,
       companions: modelDef.companions,
     ));
   }
@@ -965,8 +1009,7 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
                 content: Text(AppLocalizations.of(context).synthesizeFailed(
-                    'no audio produced — try a different model or '
-                    'quantisation (q8_0 recommended)'))),
+                    AppLocalizations.of(context).synthNoAudioProduced))),
           );
         }
         return;
@@ -1165,7 +1208,9 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
       if (inputPcm.isEmpty) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to load input audio')),
+          SnackBar(
+              content:
+                  Text(AppLocalizations.of(context).synthS2sLoadFailed)),
         );
         return;
       }
@@ -1174,7 +1219,8 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
       if (audio == null || audio.samples.isEmpty) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('S2S produced no audio')),
+          SnackBar(
+              content: Text(AppLocalizations.of(context).synthS2sNoAudio)),
         );
         return;
       }
@@ -1191,7 +1237,9 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
       Log.instance.e('synth', 's2s error', error: e, stack: st);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('S2S error: $e')),
+        SnackBar(
+            content: Text(
+                AppLocalizations.of(context).synthS2sError(e.toString()))),
       );
     } finally {
       if (mounted) sn.setBusy(false);
@@ -1224,13 +1272,18 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
     final modelDef = ss.selectedModel == null
         ? null
         : ref.read(modelServiceProvider).lookupDefinition(ss.selectedModel!);
+    // Companions live under the family's base backend for the split
+    // families (vibevoice-1.5b → vibevoice-tts, cosyvoice3-tts-rl →
+    // cosyvoice3-tts); matching on the model's own backend left those
+    // users staring at an empty dropdown with the packs already on disk.
+    final companionBackend = modelDef == null
+        ? null
+        : SynthesizeScreen.companionBackendFor(modelDef.backend);
     final voices = ss.allModels
-        .where(
-            (m) => m.kind == ModelKind.voice && m.backend == modelDef?.backend)
+        .where((m) => m.kind == ModelKind.voice && m.backend == companionBackend)
         .toList(growable: false);
     final codecs = ss.allModels
-        .where(
-            (m) => m.kind == ModelKind.codec && m.backend == modelDef?.backend)
+        .where((m) => m.kind == ModelKind.codec && m.backend == companionBackend)
         .toList(growable: false);
 
     // #35 — the wizard hand-off used to be invisible: the reference clip
@@ -1335,13 +1388,13 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
                             Expanded(
                               child: Text(
                                 _marking?.robustMarkPresent == false
-                                    ? 'Last output could NOT be watermarked '
-                                        '(too short or near-silent). It carries '
-                                        'only container metadata, which is lost '
-                                        'on re-encoding — EU AI Act Art. 50(2).'
-                                    : 'AI provenance: watermark + C2PA manifest + '
-                                        'WAV/ID3 metadata embedded automatically'
-                                        '${(ss.customVoiceWavPath ?? ss.selectedVoice) != null ? ". Cloned voice — an audible beep disclaimer is prepended (EU AI Act Art. 50(4))" : ""}',
+                                    ? l.synthProvenanceNotMarked
+                                    : l.synthProvenanceMarked +
+                                        ((ss.customVoiceWavPath ??
+                                                    ss.selectedVoice) !=
+                                                null
+                                            ? l.synthProvenanceClonedSuffix
+                                            : ''),
                                 style: Theme.of(context).textTheme.bodySmall,
                               ),
                             ),
@@ -1380,7 +1433,7 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
                                   value: m.name,
                                   child: Text(
                                     '${m.displayName}'
-                                    '${m.isDownloaded ? "" : "  (not downloaded)"}',
+                                    '${m.isDownloaded ? "" : "  (${l.modelsNotDownloaded})"}',
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 ))
@@ -1399,7 +1452,7 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
                                   value: m.name,
                                   child: Text(
                                     '${m.displayName}'
-                                    '${m.isDownloaded ? "" : "  (not downloaded)"}',
+                                    '${m.isDownloaded ? "" : "  (${l.modelsNotDownloaded})"}',
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 ))
@@ -1420,6 +1473,7 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
                               decoration: InputDecoration(
                                 labelText: l.synthSpeakerLabel,
                                 helperText: l.synthSpeakerHelper,
+                                helperMaxLines: 2,
                               ),
                               initialValue: ss.selectedSpeaker,
                               items: ss.presetSpeakers
@@ -1449,14 +1503,15 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
                       DropdownButtonFormField<int>(
                         decoration: InputDecoration(
                           labelText: l.synthSpeakerLabel,
-                          helperText: '${ss.nSpeakers} speakers available (0-indexed)',
+                          helperText: l.synthSpeakersAvailable(ss.nSpeakers),
+                          helperMaxLines: 2,
                         ),
                         initialValue: ss.selectedSpeakerId ?? 0,
                         items: List.generate(
                           ss.nSpeakers,
                           (i) => DropdownMenuItem(
                             value: i,
-                            child: Text('Speaker $i'),
+                            child: Text(l.synthSpeakerIndexed(i)),
                           ),
                         ),
                         onChanged: (v) =>
@@ -1619,6 +1674,7 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
                         decoration: InputDecoration(
                           labelText: l.synthRefText,
                           helperText: l.synthRefTextHelper,
+                          helperMaxLines: 3,
                           border: const OutlineInputBorder(),
                           isDense: true,
                           contentPadding: const EdgeInsets.symmetric(
@@ -1634,6 +1690,7 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
                         decoration: InputDecoration(
                           labelText: l.synthInstruct,
                           helperText: l.synthInstructHelper,
+                          helperMaxLines: 3,
                           border: const OutlineInputBorder(),
                           isDense: true,
                           contentPadding: const EdgeInsets.symmetric(
@@ -1987,7 +2044,7 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
                     Padding(
                       padding: const EdgeInsets.only(top: 4),
                       child: Text(
-                        'This model requires a voice reference — download a voice pack or use the voice clone wizard.',
+                        l.synthVoiceReferenceRequired,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: Theme.of(context).colorScheme.error,
                             ),

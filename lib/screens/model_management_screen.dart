@@ -180,6 +180,7 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
                     decoration: InputDecoration(
                       labelText: l10n.modelsHfRepoBackendLabel,
                       helperText: l10n.modelsHfRepoBackendHelper,
+                      helperMaxLines: 2,
                     ),
                     items: [
                       for (final b in allBackends)
@@ -729,14 +730,15 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'CrispASR Models',
+                    AppLocalizations.of(context).modelsCatalogueHeader,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '$downloadedCount of ${models.length} downloaded',
+                    AppLocalizations.of(context)
+                        .modelsDownloadedOfTotal(downloadedCount, models.length),
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
                   Text(
@@ -1133,21 +1135,17 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         icon: const Icon(Icons.gavel, color: Colors.orange),
-        title: const Text('Non-commercial licence'),
-        content: Text(
-          '${def.displayName} is licensed:\n\n'
-          '${def.license}\n\n'
-          'This permits non-commercial / research use only. By downloading '
-          'you confirm you will not use these weights commercially.',
-        ),
+        title: Text(AppLocalizations.of(ctx).modelsNonCommercialTitle),
+        content: Text(AppLocalizations.of(ctx)
+            .modelsNonCommercialBody(def.displayName, def.license ?? '')),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(ctx).cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('I understand'),
+            child: Text(AppLocalizations.of(ctx).modelsNonCommercialAccept),
           ),
         ],
       ),

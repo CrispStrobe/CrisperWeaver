@@ -7,6 +7,46 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 
 ### Added
 
+- The web app now has a post-deploy smoke test (Playwright) that boots the
+  deployed PWA, checks the app shell, the AI-transparency notice, and the
+  console for unexpected errors after every production deploy.
+- CI reports unit-test line coverage on every push (total and excluding
+  generated localizations), keeps the raw data as an artifact, and warns
+  when it drops.
+- Speaker profiles enrolled during a session are matchable immediately —
+  previously the app had to reopen its speaker database before a new
+  enrolment could be recognised (engine-side fix, CrispASR).
+
+### Fixed
+
+- The "No transcription model is downloaded yet" prompt no longer lingers
+  after onboarding has just downloaded one. Two causes: a stuck loading
+  flag that survived the switch from onboarding to the home screen and
+  kept the stale model list, and a prompt whose auto-dismiss timer never
+  ran while another screen covered it.
+- VibeVoice 1.5B (and CosyVoice3-RL, Zonos) showed an empty voice/codec
+  dropdown even with the right companions downloaded — split-family
+  backends now map to their shared companion family, with a catalogue-wide
+  test that fails on any future unmapped family.
+- Settings that still name a model from an older release (the renamed
+  quantized Whisper and Piper entries, the removed duplicate VibeVoice
+  voice) are migrated to the current names once at startup, and lookups
+  heal legacy names everywhere else.
+- Silero language identification reported a raw score that the app's
+  confidence floor always rejected; with the updated engine it reports a
+  probability and works as intended. The "misidentifies languages" note in
+  the v0.11.0 release notes is withdrawn: the engine and the f32 model the
+  app ships were always correct — the wrong answers came from quantized
+  silero-lid files (q8_0/q5_0) that only the test harness ever loaded, and
+  which are broken artifacts (the app's catalogue never offered them).
+- Around seventy hardcoded English strings in dialogs, helpers, and
+  dropdown suffixes are now localized (English, German, Chinese), and
+  cramped one-line helper texts may wrap.
+
+## [0.11.0] — 2026-08-29
+
+### Added
+
 - Every top-level screen now shows a Home button when there is nothing to go
   back to, so arriving somewhere directly — from onboarding, a shared file, or
   a deep link — is no longer a dead end.

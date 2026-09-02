@@ -238,7 +238,7 @@ class _AppHeader extends StatelessWidget {
                           style: Theme.of(context).textTheme.bodySmall),
                       const SizedBox(height: 4),
                       Text(
-                        'On-device speech recognition via ggml / CrispASR',
+                        AppLocalizations.of(context).aboutTagline,
                         style: Theme.of(context).textTheme.bodyMedium,
                       ),
                     ],

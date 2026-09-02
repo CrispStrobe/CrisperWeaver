@@ -498,6 +498,10 @@ class AppLocalizationsDe extends AppLocalizations {
   }
 
   @override
+  String get aboutTagline =>
+      'Spracherkennung direkt auf dem Gerät über ggml / CrispASR';
+
+  @override
   String get settingsTranscription => 'Transkription';
 
   @override
@@ -845,6 +849,10 @@ class AppLocalizationsDe extends AppLocalizations {
   String get settingsAboutCrisperWeaver => 'Über CrisperWeaver';
 
   @override
+  String get settingsBuildInfoCopied =>
+      'Build-Informationen in die Zwischenablage kopiert';
+
+  @override
   String get settingsAboutCrisperWeaverSubtitle =>
       'Anbieter, Kontakt, Haftungsausschluss, Lizenzen';
 
@@ -999,6 +1007,41 @@ class AppLocalizationsDe extends AppLocalizations {
   String get diarizationModelSelectionTitle => 'Diarisierung: Modellauswahl';
 
   @override
+  String get diarizationTipsTitle => 'Tipps für bessere Ergebnisse';
+
+  @override
+  String get diarizationTipsBody =>
+      '• Verwende sauberes Audio mit möglichst wenig Hintergrundgeräuschen\n• Aufnahmen, in denen die Sprecher einander nicht ins Wort fallen, funktionieren besser\n• FoxNose ist die einzige Methode, der sich die Anzahl der gesuchten Sprecher vorgeben lässt\n• Lege Min./Max.-Sprecherzahl fest, wenn du sie im Voraus kennst';
+
+  @override
+  String get diarizationPerformanceNote =>
+      'Die Sprechertrennung kann länger dauern als eine normale Transkription';
+
+  @override
+  String get diarizationModelHelpIntro =>
+      'Welche Sprechertrennung über das Audio läuft:\n';
+
+  @override
+  String get diarizationModelHelpVadTurns =>
+      '• Sprecherwechsel-Erkennung: kein zusätzliches Modell, monotauglich, wechselt die Sprecher an Sprechpausen. Die Voreinstellung.';
+
+  @override
+  String get diarizationModelHelpPyannote =>
+      '• Pyannote v3: ML-Segmentierung (benötigt pyannote-*.gguf), bis zu 3 Sprecher pro Abschnitt.';
+
+  @override
+  String get diarizationModelHelpFoxnose =>
+      '• FoxNose: WeSpeaker-Embeddings + Clustering (benötigt wespeaker-*.gguf). Die einzige Methode, die die Min./Max.-Sprechergrenzen direkt beachtet.';
+
+  @override
+  String get diarizationModelHelpStereo =>
+      '• Kanalenergie / Kreuzkorrelation: nur Stereo — ein Sprecher pro Kanal, z. B. ein zweispuriges Interview.';
+
+  @override
+  String get diarizationModelHelpFooter =>
+      'Methoden, die eine Modelldatei brauchen, sind mit „(Nicht heruntergeladen)“ markiert, bis du sie in der Modellverwaltung lädst. Eine davon zu wählen ist unbedenklich: der Lauf fällt auf die Sprecherwechsel-Erkennung zurück und protokolliert den Grund.';
+
+  @override
   String get aboutServiceProvider => 'Anbieter';
 
   @override
@@ -1090,6 +1133,17 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get logsShare => 'Als Datei teilen';
+
+  @override
+  String get logsVisibleCopied => 'Sichtbare Zeilen kopiert';
+
+  @override
+  String get logsAllCopied => 'Alle Protokolle kopiert';
+
+  @override
+  String logsExportedTo(String path) {
+    return 'Exportiert nach $path';
+  }
 
   @override
   String get modelsTitle => 'Modell-Verwaltung';
@@ -1496,6 +1550,34 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get outputRealignTimestamps => 'Zeitstempel neu ausrichten';
+
+  @override
+  String get outputNoAudioLoaded => 'Keine Audiodatei geladen';
+
+  @override
+  String outputRealigned(int aligned, int total) {
+    return '$aligned/$total Segmente neu ausgerichtet';
+  }
+
+  @override
+  String outputAlignmentFailed(String error) {
+    return 'Ausrichtung fehlgeschlagen: $error';
+  }
+
+  @override
+  String get outputNoOcrModels =>
+      'Keine OCR-Modelle heruntergeladen. Lade eines im Modell-Bildschirm herunter.';
+
+  @override
+  String get outputOcrNoText => 'Kein Text erkannt.';
+
+  @override
+  String get outputCopiedToClipboard => 'In die Zwischenablage kopiert';
+
+  @override
+  String outputOcrFailed(String error) {
+    return 'OCR fehlgeschlagen: $error';
+  }
 
   @override
   String get outputDetectLanguage => 'Sprache erkennen';
@@ -1999,6 +2081,47 @@ class AppLocalizationsDe extends AppLocalizations {
   String get synthRunButton => 'Synthetisieren';
 
   @override
+  String get synthVoiceReferenceRequired =>
+      'Dieses Modell benötigt eine Stimmreferenz — lade ein Stimmpaket herunter oder nutze den Assistenten zum Stimmklonen.';
+
+  @override
+  String get synthNoAudioProduced =>
+      'kein Audio erzeugt — versuche ein anderes Modell oder eine andere Quantisierung (q8_0 empfohlen)';
+
+  @override
+  String get synthS2sLoadFailed => 'Eingangsaudio konnte nicht geladen werden';
+
+  @override
+  String get synthS2sNoAudio => 'S2S hat kein Audio erzeugt';
+
+  @override
+  String synthS2sError(String error) {
+    return 'S2S-Fehler: $error';
+  }
+
+  @override
+  String get synthProvenanceNotMarked =>
+      'Die letzte Ausgabe konnte NICHT mit einem Wasserzeichen versehen werden (zu kurz oder nahezu still). Sie trägt nur Container-Metadaten, die beim erneuten Kodieren verloren gehen — EU-KI-Verordnung Art. 50(2).';
+
+  @override
+  String get synthProvenanceMarked =>
+      'KI-Herkunftsnachweis: Wasserzeichen + C2PA-Manifest + WAV/ID3-Metadaten werden automatisch eingebettet';
+
+  @override
+  String get synthProvenanceClonedSuffix =>
+      '. Geklonte Stimme — ein hörbarer Signalton als Hinweis wird vorangestellt (EU-KI-Verordnung Art. 50(4))';
+
+  @override
+  String synthSpeakersAvailable(int count) {
+    return '$count Sprecher verfügbar (0-basiert)';
+  }
+
+  @override
+  String synthSpeakerIndexed(int index) {
+    return 'Sprecher $index';
+  }
+
+  @override
   String get synthPlayButton => 'Abspielen';
 
   @override
@@ -2022,6 +2145,103 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get noModelsDownloadedYet =>
       'Noch kein Transkriptionsmodell heruntergeladen — öffne „Modelle“, um eines zu laden.';
+
+  @override
+  String get transcribeVerifyWatermark => 'Wasserzeichen prüfen';
+
+  @override
+  String get transcribeDropOverlay =>
+      'Audiodatei zum Transkribieren hier ablegen';
+
+  @override
+  String get transcribeNoModelsMatchFilter =>
+      'Keine Modelle entsprechen diesem Filter.';
+
+  @override
+  String transcribeNoteTitleDated(String date) {
+    return 'Transkription $date';
+  }
+
+  @override
+  String get transcribeFasterThanRealtime => 'schneller als Echtzeit';
+
+  @override
+  String get transcribeSlowerThanRealtime => 'langsamer als Echtzeit';
+
+  @override
+  String transcribeEngineInitFailed(String error) {
+    return 'Engine-Initialisierung fehlgeschlagen: $error';
+  }
+
+  @override
+  String get transcribeStoppedByUser =>
+      'Transkription vom Benutzer abgebrochen';
+
+  @override
+  String transcribeModelLoadFailedNamed(String name, String error) {
+    return 'Modell $name konnte nicht geladen werden: $error';
+  }
+
+  @override
+  String get watermarkSelectedAudio => 'Ausgewähltes Audio';
+
+  @override
+  String get watermarkTitleDetected => 'Wasserzeichen erkannt';
+
+  @override
+  String get watermarkTitlePossiblyAi => 'Möglicherweise KI-generiert';
+
+  @override
+  String get watermarkTitleNoMarkers => 'Keine KI-Merkmale gefunden';
+
+  @override
+  String get watermarkSynthetic => 'synthetisch';
+
+  @override
+  String get watermarkNotSynthetic => 'nicht synthetisch';
+
+  @override
+  String watermarkCwPresent(String kind, String timestamp) {
+    return 'CrisperWeaver-Wasserzeichen: $kind, $timestamp';
+  }
+
+  @override
+  String get watermarkCwAbsent => 'Kein CrisperWeaver-Wasserzeichen';
+
+  @override
+  String watermarkSpreadPresent(String percent) {
+    return 'Spreizspektrum-Wasserzeichen: $percent % Konfidenz';
+  }
+
+  @override
+  String watermarkSpreadAbsent(String percent) {
+    return 'Kein Spreizspektrum-Wasserzeichen ($percent %)';
+  }
+
+  @override
+  String get watermarkC2paPresentFallback => 'vorhanden';
+
+  @override
+  String watermarkC2paUnsigned(String generator) {
+    return 'C2PA-Manifest: $generator (unsigniertes JSON-LD)';
+  }
+
+  @override
+  String get watermarkC2paSigned =>
+      'C2PA-Manifest: COSE-signiert (kryptografisch)';
+
+  @override
+  String get watermarkC2paAbsent => 'Kein C2PA-Manifest';
+
+  @override
+  String watermarkHeuristic(String percent) {
+    return 'Heuristik: $percent % KI-Wahrscheinlichkeit';
+  }
+
+  @override
+  String watermarkCheckFailed(String error) {
+    return 'Wasserzeichenprüfung fehlgeschlagen: $error';
+  }
 
   @override
   String get filePickerCloudFileUnsupported =>
@@ -2591,6 +2811,43 @@ class AppLocalizationsDe extends AppLocalizations {
       'Live-Transkription über den aktiven Backend-Streamer (kyutai-stt / moonshine-streaming / voxtral4b). Fällt auf Whisper-Sliding-Window zurück, wenn das Backend keinen Streaming-Pfad bietet.';
 
   @override
+  String get recorderTitle => 'Audiorekorder';
+
+  @override
+  String get recorderCompleted => 'Aufnahme abgeschlossen';
+
+  @override
+  String recorderDurationLabel(String duration) {
+    return 'Dauer: $duration';
+  }
+
+  @override
+  String get recorderStopPlayback => 'Wiedergabe stoppen';
+
+  @override
+  String get recorderPlayRecording => 'Aufnahme abspielen';
+
+  @override
+  String recorderStartFailed(String error) {
+    return 'Aufnahme konnte nicht gestartet werden: $error';
+  }
+
+  @override
+  String recorderStopFailed(String error) {
+    return 'Aufnahme konnte nicht gestoppt werden: $error';
+  }
+
+  @override
+  String recorderPlayFailed(String error) {
+    return 'Aufnahme konnte nicht abgespielt werden: $error';
+  }
+
+  @override
+  String recorderDeleteFailed(String error) {
+    return 'Aufnahme konnte nicht gelöscht werden: $error';
+  }
+
+  @override
   String streamingNotAvailableForBackend(String backend) {
     return 'Das aktive Backend ($backend) hat keinen Streaming-Pfad. Wechsle zu whisper, kyutai-stt, moonshine-streaming oder voxtral4b.';
   }
@@ -3139,6 +3396,18 @@ class AppLocalizationsDe extends AppLocalizations {
   String get historyComparePickerTitle => 'Vergleichen mit…';
 
   @override
+  String get historyNoEmbeddingModel =>
+      'Kein Embedding-Modell verfügbar — lade eines im Modell-Bildschirm herunter.';
+
+  @override
+  String historyReindexed(int count) {
+    return '$count Einträge mit Embeddings neu indexiert.';
+  }
+
+  @override
+  String get historyReindexTooltip => 'Embeddings neu indexieren';
+
+  @override
   String get menuCompareModels => 'Modelle vergleichen';
 
   @override
@@ -3430,6 +3699,25 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get modelsTooLargeInline => 'Zu groß für dieses Gerät';
+
+  @override
+  String get modelsNonCommercialTitle => 'Nicht-kommerzielle Lizenz';
+
+  @override
+  String modelsNonCommercialBody(String name, String license) {
+    return '$name steht unter folgender Lizenz:\n\n$license\n\nDiese erlaubt ausschließlich nicht-kommerzielle Nutzung bzw. Forschung. Mit dem Herunterladen bestätigst du, diese Gewichte nicht kommerziell zu nutzen.';
+  }
+
+  @override
+  String get modelsNonCommercialAccept => 'Verstanden';
+
+  @override
+  String get modelsCatalogueHeader => 'CrispASR-Modelle';
+
+  @override
+  String modelsDownloadedOfTotal(int count, int total) {
+    return '$count von $total heruntergeladen';
+  }
 
   @override
   String get settingsExperimentalSection => 'Weitere Funktionen';

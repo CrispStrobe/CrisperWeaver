@@ -116,6 +116,10 @@ class ModelService {
     // user who already downloaded the old name keeps the bytes.
     await _migrateLegacyModelFilesOnce();
 
+    // Rewrite persisted model *names* that were renamed in the catalogue,
+    // so the stale name doesn't outlive this process.
+    _migrateLegacyModelNamesInSettings();
+
     // Re-register any HF repos the user added by hand in a prior run.
     // Best-effort and memoised — a network failure here never blocks
     // the rest of initialize().
@@ -154,6 +158,51 @@ class ModelService {
         Log.instance.w('model', 'legacy model rename failed',
             error: e, fields: {'from': rename.key, 'to': rename.value});
       }
+    }
+  }
+
+  /// Guards [_migrateLegacyModelNamesInSettings] — same story as
+  /// [_legacyRenamesDone]: `initialize()` runs on every model-list call.
+  bool _legacySettingNamesDone = false;
+
+  /// One-time rewrite of the three persisted model-name settings when
+  /// they still point at a name that was renamed in the catalogue
+  /// ([ModelCatalog.legacyModelNameAliases]). `lookupDefinition` already
+  /// heals a stale name on read; this makes the healing stick, so the
+  /// Settings screen's radio list, the model dropdown and anything that
+  /// compares the stored name against a catalogue key all agree.
+  ///
+  /// Idempotent by construction: the target of an alias is never itself
+  /// an alias key, so a second pass finds nothing to do. Names with no
+  /// alias — including ones deleted outright — are left exactly as they
+  /// are; the picker's "not downloaded → auto-switch" path handles those.
+  void _migrateLegacyModelNamesInSettings() {
+    if (_legacySettingNamesDone) return;
+    _legacySettingNamesDone = true;
+    const aliases = ModelCatalog.legacyModelNameAliases;
+
+    final asr = _settingsService.defaultModel;
+    final asrTarget = aliases[asr];
+    if (asrTarget != null) {
+      _settingsService.defaultModel = asrTarget;
+      Log.instance.i('model', 'migrated legacy defaultModel name',
+          fields: {'from': asr, 'to': asrTarget});
+    }
+
+    final tts = _settingsService.defaultTtsModel;
+    final ttsTarget = aliases[tts];
+    if (ttsTarget != null) {
+      _settingsService.defaultTtsModel = ttsTarget;
+      Log.instance.i('model', 'migrated legacy defaultTtsModel name',
+          fields: {'from': tts, 'to': ttsTarget});
+    }
+
+    final voice = _settingsService.defaultTtsVoice;
+    final voiceTarget = aliases[voice];
+    if (voiceTarget != null) {
+      _settingsService.defaultTtsVoice = voiceTarget;
+      Log.instance.i('model', 'migrated legacy defaultTtsVoice name',
+          fields: {'from': voice, 'to': voiceTarget});
     }
   }
 
@@ -276,7 +325,23 @@ class ModelService {
   /// Unified lookup — finds a model by name across every catalog including
   /// quants probed from HuggingFace. Live-probed entries take precedence
   /// so their exact byte-sizes overwrite the rounded catalog estimates.
+  ///
+  /// When nothing matches, the name is retried once through
+  /// [ModelCatalog.legacyModelNameAliases] so a name persisted by an
+  /// older release (a stored default, a preset, a queued batch job)
+  /// still resolves to whatever the catalogue calls it today. The retry
+  /// is deliberately last: a live-probed or catalogued entry under the
+  /// legacy name always wins over the alias. Names that were removed
+  /// with no successor stay `null` — see the doc on the alias map.
   ModelDefinition? lookupDefinition(String name) {
+    final direct = _lookupExact(name);
+    if (direct != null) return direct;
+    final alias = ModelCatalog.legacyModelNameAliases[name];
+    if (alias == null) return null;
+    return _lookupExact(alias);
+  }
+
+  ModelDefinition? _lookupExact(String name) {
     return _discoveredModels[name] ??
         ModelCatalog.whisperCppModels[name] ??
         ModelCatalog.crispasrBackendModels[name] ??

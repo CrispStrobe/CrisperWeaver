@@ -964,6 +964,12 @@ abstract class AppLocalizations {
   /// **'Version {version}'**
   String aboutVersion(String version);
 
+  /// No description provided for @aboutTagline.
+  ///
+  /// In en, this message translates to:
+  /// **'On-device speech recognition via ggml / CrispASR'**
+  String get aboutTagline;
+
   /// No description provided for @settingsTranscription.
   ///
   /// In en, this message translates to:
@@ -1504,6 +1510,12 @@ abstract class AppLocalizations {
   /// **'About CrisperWeaver'**
   String get settingsAboutCrisperWeaver;
 
+  /// No description provided for @settingsBuildInfoCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Build info copied to clipboard'**
+  String get settingsBuildInfoCopied;
+
   /// No description provided for @settingsAboutCrisperWeaverSubtitle.
   ///
   /// In en, this message translates to:
@@ -1762,6 +1774,60 @@ abstract class AppLocalizations {
   /// **'Diarization Model Selection'**
   String get diarizationModelSelectionTitle;
 
+  /// No description provided for @diarizationTipsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Tips for better results'**
+  String get diarizationTipsTitle;
+
+  /// No description provided for @diarizationTipsBody.
+  ///
+  /// In en, this message translates to:
+  /// **'• Use clean audio with minimal background noise\n• Recordings where speakers don\'t talk over each other work better\n• FoxNose is the method that can be told how many speakers to find\n• Set min/max speakers if you know how many to expect'**
+  String get diarizationTipsBody;
+
+  /// No description provided for @diarizationPerformanceNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Diarization may take longer than standard transcription'**
+  String get diarizationPerformanceNote;
+
+  /// No description provided for @diarizationModelHelpIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Which diarizer runs over the audio:\n'**
+  String get diarizationModelHelpIntro;
+
+  /// No description provided for @diarizationModelHelpVadTurns.
+  ///
+  /// In en, this message translates to:
+  /// **'• Speech-turn detection: no extra model, mono-friendly, alternates speakers at pauses. The default.'**
+  String get diarizationModelHelpVadTurns;
+
+  /// No description provided for @diarizationModelHelpPyannote.
+  ///
+  /// In en, this message translates to:
+  /// **'• Pyannote v3: ML segmentation (needs pyannote-*.gguf), up to 3 speakers per slice.'**
+  String get diarizationModelHelpPyannote;
+
+  /// No description provided for @diarizationModelHelpFoxnose.
+  ///
+  /// In en, this message translates to:
+  /// **'• FoxNose: WeSpeaker embeddings + clustering (needs wespeaker-*.gguf). The only method that honours the min/max speaker bounds directly.'**
+  String get diarizationModelHelpFoxnose;
+
+  /// No description provided for @diarizationModelHelpStereo.
+  ///
+  /// In en, this message translates to:
+  /// **'• Channel energy / cross-correlation: stereo only — one speaker per channel, e.g. a two-track interview.'**
+  String get diarizationModelHelpStereo;
+
+  /// No description provided for @diarizationModelHelpFooter.
+  ///
+  /// In en, this message translates to:
+  /// **'Methods that need a model file are marked \"(Not downloaded)\" until you fetch them in Model Management. Picking one anyway is safe: the run falls back to speech-turn detection and logs why.'**
+  String get diarizationModelHelpFooter;
+
   /// No description provided for @aboutServiceProvider.
   ///
   /// In en, this message translates to:
@@ -1917,6 +1983,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Share as file'**
   String get logsShare;
+
+  /// No description provided for @logsVisibleCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Visible lines copied'**
+  String get logsVisibleCopied;
+
+  /// No description provided for @logsAllCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'All logs copied'**
+  String get logsAllCopied;
+
+  /// No description provided for @logsExportedTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Exported to {path}'**
+  String logsExportedTo(String path);
 
   /// No description provided for @modelsTitle.
   ///
@@ -2601,6 +2685,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Re-align timestamps'**
   String get outputRealignTimestamps;
+
+  /// No description provided for @outputNoAudioLoaded.
+  ///
+  /// In en, this message translates to:
+  /// **'No audio file loaded'**
+  String get outputNoAudioLoaded;
+
+  /// No description provided for @outputRealigned.
+  ///
+  /// In en, this message translates to:
+  /// **'Re-aligned {aligned}/{total} segments'**
+  String outputRealigned(int aligned, int total);
+
+  /// No description provided for @outputAlignmentFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Alignment failed: {error}'**
+  String outputAlignmentFailed(String error);
+
+  /// No description provided for @outputNoOcrModels.
+  ///
+  /// In en, this message translates to:
+  /// **'No OCR models downloaded. Download one from the Models screen.'**
+  String get outputNoOcrModels;
+
+  /// No description provided for @outputOcrNoText.
+  ///
+  /// In en, this message translates to:
+  /// **'No text recognized.'**
+  String get outputOcrNoText;
+
+  /// No description provided for @outputCopiedToClipboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied to clipboard'**
+  String get outputCopiedToClipboard;
+
+  /// No description provided for @outputOcrFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'OCR failed: {error}'**
+  String outputOcrFailed(String error);
 
   /// No description provided for @outputDetectLanguage.
   ///
@@ -3448,6 +3574,66 @@ abstract class AppLocalizations {
   /// **'Synthesize'**
   String get synthRunButton;
 
+  /// No description provided for @synthVoiceReferenceRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'This model requires a voice reference — download a voice pack or use the voice clone wizard.'**
+  String get synthVoiceReferenceRequired;
+
+  /// No description provided for @synthNoAudioProduced.
+  ///
+  /// In en, this message translates to:
+  /// **'no audio produced — try a different model or quantisation (q8_0 recommended)'**
+  String get synthNoAudioProduced;
+
+  /// No description provided for @synthS2sLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to load input audio'**
+  String get synthS2sLoadFailed;
+
+  /// No description provided for @synthS2sNoAudio.
+  ///
+  /// In en, this message translates to:
+  /// **'S2S produced no audio'**
+  String get synthS2sNoAudio;
+
+  /// No description provided for @synthS2sError.
+  ///
+  /// In en, this message translates to:
+  /// **'S2S error: {error}'**
+  String synthS2sError(String error);
+
+  /// No description provided for @synthProvenanceNotMarked.
+  ///
+  /// In en, this message translates to:
+  /// **'Last output could NOT be watermarked (too short or near-silent). It carries only container metadata, which is lost on re-encoding — EU AI Act Art. 50(2).'**
+  String get synthProvenanceNotMarked;
+
+  /// No description provided for @synthProvenanceMarked.
+  ///
+  /// In en, this message translates to:
+  /// **'AI provenance: watermark + C2PA manifest + WAV/ID3 metadata embedded automatically'**
+  String get synthProvenanceMarked;
+
+  /// No description provided for @synthProvenanceClonedSuffix.
+  ///
+  /// In en, this message translates to:
+  /// **'. Cloned voice — an audible beep disclaimer is prepended (EU AI Act Art. 50(4))'**
+  String get synthProvenanceClonedSuffix;
+
+  /// No description provided for @synthSpeakersAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} speakers available (0-indexed)'**
+  String synthSpeakersAvailable(int count);
+
+  /// No description provided for @synthSpeakerIndexed.
+  ///
+  /// In en, this message translates to:
+  /// **'Speaker {index}'**
+  String synthSpeakerIndexed(int index);
+
   /// No description provided for @synthPlayButton.
   ///
   /// In en, this message translates to:
@@ -3489,6 +3675,156 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No transcription model is downloaded yet — open Models to grab one.'**
   String get noModelsDownloadedYet;
+
+  /// No description provided for @transcribeVerifyWatermark.
+  ///
+  /// In en, this message translates to:
+  /// **'Verify watermark'**
+  String get transcribeVerifyWatermark;
+
+  /// No description provided for @transcribeDropOverlay.
+  ///
+  /// In en, this message translates to:
+  /// **'Drop audio file to transcribe'**
+  String get transcribeDropOverlay;
+
+  /// No description provided for @transcribeNoModelsMatchFilter.
+  ///
+  /// In en, this message translates to:
+  /// **'No models match this filter.'**
+  String get transcribeNoModelsMatchFilter;
+
+  /// No description provided for @transcribeNoteTitleDated.
+  ///
+  /// In en, this message translates to:
+  /// **'Transcription {date}'**
+  String transcribeNoteTitleDated(String date);
+
+  /// No description provided for @transcribeFasterThanRealtime.
+  ///
+  /// In en, this message translates to:
+  /// **'faster than real-time'**
+  String get transcribeFasterThanRealtime;
+
+  /// No description provided for @transcribeSlowerThanRealtime.
+  ///
+  /// In en, this message translates to:
+  /// **'slower than real-time'**
+  String get transcribeSlowerThanRealtime;
+
+  /// No description provided for @transcribeEngineInitFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Engine init failed: {error}'**
+  String transcribeEngineInitFailed(String error);
+
+  /// No description provided for @transcribeStoppedByUser.
+  ///
+  /// In en, this message translates to:
+  /// **'Transcription stopped by user'**
+  String get transcribeStoppedByUser;
+
+  /// No description provided for @transcribeModelLoadFailedNamed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to load model {name}: {error}'**
+  String transcribeModelLoadFailedNamed(String name, String error);
+
+  /// No description provided for @watermarkSelectedAudio.
+  ///
+  /// In en, this message translates to:
+  /// **'Selected audio'**
+  String get watermarkSelectedAudio;
+
+  /// No description provided for @watermarkTitleDetected.
+  ///
+  /// In en, this message translates to:
+  /// **'Watermark Detected'**
+  String get watermarkTitleDetected;
+
+  /// No description provided for @watermarkTitlePossiblyAi.
+  ///
+  /// In en, this message translates to:
+  /// **'Possibly AI-Generated'**
+  String get watermarkTitlePossiblyAi;
+
+  /// No description provided for @watermarkTitleNoMarkers.
+  ///
+  /// In en, this message translates to:
+  /// **'No AI Markers Found'**
+  String get watermarkTitleNoMarkers;
+
+  /// No description provided for @watermarkSynthetic.
+  ///
+  /// In en, this message translates to:
+  /// **'synthetic'**
+  String get watermarkSynthetic;
+
+  /// No description provided for @watermarkNotSynthetic.
+  ///
+  /// In en, this message translates to:
+  /// **'not synthetic'**
+  String get watermarkNotSynthetic;
+
+  /// No description provided for @watermarkCwPresent.
+  ///
+  /// In en, this message translates to:
+  /// **'CrisperWeaver watermark: {kind}, {timestamp}'**
+  String watermarkCwPresent(String kind, String timestamp);
+
+  /// No description provided for @watermarkCwAbsent.
+  ///
+  /// In en, this message translates to:
+  /// **'No CrisperWeaver watermark'**
+  String get watermarkCwAbsent;
+
+  /// No description provided for @watermarkSpreadPresent.
+  ///
+  /// In en, this message translates to:
+  /// **'Spread-spectrum watermark: {percent}% confidence'**
+  String watermarkSpreadPresent(String percent);
+
+  /// No description provided for @watermarkSpreadAbsent.
+  ///
+  /// In en, this message translates to:
+  /// **'No spread-spectrum watermark ({percent}%)'**
+  String watermarkSpreadAbsent(String percent);
+
+  /// No description provided for @watermarkC2paPresentFallback.
+  ///
+  /// In en, this message translates to:
+  /// **'present'**
+  String get watermarkC2paPresentFallback;
+
+  /// No description provided for @watermarkC2paUnsigned.
+  ///
+  /// In en, this message translates to:
+  /// **'C2PA manifest: {generator} (unsigned JSON-LD)'**
+  String watermarkC2paUnsigned(String generator);
+
+  /// No description provided for @watermarkC2paSigned.
+  ///
+  /// In en, this message translates to:
+  /// **'C2PA manifest: COSE-signed (cryptographic)'**
+  String get watermarkC2paSigned;
+
+  /// No description provided for @watermarkC2paAbsent.
+  ///
+  /// In en, this message translates to:
+  /// **'No C2PA manifest'**
+  String get watermarkC2paAbsent;
+
+  /// No description provided for @watermarkHeuristic.
+  ///
+  /// In en, this message translates to:
+  /// **'Heuristic: {percent}% AI likelihood'**
+  String watermarkHeuristic(String percent);
+
+  /// No description provided for @watermarkCheckFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Watermark check failed: {error}'**
+  String watermarkCheckFailed(String error);
 
   /// Shown when the OS returns a content:// URI we can't resolve to a real path (typical for Google Drive / OneDrive / Files that haven't been synced).
   ///
@@ -4396,6 +4732,60 @@ abstract class AppLocalizations {
   /// **'Live mic transcribe through the active backend\'s streaming arm (kyutai-stt / moonshine-streaming / voxtral4b). Falls back to Whisper sliding-window when the backend has no native stream API.'**
   String get recorderStreamSessionTooltip;
 
+  /// No description provided for @recorderTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio Recorder'**
+  String get recorderTitle;
+
+  /// No description provided for @recorderCompleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Recording completed'**
+  String get recorderCompleted;
+
+  /// No description provided for @recorderDurationLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Duration: {duration}'**
+  String recorderDurationLabel(String duration);
+
+  /// No description provided for @recorderStopPlayback.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop playback'**
+  String get recorderStopPlayback;
+
+  /// No description provided for @recorderPlayRecording.
+  ///
+  /// In en, this message translates to:
+  /// **'Play recording'**
+  String get recorderPlayRecording;
+
+  /// No description provided for @recorderStartFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to start recording: {error}'**
+  String recorderStartFailed(String error);
+
+  /// No description provided for @recorderStopFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to stop recording: {error}'**
+  String recorderStopFailed(String error);
+
+  /// No description provided for @recorderPlayFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to play recording: {error}'**
+  String recorderPlayFailed(String error);
+
+  /// No description provided for @recorderDeleteFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to delete recording: {error}'**
+  String recorderDeleteFailed(String error);
+
   /// No description provided for @streamingNotAvailableForBackend.
   ///
   /// In en, this message translates to:
@@ -5218,6 +5608,24 @@ abstract class AppLocalizations {
   /// **'Compare with…'**
   String get historyComparePickerTitle;
 
+  /// No description provided for @historyNoEmbeddingModel.
+  ///
+  /// In en, this message translates to:
+  /// **'No embedding model available — download one from the Models screen.'**
+  String get historyNoEmbeddingModel;
+
+  /// No description provided for @historyReindexed.
+  ///
+  /// In en, this message translates to:
+  /// **'Reindexed {count} entries with embeddings.'**
+  String historyReindexed(int count);
+
+  /// No description provided for @historyReindexTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Reindex embeddings'**
+  String get historyReindexTooltip;
+
   /// No description provided for @menuCompareModels.
   ///
   /// In en, this message translates to:
@@ -5739,6 +6147,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Too large for this device'**
   String get modelsTooLargeInline;
+
+  /// No description provided for @modelsNonCommercialTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Non-commercial licence'**
+  String get modelsNonCommercialTitle;
+
+  /// No description provided for @modelsNonCommercialBody.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} is licensed:\n\n{license}\n\nThis permits non-commercial / research use only. By downloading you confirm you will not use these weights commercially.'**
+  String modelsNonCommercialBody(String name, String license);
+
+  /// No description provided for @modelsNonCommercialAccept.
+  ///
+  /// In en, this message translates to:
+  /// **'I understand'**
+  String get modelsNonCommercialAccept;
+
+  /// No description provided for @modelsCatalogueHeader.
+  ///
+  /// In en, this message translates to:
+  /// **'CrispASR Models'**
+  String get modelsCatalogueHeader;
+
+  /// No description provided for @modelsDownloadedOfTotal.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} of {total} downloaded'**
+  String modelsDownloadedOfTotal(int count, int total);
 
   /// No description provided for @settingsExperimentalSection.
   ///

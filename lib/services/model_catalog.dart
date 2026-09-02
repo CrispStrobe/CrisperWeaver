@@ -639,6 +639,53 @@ abstract final class ModelCatalog {
     'vibevoice-voice-emma.gguf': 'vibevoice-voice-en-Emma_woman.gguf',
   };
 
+  /// Catalogue *names* that shipped in an earlier release and have since
+  /// been renamed. Key = the name a ≤0.10.x install may still have
+  /// persisted (in `settings.defaultModel` / `defaultTtsModel` /
+  /// `defaultTtsVoice`, in a preset, in a batch job), value = the name
+  /// that exists today.
+  ///
+  /// Consumed in two places, both in [ModelService]:
+  ///   * `lookupDefinition` retries through this map after the normal
+  ///     resolution chain misses, so every caller heals at once;
+  ///   * a one-time settings migration in `initialize()` rewrites the
+  ///     stored defaults so the stale name doesn't survive forever.
+  ///
+  /// Only *renames* belong here. Names that were deleted outright with
+  /// no successor (`base-q4_0`, `small-q4_0`, `large-v3-q4_0`,
+  /// `large-v3-q2_k`, `large-v3-q8_0` — dropped in v0.11.0 when the
+  /// upstream repo stopped publishing them) are deliberately absent:
+  /// they must keep resolving to `null` so the picker's
+  /// "default isn't downloaded → auto-switch to something that is"
+  /// fallback takes over rather than silently loading a different model.
+  static const Map<String, String> legacyModelNameAliases = <String, String>{
+    // v0.11.0 (8489083). ggerganov/whisper.cpp publishes q5_1 — not
+    // q5_0 — for tiny/base/small; the q5_0 rows pointed at URLs that
+    // 404 once the repo went private/was reorganised. Note the *files*
+    // differ (q5_0 bytes ≠ q5_1 bytes), so this is a name alias only —
+    // deliberately not in [legacyModelFileRenames].
+    'tiny-q5_0': 'tiny-q5_1',
+    'base-q5_0': 'base-q5_1',
+    'small-q5_0': 'small-q5_1',
+    // v0.11.0 (8489083). The starter-model picks added in v0.9.7 /
+    // shipped through v0.10.1 keyed the two Piper voices by their file
+    // stem instead of their curated catalogue key, so anyone who
+    // accepted a starter TTS pick has the stem persisted as
+    // `defaultTtsModel`. Both stems also exist as *baked* rows (the HF
+    // probe keys off the filename), so `lookupDefinition` resolves them
+    // on its own — but [duplicateFileNameEntries] suppresses those rows
+    // in favour of the curated key, so the Synthesize screen finds no
+    // matching entry until the stored name is rewritten. The alias is
+    // what makes that rewrite happen.
+    'piper-de_DE-thorsten-medium-f16': 'piper-de-thorsten-medium',
+    'piper-en_GB-cori-medium-f16': 'piper-en-cori',
+    // v0.11.0 (e0c8de0, issue #35). The VibeVoice voicepack was
+    // re-keyed to the repo's own `<lang>-<Speaker>` id. The bytes are
+    // identical under both names upstream, so the on-disk file is
+    // additionally renamed by [legacyModelFileRenames].
+    'vibevoice-voice-emma': 'vibevoice-voice-en-Emma_woman',
+  };
+
   static const List<String> langsEn = <String>['en'];
   static const List<String> langsDe = <String>['de'];
   static const List<String> langsZh = <String>['zh'];

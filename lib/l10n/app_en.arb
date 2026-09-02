@@ -279,6 +279,7 @@
       }
     }
   },
+  "aboutTagline": "On-device speech recognition via ggml / CrispASR",
   "settingsTranscription": "Transcription",
   "settingsDefaultModel": "Default model",
   "settingsDefaultLanguage": "Default language",
@@ -489,6 +490,7 @@
   "settingsAbout": "About",
   "settingsVersion": "Version",
   "settingsAboutCrisperWeaver": "About CrisperWeaver",
+  "settingsBuildInfoCopied": "Build info copied to clipboard",
   "settingsAboutCrisperWeaverSubtitle": "Author, contact, disclaimer, licenses",
   "settingsHfTokenTitle": "Hugging Face API Token",
   "settingsHfTokenSubtitle": "Required for gated or private repositories.",
@@ -598,6 +600,15 @@
   },
   "diarizationAuto": "Auto",
   "diarizationModelSelectionTitle": "Diarization Model Selection",
+  "diarizationTipsTitle": "Tips for better results",
+  "diarizationTipsBody": "• Use clean audio with minimal background noise\n• Recordings where speakers don't talk over each other work better\n• FoxNose is the method that can be told how many speakers to find\n• Set min/max speakers if you know how many to expect",
+  "diarizationPerformanceNote": "Diarization may take longer than standard transcription",
+  "diarizationModelHelpIntro": "Which diarizer runs over the audio:\n",
+  "diarizationModelHelpVadTurns": "• Speech-turn detection: no extra model, mono-friendly, alternates speakers at pauses. The default.",
+  "diarizationModelHelpPyannote": "• Pyannote v3: ML segmentation (needs pyannote-*.gguf), up to 3 speakers per slice.",
+  "diarizationModelHelpFoxnose": "• FoxNose: WeSpeaker embeddings + clustering (needs wespeaker-*.gguf). The only method that honours the min/max speaker bounds directly.",
+  "diarizationModelHelpStereo": "• Channel energy / cross-correlation: stereo only — one speaker per channel, e.g. a two-track interview.",
+  "diarizationModelHelpFooter": "Methods that need a model file are marked \"(Not downloaded)\" until you fetch them in Model Management. Picking one anyway is safe: the run falls back to speech-turn detection and logs why.",
   "aboutServiceProvider": "Service Provider",
   "aboutContact": "Contact",
   "aboutPrivacy": "Privacy",
@@ -641,6 +652,16 @@
   "logsCopyAll": "Copy all",
   "logsExport": "Export to file",
   "logsShare": "Share as file",
+  "logsVisibleCopied": "Visible lines copied",
+  "logsAllCopied": "All logs copied",
+  "logsExportedTo": "Exported to {path}",
+  "@logsExportedTo": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
   "modelsTitle": "Model management",
   "modelsNoneAvailable": "No models available",
   "modelsRetry": "Retry",
@@ -896,6 +917,37 @@
   "outputSummarize": "Summarize…",
   "outputOcrImage": "OCR image…",
   "outputRealignTimestamps": "Re-align timestamps",
+  "outputNoAudioLoaded": "No audio file loaded",
+  "outputRealigned": "Re-aligned {aligned}/{total} segments",
+  "@outputRealigned": {
+    "placeholders": {
+      "aligned": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "outputAlignmentFailed": "Alignment failed: {error}",
+  "@outputAlignmentFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "outputNoOcrModels": "No OCR models downloaded. Download one from the Models screen.",
+  "outputOcrNoText": "No text recognized.",
+  "outputCopiedToClipboard": "Copied to clipboard",
+  "outputOcrFailed": "OCR failed: {error}",
+  "@outputOcrFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "outputDetectLanguage": "Detect language",
   "outputSummarizeTitle": "Summarize transcript",
   "outputSummarizeHelp": "Sends the transcript to {model} and asks for a structured summary. Output is Markdown-formatted bullet lists.",
@@ -1152,6 +1204,37 @@
   "synthS2sPickAudio": "No audio file selected",
   "synthS2sBrowse": "Browse",
   "synthRunButton": "Synthesize",
+  "synthVoiceReferenceRequired": "This model requires a voice reference — download a voice pack or use the voice clone wizard.",
+  "synthNoAudioProduced": "no audio produced — try a different model or quantisation (q8_0 recommended)",
+  "synthS2sLoadFailed": "Failed to load input audio",
+  "synthS2sNoAudio": "S2S produced no audio",
+  "synthS2sError": "S2S error: {error}",
+  "@synthS2sError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "synthProvenanceNotMarked": "Last output could NOT be watermarked (too short or near-silent). It carries only container metadata, which is lost on re-encoding — EU AI Act Art. 50(2).",
+  "synthProvenanceMarked": "AI provenance: watermark + C2PA manifest + WAV/ID3 metadata embedded automatically",
+  "synthProvenanceClonedSuffix": ". Cloned voice — an audible beep disclaimer is prepended (EU AI Act Art. 50(4))",
+  "synthSpeakersAvailable": "{count} speakers available (0-indexed)",
+  "@synthSpeakersAvailable": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "synthSpeakerIndexed": "Speaker {index}",
+  "@synthSpeakerIndexed": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
   "synthPlayButton": "Play",
   "synthStopButton": "Stop",
   "synthShareButton": "Save / share WAV",
@@ -1168,6 +1251,100 @@
   "noModelsDownloadedYet": "No transcription model is downloaded yet — open Models to grab one.",
   "@noModelsDownloadedYet": {
     "description": "Shown at first launch / before the user has downloaded any model. Replaces defaultModelNotDownloaded when there is literally nothing to load."
+  },
+  "transcribeVerifyWatermark": "Verify watermark",
+  "transcribeDropOverlay": "Drop audio file to transcribe",
+  "transcribeNoModelsMatchFilter": "No models match this filter.",
+  "transcribeNoteTitleDated": "Transcription {date}",
+  "@transcribeNoteTitleDated": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "transcribeFasterThanRealtime": "faster than real-time",
+  "transcribeSlowerThanRealtime": "slower than real-time",
+  "transcribeEngineInitFailed": "Engine init failed: {error}",
+  "@transcribeEngineInitFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "transcribeStoppedByUser": "Transcription stopped by user",
+  "transcribeModelLoadFailedNamed": "Failed to load model {name}: {error}",
+  "@transcribeModelLoadFailedNamed": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "watermarkSelectedAudio": "Selected audio",
+  "watermarkTitleDetected": "Watermark Detected",
+  "watermarkTitlePossiblyAi": "Possibly AI-Generated",
+  "watermarkTitleNoMarkers": "No AI Markers Found",
+  "watermarkSynthetic": "synthetic",
+  "watermarkNotSynthetic": "not synthetic",
+  "watermarkCwPresent": "CrisperWeaver watermark: {kind}, {timestamp}",
+  "@watermarkCwPresent": {
+    "placeholders": {
+      "kind": {
+        "type": "String"
+      },
+      "timestamp": {
+        "type": "String"
+      }
+    }
+  },
+  "watermarkCwAbsent": "No CrisperWeaver watermark",
+  "watermarkSpreadPresent": "Spread-spectrum watermark: {percent}% confidence",
+  "@watermarkSpreadPresent": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "watermarkSpreadAbsent": "No spread-spectrum watermark ({percent}%)",
+  "@watermarkSpreadAbsent": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "watermarkC2paPresentFallback": "present",
+  "watermarkC2paUnsigned": "C2PA manifest: {generator} (unsigned JSON-LD)",
+  "@watermarkC2paUnsigned": {
+    "placeholders": {
+      "generator": {
+        "type": "String"
+      }
+    }
+  },
+  "watermarkC2paSigned": "C2PA manifest: COSE-signed (cryptographic)",
+  "watermarkC2paAbsent": "No C2PA manifest",
+  "watermarkHeuristic": "Heuristic: {percent}% AI likelihood",
+  "@watermarkHeuristic": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "watermarkCheckFailed": "Watermark check failed: {error}",
+  "@watermarkCheckFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
   "filePickerCloudFileUnsupported": "This file lives in cloud storage and can't be opened directly. Please copy it to local storage (Downloads / Files on this device) and try again.",
   "@filePickerCloudFileUnsupported": {
@@ -1504,6 +1681,50 @@
   "synthCloneNoCapableModel": "None of your downloaded TTS models can clone a voice. Download chatterbox, IndexTTS, Qwen3-TTS Base, VibeVoice 1.5B or F5-TTS in Model management first.",
   "recorderStreamSession": "Stream (session)",
   "recorderStreamSessionTooltip": "Live mic transcribe through the active backend's streaming arm (kyutai-stt / moonshine-streaming / voxtral4b). Falls back to Whisper sliding-window when the backend has no native stream API.",
+  "recorderTitle": "Audio Recorder",
+  "recorderCompleted": "Recording completed",
+  "recorderDurationLabel": "Duration: {duration}",
+  "@recorderDurationLabel": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "recorderStopPlayback": "Stop playback",
+  "recorderPlayRecording": "Play recording",
+  "recorderStartFailed": "Failed to start recording: {error}",
+  "@recorderStartFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "recorderStopFailed": "Failed to stop recording: {error}",
+  "@recorderStopFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "recorderPlayFailed": "Failed to play recording: {error}",
+  "@recorderPlayFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "recorderDeleteFailed": "Failed to delete recording: {error}",
+  "@recorderDeleteFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "streamingNotAvailableForBackend": "The active backend ({backend}) has no streaming arm. Switch to whisper, kyutai-stt, moonshine-streaming, or voxtral4b.",
   "@streamingNotAvailableForBackend": {
     "placeholders": {
@@ -1950,6 +2171,16 @@
   "historyCompareButton": "Compare…",
   "historyCompareNoOtherEntries": "No other entries to compare with",
   "historyComparePickerTitle": "Compare with…",
+  "historyNoEmbeddingModel": "No embedding model available — download one from the Models screen.",
+  "historyReindexed": "Reindexed {count} entries with embeddings.",
+  "@historyReindexed": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "historyReindexTooltip": "Reindex embeddings",
   "menuCompareModels": "Compare models",
   "menuSubtitleOverlay": "Subtitle overlay",
   "advancedTagSegmentLanguages": "Tag segment languages",
@@ -2122,6 +2353,31 @@
   "@modelsDownloadAnyway": {},
   "modelsTooLargeInline": "Too large for this device",
   "@modelsTooLargeInline": {},
+  "modelsNonCommercialTitle": "Non-commercial licence",
+  "modelsNonCommercialBody": "{name} is licensed:\n\n{license}\n\nThis permits non-commercial / research use only. By downloading you confirm you will not use these weights commercially.",
+  "@modelsNonCommercialBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "license": {
+        "type": "String"
+      }
+    }
+  },
+  "modelsNonCommercialAccept": "I understand",
+  "modelsCatalogueHeader": "CrispASR Models",
+  "modelsDownloadedOfTotal": "{count} of {total} downloaded",
+  "@modelsDownloadedOfTotal": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
   "settingsExperimentalSection": "More features",
   "@settingsExperimentalSection": {},
   "settingsExperimentalTitle": "Show advanced features",

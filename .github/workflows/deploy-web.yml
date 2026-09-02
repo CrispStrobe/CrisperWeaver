@@ -24,6 +24,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
+    # Set only when a production deploy actually ran, so the smoke job stays
+    # skipped on PRs and on forks without the Vercel secrets — rather than
+    # failing red against a URL this run never touched.
+    outputs:
+      deployed: ${{ steps.deploy.outputs.deployed }}
+
     env:
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
@@ -45,7 +51,7 @@ jobs:
       # backends or add them to its documented `engineOnly` set, then commit
       # the bump on its own so a regression bisects cleanly.
       CRISPASR_REPO: CrispStrobe/CrispASR
-      CRISPASR_REF: 110fd5ced6db4fb126108a0bf8fbaa8d51df9127
+      CRISPASR_REF: 3244be02610f953fd0212e08c7fc3be573d6ad2d
       CRISPEMBED_REPO: CrispStrobe/CrispEmbed
       CRISPEMBED_REF: 40e7b7dd00bb6b1505c9e6ac74bef0c97efef337
       GLINT_REPO: CrispStrobe/glint
@@ -113,7 +119,53 @@ jobs:
 
       # -- Deploy to Vercel ------------------------------------------------
       - name: Deploy to Vercel (production)
+        id: deploy
         if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' && env.VERCEL_TOKEN != ''
         run: |
           npm install -g vercel@latest
           vercel deploy repos/CrisperWeaver/build/web --prod --yes --archive=tgz --token="$VERCEL_TOKEN"
+          echo "deployed=true" >> "$GITHUB_OUTPUT"
+
+  # A green deploy job only proves Vercel accepted an upload. This proves the
+  # production URL actually serves a bundle that boots and paints — the one
+  # thing the web build has no other coverage for (the native GUI has the
+  # xvfb integration suite; the web PWA had nothing). Shell only: there is no
+  # on-device engine on web, so inference belongs to the HF Space, not here.
+  smoke:
+    name: Smoke-test the live deployment
+    needs: build
+    if: needs.build.outputs.deployed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: web-e2e/package-lock.json
+
+      - name: Install test dependencies
+        working-directory: web-e2e
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        working-directory: web-e2e
+        run: npx playwright install --with-deps chromium
+
+      - name: Run the web smoke test
+        working-directory: web-e2e
+        env:
+          BASE_URL: https://crisperweaver-web.vercel.app
+        run: npx playwright test
+
+      - name: Upload failure artefacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-smoke-artifacts
+          path: web-e2e/artifacts
+          retention-days: 7
+          if-no-files-found: ignore
