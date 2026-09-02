@@ -923,7 +923,9 @@ class _TranscriptionOutputWidgetState
     if (audioPath == null || audioPath.isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No audio file loaded')),
+          SnackBar(
+              content:
+                  Text(AppLocalizations.of(context).outputNoAudioLoaded)),
         );
       }
       return;
@@ -950,8 +952,11 @@ class _TranscriptionOutputWidgetState
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-                'Re-aligned ${aligned.where((s) => s.words != null && s.words!.isNotEmpty).length}/${aligned.length} segments'),
+            content: Text(AppLocalizations.of(context).outputRealigned(
+                aligned
+                    .where((s) => s.words != null && s.words!.isNotEmpty)
+                    .length,
+                aligned.length)),
           ),
         );
       }
@@ -959,7 +964,9 @@ class _TranscriptionOutputWidgetState
       Log.instance.w('realign', 'realignTimestamps failed', error: e, stack: st);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Alignment failed: $e')),
+          SnackBar(
+              content: Text(AppLocalizations.of(context)
+                  .outputAlignmentFailed(e.toString()))),
         );
       }
     }
@@ -972,9 +979,8 @@ class _TranscriptionOutputWidgetState
     if (models.isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text(
-                  'No OCR models downloaded. Download one from the Models screen.')),
+          SnackBar(
+              content: Text(AppLocalizations.of(context).outputNoOcrModels)),
         );
       }
       return;
@@ -1072,7 +1078,9 @@ class _TranscriptionOutputWidgetState
                   const SizedBox(height: 8),
                 ],
                 SelectableText(
-                  result.text.isEmpty ? 'No text recognized.' : result.text,
+                  result.text.isEmpty
+                      ? AppLocalizations.of(ctx).outputOcrNoText
+                      : result.text,
                 ),
               ],
             ),
@@ -1086,14 +1094,16 @@ class _TranscriptionOutputWidgetState
                   Clipboard.setData(
                       ClipboardData(text: result.textWithDisclosure));
                   ScaffoldMessenger.of(ctx).showSnackBar(
-                    const SnackBar(content: Text('Copied to clipboard')),
+                    SnackBar(
+                        content: Text(AppLocalizations.of(ctx)
+                            .outputCopiedToClipboard)),
                   );
                 },
-                child: const Text('Copy'),
+                child: Text(AppLocalizations.of(ctx).outputCopy),
               ),
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Close'),
+              child: Text(AppLocalizations.of(ctx).close),
             ),
           ],
         ),
@@ -1102,7 +1112,9 @@ class _TranscriptionOutputWidgetState
       Log.instance.w('ocr', 'OCR image failed', error: e, stack: st);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('OCR failed: $e')),
+          SnackBar(
+              content: Text(
+                  AppLocalizations.of(context).outputOcrFailed(e.toString()))),
         );
       }
     }

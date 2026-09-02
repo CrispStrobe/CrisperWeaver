@@ -1,0 +1,12 @@
+{
+  "name": "crisperweaver-web-e2e",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Playwright smoke test for the CrisperWeaver web PWA (crisperweaver-web.vercel.app).",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1"
+  }
+}

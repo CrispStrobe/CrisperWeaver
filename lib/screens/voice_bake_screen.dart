@@ -214,6 +214,7 @@ class _VoiceBakeScreenState extends ConsumerState<VoiceBakeScreen> {
               decoration: InputDecoration(
                 labelText: l.voiceBakeOutputName,
                 helperText: l.voiceBakeOutputNameHelper,
+                helperMaxLines: 3,
                 border: const OutlineInputBorder(),
                 isDense: true,
               ),
@@ -246,6 +247,7 @@ class _VoiceBakeScreenState extends ConsumerState<VoiceBakeScreen> {
                   decoration: InputDecoration(
                     labelText: l.voiceBakePythonLabel,
                     helperText: l.voiceBakePythonHelper,
+                    helperMaxLines: 3,
                     border: const OutlineInputBorder(),
                     isDense: true,
                   ),
@@ -256,6 +258,7 @@ class _VoiceBakeScreenState extends ConsumerState<VoiceBakeScreen> {
                   decoration: InputDecoration(
                     labelText: l.voiceBakeScriptLabel,
                     helperText: l.voiceBakeScriptHelper,
+                    helperMaxLines: 3,
                     border: const OutlineInputBorder(),
                     isDense: true,
                   ),

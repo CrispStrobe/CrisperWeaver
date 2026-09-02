@@ -127,6 +127,17 @@ SKIPPED_BIG=()
 export_var() {
   local var="$1"; shift
   local cand sz
+  # Respect a caller-supplied override: a pre-set var is the caller telling
+  # us exactly which weight to test. Clobbering it (as this used to)
+  # silently redirected two days of silero-lid debugging onto the wrong
+  # file — the caller exported the f32 model, the runner re-exported q8_0.
+  if [ -n "${!var:-}" ]; then
+    if [ -f "${!var}" ]; then
+      ARMED+=("$var=$(basename "${!var}") (caller override)")
+      return 0
+    fi
+    echo "WARN: $var preset to missing file '${!var}' — falling back to candidates" >&2
+  fi
   for cand in "$@"; do
     [ -f "$cand" ] || continue
     sz="$(_size "$cand")"
@@ -179,9 +190,13 @@ export_var CRISPASR_TEST_PARAFORMER_ZH_MODEL  "$MODELS_DIR/paraformer-zh-q4_k.gg
 export_var CRISPASR_TEST_NEMOTRON_MODEL       "$MODELS_DIR/nemotron-3.5-asr-streaming-0.6b-q4_k.gguf"
 
 # ---- language ID ----------------------------------------------------------
+# f32 ONLY for silero-lid: the q8_0/q5_0 artifacts are broken — the tiny
+# classifier answers junk (pa-IN @ p=0.017) on the ggml path and NaN
+# confidence on the legacy path, verified natively 2026-09-02. The f32 is
+# 16 MB; there is nothing to save. (This candidate order was the true
+# cause of the "silero misidentifies languages" scare.)
 export_var CRISPASR_TEST_SILERO_LID_MODEL \
-  "$MODELS_DIR/silero-lid-95-q8_0.gguf" \
-  "$MODELS_DIR/silero-lid-95-q5_0.gguf" \
+  "$MODELS_DIR/silero-lid-lang95-f32.gguf" \
   "$MODELS_DIR/silero-lid-95.gguf"
 export_var CRISPASR_TEST_CLD3_MODEL    "$MODELS_DIR/cld3-f32.gguf"
 export_var CRISPASR_TEST_GLOTLID_MODEL "$MODELS_DIR/lid-glotlid-q4_k.gguf"

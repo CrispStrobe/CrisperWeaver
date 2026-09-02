@@ -117,7 +117,7 @@ class _AudioRecorderWidgetState extends ConsumerState<AudioRecorderWidget>
                 const Icon(Icons.mic, size: 20),
                 const SizedBox(width: 8),
                 Text(
-                  'Audio Recorder',
+                  AppLocalizations.of(context).recorderTitle,
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const Spacer(),
@@ -295,14 +295,15 @@ class _AudioRecorderWidgetState extends ConsumerState<AudioRecorderWidget>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Recording completed',
+                  AppLocalizations.of(context).recorderCompleted,
                   style: TextStyle(
                     color: Colors.green.shade800,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 Text(
-                  'Duration: ${_formatDuration(rState.recordingDuration)}',
+                  AppLocalizations.of(context).recorderDurationLabel(
+                      _formatDuration(rState.recordingDuration)),
                   style: TextStyle(color: Colors.green.shade600),
                 ),
               ],
@@ -314,7 +315,9 @@ class _AudioRecorderWidgetState extends ConsumerState<AudioRecorderWidget>
               IconButton(
                 icon: Icon(rState.isPlaying ? Icons.stop : Icons.play_arrow),
                 onPressed: rState.isPlaying ? _stopPlayback : _playRecording,
-                tooltip: rState.isPlaying ? 'Stop playback' : 'Play recording',
+                tooltip: rState.isPlaying
+                    ? AppLocalizations.of(context).recorderStopPlayback
+                    : AppLocalizations.of(context).recorderPlayRecording,
               ),
               IconButton(
                 icon: const Icon(Icons.delete),
@@ -367,7 +370,9 @@ class _AudioRecorderWidgetState extends ConsumerState<AudioRecorderWidget>
         });
       }
     } catch (e) {
-      _showErrorDialog('Failed to start recording: $e');
+      if (!mounted) return;
+      _showErrorDialog(
+          AppLocalizations.of(context).recorderStartFailed(e.toString()));
     }
   }
 
@@ -588,7 +593,9 @@ class _AudioRecorderWidgetState extends ConsumerState<AudioRecorderWidget>
       _pulseController.stop();
       _pulseController.reset();
     } catch (e) {
-      _showErrorDialog('Failed to stop recording: $e');
+      if (!mounted) return;
+      _showErrorDialog(
+          AppLocalizations.of(context).recorderStopFailed(e.toString()));
     }
   }
 
@@ -614,7 +621,9 @@ class _AudioRecorderWidgetState extends ConsumerState<AudioRecorderWidget>
       if (mounted) n.setIsPlaying(false);
     } catch (e) {
       if (mounted) n.setIsPlaying(false);
-      _showErrorDialog('Failed to play recording: $e');
+      if (!mounted) return;
+      _showErrorDialog(
+          AppLocalizations.of(context).recorderPlayFailed(e.toString()));
     }
   }
 
@@ -657,7 +666,8 @@ class _AudioRecorderWidgetState extends ConsumerState<AudioRecorderWidget>
         File(recordingPath).deleteSync();
         ref.read(audioRecorderProvider.notifier).deleteRecording();
       } catch (e) {
-        _showErrorDialog('Failed to delete recording: $e');
+        _showErrorDialog(
+            AppLocalizations.of(context).recorderDeleteFailed(e.toString()));
       }
     }
   }

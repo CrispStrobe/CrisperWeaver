@@ -277,6 +277,7 @@
       }
     }
   },
+  "aboutTagline": "Spracherkennung direkt auf dem Gerät über ggml / CrispASR",
   "settingsTranscription": "Transkription",
   "settingsDefaultModel": "Standard-Modell",
   "settingsDefaultLanguage": "Standard-Sprache",
@@ -487,6 +488,7 @@
   "settingsAbout": "Über",
   "settingsVersion": "Version",
   "settingsAboutCrisperWeaver": "Über CrisperWeaver",
+  "settingsBuildInfoCopied": "Build-Informationen in die Zwischenablage kopiert",
   "settingsAboutCrisperWeaverSubtitle": "Anbieter, Kontakt, Haftungsausschluss, Lizenzen",
   "settingsHfTokenTitle": "Hugging Face API-Token",
   "settingsHfTokenSubtitle": "Erforderlich für gesperrte oder private Repositories.",
@@ -596,6 +598,15 @@
   },
   "diarizationAuto": "Auto",
   "diarizationModelSelectionTitle": "Diarisierung: Modellauswahl",
+  "diarizationTipsTitle": "Tipps für bessere Ergebnisse",
+  "diarizationTipsBody": "• Verwende sauberes Audio mit möglichst wenig Hintergrundgeräuschen\n• Aufnahmen, in denen die Sprecher einander nicht ins Wort fallen, funktionieren besser\n• FoxNose ist die einzige Methode, der sich die Anzahl der gesuchten Sprecher vorgeben lässt\n• Lege Min./Max.-Sprecherzahl fest, wenn du sie im Voraus kennst",
+  "diarizationPerformanceNote": "Die Sprechertrennung kann länger dauern als eine normale Transkription",
+  "diarizationModelHelpIntro": "Welche Sprechertrennung über das Audio läuft:\n",
+  "diarizationModelHelpVadTurns": "• Sprecherwechsel-Erkennung: kein zusätzliches Modell, monotauglich, wechselt die Sprecher an Sprechpausen. Die Voreinstellung.",
+  "diarizationModelHelpPyannote": "• Pyannote v3: ML-Segmentierung (benötigt pyannote-*.gguf), bis zu 3 Sprecher pro Abschnitt.",
+  "diarizationModelHelpFoxnose": "• FoxNose: WeSpeaker-Embeddings + Clustering (benötigt wespeaker-*.gguf). Die einzige Methode, die die Min./Max.-Sprechergrenzen direkt beachtet.",
+  "diarizationModelHelpStereo": "• Kanalenergie / Kreuzkorrelation: nur Stereo — ein Sprecher pro Kanal, z. B. ein zweispuriges Interview.",
+  "diarizationModelHelpFooter": "Methoden, die eine Modelldatei brauchen, sind mit „(Nicht heruntergeladen)“ markiert, bis du sie in der Modellverwaltung lädst. Eine davon zu wählen ist unbedenklich: der Lauf fällt auf die Sprecherwechsel-Erkennung zurück und protokolliert den Grund.",
   "aboutServiceProvider": "Anbieter",
   "aboutContact": "Kontakt",
   "aboutPrivacy": "Datenschutz",
@@ -639,6 +650,16 @@
   "logsCopyAll": "Alle kopieren",
   "logsExport": "In Datei exportieren",
   "logsShare": "Als Datei teilen",
+  "logsVisibleCopied": "Sichtbare Zeilen kopiert",
+  "logsAllCopied": "Alle Protokolle kopiert",
+  "logsExportedTo": "Exportiert nach {path}",
+  "@logsExportedTo": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
   "modelsTitle": "Modell-Verwaltung",
   "modelsNoneAvailable": "Keine Modelle verfügbar",
   "modelsRetry": "Erneut versuchen",
@@ -882,6 +903,37 @@
   "outputSummarize": "Zusammenfassen…",
   "outputOcrImage": "Bild-OCR…",
   "outputRealignTimestamps": "Zeitstempel neu ausrichten",
+  "outputNoAudioLoaded": "Keine Audiodatei geladen",
+  "outputRealigned": "{aligned}/{total} Segmente neu ausgerichtet",
+  "@outputRealigned": {
+    "placeholders": {
+      "aligned": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "outputAlignmentFailed": "Ausrichtung fehlgeschlagen: {error}",
+  "@outputAlignmentFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "outputNoOcrModels": "Keine OCR-Modelle heruntergeladen. Lade eines im Modell-Bildschirm herunter.",
+  "outputOcrNoText": "Kein Text erkannt.",
+  "outputCopiedToClipboard": "In die Zwischenablage kopiert",
+  "outputOcrFailed": "OCR fehlgeschlagen: {error}",
+  "@outputOcrFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "outputDetectLanguage": "Sprache erkennen",
   "outputSummarizeTitle": "Transkript zusammenfassen",
   "outputSummarizeHelp": "Sendet das Transkript an {model} und fordert eine strukturierte Zusammenfassung an. Ausgabe als Markdown-Aufzählungslisten.",
@@ -1150,6 +1202,37 @@
   "synthS2sPickAudio": "Keine Audiodatei ausgewählt",
   "synthS2sBrowse": "Durchsuchen",
   "synthRunButton": "Synthetisieren",
+  "synthVoiceReferenceRequired": "Dieses Modell benötigt eine Stimmreferenz — lade ein Stimmpaket herunter oder nutze den Assistenten zum Stimmklonen.",
+  "synthNoAudioProduced": "kein Audio erzeugt — versuche ein anderes Modell oder eine andere Quantisierung (q8_0 empfohlen)",
+  "synthS2sLoadFailed": "Eingangsaudio konnte nicht geladen werden",
+  "synthS2sNoAudio": "S2S hat kein Audio erzeugt",
+  "synthS2sError": "S2S-Fehler: {error}",
+  "@synthS2sError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "synthProvenanceNotMarked": "Die letzte Ausgabe konnte NICHT mit einem Wasserzeichen versehen werden (zu kurz oder nahezu still). Sie trägt nur Container-Metadaten, die beim erneuten Kodieren verloren gehen — EU-KI-Verordnung Art. 50(2).",
+  "synthProvenanceMarked": "KI-Herkunftsnachweis: Wasserzeichen + C2PA-Manifest + WAV/ID3-Metadaten werden automatisch eingebettet",
+  "synthProvenanceClonedSuffix": ". Geklonte Stimme — ein hörbarer Signalton als Hinweis wird vorangestellt (EU-KI-Verordnung Art. 50(4))",
+  "synthSpeakersAvailable": "{count} Sprecher verfügbar (0-basiert)",
+  "@synthSpeakersAvailable": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "synthSpeakerIndexed": "Sprecher {index}",
+  "@synthSpeakerIndexed": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
   "synthPlayButton": "Abspielen",
   "synthStopButton": "Stopp",
   "synthShareButton": "WAV speichern / teilen",
@@ -1166,6 +1249,100 @@
   "noModelsDownloadedYet": "Noch kein Transkriptionsmodell heruntergeladen — öffne „Modelle“, um eines zu laden.",
   "@noModelsDownloadedYet": {
     "description": "Shown at first launch / before the user has downloaded any model. Replaces defaultModelNotDownloaded when there is literally nothing to load."
+  },
+  "transcribeVerifyWatermark": "Wasserzeichen prüfen",
+  "transcribeDropOverlay": "Audiodatei zum Transkribieren hier ablegen",
+  "transcribeNoModelsMatchFilter": "Keine Modelle entsprechen diesem Filter.",
+  "transcribeNoteTitleDated": "Transkription {date}",
+  "@transcribeNoteTitleDated": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "transcribeFasterThanRealtime": "schneller als Echtzeit",
+  "transcribeSlowerThanRealtime": "langsamer als Echtzeit",
+  "transcribeEngineInitFailed": "Engine-Initialisierung fehlgeschlagen: {error}",
+  "@transcribeEngineInitFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "transcribeStoppedByUser": "Transkription vom Benutzer abgebrochen",
+  "transcribeModelLoadFailedNamed": "Modell {name} konnte nicht geladen werden: {error}",
+  "@transcribeModelLoadFailedNamed": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "watermarkSelectedAudio": "Ausgewähltes Audio",
+  "watermarkTitleDetected": "Wasserzeichen erkannt",
+  "watermarkTitlePossiblyAi": "Möglicherweise KI-generiert",
+  "watermarkTitleNoMarkers": "Keine KI-Merkmale gefunden",
+  "watermarkSynthetic": "synthetisch",
+  "watermarkNotSynthetic": "nicht synthetisch",
+  "watermarkCwPresent": "CrisperWeaver-Wasserzeichen: {kind}, {timestamp}",
+  "@watermarkCwPresent": {
+    "placeholders": {
+      "kind": {
+        "type": "String"
+      },
+      "timestamp": {
+        "type": "String"
+      }
+    }
+  },
+  "watermarkCwAbsent": "Kein CrisperWeaver-Wasserzeichen",
+  "watermarkSpreadPresent": "Spreizspektrum-Wasserzeichen: {percent} % Konfidenz",
+  "@watermarkSpreadPresent": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "watermarkSpreadAbsent": "Kein Spreizspektrum-Wasserzeichen ({percent} %)",
+  "@watermarkSpreadAbsent": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "watermarkC2paPresentFallback": "vorhanden",
+  "watermarkC2paUnsigned": "C2PA-Manifest: {generator} (unsigniertes JSON-LD)",
+  "@watermarkC2paUnsigned": {
+    "placeholders": {
+      "generator": {
+        "type": "String"
+      }
+    }
+  },
+  "watermarkC2paSigned": "C2PA-Manifest: COSE-signiert (kryptografisch)",
+  "watermarkC2paAbsent": "Kein C2PA-Manifest",
+  "watermarkHeuristic": "Heuristik: {percent} % KI-Wahrscheinlichkeit",
+  "@watermarkHeuristic": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "watermarkCheckFailed": "Wasserzeichenprüfung fehlgeschlagen: {error}",
+  "@watermarkCheckFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
   "filePickerCloudFileUnsupported": "Diese Datei liegt im Cloud-Speicher und kann nicht direkt geöffnet werden. Bitte erst lokal kopieren (Downloads / Dateien auf diesem Gerät) und erneut versuchen.",
   "@filePickerCloudFileUnsupported": {
@@ -1502,6 +1679,50 @@
   "synthCloneNoCapableModel": "Keines deiner heruntergeladenen TTS-Modelle kann eine Stimme klonen. Lade zuerst chatterbox, IndexTTS, Qwen3-TTS Base, VibeVoice 1.5B oder F5-TTS in der Modellverwaltung herunter.",
   "recorderStreamSession": "Stream (Session)",
   "recorderStreamSessionTooltip": "Live-Transkription über den aktiven Backend-Streamer (kyutai-stt / moonshine-streaming / voxtral4b). Fällt auf Whisper-Sliding-Window zurück, wenn das Backend keinen Streaming-Pfad bietet.",
+  "recorderTitle": "Audiorekorder",
+  "recorderCompleted": "Aufnahme abgeschlossen",
+  "recorderDurationLabel": "Dauer: {duration}",
+  "@recorderDurationLabel": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "recorderStopPlayback": "Wiedergabe stoppen",
+  "recorderPlayRecording": "Aufnahme abspielen",
+  "recorderStartFailed": "Aufnahme konnte nicht gestartet werden: {error}",
+  "@recorderStartFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "recorderStopFailed": "Aufnahme konnte nicht gestoppt werden: {error}",
+  "@recorderStopFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "recorderPlayFailed": "Aufnahme konnte nicht abgespielt werden: {error}",
+  "@recorderPlayFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "recorderDeleteFailed": "Aufnahme konnte nicht gelöscht werden: {error}",
+  "@recorderDeleteFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "streamingNotAvailableForBackend": "Das aktive Backend ({backend}) hat keinen Streaming-Pfad. Wechsle zu whisper, kyutai-stt, moonshine-streaming oder voxtral4b.",
   "@streamingNotAvailableForBackend": {
     "placeholders": {
@@ -1948,6 +2169,16 @@
   "historyCompareButton": "Vergleichen…",
   "historyCompareNoOtherEntries": "Keine anderen Einträge zum Vergleichen vorhanden",
   "historyComparePickerTitle": "Vergleichen mit…",
+  "historyNoEmbeddingModel": "Kein Embedding-Modell verfügbar — lade eines im Modell-Bildschirm herunter.",
+  "historyReindexed": "{count} Einträge mit Embeddings neu indexiert.",
+  "@historyReindexed": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "historyReindexTooltip": "Embeddings neu indexieren",
   "menuCompareModels": "Modelle vergleichen",
   "menuSubtitleOverlay": "Untertitel-Overlay",
   "advancedTagSegmentLanguages": "Segmentsprachen markieren",
@@ -2096,6 +2327,31 @@
   "modelsTooLargeBody": "{model} benötigt zum Laden etwa {size} Arbeitsspeicher; dieses Gerät kann einem Modell etwa {budget} zur Verfügung stellen.\n\nDer Download funktioniert, aber das Laden wird höchstwahrscheinlich fehlschlagen oder die App beenden. Eine kleinere Variante desselben Modells funktioniert meist gut.",
   "modelsDownloadAnyway": "Trotzdem laden",
   "modelsTooLargeInline": "Zu groß für dieses Gerät",
+  "modelsNonCommercialTitle": "Nicht-kommerzielle Lizenz",
+  "modelsNonCommercialBody": "{name} steht unter folgender Lizenz:\n\n{license}\n\nDiese erlaubt ausschließlich nicht-kommerzielle Nutzung bzw. Forschung. Mit dem Herunterladen bestätigst du, diese Gewichte nicht kommerziell zu nutzen.",
+  "@modelsNonCommercialBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "license": {
+        "type": "String"
+      }
+    }
+  },
+  "modelsNonCommercialAccept": "Verstanden",
+  "modelsCatalogueHeader": "CrispASR-Modelle",
+  "modelsDownloadedOfTotal": "{count} von {total} heruntergeladen",
+  "@modelsDownloadedOfTotal": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
   "settingsExperimentalSection": "Weitere Funktionen",
   "settingsExperimentalTitle": "Erweiterte Funktionen anzeigen",
   "settingsExperimentalSubtitle": "Ergänzt Transkriptvergleich, Untertitel-Overlay, Voice-Baking, Audiobearbeitung, den lokalen API-Server sowie Log- und Speicheransicht.",

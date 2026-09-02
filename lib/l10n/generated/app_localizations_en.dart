@@ -495,6 +495,9 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get aboutTagline => 'On-device speech recognition via ggml / CrispASR';
+
+  @override
   String get settingsTranscription => 'Transcription';
 
   @override
@@ -837,6 +840,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsAboutCrisperWeaver => 'About CrisperWeaver';
 
   @override
+  String get settingsBuildInfoCopied => 'Build info copied to clipboard';
+
+  @override
   String get settingsAboutCrisperWeaverSubtitle =>
       'Author, contact, disclaimer, licenses';
 
@@ -990,6 +996,41 @@ class AppLocalizationsEn extends AppLocalizations {
   String get diarizationModelSelectionTitle => 'Diarization Model Selection';
 
   @override
+  String get diarizationTipsTitle => 'Tips for better results';
+
+  @override
+  String get diarizationTipsBody =>
+      '• Use clean audio with minimal background noise\n• Recordings where speakers don\'t talk over each other work better\n• FoxNose is the method that can be told how many speakers to find\n• Set min/max speakers if you know how many to expect';
+
+  @override
+  String get diarizationPerformanceNote =>
+      'Diarization may take longer than standard transcription';
+
+  @override
+  String get diarizationModelHelpIntro =>
+      'Which diarizer runs over the audio:\n';
+
+  @override
+  String get diarizationModelHelpVadTurns =>
+      '• Speech-turn detection: no extra model, mono-friendly, alternates speakers at pauses. The default.';
+
+  @override
+  String get diarizationModelHelpPyannote =>
+      '• Pyannote v3: ML segmentation (needs pyannote-*.gguf), up to 3 speakers per slice.';
+
+  @override
+  String get diarizationModelHelpFoxnose =>
+      '• FoxNose: WeSpeaker embeddings + clustering (needs wespeaker-*.gguf). The only method that honours the min/max speaker bounds directly.';
+
+  @override
+  String get diarizationModelHelpStereo =>
+      '• Channel energy / cross-correlation: stereo only — one speaker per channel, e.g. a two-track interview.';
+
+  @override
+  String get diarizationModelHelpFooter =>
+      'Methods that need a model file are marked \"(Not downloaded)\" until you fetch them in Model Management. Picking one anyway is safe: the run falls back to speech-turn detection and logs why.';
+
+  @override
   String get aboutServiceProvider => 'Service Provider';
 
   @override
@@ -1081,6 +1122,17 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get logsShare => 'Share as file';
+
+  @override
+  String get logsVisibleCopied => 'Visible lines copied';
+
+  @override
+  String get logsAllCopied => 'All logs copied';
+
+  @override
+  String logsExportedTo(String path) {
+    return 'Exported to $path';
+  }
 
   @override
   String get modelsTitle => 'Model management';
@@ -1482,6 +1534,34 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get outputRealignTimestamps => 'Re-align timestamps';
+
+  @override
+  String get outputNoAudioLoaded => 'No audio file loaded';
+
+  @override
+  String outputRealigned(int aligned, int total) {
+    return 'Re-aligned $aligned/$total segments';
+  }
+
+  @override
+  String outputAlignmentFailed(String error) {
+    return 'Alignment failed: $error';
+  }
+
+  @override
+  String get outputNoOcrModels =>
+      'No OCR models downloaded. Download one from the Models screen.';
+
+  @override
+  String get outputOcrNoText => 'No text recognized.';
+
+  @override
+  String get outputCopiedToClipboard => 'Copied to clipboard';
+
+  @override
+  String outputOcrFailed(String error) {
+    return 'OCR failed: $error';
+  }
 
   @override
   String get outputDetectLanguage => 'Detect language';
@@ -1984,6 +2064,47 @@ class AppLocalizationsEn extends AppLocalizations {
   String get synthRunButton => 'Synthesize';
 
   @override
+  String get synthVoiceReferenceRequired =>
+      'This model requires a voice reference — download a voice pack or use the voice clone wizard.';
+
+  @override
+  String get synthNoAudioProduced =>
+      'no audio produced — try a different model or quantisation (q8_0 recommended)';
+
+  @override
+  String get synthS2sLoadFailed => 'Failed to load input audio';
+
+  @override
+  String get synthS2sNoAudio => 'S2S produced no audio';
+
+  @override
+  String synthS2sError(String error) {
+    return 'S2S error: $error';
+  }
+
+  @override
+  String get synthProvenanceNotMarked =>
+      'Last output could NOT be watermarked (too short or near-silent). It carries only container metadata, which is lost on re-encoding — EU AI Act Art. 50(2).';
+
+  @override
+  String get synthProvenanceMarked =>
+      'AI provenance: watermark + C2PA manifest + WAV/ID3 metadata embedded automatically';
+
+  @override
+  String get synthProvenanceClonedSuffix =>
+      '. Cloned voice — an audible beep disclaimer is prepended (EU AI Act Art. 50(4))';
+
+  @override
+  String synthSpeakersAvailable(int count) {
+    return '$count speakers available (0-indexed)';
+  }
+
+  @override
+  String synthSpeakerIndexed(int index) {
+    return 'Speaker $index';
+  }
+
+  @override
   String get synthPlayButton => 'Play';
 
   @override
@@ -2007,6 +2128,100 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get noModelsDownloadedYet =>
       'No transcription model is downloaded yet — open Models to grab one.';
+
+  @override
+  String get transcribeVerifyWatermark => 'Verify watermark';
+
+  @override
+  String get transcribeDropOverlay => 'Drop audio file to transcribe';
+
+  @override
+  String get transcribeNoModelsMatchFilter => 'No models match this filter.';
+
+  @override
+  String transcribeNoteTitleDated(String date) {
+    return 'Transcription $date';
+  }
+
+  @override
+  String get transcribeFasterThanRealtime => 'faster than real-time';
+
+  @override
+  String get transcribeSlowerThanRealtime => 'slower than real-time';
+
+  @override
+  String transcribeEngineInitFailed(String error) {
+    return 'Engine init failed: $error';
+  }
+
+  @override
+  String get transcribeStoppedByUser => 'Transcription stopped by user';
+
+  @override
+  String transcribeModelLoadFailedNamed(String name, String error) {
+    return 'Failed to load model $name: $error';
+  }
+
+  @override
+  String get watermarkSelectedAudio => 'Selected audio';
+
+  @override
+  String get watermarkTitleDetected => 'Watermark Detected';
+
+  @override
+  String get watermarkTitlePossiblyAi => 'Possibly AI-Generated';
+
+  @override
+  String get watermarkTitleNoMarkers => 'No AI Markers Found';
+
+  @override
+  String get watermarkSynthetic => 'synthetic';
+
+  @override
+  String get watermarkNotSynthetic => 'not synthetic';
+
+  @override
+  String watermarkCwPresent(String kind, String timestamp) {
+    return 'CrisperWeaver watermark: $kind, $timestamp';
+  }
+
+  @override
+  String get watermarkCwAbsent => 'No CrisperWeaver watermark';
+
+  @override
+  String watermarkSpreadPresent(String percent) {
+    return 'Spread-spectrum watermark: $percent% confidence';
+  }
+
+  @override
+  String watermarkSpreadAbsent(String percent) {
+    return 'No spread-spectrum watermark ($percent%)';
+  }
+
+  @override
+  String get watermarkC2paPresentFallback => 'present';
+
+  @override
+  String watermarkC2paUnsigned(String generator) {
+    return 'C2PA manifest: $generator (unsigned JSON-LD)';
+  }
+
+  @override
+  String get watermarkC2paSigned =>
+      'C2PA manifest: COSE-signed (cryptographic)';
+
+  @override
+  String get watermarkC2paAbsent => 'No C2PA manifest';
+
+  @override
+  String watermarkHeuristic(String percent) {
+    return 'Heuristic: $percent% AI likelihood';
+  }
+
+  @override
+  String watermarkCheckFailed(String error) {
+    return 'Watermark check failed: $error';
+  }
 
   @override
   String get filePickerCloudFileUnsupported =>
@@ -2577,6 +2792,43 @@ class AppLocalizationsEn extends AppLocalizations {
       'Live mic transcribe through the active backend\'s streaming arm (kyutai-stt / moonshine-streaming / voxtral4b). Falls back to Whisper sliding-window when the backend has no native stream API.';
 
   @override
+  String get recorderTitle => 'Audio Recorder';
+
+  @override
+  String get recorderCompleted => 'Recording completed';
+
+  @override
+  String recorderDurationLabel(String duration) {
+    return 'Duration: $duration';
+  }
+
+  @override
+  String get recorderStopPlayback => 'Stop playback';
+
+  @override
+  String get recorderPlayRecording => 'Play recording';
+
+  @override
+  String recorderStartFailed(String error) {
+    return 'Failed to start recording: $error';
+  }
+
+  @override
+  String recorderStopFailed(String error) {
+    return 'Failed to stop recording: $error';
+  }
+
+  @override
+  String recorderPlayFailed(String error) {
+    return 'Failed to play recording: $error';
+  }
+
+  @override
+  String recorderDeleteFailed(String error) {
+    return 'Failed to delete recording: $error';
+  }
+
+  @override
   String streamingNotAvailableForBackend(String backend) {
     return 'The active backend ($backend) has no streaming arm. Switch to whisper, kyutai-stt, moonshine-streaming, or voxtral4b.';
   }
@@ -3123,6 +3375,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get historyComparePickerTitle => 'Compare with…';
 
   @override
+  String get historyNoEmbeddingModel =>
+      'No embedding model available — download one from the Models screen.';
+
+  @override
+  String historyReindexed(int count) {
+    return 'Reindexed $count entries with embeddings.';
+  }
+
+  @override
+  String get historyReindexTooltip => 'Reindex embeddings';
+
+  @override
   String get menuCompareModels => 'Compare models';
 
   @override
@@ -3410,6 +3674,25 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get modelsTooLargeInline => 'Too large for this device';
+
+  @override
+  String get modelsNonCommercialTitle => 'Non-commercial licence';
+
+  @override
+  String modelsNonCommercialBody(String name, String license) {
+    return '$name is licensed:\n\n$license\n\nThis permits non-commercial / research use only. By downloading you confirm you will not use these weights commercially.';
+  }
+
+  @override
+  String get modelsNonCommercialAccept => 'I understand';
+
+  @override
+  String get modelsCatalogueHeader => 'CrispASR Models';
+
+  @override
+  String modelsDownloadedOfTotal(int count, int total) {
+    return '$count of $total downloaded';
+  }
 
   @override
   String get settingsExperimentalSection => 'More features';

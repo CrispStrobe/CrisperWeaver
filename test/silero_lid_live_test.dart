@@ -113,25 +113,15 @@ void main() {
           reason: 'empty langCode means the C side returned rc != 0 — the '
               'dylib may predate crispasr_detect_language_pcm, or the '
               'method/model pair was rejected (rc=-2). model=$sileroModel');
-      // KNOWN UPSTREAM DEFECT (CrispASR, isolated 2026-08-29 on linux
-      // x86_64 / libcrispasr 0.8.30): the silero arm misclassifies the
-      // JFK clip — the ggml path answers "pa-in" and the legacy CPU path
-      // (CRISPASR_SILERO_LID_LEGACY=1) answers "fr"; the two paths
-      // disagree with each other AND with the truth, on a weight that is
-      // byte-identical to the catalogue's silero-lid-lang95-f32.gguf.
-      // The whisper LID arm (the app's default) answers en/0.977 on the
-      // same clip. Tracked in CrispASR's PLAN; until it is fixed there,
-      // assert the CONTRACT (an in-vocabulary answer above the floor)
-      // and record — rather than fail on — the accuracy defect, so this
-      // suite stays a gate for the app while still lighting up the day
-      // the engine fix lands.
-      if (!r.langCode.toLowerCase().startsWith('en')) {
-        markTestSkipped('KNOWN UPSTREAM: silero LID answered '
-            '"${r.langCode}" (conf ${r.confidence.toStringAsFixed(3)}) for '
-            'English audio — see CrispASR PLAN entry 2026-08-29. Remove '
-            'this skip when the engine-side fix lands.');
-        return;
-      }
+      // 2026-08-30 postscript to a resolved scare: the "pa-in"/"fr"
+      // answers this test once skip-tracked came from ONE stale build
+      // artifact (overwritten before autopsy); the engine was verified
+      // correct on this box natively at HEAD and at 0.8.29, per-stage
+      // vs the ONNX blueprint upstream (CrispASR PLAN, RESOLVED
+      // 2026-08-29 + x86 confirmation 2026-08-30). Hard assertion
+      // restored — a wrong answer here is a real regression again.
+      expect(r.langCode.toLowerCase(), startsWith('en'),
+          reason: 'the JFK clip is English; got "${r.langCode}"');
       // 0.35 is LidService.detectIfModelAvailable's default floor —
       // below it the service discards the answer and skips LID, so a
       // result under it is indistinguishable from no result at all.

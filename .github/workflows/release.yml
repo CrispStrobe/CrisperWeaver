@@ -52,7 +52,12 @@ env:
   # backends or add them to its documented `engineOnly` set, then commit
   # the bump on its own so a regression bisects cleanly.
   CRISPASR_REPO: CrispStrobe/CrispASR
-  CRISPASR_REF: v0.8.30
+  # Pinned to a main SHA (not the v0.8.30 tag): it carries two post-tag
+  # engine fixes CrisperWeaver's next release depends on — silero-lid
+  # confidence as a softmax probability (fbe39169; the app's 0.35 floor
+  # discarded raw-logit answers) and same-handle speaker enrollment
+  # (91e8afad). Re-pin to the next CrispASR version tag when it exists.
+  CRISPASR_REF: 3244be02610f953fd0212e08c7fc3be573d6ad2d
   CRISPEMBED_REPO: CrispStrobe/CrispEmbed
   CRISPEMBED_REF: 40e7b7dd00bb6b1505c9e6ac74bef0c97efef337
   GLINT_REPO: CrispStrobe/glint

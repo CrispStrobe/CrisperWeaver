@@ -31,7 +31,7 @@ env:
   # backends or add them to its documented `engineOnly` set, then commit
   # the bump on its own so a regression bisects cleanly.
   CRISPASR_REPO: CrispStrobe/CrispASR
-  CRISPASR_REF: 110fd5ced6db4fb126108a0bf8fbaa8d51df9127
+  CRISPASR_REF: 3244be02610f953fd0212e08c7fc3be573d6ad2d
   # CrispEmbed — on-device embeddings. pubspec path: `../CrispEmbed/flutter/crispembed`.
   CRISPEMBED_REPO: CrispStrobe/CrispEmbed
   CRISPEMBED_REF: 40e7b7dd00bb6b1505c9e6ac74bef0c97efef337
@@ -105,9 +105,113 @@ jobs:
             exit $status
           fi
 
+      # Coverage is collected on the ubuntu leg only. `--coverage` adds a
+      # VM-service collection pass to every test file, which roughly doubles
+      # the suite's wall time; the macOS leg exists to prove the suite passes
+      # on macOS, so it stays uninstrumented and fast.
       - name: Tests
+        if: matrix.os != 'ubuntu-latest'
         working-directory: repos/CrisperWeaver
         run: flutter test --reporter expanded
+
+      - name: Tests (with coverage)
+        if: matrix.os == 'ubuntu-latest'
+        working-directory: repos/CrisperWeaver
+        run: flutter test --coverage --reporter expanded
+
+      # Two numbers, because one of them is misleading on its own:
+      #
+      # * "total" is every line lcov saw, including ~3.5k lines of generated
+      #   l10n (lib/l10n/generated/*) that no hand-written test will ever
+      #   exercise and that regenerate wholesale whenever a string is added.
+      # * "adjusted" excludes those, and is the number the floor watches.
+      #
+      # Screens are near-zero here by design: they are covered by
+      # integration_test/gui_flow_test.dart (run uninstrumented in the GUI
+      # job) and by the live suites, neither of which feeds this lcov.
+      #
+      # This step never fails the build — it warns. A coverage floor that can
+      # block a merge turns into a floor people route around; one that leaves
+      # a visible ::warning:: on the run is enough to notice a real drop.
+      - name: Coverage summary
+        if: ${{ always() && matrix.os == 'ubuntu-latest' }}
+        working-directory: repos/CrisperWeaver
+        env:
+          # Set 2 points under the measured adjusted total at the time this
+          # step was added (25.30% on 2026-09-02). Raise it when the real
+          # number climbs; never lower it to make a red run green.
+          COVERAGE_FLOOR: "23.3"
+        run: |
+          python3 - <<'PY'
+          import collections, os, sys
+
+          path = 'coverage/lcov.info'
+          if not os.path.exists(path):
+              print('::warning::no coverage/lcov.info produced — skipping coverage summary')
+              sys.exit(0)
+
+          per = collections.defaultdict(lambda: [0, 0])
+          cur = None
+          with open(path) as fh:
+              for line in fh:
+                  line = line.strip()
+                  if line.startswith('SF:'):
+                      cur = line[3:]
+                  elif line.startswith('LH:') and cur:
+                      per[cur][0] += int(line[3:])
+                  elif line.startswith('LF:') and cur:
+                      per[cur][1] += int(line[3:])
+
+          GEN = 'lib/l10n/generated/'
+          tot_h = sum(h for h, _ in per.values())
+          tot_f = sum(f for _, f in per.values())
+          adj_h = sum(h for k, (h, _) in per.items() if GEN not in k)
+          adj_f = sum(f for k, (_, f) in per.items() if GEN not in k)
+
+          def pct(h, f):
+              return (100.0 * h / f) if f else 0.0
+
+          total = pct(tot_h, tot_f)
+          adjusted = pct(adj_h, adj_f)
+
+          dirs = collections.defaultdict(lambda: [0, 0])
+          for k, (h, f) in per.items():
+              parts = k.split('/')
+              key = '/'.join(parts[:2]) if len(parts) > 2 else k
+              dirs[key][0] += h
+              dirs[key][1] += f
+
+          lines = []
+          lines.append(f'total    {tot_h}/{tot_f} lines = {total:.2f}%')
+          lines.append(f'adjusted {adj_h}/{adj_f} lines = {adjusted:.2f}%  (excludes {GEN})')
+          lines.append('')
+          lines.append('per-directory:')
+          for k in sorted(dirs):
+              h, f = dirs[k]
+              lines.append(f'  {k:<32} {h:>6}/{f:<6} {pct(h, f):5.1f}%')
+          report = '\n'.join(lines)
+          print(report)
+
+          summary = os.environ.get('GITHUB_STEP_SUMMARY')
+          if summary:
+              with open(summary, 'a') as fh:
+                  fh.write('## Unit-test line coverage\n\n```\n' + report + '\n```\n')
+
+          floor = float(os.environ.get('COVERAGE_FLOOR', '0'))
+          if adjusted < floor:
+              print(f'::warning::adjusted line coverage {adjusted:.2f}% is below the '
+                    f'{floor:.1f}% floor — a test was likely dropped or a large '
+                    f'untested surface was added')
+          PY
+
+      - name: Upload coverage (lcov)
+        if: ${{ always() && matrix.os == 'ubuntu-latest' }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: coverage-lcov
+          path: repos/CrisperWeaver/coverage/lcov.info
+          if-no-files-found: warn
+          retention-days: 14
 
   build-macos:
     name: Build macOS (.app)

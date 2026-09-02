@@ -1206,6 +1206,7 @@ class _AdvancedDecodingSectionState
             decoration: InputDecoration(
               labelText: l.advancedVadBackend,
               helperText: l.advancedVadBackendHelper,
+              helperMaxLines: 3,
               border: const OutlineInputBorder(),
               isDense: true,
               contentPadding:
@@ -1315,6 +1316,7 @@ class _AdvancedDecodingSectionState
         decoration: InputDecoration(
           labelText: l.advancedLidMethod,
           helperText: l.advancedLidMethodHelper,
+          helperMaxLines: 3,
           border: const OutlineInputBorder(),
           isDense: true,
           contentPadding:
@@ -1356,6 +1358,7 @@ class _AdvancedDecodingSectionState
         decoration: InputDecoration(
           labelText: l.advancedDiarizeMethod,
           helperText: l.advancedDiarizeMethodHelper,
+          helperMaxLines: 3,
           border: const OutlineInputBorder(),
           isDense: true,
           contentPadding:
@@ -1549,6 +1552,7 @@ class _AdvancedDecodingSectionState
           decoration: InputDecoration(
             labelText: l.advancedGrammarRootRule,
             helperText: l.advancedGrammarRootRuleHelper,
+            helperMaxLines: 3,
             border: const OutlineInputBorder(),
             isDense: true,
           ),
@@ -1617,6 +1621,7 @@ class _AdvancedDecodingSectionState
           decoration: InputDecoration(
             labelText: l.advancedSuppressTokensRegex,
             helperText: l.advancedSuppressTokensRegexHelper,
+            helperMaxLines: 3,
             border: const OutlineInputBorder(),
             isDense: true,
           ),
@@ -1864,6 +1869,9 @@ class _AdvancedDecodingSectionState
                 decoration: InputDecoration(
                   labelText: l.advancedTranscribeWindowStart,
                   helperText: l.advancedTranscribeWindowStartHelper,
+                  // Half-width (two fields share a Row), so even this
+                  // short helper wraps — 33 chars in EN, 38 in DE.
+                  helperMaxLines: 2,
                   border: const OutlineInputBorder(),
                   isDense: true,
                 ),
@@ -1888,6 +1896,7 @@ class _AdvancedDecodingSectionState
                   labelText: l.advancedTranscribeWindowDuration,
                   helperText:
                       l.advancedTranscribeWindowDurationHelper,
+                  helperMaxLines: 2,
                   border: const OutlineInputBorder(),
                   isDense: true,
                 ),
@@ -1970,6 +1979,7 @@ class _AdvancedDecodingSectionState
         decoration: InputDecoration(
           labelText: l.advancedPuncFamily,
           helperText: l.advancedPuncFamilyHelper,
+          helperMaxLines: 3,
           border: const OutlineInputBorder(),
           isDense: true,
           contentPadding:
@@ -2083,6 +2093,7 @@ class _AdvancedDecodingSectionState
           labelText: l.advancedAskPrompt,
           hintText: l.advancedAskPromptHint,
           helperText: l.advancedAskPromptHelper,
+          helperMaxLines: 4,
           border: const OutlineInputBorder(),
           isDense: true,
           contentPadding:
@@ -2143,6 +2154,7 @@ class _AdvancedDecodingSectionState
                     labelText: l.advancedVocabulary,
                     hintText: l.advancedVocabularyHint,
                     helperText: mechanism,
+                    helperMaxLines: 3,
                     border: const OutlineInputBorder(),
                     isDense: true,
                     contentPadding: const EdgeInsets.symmetric(
@@ -2201,6 +2213,7 @@ class _AdvancedDecodingSectionState
           helperText: supported
               ? l.advancedHotwordsHelper
               : l.advancedHotwordsUnsupported,
+          helperMaxLines: 3,
           border: const OutlineInputBorder(),
           isDense: true,
           contentPadding:
@@ -2339,6 +2352,7 @@ class _AdvancedDecodingSectionState
         decoration: InputDecoration(
           labelText: l.advancedSourceLanguage,
           helperText: l.advancedSourceLanguageHelper,
+          helperMaxLines: 3,
           border: const OutlineInputBorder(),
           isDense: true,
           contentPadding:
@@ -2371,6 +2385,7 @@ class _AdvancedDecodingSectionState
         decoration: InputDecoration(
           labelText: l.advancedTargetLanguage,
           helperText: l.advancedTargetLanguageHelper,
+          helperMaxLines: 3,
           border: const OutlineInputBorder(),
           isDense: true,
           contentPadding:

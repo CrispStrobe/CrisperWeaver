@@ -159,6 +159,36 @@ void main() {
       );
     });
 
+    test('vibevoice-1.5b finds the vibevoice-tts voicepacks', () {
+      // The regression: the 1.5b model's backend is `vibevoice-1.5b`, its
+      // voicepacks are `vibevoice-tts`. Asking with the raw model backend
+      // finds nothing; asking with the mapped one finds the companion.
+      final emma = _info('vibevoice-voice-en-Emma_woman',
+          kind: ModelKind.voice, backend: 'vibevoice-tts');
+      final alice = _info('vibevoice-voice-en-Alice_woman',
+          kind: ModelKind.voice, backend: 'vibevoice-tts');
+      const modelBackend = 'vibevoice-1.5b';
+      const companions = ['vibevoice-voice-en-Emma_woman'];
+
+      expect(
+        SynthesizeScreen.pickDefaultTtsVoice(
+          models: [alice, emma],
+          backend: modelBackend,
+          companions: companions,
+        ),
+        isNull,
+        reason: 'unmapped backend is exactly the bug being fixed',
+      );
+      expect(
+        SynthesizeScreen.pickDefaultTtsVoice(
+          models: [alice, emma],
+          backend: SynthesizeScreen.companionBackendFor(modelBackend),
+          companions: companions,
+        ),
+        'vibevoice-voice-en-Emma_woman',
+      );
+    });
+
     test('null when the backend has no downloaded voicepack', () {
       expect(
         SynthesizeScreen.pickDefaultTtsVoice(
@@ -169,6 +199,67 @@ void main() {
         ),
         isNull,
       );
+    });
+  });
+
+  group('SynthesizeScreen.companionBackendFor', () {
+    test('the split families map onto their base backend', () {
+      // vibevoice-1.5b is a TTS *model* backend; every voicepack row in
+      // the catalogue is `vibevoice-tts`. Matching on the model's own
+      // backend left 1.5b users with an empty voice dropdown.
+      expect(SynthesizeScreen.companionBackendFor('vibevoice-1.5b'),
+          'vibevoice-tts');
+      // Same shape on the codec side: the cosyvoice3 RL model's flow /
+      // hift / s3tok / campplus / voices rows are all `cosyvoice3-tts`.
+      expect(SynthesizeScreen.companionBackendFor('cosyvoice3-tts-rl'),
+          'cosyvoice3-tts');
+      // …and zonos' only codec companion is the shared DAC row, filed
+      // under `dia`.
+      expect(SynthesizeScreen.companionBackendFor('zonos'), 'dia');
+    });
+
+    test('every other backend is left alone', () {
+      for (final b in const [
+        'kokoro',
+        'vibevoice-tts',
+        'cosyvoice3-tts',
+        'dia',
+        'qwen3-tts',
+        'orpheus',
+        'chatterbox',
+        '',
+      ]) {
+        expect(SynthesizeScreen.companionBackendFor(b), b,
+            reason: 'the families companionBackendFor maps *onto* must keep '
+                'resolving to themselves');
+      }
+    });
+
+    test('no catalogue entry declares a companion the mapping cannot reach',
+        () {
+      // The real guard: walk every TTS row in the live catalogue (which
+      // includes the programmatically generated voicepacks) and check that
+      // each voice/codec companion it declares is filed under exactly the
+      // backend `companionBackendFor` sends the dropdown to. A new split
+      // family added without a mapping fails here instead of shipping as
+      // another empty dropdown.
+      final unreachable = <String>[];
+      for (final def in ModelCatalog.crispasrBackendModels.values) {
+        if (def.kind != ModelKind.tts) continue;
+        final want = SynthesizeScreen.companionBackendFor(def.backend);
+        for (final cName in def.companions) {
+          final c = ModelCatalog.crispasrBackendModels[cName];
+          if (c == null) continue;
+          if (c.kind != ModelKind.voice && c.kind != ModelKind.codec) continue;
+          if (c.backend != want) {
+            unreachable.add('${def.name} (${def.backend}) -> $cName '
+                '(${c.kind.name}/${c.backend}), dropdown looks in "$want"');
+          }
+        }
+      }
+      expect(unreachable, isEmpty,
+          reason: 'add a companionBackendFor mapping for:\n'
+              '${unreachable.join('\n')}');
     });
   });
 

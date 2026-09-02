@@ -185,20 +185,23 @@ class _LogsScreenState extends ConsumerState<LogsScreen> {
   }
 
   Future<void> _action(String a) async {
+    // Resolved before the first await: every toast below sits after one,
+    // and reading `context` across an async gap is an analyzer error.
+    final l = AppLocalizations.of(context);
     switch (a) {
       case 'copy':
         await Clipboard.setData(ClipboardData(
           text: _visible.map((e) => e.format()).join('\n'),
         ));
-        _toast('Visible lines copied');
+        _toast(l.logsVisibleCopied);
         break;
       case 'copy_all':
         await Clipboard.setData(ClipboardData(text: Log.instance.dumpAll()));
-        _toast('All logs copied');
+        _toast(l.logsAllCopied);
         break;
       case 'export':
         final path = await Log.instance.exportToFile();
-        _toast('Exported to $path');
+        _toast(l.logsExportedTo(path));
         break;
       case 'share':
         final path = await Log.instance.exportToFile();

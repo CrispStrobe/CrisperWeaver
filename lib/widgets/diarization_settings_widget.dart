@@ -329,7 +329,7 @@ class DiarizationSettingsWidget extends StatelessWidget {
                       color: Colors.blue.shade700, size: 20),
                   const SizedBox(width: 8),
                   Text(
-                    'Tips for better results',
+                    AppLocalizations.of(context).diarizationTipsTitle,
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       color: Colors.blue.shade800,
@@ -339,10 +339,7 @@ class DiarizationSettingsWidget extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                '• Use clean audio with minimal background noise\n'
-                '• Recordings where speakers don\'t talk over each other work better\n'
-                '• FoxNose is the method that can be told how many speakers to find\n'
-                '• Set min/max speakers if you know how many to expect',
+                AppLocalizations.of(context).diarizationTipsBody,
                 style: TextStyle(
                   fontSize: 12,
                   color: Colors.blue.shade700,
@@ -368,7 +365,7 @@ class DiarizationSettingsWidget extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Diarization may take longer than standard transcription',
+                  AppLocalizations.of(context).diarizationPerformanceNote,
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.orange.shade700,
@@ -388,32 +385,24 @@ class DiarizationSettingsWidget extends StatelessWidget {
       builder: (context) => AlertDialog(
         title:
             Text(AppLocalizations.of(context).diarizationModelSelectionTitle),
-        content: const SingleChildScrollView(
+        content: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                'Which diarizer runs over the audio:\n',
-                style: TextStyle(fontWeight: FontWeight.bold),
+                AppLocalizations.of(context).diarizationModelHelpIntro,
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
-              SizedBox(height: 8),
-              Text('• Speech-turn detection: no extra model, mono-friendly, '
-                  'alternates speakers at pauses. The default.'),
-              Text('• Pyannote v3: ML segmentation (needs pyannote-*.gguf), '
-                  'up to 3 speakers per slice.'),
-              Text('• FoxNose: WeSpeaker embeddings + clustering (needs '
-                  'wespeaker-*.gguf). The only method that honours the '
-                  'min/max speaker bounds directly.'),
-              Text('• Channel energy / cross-correlation: stereo only — '
-                  'one speaker per channel, e.g. a two-track interview.'),
-              SizedBox(height: 12),
+              const SizedBox(height: 8),
+              Text(AppLocalizations.of(context).diarizationModelHelpVadTurns),
+              Text(AppLocalizations.of(context).diarizationModelHelpPyannote),
+              Text(AppLocalizations.of(context).diarizationModelHelpFoxnose),
+              Text(AppLocalizations.of(context).diarizationModelHelpStereo),
+              const SizedBox(height: 12),
               Text(
-                'Methods that need a model file are marked "(Not downloaded)" '
-                'until you fetch them in Model Management. Picking one anyway '
-                'is safe: the run falls back to speech-turn detection and logs '
-                'why.',
-                style: TextStyle(fontStyle: FontStyle.italic),
+                AppLocalizations.of(context).diarizationModelHelpFooter,
+                style: const TextStyle(fontStyle: FontStyle.italic),
               ),
             ],
           ),
