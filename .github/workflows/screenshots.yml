@@ -1,0 +1,85 @@
+name: App Store Screenshots
+
+on:
+  workflow_dispatch:
+    inputs:
+      locale:
+        description: 'App language to capture (en or de)'
+        type: choice
+        options: ['en', 'de']
+        default: 'en'
+
+jobs:
+  screenshots:
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.4'
+          channel: stable
+          cache: true
+
+      - name: Disable Swift Package Manager
+        run: flutter config --no-enable-swift-package-manager
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Boot simulators
+        run: |
+          set -euo pipefail
+          pick() {
+            for pat in "$@"; do
+              udid=$(xcrun simctl list devices available | grep -m1 -E "$pat" | grep -oE "[0-9A-Fa-f-]{36}" || true)
+              [ -n "$udid" ] && { echo "$udid"; return 0; }
+            done
+            return 1
+          }
+          IPHONE=$(pick "iPhone 16 Pro Max" "iPhone 1[5-9].*Pro Max" "iPhone .*Pro Max")
+          IPAD=$(pick "iPad Pro 13-inch" "iPad Pro .*12.9-inch" "iPad Pro")
+          echo "iPhone: $IPHONE"; echo "iPad: $IPAD"
+          [ -n "$IPHONE" ] && [ -n "$IPAD" ] || { echo "missing a device"; exit 1; }
+          xcrun simctl boot "$IPHONE" || true
+          xcrun simctl boot "$IPAD" || true
+          echo "IPHONE_UDID=$IPHONE" >> "$GITHUB_ENV"
+          echo "IPAD_UDID=$IPAD" >> "$GITHUB_ENV"
+
+      - name: Capture — iPhone 6.9"
+        run: |
+          mkdir -p screenshots
+          flutter test integration_test/screenshots_test.dart \
+            --dart-define=SHOT_PREFIX=iphone_${{ inputs.locale }} \
+            --dart-define=SHOT_LOCALE=${{ inputs.locale }} \
+            --dart-define=SHOT_DIR=screenshots \
+            -d "$IPHONE_UDID"
+
+      - name: Capture — iPad 13"
+        if: always()
+        run: |
+          flutter test integration_test/screenshots_test.dart \
+            --dart-define=SHOT_PREFIX=ipad_${{ inputs.locale }} \
+            --dart-define=SHOT_LOCALE=${{ inputs.locale }} \
+            --dart-define=SHOT_DIR=screenshots \
+            -d "$IPAD_UDID"
+
+      - name: Capture — macOS
+        if: always()
+        run: |
+          flutter config --enable-macos-desktop
+          flutter test integration_test/screenshots_test.dart \
+            --dart-define=SHOT_PREFIX=macos_${{ inputs.locale }} \
+            --dart-define=SHOT_LOCALE=${{ inputs.locale }} \
+            --dart-define=SHOT_DIR=screenshots \
+            -d macos
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-store-screenshots-${{ inputs.locale }}
+          path: screenshots/*.png
+          if-no-files-found: warn
