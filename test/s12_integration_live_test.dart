@@ -128,7 +128,7 @@ void main() {
         createdAt: DateTime.now(),
         engineId: 'crispasr',
         segments: [
-          TranscriptionSegment(
+          const TranscriptionSegment(
               text: 'test audio', startTime: 0, endTime: 5),
         ],
         audioEmbedding: embedding,
@@ -145,7 +145,7 @@ void main() {
         createdAt: DateTime(2026, 7, 4),
         engineId: 'crispasr',
         segments: [
-          TranscriptionSegment(text: 'hello', startTime: 0, endTime: 1),
+          const TranscriptionSegment(text: 'hello', startTime: 0, endTime: 1),
         ],
         audioEmbedding: embedding,
       );
@@ -162,11 +162,11 @@ void main() {
     test('rerankWithScorer inverts cosine ranking for targeted query', () {
       // Use keyword-based scorer to verify the rerank pipeline.
       final segments = [
-        TranscriptionSegment(
+        const TranscriptionSegment(
             text: 'the weather is sunny today', startTime: 0, endTime: 5),
-        TranscriptionSegment(
+        const TranscriptionSegment(
             text: 'deep learning models are powerful', startTime: 5, endTime: 10),
-        TranscriptionSegment(
+        const TranscriptionSegment(
             text: 'flutter builds beautiful apps', startTime: 10, endTime: 15),
       ];
 

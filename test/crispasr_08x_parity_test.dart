@@ -335,7 +335,7 @@ void main() {
     test('realignTimestamps returns segments unchanged on empty PCM', () async {
       final aligner = AlignerService();
       final segments = [
-        TranscriptionSegment(
+        const TranscriptionSegment(
             text: 'hello world', startTime: 0.0, endTime: 5.0),
       ];
       final result =

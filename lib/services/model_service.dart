@@ -1177,7 +1177,7 @@ class ModelService {
     }
     final free = getAvailableDiskSpace(target.path);
     if (free >= 0 && free < totalBytes + 256 * 1024 * 1024) {
-      throw ModelException(
+      throw const ModelException(
           'The selected volume does not have enough free space for the model library.');
     }
 

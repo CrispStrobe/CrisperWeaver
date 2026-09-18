@@ -42,7 +42,6 @@ import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:crisper_weaver/services/model_catalog.dart';
 import 'package:crisper_weaver/services/model_service.dart';
 
 /// The smallest real file the catalogue points at: a kokoro voicepack.

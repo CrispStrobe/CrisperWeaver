@@ -30,8 +30,8 @@ void main() {
       })();
 
   const modelsDir = '/mnt/volume1/models';
-  final embedModel = '$modelsDir/all-MiniLM-L6-v2-iq4_xs.gguf';
-  final rerankerModel = '$modelsDir/ms-marco-MiniLM-L-6-v2-iq4_xs.gguf';
+  const embedModel = '$modelsDir/all-MiniLM-L6-v2-iq4_xs.gguf';
+  const rerankerModel = '$modelsDir/ms-marco-MiniLM-L-6-v2-iq4_xs.gguf';
 
   group('CrispEmbed dense embedding (live)', () {
     test('encode produces 384-dim vector', () {

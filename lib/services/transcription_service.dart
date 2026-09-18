@@ -195,7 +195,7 @@ class AdvancedTranscribeOptions {
   /// §10 — Explicit aligner model path or null for auto-discovery.
   /// When set, AlignerService uses this GGUF for forced alignment
   /// instead of auto-finding one on disk. Allows users to pick
-  /// between canary-ctc-aligner and wav2vec2-aligner-<lang> variants.
+  /// between canary-ctc-aligner and `wav2vec2-aligner-<lang>` variants.
   final String? alignerModel;
 
   /// §14.2d — Chunked transcription window (seconds). 0 = per-model
