@@ -85,20 +85,20 @@ void main() {
 
   group('isPhoneWidth / isCompactWidth', () {
     testWidgets('true below the phone breakpoint', (t) async {
-      final ctx = await _contextWithSize(t, Size(Breakpoints.phone - 1, 800));
+      final ctx = await _contextWithSize(t, const Size(Breakpoints.phone - 1, 800));
       expect(isPhoneWidth(ctx), isTrue);
       expect(isCompactWidth(ctx), isTrue);
     });
 
     testWidgets('phone breakpoint width itself is NOT phone (strict <)',
         (t) async {
-      final ctx = await _contextWithSize(t, Size(Breakpoints.phone, 800));
+      final ctx = await _contextWithSize(t, const Size(Breakpoints.phone, 800));
       expect(isPhoneWidth(ctx), isFalse);
     });
 
     testWidgets('between phone and compact: compact yes, phone no', (t) async {
-      final mid = (Breakpoints.phone + Breakpoints.compact) / 2;
-      final ctx = await _contextWithSize(t, Size(mid, 800));
+      const mid = (Breakpoints.phone + Breakpoints.compact) / 2;
+      final ctx = await _contextWithSize(t, const Size(mid, 800));
       expect(isPhoneWidth(ctx), isFalse);
       expect(isCompactWidth(ctx), isTrue);
     });

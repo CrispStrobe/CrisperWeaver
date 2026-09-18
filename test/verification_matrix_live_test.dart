@@ -26,10 +26,6 @@ void main() {
       }
 
       final session = crispasr.CrispasrSession.open(model, libPath: lib);
-      if (session == null) {
-        markTestSkipped('indextts session failed to open');
-        return;
-      }
 
       try {
         final samples = session.synthesize('Hello world');
@@ -51,10 +47,6 @@ void main() {
       }
 
       final session = crispasr.CrispasrSession.open(model, libPath: lib);
-      if (session == null) {
-        markTestSkipped('voxcpm2 session failed to open');
-        return;
-      }
 
       try {
         final samples = session.synthesize('Testing voice cloning');
@@ -76,10 +68,6 @@ void main() {
       }
 
       final session = crispasr.CrispasrSession.open(model, libPath: lib);
-      if (session == null) {
-        markTestSkipped('m2m100 session failed to open');
-        return;
-      }
 
       try {
         session.setSourceLanguage('en');

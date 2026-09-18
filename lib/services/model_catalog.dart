@@ -1501,7 +1501,7 @@ abstract final class ModelCatalog {
           'Japanese anime/galgame speech fine-tune of Qwen3-ASR 1.7B — ~1.1 GB',
       quantization: 'q4_k',
       backend: 'qwen3',
-      languages: const ['ja'],
+      languages: ['ja'],
     ),
     // Mega-ASR — Qwen3-ASR-1.7B with the upstream robustness LoRA merged
     // offline. Dispatches through the qwen3 code path in
@@ -4563,7 +4563,7 @@ abstract final class ModelCatalog {
       quantization: 'iq4_xs',
       backend: 'reranker',
       kind: ModelKind.reranker,
-      languages: const ['en'],
+      languages: ['en'],
     ),
     'mxbai-rerank-xsmall-v1-q8_0': ModelDefinition(
       name: 'mxbai-rerank-xsmall-v1-q8_0',
@@ -4578,7 +4578,7 @@ abstract final class ModelCatalog {
       quantization: 'q8_0',
       backend: 'reranker',
       kind: ModelKind.reranker,
-      languages: const ['en'],
+      languages: ['en'],
     ),
     'bge-reranker-v2-m3-q8_0': ModelDefinition(
       name: 'bge-reranker-v2-m3-q8_0',
@@ -4593,7 +4593,7 @@ abstract final class ModelCatalog {
       quantization: 'q8_0',
       backend: 'reranker',
       kind: ModelKind.reranker,
-      languages: const ['*'],
+      languages: ['*'],
     ),
 
     // §12.4 — Larger embedding models for higher-quality search
@@ -4610,7 +4610,7 @@ abstract final class ModelCatalog {
       quantization: 'q4_k',
       backend: 'embed',
       kind: ModelKind.embed,
-      languages: const ['en'],
+      languages: ['en'],
     ),
     'multilingual-e5-small-iq4_xs': ModelDefinition(
       name: 'multilingual-e5-small-iq4_xs',
@@ -4625,7 +4625,7 @@ abstract final class ModelCatalog {
       quantization: 'iq4_xs',
       backend: 'embed',
       kind: ModelKind.embed,
-      languages: const ['*'],
+      languages: ['*'],
     ),
     'qwen3-embed-0.6b-q4_k': ModelDefinition(
       name: 'qwen3-embed-0.6b-q4_k',
@@ -4640,7 +4640,7 @@ abstract final class ModelCatalog {
       quantization: 'q4_k',
       backend: 'embed',
       kind: ModelKind.embed,
-      languages: const ['*'],
+      languages: ['*'],
     ),
   };
 

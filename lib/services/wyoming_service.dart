@@ -201,7 +201,7 @@ class WyomingService {
       case 'audio-stop':
         if (audioChunks.isEmpty) {
           client.writeln(
-              WyomingEvent(type: 'transcript', data: {'text': ''}).toJson());
+              const WyomingEvent(type: 'transcript', data: {'text': ''}).toJson());
           break;
         }
 

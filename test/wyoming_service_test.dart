@@ -30,7 +30,7 @@ void main() {
     });
 
     test('toJson round-trips', () {
-      final e = WyomingEvent(type: 'transcript', data: {'text': 'hello'});
+      const e = WyomingEvent(type: 'transcript', data: {'text': 'hello'});
       final json = e.toJson();
       final parsed = WyomingEvent.fromJson(json);
       expect(parsed.type, 'transcript');
@@ -38,13 +38,13 @@ void main() {
     });
 
     test('toJson omits empty data', () {
-      final e = WyomingEvent(type: 'describe');
+      const e = WyomingEvent(type: 'describe');
       final json = e.toJson();
       expect(json, '{"type":"describe"}');
     });
 
     test('toString includes type', () {
-      expect(WyomingEvent(type: 'test').toString(), 'WyomingEvent(test)');
+      expect(const WyomingEvent(type: 'test').toString(), 'WyomingEvent(test)');
     });
   });
 

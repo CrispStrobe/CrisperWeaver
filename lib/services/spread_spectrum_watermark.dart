@@ -133,7 +133,7 @@ class SpreadSpectrumWatermark {
     if (bins.isEmpty) return 0.0;
 
     final window = _hanningWindow(_fftSize);
-    final nHalf = _fftSize ~/ 2;
+    const nHalf = _fftSize ~/ 2;
 
     // Accumulate averaged magnitude spectrum
     final avgMags = Float64List(nHalf);

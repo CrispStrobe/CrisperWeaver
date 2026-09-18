@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:io';
 import 'dart:ui' as ui;
 
@@ -40,7 +39,7 @@ void main() {
     }
     final f = File('${dir.path}/$file.png');
     await f.writeAsBytes(data.buffer.asUint8List());
-    print('SHOT ${f.path} ${image.width}x${image.height}');
+    debugPrint('SHOT ${f.path} ${image.width}x${image.height}');
   }
 
   Future<void> shot(WidgetTester tester, String name) async {

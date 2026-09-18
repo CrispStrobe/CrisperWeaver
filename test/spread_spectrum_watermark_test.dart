@@ -8,7 +8,7 @@ import 'package:crisper_weaver/services/spread_spectrum_watermark.dart';
 void main() {
   group('SpreadSpectrumWatermark', () {
     /// Generate a 1-second 440 Hz sine wave at 16 kHz.
-    Float32List _sine({int sampleRate = 16000, double freq = 440.0, double seconds = 1.0}) {
+    Float32List sine({int sampleRate = 16000, double freq = 440.0, double seconds = 1.0}) {
       final n = (sampleRate * seconds).round();
       final out = Float32List(n);
       for (var i = 0; i < n; i++) {
@@ -18,7 +18,7 @@ void main() {
     }
 
     test('embed returns a different array of the same length', () {
-      final pcm = _sine();
+      final pcm = sine();
       final watermarked = SpreadSpectrumWatermark.embed(pcm);
       expect(watermarked.length, pcm.length);
       // At least some samples should differ.
@@ -31,7 +31,7 @@ void main() {
     });
 
     test('detect scores high on watermarked audio', () {
-      final pcm = _sine(seconds: 2.0);
+      final pcm = sine(seconds: 2.0);
       final watermarked = SpreadSpectrumWatermark.embed(pcm);
       final score = SpreadSpectrumWatermark.detect(watermarked);
       expect(score, greaterThan(0.6),
@@ -39,7 +39,7 @@ void main() {
     });
 
     test('detect scores low on clean audio', () {
-      final pcm = _sine(seconds: 2.0);
+      final pcm = sine(seconds: 2.0);
       final score = SpreadSpectrumWatermark.detect(pcm);
       expect(score, lessThan(0.65),
           reason: 'clean audio should score <0.65, got $score');
@@ -47,7 +47,7 @@ void main() {
 
     test('embed preserves audio within perceptual tolerance', () {
       // Use a richer signal (multi-tone) to simulate speech spectrum.
-      final n = 32000;
+      const n = 32000;
       final pcm = Float32List(n);
       for (var i = 0; i < n; i++) {
         pcm[i] = 0.3 * math.sin(2.0 * math.pi * 200 * i / 16000) +

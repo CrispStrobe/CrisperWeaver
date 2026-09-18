@@ -917,7 +917,7 @@ void main() {
         generator: 'CrisperWeaver',
         generatorVersion: '0.9.6',
       );
-      final assertions = (m['assertions'] as List).cast<Map>();
+      final assertions = (m['assertions'] as List).cast<Map<String, dynamic>>();
       final abuse = assertions.firstWhere(
           (a) => a['@type'] == 'crisperweaver.abuse-reporting',
           orElse: () => throw StateError(
@@ -938,7 +938,7 @@ void main() {
       );
       final back = ContentProvenanceService.extractFromWav(out);
       expect(back, isNotNull);
-      final assertions = (back!['assertions'] as List).cast<Map>();
+      final assertions = (back!['assertions'] as List).cast<Map<String, dynamic>>();
       expect(
           assertions.any((a) => a['@type'] == 'crisperweaver.abuse-reporting'),
           isTrue);

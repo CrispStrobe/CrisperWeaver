@@ -8,7 +8,6 @@ import 'package:path/path.dart' as p;
 import '../engines/transcription_engine.dart';
 import '../main.dart' show modelServiceProvider;
 import 'log_service.dart';
-import 'model_catalog.dart';
 import 'model_service.dart';
 
 /// CTC / forced-aligner word timestamp backfill via CrispASR 0.4.7+

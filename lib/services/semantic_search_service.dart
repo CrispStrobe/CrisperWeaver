@@ -14,13 +14,39 @@ import 'history_service.dart';
 class SemanticSearchService {
   SemanticSearchService._();
 
-  /// Cache of segment-text → embedding vector so we don't re-encode
-  /// the same text on every search. Keyed by the raw segment text.
-  static final Map<String, Float32List> _embeddingCache = {};
+  // Both caches are keyed by the embedder instance as well as the text. A
+  // text-only key silently reuses vectors produced by a *different* model
+  // after the user switches embedders, which scores every segment against a
+  // vector space the query no longer lives in. They are also bounded: an
+  // unbounded cache keyed by document text grows with the transcript library
+  // for the life of the process.
+  static const _denseCacheMax = 4096;
+  static const _multivecCacheMax = 2048;
 
-  /// Clear the embedding cache (e.g. when the model changes or memory
-  /// needs reclaiming).
-  static void clearEmbeddingCache() => _embeddingCache.clear();
+  /// Bounded LRU. Dart's default map preserves insertion order, so a hit is
+  /// refreshed by re-inserting and the oldest entry is the first key.
+  static final Map<(CrispEmbed, String), Float32List> _embeddingCache = {};
+  static final Map<(CrispEmbed, String), (Float32List, int)> _multivecCache =
+      {};
+
+  static void _putBounded<K, V>(Map<K, V> cache, K key, V value, int max) {
+    cache.remove(key);
+    cache[key] = value;
+    while (cache.length > max) {
+      cache.remove(cache.keys.first);
+    }
+  }
+
+  /// Clear both caches (e.g. when the model changes or memory needs
+  /// reclaiming).
+  static void clearEmbeddingCache() {
+    _embeddingCache.clear();
+    _multivecCache.clear();
+  }
+
+  /// Entry counts, for tests that assert the caches stay bounded.
+  static int get denseCacheSizeForTesting => _embeddingCache.length;
+  static int get multivecCacheSizeForTesting => _multivecCache.length;
 
   /// Score each segment against a query. When [embedder] is provided,
   /// uses real vector embeddings + cosine similarity. Otherwise falls
@@ -158,6 +184,8 @@ class SemanticSearchService {
       }
     }
 
+    final flatQuery =
+        queryMultivec == null ? null : _flattenMultivec(queryMultivec);
     final results = <SearchResult>[];
     for (var i = 0; i < segments.length; i++) {
       final text = segments[i].text;
@@ -168,24 +196,30 @@ class SemanticSearchService {
       if (queryMultivec != null && queryMultivec.isNotEmpty) {
         // ColBERT: multi-vector late-interaction scoring.
         try {
-          final segMultivec = embedder.encodeMultivec(text);
+          final key = (embedder, text);
+          var document = _multivecCache[key];
+          if (document == null) {
+            final vectors = embedder.encodeMultivec(text);
+            document = (_flattenMultivec(vectors), vectors.length);
+            _putBounded(_multivecCache, key, document, _multivecCacheMax);
+          } else {
+            _putBounded(_multivecCache, key, document, _multivecCacheMax);
+          }
           final dim = queryMultivec.first.length;
           textScore = embedder.colbertScore(
-            _flattenMultivec(queryMultivec),
+            flatQuery!,
             queryMultivec.length,
-            _flattenMultivec(segMultivec),
-            segMultivec.length,
+            document.$1,
+            document.$2,
             dim,
           );
         } catch (_) {
           // ColBERT scoring failed for this segment — fall back to dense.
-          textScore = _denseScore(
-            text, i, queryVec, embedder, historyEntry);
+          textScore = _denseScore(text, i, queryVec, embedder, historyEntry);
         }
       } else {
         // Dense bi-encoder cosine similarity (standard path).
-        textScore = _denseScore(
-          text, i, queryVec, embedder, historyEntry);
+        textScore = _denseScore(text, i, queryVec, embedder, historyEntry);
       }
 
       // Take the max of text similarity and audio similarity —
@@ -226,12 +260,16 @@ class SemanticSearchService {
     HistoryEntry? historyEntry,
   ) {
     Float32List? segVec = historyEntry?.embeddingForSegment(segIndex);
-    segVec ??= _embeddingCache[text];
+    final key = (embedder, text);
+    segVec ??= _embeddingCache[key];
     if (segVec == null) {
       segVec = embedder.encode(text);
       if (segVec.isNotEmpty) {
-        _embeddingCache[text] = segVec;
+        _putBounded(_embeddingCache, key, segVec, _denseCacheMax);
       }
+    } else {
+      // Refresh recency for the LRU ordering.
+      _putBounded(_embeddingCache, key, segVec, _denseCacheMax);
     }
     if (segVec.isEmpty) return 0;
     return cosineSimilarity(queryVec, segVec);
