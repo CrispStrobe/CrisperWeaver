@@ -4028,7 +4028,8 @@ abstract final class ModelCatalog {
     // reference), a TTS→Parakeet round trip on the 0.8.35 dylib returned
     // the input sentence in each language. The French release is left out:
     // upstream's 24-layer preview checkpoint took 337 s for one sentence
-    // and Parakeet could not transcribe a word of it.
+    // and Parakeet could not transcribe a word of it — unchanged on the
+    // 2570762d engine (live-tts run 35898198239: 6.7 s, 0% of words).
     // No BackendRepo per language on purpose: a probe-discovered quant would
     // not carry requiresVoice and would synthesise silence.
     'pocket-tts-german-q8_0': ModelDefinition(
