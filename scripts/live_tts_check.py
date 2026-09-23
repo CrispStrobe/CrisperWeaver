@@ -64,6 +64,23 @@ def to_16k(pcm, sr):
     return np.interp(x, np.arange(len(pcm)), pcm).astype(np.float32)
 
 
+def synth(models, c, jfk, clone):
+    s = crispasr.Session(f"{models}/{c['model']}", backend=c["backend"])
+    try:
+        if c.get("codec"):
+            s.set_codec_path(f"{models}/{c['codec']}")
+        if clone:
+            s.set_voice(jfk, JFK_TEXT)
+        s.set_tts_seed(7)
+        pcm = np.asarray(s.synthesize(c["text"]), dtype=np.float32)
+        # 0 = "this dylib does not report a rate"; the app falls back to
+        # 24 kHz (TtsService.kFallbackOutputSampleRate), so do the same.
+        sr = s.output_sample_rate() or 24000
+        return pcm, sr
+    finally:
+        s.close()
+
+
 def main():
     models, jfk, names = sys.argv[1], sys.argv[2], sys.argv[3:]
     asr = crispasr.Session(f"{models}/parakeet-tdt-0.6b-v3-q4_k.gguf",
@@ -72,17 +89,15 @@ def main():
     for name in names:
         c = CASES[name]
         lang, text = c["lang"], c["text"]
-        s = crispasr.Session(f"{models}/{c['model']}", backend=c["backend"])
-        try:
-            if c.get("codec"):
-                s.set_codec_path(f"{models}/{c['codec']}")
-            if c.get("clone"):
-                s.set_voice(jfk, JFK_TEXT)
-            s.set_tts_seed(7)
-            pcm = np.asarray(s.synthesize(text), dtype=np.float32)
-            sr = s.output_sample_rate()
-        finally:
-            s.close()
+        pcm, sr = synth(models, c, jfk, bool(c.get("clone")))
+        note = ""
+        if c.get("clone"):
+            # A clone that is silently ignored still passes the round trip.
+            # Same seed and text without the reference: the audio must differ.
+            base, _ = synth(models, c, jfk, False)
+            same = len(base) == len(pcm) and np.array_equal(base, pcm)
+            note = "; reference IGNORED (identical to no-reference)" if same \
+                else "; reference applied (differs from no-reference)"
         heard = " ".join(
             seg.text for seg in asr.transcribe(to_16k(pcm, sr), language=lang))
         want = words(text)
@@ -91,8 +106,10 @@ def main():
         ok = hit >= 0.8
         tag = ("INFO" if c.get("informational") else
                "PASS" if ok else "FAIL")
+        if note.startswith("; reference IGNORED"):
+            ok, tag = False, "FAIL"
         print(f"{tag} {name}: {len(pcm) / sr:.2f}s @{sr} Hz,"
-              f" {hit:.0%} of words heard: {heard!r}", flush=True)
+              f" {hit:.0%} of words heard: {heard!r}{note}", flush=True)
         if not ok and not c.get("informational"):
             failed.append(name)
     asr.close()
