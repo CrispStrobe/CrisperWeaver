@@ -401,12 +401,14 @@ void main() {
         // the qwen3-tts Base entries.
         'confucius4-tts',
 
-        // Hojo-ASR (de/fr/it/pt/es, 4.4 GB, #438): arrived with the c97fc1aa
-        // pin. Not catalogued on the evidence so far: on German speech that
-        // Parakeet transcribes word-exact ("Guten Morgen, wie geht es dir
-        // heute?"), Hojo returned "guten morgen wie dieses hier heute" —
-        // 57% of words (live-tts run 35875015710, a synthetic Pocket TTS
-        // clip). Re-check on real German recordings before offering it.
+        // Hojo-ASR (de/fr/it/pt/es, 4.4 GB, #438): not catalogued — it does
+        // worse than the Parakeet models already offered, at 7x the size.
+        // On 60 s of real German speech (Spoken Wikipedia "Abwasch", live-tts
+        // run 35898198239) Parakeet read almost like the article, with case,
+        // punctuation and numbers; Hojo had none of those, dropped
+        // "14. August 2016", and misheard e.g. "Spülschwammes" as "spaß
+        // schwammes" and "Spülen" as "schleudern". (A synthetic Pocket TTS
+        // clip gave 57% on one run and 100% on another — not evidence.)
         'hojo-asr',
       };
 
