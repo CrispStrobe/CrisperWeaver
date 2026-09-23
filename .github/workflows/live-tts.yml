@@ -40,7 +40,7 @@ jobs:
         working-directory: repos/CrispASR
         run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON \
-            -DCRISPASR_BUILD_TESTS=OFF -DCRISPASR_BUILD_EXAMPLES=OFF \
+            -DCRISPASR_BUILD_TESTS=OFF -DCRISPASR_BUILD_EXAMPLES=ON \
             -DCRISPASR_BUILD_SERVER=OFF -DCRISPASR_OPUS_FETCH=ON
           # The CLI too: bt2-tts-cli compares it with the session path.
           cmake --build build -j "$(nproc)" --target crispasr-lib crispasr
