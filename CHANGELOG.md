@@ -5,6 +5,8 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 
 ## [Unreleased]
 
+## [0.11.1] — 2026-09-23
+
 ### Added
 
 - The web app now has a post-deploy smoke test (Playwright) that boots the
@@ -42,6 +44,10 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 - Around seventy hardcoded English strings in dialogs, helpers, and
   dropdown suffixes are now localized (English, German, Chinese), and
   cramped one-line helper texts may wrap.
+- Mac App Store build: dropped the unused Downloads-folder entitlement
+  (`files.downloads.read-only`) that App Review flagged under guideline
+  2.4.5(i). File access is unchanged — files still come through the open
+  panel, drag-and-drop, or a remembered folder.
 
 ## [0.11.0] — 2026-08-29
 
