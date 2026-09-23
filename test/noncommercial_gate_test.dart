@@ -1,8 +1,12 @@
 // Non-commercial models exist only in development builds
 // (--dart-define=CW_NONCOMMERCIAL_MODELS=true). `flutter test` runs without
-// the define — as CI and every release build do — so these tests pin the
-// store behaviour: such models are not listed, not resolvable and not
-// usable from disk, and that holds for rows with no licence string.
+// the define — as CI and every release build do — so by default these tests
+// pin the store behaviour: such models are not listed, not resolvable and
+// not usable from disk, and that holds for rows with no licence string.
+//
+// Run with the define, the same tests check the development build instead:
+// every audited model is listed, resolvable and usable.
+//   flutter test --dart-define=CW_NONCOMMERCIAL_MODELS=true test/noncommercial_gate_test.dart
 
 import 'dart:io';
 
@@ -30,18 +34,16 @@ const _knownNonCommercial = [
 ];
 
 void main() {
-  test('this build does not allow non-commercial models', () {
-    // If this fails, the test run (or CI) was started with
-    // CW_NONCOMMERCIAL_MODELS — which a store build must never be.
-    expect(ModelCatalog.allowNonCommercial, isFalse);
-  });
+  // Which build this run models. CI runs plain `flutter test`, so the store
+  // behaviour is what CI pins.
+  const dev = ModelCatalog.allowNonCommercial;
 
-  test('every audited non-commercial row is recognised and not offered', () {
+  test('every audited non-commercial row is recognised, offered only in dev', () {
     for (final name in _knownNonCommercial) {
       final def = ModelCatalog.crispasrBackendModels[name];
       expect(def, isNotNull, reason: name);
       expect(def!.isNonCommercial, isTrue, reason: name);
-      expect(def.isOffered, isFalse, reason: name);
+      expect(def.isOffered, dev, reason: name);
     }
   });
 
@@ -61,7 +63,7 @@ void main() {
     );
     expect(probed.license, isNull);
     expect(probed.isNonCommercial, isTrue);
-    expect(probed.isOffered, isFalse);
+    expect(probed.isOffered, dev);
   });
 
   test('permissive models are unaffected', () {
@@ -77,7 +79,7 @@ void main() {
     }
   });
 
-  group('ModelService in a store build', () {
+  group('ModelService (${dev ? 'development' : 'store'} build)', () {
     late ModelService svc;
     late Directory tmp;
     late String modelsDir;
@@ -103,31 +105,35 @@ void main() {
 
     tearDown(() => tmp.delete(recursive: true));
 
-    test('lists no non-commercial model, including baked rows', () async {
+    test('lists non-commercial models only in a development build',
+        () async {
       final listed = await svc.getWhisperCppModels();
       expect(listed, isNotEmpty);
       final names = listed.map((m) => m.name).toSet();
       for (final name in _knownNonCommercial) {
-        expect(names, isNot(contains(name)));
+        expect(names.contains(name), dev, reason: name);
       }
       // The baked moonshine-de-fidoriel rows carry the licence only via
-      // their repo; they must be gone too.
-      expect(names.where((n) => n.contains('fidoriel')), isEmpty);
+      // their repo.
+      expect(names.any((n) => n.contains('fidoriel')), dev);
     });
 
-    test('does not resolve one by name, so it cannot be downloaded', () async {
+    test('resolves one by name only in a development build', () async {
       await svc.initialize();
       for (final name in _knownNonCommercial) {
-        expect(svc.lookupDefinition(name), isNull, reason: name);
+        expect(svc.lookupDefinition(name) != null, dev, reason: name);
       }
       expect(svc.lookupDefinition('supertonic3-f16'), isNotNull);
-      await expectLater(svc.downloadWhisperCppModel('outetts-0.3-1b-q8_0'),
-          throwsA(isA<ModelException>()));
+      if (!dev) {
+        await expectLater(svc.downloadWhisperCppModel('outetts-0.3-1b-q8_0'),
+            throwsA(isA<ModelException>()));
+      }
     });
 
-    test('a leftover non-commercial file on disk is not usable', () async {
+    test('a non-commercial file on disk is usable only in a development build',
+        () async {
       await svc.initialize();
-      expect(svc.isOfferedFile('posformer-crohme-q8_0.gguf'), isFalse);
+      expect(svc.isOfferedFile('posformer-crohme-q8_0.gguf'), dev);
       expect(svc.isOfferedFile('basic-pitch-f16.gguf'), isTrue);
       expect(svc.isOfferedFile('some-unknown-file.gguf'), isTrue);
     });

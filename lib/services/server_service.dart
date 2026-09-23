@@ -486,6 +486,12 @@ class ServerService {
   /// When `voice_file` is present it's saved to a temp path and passed
   /// to `tts.prepare(voiceName: tempPath)`.
   ///
+  /// `voice` naming one of the model's built-in speakers (Supertonic's
+  /// M1..F5, Orpheus's tara/leo/..., Qwen3-TTS CustomVoice; matched
+  /// case-insensitively) selects that speaker and needs no consent field.
+  /// Any other `voice` is a voice reference, as before. An optional
+  /// `language` field sets the spoken language for models that take one.
+  ///
   /// Returns audio bytes (WAV); `response_format` only routes content-
   /// type — the underlying PCM is always 24 kHz mono float32 from
   /// CrispASR.
@@ -495,6 +501,10 @@ class ServerService {
     String? input;
     String? voice;
     String? modelName;
+    // Spoken language, for models that take one from the caller
+    // (TtsService.outputLanguageBackends, e.g. Supertonic-3). Not an OpenAI
+    // field; ignored by every other model.
+    String? language;
     // Two distinct fields, deliberately separated.
     //
     // `consent_attestation` — GDPR Art. 9 / Art. 50(4) consent to clone
@@ -522,6 +532,7 @@ class ServerService {
       input = fields['input']?.value;
       voice = fields['voice']?.value;
       modelName = fields['model']?.value;
+      language = fields['language']?.value;
       consentAttestation = fields['consent_attestation']?.value;
       disclaimerOverrideAttestation =
           fields['disclaimer_override_attestation']?.value;
@@ -551,6 +562,7 @@ class ServerService {
       input = args['input'] as String?;
       voice = args['voice'] as String?;
       modelName = args['model'] as String?;
+      language = args['language'] as String?;
       consentAttestation = args['consent_attestation'] as String?;
       disclaimerOverrideAttestation =
           args['disclaimer_override_attestation'] as String?;
@@ -572,12 +584,21 @@ class ServerService {
         body: 'missing required fields: model + input',
       );
     }
+    final tts = ref.read(ttsServiceProvider);
+    // `voice` may name one of the model's built-in speakers (Supertonic's
+    // M1..F5, Orpheus's tara/leo/..., Qwen3-TTS CustomVoice). Those are
+    // selected as preset speakers, not cloned, so they need no consent
+    // attestation. Anything else keeps its old meaning below.
+    String? presetSpeaker;
+    if (voice != null && voice.trim().isNotEmpty && voiceTempFile == null) {
+      presetSpeaker = await _matchPresetSpeaker(tts, modelName, voice.trim());
+    }
     // EU AI Act Art. 50(4) + GDPR Art. 9: voice cloning requires an
     // explicit consent attestation. Without it, voice-clone requests are
     // refused (403). Matches CrispASR server behaviour
     // (--i-have-rights / consent_attestation).
     final bool isVoiceCloneRequest =
-        voice != null && voice.trim().isNotEmpty;
+        voice != null && voice.trim().isNotEmpty && presetSpeaker == null;
     final String? effectiveConsent =
         (consentAttestation != null && consentAttestation.trim().isNotEmpty)
             ? consentAttestation
@@ -596,10 +617,13 @@ class ServerService {
               'applied; suppressing it additionally requires '
               '"disclaimer_override_attestation".');
     }
-    final tts = ref.read(ttsServiceProvider);
     final status = await tts.prepare(
       modelName: modelName,
-      voiceName: voice,
+      voiceName: presetSpeaker == null ? voice : null,
+      speakerName: presetSpeaker,
+      outputLanguage: (language != null && language.trim().isNotEmpty)
+          ? language.trim()
+          : null,
     );
     if (!status.ready) {
       if (voiceTempFile != null) {
@@ -622,7 +646,7 @@ class ServerService {
       }
       final wav = await tts.writeWav(
         audio,
-        voiceRefPath: voice,
+        voiceRefPath: presetSpeaker == null ? voice : null,
         disclaimerOverrideAttestation: disclaimerOverrideAttestation,
       );
       final bytes = await wav.readAsBytes();
@@ -635,6 +659,26 @@ class ServerService {
         try { await voiceTempFile.delete(); } catch (_) {}
       }
     }
+  }
+
+  /// [voice] resolved against [modelName]'s built-in speakers, returning the
+  /// model's own spelling, or null when it is not one of them (or the model
+  /// has none). Opens the model to ask; TtsService caches the session, so
+  /// the prepare() that follows reuses it.
+  Future<String?> _matchPresetSpeaker(
+      TtsService tts, String modelName, String voice) async {
+    try {
+      final status = await tts.prepare(modelName: modelName);
+      if (!status.ready) return null;
+      final lower = voice.toLowerCase();
+      for (final name in tts.presetSpeakers) {
+        if (name.toLowerCase() == lower) return name;
+      }
+    } catch (e) {
+      Log.instance.d('server', 'preset speaker probe failed',
+          fields: {'model': modelName, 'err': e.toString()});
+    }
+    return null;
   }
 
   /// Text-to-text translation. JSON `{model, text, src, tgt, max_tokens}`.

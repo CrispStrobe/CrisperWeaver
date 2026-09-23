@@ -84,6 +84,8 @@ One dispatcher (`CrispasrSession`) handles every backend; bundled `libcrispasr` 
 | **Distil-Whisper**    | distil-large-v3 (f16 / q5_0 / q4_k) | 99                          | ~6× faster than large-v3, ~50% smaller |
 | **Parakeet** (NVIDIA) | TDT 0.6b v2/v3, 1.1b; CTC 0.6b/1.1b; TDT+CTC 110m/1.1b; RNNT 0.6b/1.1b; JA 0.6b | 25 EU (auto-detect) / JA | Fast, native word timestamps |
 | **Canary** (NVIDIA)   | 1b-v2                               | 25 EU (explicit src/tgt)    | Speech translation X ↔ en             |
+| **Dolphin** (DataoceanAI) | CN-Dialect small streaming (q4_k ~258 MB) | zh + 20+ Chinese dialects | No punctuation |
+| **X-ASR**             | zh-en streaming Zipformer (q8_0 ~168 MB) | zh, en                  | Punctuated, cased |
 | **Qwen3-ASR**         | 0.6b, 1.7b                          | 30 + 22 Chinese dialects    | Multilingual                          |
 | **Mega-ASR**          | 1.7b (Qwen3-ASR + robustness LoRA)  | 30 + 22 Chinese dialects    | LoRA merged offline, qwen3 runtime    |
 | **Cohere**            | 03-2026                             | 13                          | High-accuracy Conformer decoder       |
@@ -147,7 +149,8 @@ One dispatcher (`CrispasrSession`) handles every backend; bundled `libcrispasr` 
 ### Music transcription (Audio → MIDI)
 
 Basic Pitch (~110 KB, fast), MT3 (multi-instrument, one MIDI track per
-instrument) and Piano Transcription — behind *Show advanced features*.
+instrument), and for solo piano Onsets & Frames, hFT-Transformer and Piano
+Transcription — behind *Show advanced features*.
 
 ### Diarisation / LID / VAD GGUFs
 

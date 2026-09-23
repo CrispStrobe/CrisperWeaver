@@ -342,7 +342,7 @@ void main() {
 
         // Music analysis / source separation. Note transcription has a
         // surface (ModelKind.music, the Audio → MIDI screen: basic-pitch,
-        // mt3, piano-transcription); beats, chords, pitch curves, stems
+        // mt3, piano-transcription, onsets-and-frames, hft-transformer); beats, chords, pitch curves, stems
         // and tablature do not — no screen consumes that output.
         'beat-this',
         'btc-chords',
@@ -350,11 +350,6 @@ void main() {
         'htdemucs',
         'mel-band-roformer',
         'tabcnn',
-        // Note transcribers on CrispASR main after 0.8.35, listed so a
-        // dylib built from main does not trip this check. They share the
-        // piano ABI, so cataloguing them is a model addition once pinned.
-        'onsets-and-frames',
-        'hft-transformer',
 
         // --- Dispatch aliases the engine began listing in 0.8.32-0.8.35.
         // --- They resolve to a compute path the app already catalogues
@@ -405,6 +400,11 @@ void main() {
         // itself; then catalogue it with `requiresVoice: true` alongside
         // the qwen3-tts Base entries.
         'confucius4-tts',
+
+        // Hojo-ASR (de/fr/it/pt/es, 4.4 GB, #438): arrived with the c97fc1aa
+        // pin. Too large to verify on the dev VPS; catalogue it once the
+        // live-tts workflow's round trip (Pocket TTS German → Hojo) passes.
+        'hojo-asr',
       };
 
       final catalogued = <String>{

@@ -12,13 +12,13 @@ on:
       cases:
         description: "Space-separated cases from scripts/live_tts_check.py"
         required: true
-        default: "fireredtts3 fireredtts3-clone bt2-tts pocket-tts-de-clone pocket-tts-en-novoice kartoffelbox-turbo-s3gen kartoffelbox-std-s3gen"
+        default: "fireredtts3 fireredtts3-clone bt2-tts bt2-tts-cli pocket-tts-de-clone hojo-asr-de"
 
 env:
   CRISPASR_REPO: CrispStrobe/CrispASR
   # Keep in step with ci.yml / release.yml — the check is only meaningful
   # against the engine the app ships.
-  CRISPASR_REF: 00c9e7524030b7324e628133d43caa2c5f170a74
+  CRISPASR_REF: c97fc1aa9bf8be9a67b1be67d9a332a73ea77ffe
 
 jobs:
   live:
@@ -42,7 +42,8 @@ jobs:
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON \
             -DCRISPASR_BUILD_TESTS=OFF -DCRISPASR_BUILD_EXAMPLES=OFF \
             -DCRISPASR_BUILD_SERVER=OFF -DCRISPASR_OPUS_FETCH=ON
-          cmake --build build -j "$(nproc)" --target crispasr-lib
+          # The CLI too: bt2-tts-cli compares it with the session path.
+          cmake --build build -j "$(nproc)" --target crispasr-lib crispasr
           ls -la build/src/
 
       - name: Python binding
@@ -59,11 +60,12 @@ jobs:
             get fireredtts3-base-q4_k.gguf cstr/fireredtts3-GGUF
             get fireredtts3-redae-f16.gguf cstr/fireredtts3-GGUF ;;
           esac
-          case " $CASES " in *" bt2-tts "*)
+          case " $CASES " in *" bt2-tts"*)
             get breeze-tts-2-q4_k.gguf cstr/breeze-tts-2-GGUF
             get qwen3-tts-tokenizer-12hz.gguf cstr/qwen3-tts-tokenizer-12hz-GGUF ;;
           esac
-          case " $CASES " in *" pocket-tts-de"*) get pocket-tts-german-q8_0.gguf cstr/pocket-tts-GGUF ;; esac
+          case " $CASES " in *" pocket-tts-de"*|*" hojo-asr-de"*) get pocket-tts-german-q8_0.gguf cstr/pocket-tts-GGUF ;; esac
+          case " $CASES " in *" hojo-asr-de"*) get hojo-asr-multi-v1-q4_k.gguf cstr/Hojo-ASR-Multi-V1-GGUF ;; esac
           case " $CASES " in *" pocket-tts-en"*) get pocket-tts-english-f16.gguf cstr/pocket-tts-GGUF ;; esac
           case " $CASES " in *" kartoffelbox"*)
             get kartoffelbox-turbo-t3-q8_0.gguf cstr/kartoffelbox-turbo-GGUF
@@ -75,6 +77,7 @@ jobs:
       - name: Round trip
         env:
           CRISPASR_LIB_PATH: ${{ github.workspace }}/repos/CrispASR/build/src/libcrispasr.so
+          CRISPASR_BIN: ${{ github.workspace }}/repos/CrispASR/build/bin/crispasr
           LD_LIBRARY_PATH: ${{ github.workspace }}/repos/CrispASR/build/src:${{ github.workspace }}/repos/CrispASR/build/ggml/src
         run: |
           python repos/CrisperWeaver/scripts/live_tts_check.py \

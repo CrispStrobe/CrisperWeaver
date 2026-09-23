@@ -20,6 +20,14 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
   (the smallest Chatterbox) and a Finnish Chatterbox Nano.
 - FireRedTTS3: 24 languages, speaks in the voice of a reference recording
   (or a built-in English voice), about 3.5 GB with its companion.
+- Chinese speech recognition: Dolphin (Mandarin and 20+ Chinese dialects)
+  and X-ASR (Chinese and English, punctuated).
+- Audio → MIDI gains two piano transcribers: Onsets & Frames (fast) and
+  hFT-Transformer (most accurate, slow on a CPU).
+- The local API server's `/v1/audio/speech` accepts a model's built-in
+  voice names in `voice` (Supertonic's M1…F5, Orpheus's tara, …), and an
+  optional `language` for models that take one. Previously every `voice`
+  was treated as a voice to clone and required a consent attestation.
 - Audio → MIDI (advanced features): transcribe a recording into notes and
   save a MIDI file, on the device. Basic Pitch (about 110 KB, fast, any
   single instrument or voice), MT3 (names each note's instrument and writes
@@ -47,6 +55,12 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
   faster for Turbo, same speech.
 - English Pocket TTS now asks for a reference recording before
   synthesising. Without one it produced audio with no recognisable words.
+  This also covers the Pocket TTS variants listed from the online
+  catalogue, and the three "no voice cloning" variants — which can neither
+  clone nor speak without a reference — are no longer offered.
+- Speech engine moved past CrispASR 0.8.35 to pick up session fixes: Raon
+  (development builds) can now clone a voice, and Breeze-TTS-2 reports the
+  right sample rate.
 - Zonos was described as supporting voice cloning. It does not — a
   reference recording was ignored in favour of a random speaker — and the
   model list no longer says so.
