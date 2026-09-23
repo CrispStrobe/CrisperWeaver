@@ -68,6 +68,8 @@ jobs:
           case " $CASES " in *" hojo-asr-de"*) get hojo-asr-multi-v1-q4_k.gguf cstr/Hojo-ASR-Multi-V1-GGUF ;; esac
           case " $CASES " in *" hojo-asr-de-real"*)
             # Spoken Wikipedia "Abwasch" (de), CC BY-SA 3.0, Wikimedia Commons.
+            # ubuntu-latest does not ship ffmpeg (exit 127 in run 35894813745).
+            command -v ffmpeg >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg; }
             curl -fsSL -A "CrisperWeaver-live-tts (GitHub Actions)" -o de-abwasch.ogg \
               https://upload.wikimedia.org/wikipedia/commons/d/d7/De-Abwasch-article.ogg
             ffmpeg -loglevel error -i de-abwasch.ogg -t 60 -ac 1 -ar 16000 de-abwasch-60s.wav ;;
