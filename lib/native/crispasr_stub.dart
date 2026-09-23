@@ -109,6 +109,14 @@ class DiarizeSegment {
   DiarizeSegment({required this.t0, required this.t1, this.speaker = -1});
 }
 
+class DiarizeTurn {
+  final double t0;
+  final double t1;
+  final int speaker;
+  const DiarizeTurn(
+      {required this.t0, required this.t1, required this.speaker});
+}
+
 enum DiarizeMethod {
   energy,
   xcorr,
@@ -826,6 +834,7 @@ bool diarizeSegments({
   int minSpeakers = 0,
   int maxSpeakers = 0,
   int numSpeakers = 0,
+  List<DiarizeTurn>? outTurns,
   dynamic lib,
 }) {
   throw UnsupportedError('diarizeSegments is not available on web');

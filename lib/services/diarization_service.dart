@@ -182,6 +182,12 @@ class DiarizationService {
       }
     }
 
+    // #324 — FoxNose also reports speaker turns taken from the audio. They
+    // let one ASR segment that spans a speaker change be split at the
+    // change (below), instead of carrying a single label for all of it.
+    // Needs the turn ABI (CrispASR 0.8.30+); older dylibs label segments
+    // only.
+    final turns = <crispasr.DiarizeTurn>[];
     try {
       // When using pyannote, try the pre-computed cache path first.
       // The cache avoids re-running the expensive encoder on the same
@@ -222,6 +228,9 @@ class DiarizationService {
       }
 
       if (!usedCache) {
+        final wantTurns = method == crispasr.DiarizeMethod.foxNose &&
+            DynamicLibrary.open(crispasr.CrispASR.defaultLibName())
+                .providesSymbol('crispasr_diarize_segments_turns_abi');
         final ok = crispasr.diarizeSegments(
           segs: libSegs,
           left: audioData.samples,
@@ -236,6 +245,7 @@ class DiarizationService {
           minSpeakers: minSpeakers ?? 0,
           maxSpeakers: maxSpeakers ?? 0,
           numSpeakers: numSpeakers ?? 0,
+          outTurns: wantTurns ? turns : null,
         );
         if (!ok) {
           Log.instance.w('diarize',
@@ -295,6 +305,10 @@ class DiarizationService {
                 speaker: labels[i],
               );
             }
+            // The turns are numbered in FoxNose's label space, which the
+            // re-clustering just replaced; splitting on them now would
+            // attach stale speaker numbers to the pieces.
+            turns.clear();
             Log.instance.i('diarize', 're-clustered to $maxSpeakers speakers',
                 fields: {'segments': libSegs.length});
           }
@@ -325,14 +339,22 @@ class DiarizationService {
 
     onProgress?.call(0.95);
 
+    String? labelFor(int spk, String? fallback) =>
+        spk < 0 ? fallback : (clusterToName?[spk] ?? 'Speaker ${spk + 1}');
+
     final out = <TranscriptionSegment>[];
+    var splitCount = 0;
     for (var i = 0; i < segments.length; i++) {
       final spk = libSegs[i].speaker;
-      final String? label;
-      if (spk < 0) {
-        label = segments[i].speaker;
-      } else {
-        label = clusterToName?[spk] ?? 'Speaker ${spk + 1}';
+      final String? label = labelFor(spk, segments[i].speaker);
+      final pieces = turns.isEmpty ? null : splitOnTurns(segments[i], turns);
+      if (pieces != null) {
+        splitCount++;
+        for (final piece in pieces) {
+          out.add(piece.segment
+              .copyWith(speaker: labelFor(piece.speaker, label)));
+        }
+        continue;
       }
       out.add(TranscriptionSegment(
         text: segments[i].text,
@@ -349,11 +371,162 @@ class DiarizationService {
     Log.instance.i('diarize', 'diarizeSegments done', fields: {
       'method': method.name,
       'segments': out.length,
+      'turns': turns.length,
+      'segments_split': splitCount,
       'speakers_seen':
           libSegs.map((s) => s.speaker).where((s) => s >= 0).toSet().length,
       'speakers_resolved': clusterToName?.length ?? 0,
     });
     return out;
+  }
+
+  /// Split [seg] where FoxNose's [turns] change speaker inside it, or return
+  /// null when it stays one speaker or has no word timings to split on.
+  ///
+  /// Mirrors CrispASR's `split_segments_on_foxnose_turns` (#324): each word
+  /// takes the speaker whose turn covers its midpoint (an unplaced word
+  /// joins its neighbour), consecutive same-speaker words form runs, and a
+  /// run shorter than [minRunSeconds] folds into its longer neighbour so a
+  /// stray word cannot flip the label. Unlike CrispASR, the shortest run
+  /// folds first (see below). A piece's `speaker` is the turn's
+  /// numeric speaker; the caller maps it to a label.
+  ///
+  /// Piece text is cut from [seg]'s own text at word boundaries, keeping
+  /// punctuation and the script's own spacing (the output widget locates
+  /// words by searching the text). If a word cannot be found in the text,
+  /// the pieces fall back to their words joined with spaces.
+  static List<({TranscriptionSegment segment, int speaker})>? splitOnTurns(
+    TranscriptionSegment seg,
+    List<crispasr.DiarizeTurn> turns, {
+    double minRunSeconds = 0.5,
+  }) {
+    final words = seg.words;
+    if (words == null || words.isEmpty || turns.isEmpty) return null;
+    final n = words.length;
+
+    int speakerAt(double t0, double t1) {
+      final mid = (t0 + t1) / 2;
+      for (final t in turns) {
+        if (mid >= t.t0 && mid < t.t1) return t.speaker;
+      }
+      return -1;
+    }
+
+    final spk = List<int>.filled(n, -1);
+    var lastKnown = -1;
+    for (var i = 0; i < n; i++) {
+      final w = words[i];
+      var s =
+          w.endTime > w.startTime ? speakerAt(w.startTime, w.endTime) : -1;
+      if (s < 0) s = lastKnown;
+      spk[i] = s;
+      if (s >= 0) lastKnown = s;
+    }
+    final firstKnown = spk.indexWhere((s) => s >= 0);
+    if (firstKnown < 0) return null;
+    for (var i = 0; i < firstKnown; i++) {
+      spk[i] = spk[firstKnown];
+    }
+
+    final t0 = [
+      for (final w in words) w.startTime > 0 ? w.startTime : seg.startTime
+    ];
+    final t1 = [for (final w in words) w.endTime > 0 ? w.endTime : seg.endTime];
+
+    // Maximal same-speaker runs as [start, end) word ranges.
+    final runs = <({int start, int end, int speaker})>[];
+    for (var rs = 0; rs < n;) {
+      var re = rs + 1;
+      while (re < n && spk[re] == spk[rs]) {
+        re++;
+      }
+      runs.add((start: rs, end: re, speaker: spk[rs]));
+      rs = re;
+    }
+    double span(({int start, int end, int speaker}) r) {
+      final d = t1[r.end - 1] - t0[r.start];
+      return d > 0 ? d : 0;
+    }
+
+    // Fold the shortest short run first, interior runs before edge runs on
+    // a tie. CrispASR folds in index order, which lets a short leading run
+    // be absorbed by a stray one-word run after it and take its speaker;
+    // shortest-first merges the stray word into the long run around it.
+    while (runs.length >= 2) {
+      var i = -1;
+      for (var k = 0; k < runs.length; k++) {
+        final sk = span(runs[k]);
+        if (sk >= minRunSeconds) continue;
+        if (i < 0) {
+          i = k;
+          continue;
+        }
+        final si = span(runs[i]);
+        final kInterior = k > 0 && k < runs.length - 1;
+        final iInterior = i > 0 && i < runs.length - 1;
+        if (sk < si || (sk == si && kInterior && !iInterior)) i = k;
+      }
+      if (i < 0) break;
+      final int into;
+      if (i == 0) {
+        into = 1;
+      } else if (i == runs.length - 1) {
+        into = i - 1;
+      } else {
+        into = span(runs[i - 1]) >= span(runs[i + 1]) ? i - 1 : i + 1;
+      }
+      final keep = runs[into];
+      runs[into] = into > i
+          ? (start: runs[i].start, end: keep.end, speaker: keep.speaker)
+          : (start: keep.start, end: runs[i].end, speaker: keep.speaker);
+      runs.removeAt(i);
+    }
+    // Folding can leave neighbours with the same speaker; join them.
+    for (var i = runs.length - 1; i > 0; i--) {
+      if (runs[i].speaker == runs[i - 1].speaker) {
+        runs[i - 1] = (
+          start: runs[i - 1].start,
+          end: runs[i].end,
+          speaker: runs[i].speaker
+        );
+        runs.removeAt(i);
+      }
+    }
+    if (runs.length < 2) return null;
+
+    // Character offset of each word in seg.text, searched in order.
+    final text = seg.text;
+    final pos = List<int>.filled(n, -1);
+    var cursor = 0;
+    for (var i = 0; i < n; i++) {
+      final w = words[i].word.trim();
+      final hit = w.isEmpty ? -1 : text.indexOf(w, cursor);
+      if (hit < 0) break;
+      pos[i] = hit;
+      cursor = hit + w.length;
+    }
+    final located = !pos.contains(-1);
+
+    return [
+      for (var r = 0; r < runs.length; r++)
+        (
+          segment: seg.copyWith(
+            text: located
+                ? text
+                    .substring(r == 0 ? 0 : pos[runs[r].start],
+                        r + 1 < runs.length ? pos[runs[r + 1].start] : text.length)
+                    .trim()
+                : [
+                    for (var j = runs[r].start; j < runs[r].end; j++)
+                      words[j].word.trim()
+                  ].where((w) => w.isNotEmpty).join(' '),
+            startTime: t0[runs[r].start],
+            endTime: t1[runs[r].end - 1],
+            words: words.sublist(runs[r].start, runs[r].end),
+          ),
+          speaker: runs[r].speaker,
+        ),
+    ];
   }
 
   /// §9.6 #110 — Global-scope diarization: takes raw PCM audio and a
