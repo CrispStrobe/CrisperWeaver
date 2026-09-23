@@ -5,6 +5,15 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 
 ## [Unreleased]
 
+### Changed
+
+- Speech engine updated to CrispASR 0.8.36. Kaldi-style front-ends
+  (SenseVoice, FunASR, Paraformer, Dolphin, speaker embeddings) now compute
+  their mel filterbank the way upstream does; SenseVoice applies its
+  normalisation, so its emotion and event tags match upstream — re-download
+  SenseVoice to get the updated model file; Paraformer's encoder input is
+  fixed.
+
 ## [0.12.0] — 2026-09-23
 
 ### Added
