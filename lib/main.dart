@@ -38,6 +38,7 @@ import 'screens/translate_screen.dart';
 import 'screens/voice_bake_screen.dart';
 import 'screens/edit_audio_screen.dart';
 import 'screens/subtitle_overlay_screen.dart';
+import 'screens/music_transcription_screen.dart';
 import 'screens/transcript_compare_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/transcript_workspace_screen.dart';
@@ -751,6 +752,11 @@ class _CrisperWeaverAppState extends ConsumerState<CrisperWeaverApp> {
             initialRefText: refText,
           );
         },
+      ),
+      GoRoute(
+        path: '/music',
+        name: 'music',
+        builder: (context, state) => const MusicTranscriptionScreen(),
       ),
       GoRoute(
         path: '/voice-clone',

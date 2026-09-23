@@ -3239,7 +3239,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get aiTransparencyBody =>
-      'CrisperWeaver 使用人工智能系统进行：\n\n• 语音识别 (ASR) — 将音频转换为文本\n• 语音合成 (TTS) — 从文本生成语音音频\n• 说话人识别 — 生物特征语音匹配\n• 文档分析 (OCR) — 识别图像中的文字\n• 文本生成 — 由语言模型进行翻译、摘要和转录稿整理\n• 音频问答 — 由语言模型回答您关于录音的提问，而非转录内容\n• 说话人分离 — 区分谁在何时说话 — 以及口语语种检测\n• 音频增强 — 降噪处理\n• 语义搜索 — AI 驱动的内容检索\n\n默认情况下，所有处理均在您的设备上运行，不会发送任何数据。部分功能默认关闭，启用后会使用网络：模型下载、可选的云端转录，以及可选的云端摘要或整理功能，它们会将相关文本或音频发送至您所配置的服务商。说话人档案和语音录音永远不会离开您的设备。\n\nAI 生成的音频会自动添加水印并签署机器可读的来源元数据；AI 生成的文本在复制或导出时会附带披露声明（欧盟AI法案第50条）。\n\n详情请参见关于页面及 PRIVACY.md。';
+      'CrisperWeaver 使用人工智能系统进行：\n\n• 语音识别 (ASR) — 将音频转换为文本\n• 语音合成 (TTS) — 从文本生成语音音频\n• 说话人识别 — 生物特征语音匹配\n• 文档分析 (OCR) — 识别图像中的文字\n• 文本生成 — 由语言模型进行翻译、摘要和转录稿整理\n• 音频问答 — 由语言模型回答您关于录音的提问，而非转录内容\n• 说话人分离 — 区分谁在何时说话 — 以及口语语种检测\n• 音频增强 — 降噪处理\n• 音乐转写 — 将录音转换为音符 (MIDI)\n• 语义搜索 — AI 驱动的内容检索\n\n默认情况下，所有处理均在您的设备上运行，不会发送任何数据。部分功能默认关闭，启用后会使用网络：模型下载、可选的云端转录，以及可选的云端摘要或整理功能，它们会将相关文本或音频发送至您所配置的服务商。说话人档案和语音录音永远不会离开您的设备。\n\nAI 生成的音频会自动添加水印并签署机器可读的来源元数据；AI 生成的文本在复制或导出时会附带披露声明（欧盟AI法案第50条）。\n\n详情请参见关于页面及 PRIVACY.md。';
 
   @override
   String get aiTransparencyWebNote =>
@@ -3582,7 +3582,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settingsExperimentalSubtitle =>
-      '增加转写对比、字幕浮层、语音烘焙、音频编辑、本地 API 服务器，以及日志和存储查看器。';
+      '增加转写对比、字幕浮层、语音烘焙、音频编辑、音频转 MIDI、本地 API 服务器，以及日志和存储查看器。';
 
   @override
   String get advancedAllOptions => '全部选项';
@@ -3837,5 +3837,61 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String workspaceSegmentSemantics(int number, String time, String text) {
     return '片段 $number，时间 $time：$text';
+  }
+
+  @override
+  String get menuMusicToMidi => '音频转 MIDI';
+
+  @override
+  String get musicIntro => '将录音转写为音符并保存为 MIDI 文件。在本设备上运行，不会上传任何内容。';
+
+  @override
+  String get musicPickAudio => '选择音频';
+
+  @override
+  String get musicModelLabel => '转写模型';
+
+  @override
+  String get musicNoModels => '尚未下载音乐转写模型。Basic Pitch 仅约 110 KB。';
+
+  @override
+  String get musicTranscribe => '转写为音符';
+
+  @override
+  String get musicWorking => '正在转写…… MT3 和 Piano Transcription 在 CPU 上可能需要数分钟。';
+
+  @override
+  String get musicNoNotes => '未找到音符。';
+
+  @override
+  String get musicSaveMidi => '保存 MIDI';
+
+  @override
+  String get musicSaveAs => '保存 MIDI 文件';
+
+  @override
+  String get modelsFilterMusic => '音乐';
+
+  @override
+  String get modelsUseMusic => '音频转 MIDI';
+
+  @override
+  String musicResult(int notes, String seconds, String elapsed) {
+    return '$notes 个音符，至 $seconds 秒，用时 $elapsed 秒';
+  }
+
+  @override
+  String musicInstruments(String names) {
+    return '乐器：$names';
+  }
+
+  @override
+  String musicSavedTo(String path) {
+    return '已保存至 $path';
+  }
+
+  @override
+  String musicFailed(String error) {
+    return '音乐转写失败：$error';
   }
 }

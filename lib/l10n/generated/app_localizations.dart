@@ -5563,7 +5563,7 @@ abstract class AppLocalizations {
   /// No description provided for @aiTransparencyBody.
   ///
   /// In en, this message translates to:
-  /// **'CrisperWeaver uses artificial intelligence systems for:\n\n• Speech recognition (ASR) — converting audio to text\n• Speech synthesis (TTS) — generating spoken audio from text\n• Speaker identification — biometric voice matching\n• Document analysis (OCR) — recognizing text in images\n• Text generation — translation, summarisation, and transcript cleanup by language models\n• Audio Q&A — a language model answers your question about a recording instead of transcribing it\n• Speaker diarisation — separating who spoke when, and spoken-language detection\n• Audio enhancement — noise suppression\n• Semantic search — AI-powered content retrieval\n\nBy default everything runs on your device and nothing is sent anywhere. Some features are off until you switch them on and then do use the network: model downloads, optional cloud transcription, and optional cloud summarisation or cleanup, which send the text or audio concerned to the provider you configure. Speaker profiles and voice recordings never leave your device.\n\nAI-generated audio is automatically watermarked and signed with machine-readable provenance metadata, and AI-generated text carries a disclosure when you copy or export it (EU AI Act Art. 50).\n\nFor details, see the About screen and PRIVACY.md.'**
+  /// **'CrisperWeaver uses artificial intelligence systems for:\n\n• Speech recognition (ASR) — converting audio to text\n• Speech synthesis (TTS) — generating spoken audio from text\n• Speaker identification — biometric voice matching\n• Document analysis (OCR) — recognizing text in images\n• Text generation — translation, summarisation, and transcript cleanup by language models\n• Audio Q&A — a language model answers your question about a recording instead of transcribing it\n• Speaker diarisation — separating who spoke when, and spoken-language detection\n• Audio enhancement — noise suppression\n• Music transcription — converting a recording into notes (MIDI)\n• Semantic search — AI-powered content retrieval\n\nBy default everything runs on your device and nothing is sent anywhere. Some features are off until you switch them on and then do use the network: model downloads, optional cloud transcription, and optional cloud summarisation or cleanup, which send the text or audio concerned to the provider you configure. Speaker profiles and voice recordings never leave your device.\n\nAI-generated audio is automatically watermarked and signed with machine-readable provenance metadata, and AI-generated text carries a disclosure when you copy or export it (EU AI Act Art. 50).\n\nFor details, see the About screen and PRIVACY.md.'**
   String get aiTransparencyBody;
 
   /// No description provided for @aiTransparencyWebNote.
@@ -6193,7 +6193,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsExperimentalSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Adds transcript comparison, subtitle overlay, voice baking, audio editing, the local API server, and the log and storage inspectors.'**
+  /// **'Adds transcript comparison, subtitle overlay, voice baking, audio editing, audio to MIDI, the local API server, and the log and storage inspectors.'**
   String get settingsExperimentalSubtitle;
 
   /// No description provided for @advancedAllOptions.
@@ -6663,6 +6663,102 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Segment {number} at {time}: {text}'**
   String workspaceSegmentSemantics(int number, String time, String text);
+
+  /// No description provided for @menuMusicToMidi.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio → MIDI'**
+  String get menuMusicToMidi;
+
+  /// No description provided for @musicIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Transcribe a recording into notes and save them as a MIDI file. Runs on this device; nothing is uploaded.'**
+  String get musicIntro;
+
+  /// No description provided for @musicPickAudio.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose audio'**
+  String get musicPickAudio;
+
+  /// No description provided for @musicModelLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Transcription model'**
+  String get musicModelLabel;
+
+  /// No description provided for @musicNoModels.
+  ///
+  /// In en, this message translates to:
+  /// **'No music transcription model is downloaded yet. Basic Pitch is about 110 KB.'**
+  String get musicNoModels;
+
+  /// No description provided for @musicTranscribe.
+  ///
+  /// In en, this message translates to:
+  /// **'Transcribe to notes'**
+  String get musicTranscribe;
+
+  /// No description provided for @musicWorking.
+  ///
+  /// In en, this message translates to:
+  /// **'Transcribing… MT3 and Piano Transcription can take several minutes on a CPU.'**
+  String get musicWorking;
+
+  /// No description provided for @musicNoNotes.
+  ///
+  /// In en, this message translates to:
+  /// **'No notes found.'**
+  String get musicNoNotes;
+
+  /// No description provided for @musicSaveMidi.
+  ///
+  /// In en, this message translates to:
+  /// **'Save MIDI'**
+  String get musicSaveMidi;
+
+  /// No description provided for @musicSaveAs.
+  ///
+  /// In en, this message translates to:
+  /// **'Save MIDI file'**
+  String get musicSaveAs;
+
+  /// No description provided for @modelsFilterMusic.
+  ///
+  /// In en, this message translates to:
+  /// **'Music'**
+  String get modelsFilterMusic;
+
+  /// No description provided for @modelsUseMusic.
+  ///
+  /// In en, this message translates to:
+  /// **'audio to MIDI'**
+  String get modelsUseMusic;
+
+  /// No description provided for @musicResult.
+  ///
+  /// In en, this message translates to:
+  /// **'{notes} notes up to {seconds} s, transcribed in {elapsed} s'**
+  String musicResult(int notes, String seconds, String elapsed);
+
+  /// No description provided for @musicInstruments.
+  ///
+  /// In en, this message translates to:
+  /// **'Instruments: {names}'**
+  String musicInstruments(String names);
+
+  /// No description provided for @musicSavedTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved to {path}'**
+  String musicSavedTo(String path);
+
+  /// No description provided for @musicFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Music transcription failed: {error}'**
+  String musicFailed(String error);
 }
 
 class _AppLocalizationsDelegate

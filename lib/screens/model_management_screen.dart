@@ -562,6 +562,9 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
           // tag-along easily.
           chip(AppLocalizations.of(context).modelsKindFilterChatLlm,
               ModelKind.chatLlm),
+          // Audio → MIDI models; also the deep-link target of that
+          // screen's "no model downloaded" card.
+          chip(l10n.modelsFilterMusic, ModelKind.music),
         ],
       ),
     );
@@ -954,6 +957,8 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
         return l.modelsUseCleanup;
       case ModelKind.voice:
         return l.modelsUseVoice;
+      case ModelKind.music:
+        return l.modelsUseMusic;
       default:
         return l.modelsUseAdvanced;
     }

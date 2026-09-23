@@ -626,6 +626,9 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
         case 'subtitle-overlay':
           context.push('/subtitle-overlay');
           return;
+        case 'music':
+          context.push('/music');
+          return;
         case 'verify-watermark':
           _verifyWatermark();
           return;
@@ -652,6 +655,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
                   'compare-models', Icons.compare_arrows, l.menuCompareModels),
               _appBarMenuItem(
                   'subtitle-overlay', Icons.subtitles, l.menuSubtitleOverlay),
+              _appBarMenuItem('music', Icons.music_note, l.menuMusicToMidi),
               _appBarMenuItem(
                   'verify-watermark', Icons.verified_user,
                   l.transcribeVerifyWatermark),

@@ -109,6 +109,14 @@ class DiarizeSegment {
   DiarizeSegment({required this.t0, required this.t1, this.speaker = -1});
 }
 
+typedef PianoNoteWithProgram = ({
+  int midi,
+  double onMs,
+  double offMs,
+  int velocity,
+  int program,
+});
+
 class DiarizeTurn {
   final double t0;
   final double t1;
@@ -602,6 +610,12 @@ class CrispasrSession {
 
   bool isCustomVoice() => false;
   bool isVoiceDesign() => false;
+
+  int get pianoSampleRate =>
+      throw UnsupportedError('Music transcription is not available on web');
+
+  List<PianoNoteWithProgram> pianoNotesWithPrograms(Float32List pcm16k) =>
+      throw UnsupportedError('Music transcription is not available on web');
 
   Float32List synthesize(String text) {
     throw UnsupportedError('CrispasrSession is not available on web');
