@@ -57,6 +57,22 @@ CASES = {
                         backend="pocket-tts", lang="de", text=DE, clone=True,
                         asr=("hojo-asr-multi-v1-q4_k.gguf", "hojo-asr"),
                         informational=True),
+    # Pocket TTS French is upstream's 24-layer preview: on 0.8.35 it took
+    # 337 s for one sentence and nothing of it was transcribable.
+    "pocket-tts-fr-clone": dict(model="pocket-tts-french_24l-q8_0.gguf",
+                                backend="pocket-tts", lang="fr", clone=True,
+                                text="Bonjour, comment allez-vous aujourd'hui ?"),
+    # Voxtral 4B TTS (non-commercial, development builds only): has it
+    # survived the engine moves since it was catalogued?
+    "voxtral-4b-tts": dict(model="voxtral-4b-tts-q4_k.gguf",
+                           backend="voxtral-tts", lang="en", text=EN),
+    # Hojo-ASR on REAL German speech: a Spoken Wikipedia recording
+    # (CC BY-SA 3.0, first 60 s), compared with Parakeet on the same audio.
+    # Neither transcript is ground truth, so this reports agreement and
+    # prints both for reading.
+    "hojo-asr-de-real": dict(audio="de-abwasch-60s.wav", lang="de",
+                             asr=("hojo-asr-multi-v1-q4_k.gguf", "hojo-asr"),
+                             compare_with_parakeet=True, informational=True),
     # Kartoffelbox is a Turbo-architecture T3: the registry pairs it with
     # the Turbo S3Gen, the app catalogue with the standard one.
     "kartoffelbox-turbo-s3gen": dict(model="kartoffelbox-turbo-t3-q8_0.gguf",
@@ -70,7 +86,8 @@ CASES = {
 
 
 def words(s):
-    return re.findall(r"[a-z']+", s.lower())
+    # Any letters, so German umlauts / ß and French accents stay inside words.
+    return re.findall(r"[^\W\d_]+", s.lower())
 
 
 def to_16k(pcm, sr):
@@ -145,7 +162,21 @@ def main():
     failed = []
     for name in names:
         c = CASES[name]
-        lang, text = c["lang"], c["text"]
+        lang = c["lang"]
+        if c.get("compare_with_parakeet"):
+            pcm, sr = read_wav(f"{models}/{c['audio']}")
+            pcm = to_16k(pcm, sr)
+            other = crispasr.Session(f"{models}/{c['asr'][0]}", backend=c["asr"][1])
+            a = " ".join(seg.text for seg in other.transcribe(pcm, language=lang))
+            other.close()
+            b = " ".join(seg.text for seg in parakeet.transcribe(pcm, language=lang))
+            wa, wb = words(a), set(words(b))
+            agree = sum(1 for w in wa if w in wb) / max(1, len(wa))
+            print(f"INFO {name}: {len(pcm) / 16000:.1f}s, {agree:.0%} of "
+                  f"{c['asr'][1]}'s {len(wa)} words also in parakeet's "
+                  f"{len(wb)}\n  {c['asr'][1]}: {a!r}\n  parakeet: {b!r}", flush=True)
+            continue
+        text = c["text"]
         if c.get("cli"):
             pcm, sr = synth_cli(models, c)
         else:
