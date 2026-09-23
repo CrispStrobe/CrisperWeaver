@@ -3825,10 +3825,12 @@ abstract final class ModelCatalog {
     // drive the existing download confirmation in development builds.
     // Breeze-TTS-2: the session ABI has no set_voice arm for it (cloning is
     // CLI-only), and it finds its codec as a sibling file at open time, so
-    // the companion must sit in the same models directory. Known defect on
-    // the 0.8.35 engine (live-tts workflow): "The quick brown fox jumps over
-    // the lazy dog." came back as "Fox jumps over the lazy" — both ends of
-    // the sentence are lost. Development builds only, so kept, but flagged.
+    // the companion must sit in the same models directory. On the 0.8.35
+    // engine "The quick brown fox jumps over the lazy dog." came back as "Fox
+    // jumps over the lazy"; at the c97fc1aa pin the same seed and sentence
+    // are word-exact through both the session and the CLI (live-tts run
+    // 35875015710). Breeze decodes through the qwen3-tts codec, and the
+    // qwen3-tts attention-mask fix (#337) landed in between.
     'breeze-tts-2-q4_k': ModelDefinition(
       name: 'breeze-tts-2-q4_k',
       displayName: 'Breeze-TTS-2 (q4_k)',
@@ -3838,7 +3840,7 @@ abstract final class ModelCatalog {
       sizeBytes: 2206392384,
       checksum: '',
       description:
-          'MediaTek Breeze-TTS-2 — Mandarin/English, may drop the start and end of a sentence; needs the qwen3-tts-tokenizer-12hz codec, ~2.2 GB',
+          'MediaTek Breeze-TTS-2 — Mandarin/English; needs the qwen3-tts-tokenizer-12hz codec, ~2.2 GB',
       quantization: 'q4_k',
       backend: 'bt2-tts',
       kind: ModelKind.tts,

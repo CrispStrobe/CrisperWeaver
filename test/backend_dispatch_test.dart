@@ -402,8 +402,11 @@ void main() {
         'confucius4-tts',
 
         // Hojo-ASR (de/fr/it/pt/es, 4.4 GB, #438): arrived with the c97fc1aa
-        // pin. Too large to verify on the dev VPS; catalogue it once the
-        // live-tts workflow's round trip (Pocket TTS German → Hojo) passes.
+        // pin. Not catalogued on the evidence so far: on German speech that
+        // Parakeet transcribes word-exact ("Guten Morgen, wie geht es dir
+        // heute?"), Hojo returned "guten morgen wie dieses hier heute" —
+        // 57% of words (live-tts run 35875015710, a synthetic Pocket TTS
+        // clip). Re-check on real German recordings before offering it.
         'hojo-asr',
       };
 

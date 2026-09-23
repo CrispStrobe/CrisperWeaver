@@ -51,9 +51,12 @@ CASES = {
                         codec="qwen3-tts-tokenizer-12hz.gguf"),
     # Hojo-ASR (4.4 GB) in a closed loop: Pocket TTS German speaks a
     # sentence, Hojo transcribes it instead of Parakeet.
+    # Informational: 57% on its first run where Parakeet heard 100% of the
+    # same audio, so it is a measurement to track, not a gate.
     "hojo-asr-de": dict(model="pocket-tts-german-q8_0.gguf",
                         backend="pocket-tts", lang="de", text=DE, clone=True,
-                        asr=("hojo-asr-multi-v1-q4_k.gguf", "hojo-asr")),
+                        asr=("hojo-asr-multi-v1-q4_k.gguf", "hojo-asr"),
+                        informational=True),
     # Kartoffelbox is a Turbo-architecture T3: the registry pairs it with
     # the Turbo S3Gen, the app catalogue with the standard one.
     "kartoffelbox-turbo-s3gen": dict(model="kartoffelbox-turbo-t3-q8_0.gguf",

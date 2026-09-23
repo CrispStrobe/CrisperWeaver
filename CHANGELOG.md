@@ -5,6 +5,8 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 
 ## [Unreleased]
 
+## [0.12.0] — 2026-09-23
+
 ### Added
 
 - Supertonic-3 text-to-speech: 31 languages, ten preset voices, 44.1 kHz,
