@@ -52,12 +52,12 @@ env:
   # backends or add them to its documented `engineOnly` set, then commit
   # the bump on its own so a regression bisects cleanly.
   CRISPASR_REPO: CrispStrobe/CrispASR
-  # Pinned to a main SHA past v0.8.35 (c97fc1aa): it carries the session-ABI
+  # Pinned to a main SHA past v0.8.35 (2570762d, CI green): it carries the session-ABI
   # fixes the app depends on — Raon's reference voice at the model's 16 kHz,
   # Breeze-TTS-2's output rate, the `raon` session alias — and the
   # Onsets & Frames / hFT-Transformer transcribers. Re-pin to the next
   # CrispASR version tag when it exists.
-  CRISPASR_REF: c97fc1aa9bf8be9a67b1be67d9a332a73ea77ffe
+  CRISPASR_REF: 2570762dfa87d8aa3f2727a6537c0ae256085857
   CRISPEMBED_REPO: CrispStrobe/CrispEmbed
   CRISPEMBED_REF: 40e7b7dd00bb6b1505c9e6ac74bef0c97efef337
   GLINT_REPO: CrispStrobe/glint
