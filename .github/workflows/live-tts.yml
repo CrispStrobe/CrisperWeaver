@@ -1,0 +1,81 @@
+name: Live TTS check
+
+# Manual only. Runs a TTS → ASR round trip (scripts/live_tts_check.py)
+# through CrispASR's session API for models too large for the development
+# VPS (~8 GB RAM): FireRedTTS3 is 2.4 GB + 1.1 GB, Breeze-TTS-2 2.2 GB +
+# 0.4 GB. A public repo's ubuntu-latest runner has 16 GB.
+#
+#   gh workflow run live-tts.yml -f cases="fireredtts3 fireredtts3-clone"
+on:
+  workflow_dispatch:
+    inputs:
+      cases:
+        description: "Space-separated cases from scripts/live_tts_check.py"
+        required: true
+        default: "fireredtts3 fireredtts3-clone bt2-tts pocket-tts-de-clone pocket-tts-en-novoice kartoffelbox-turbo-s3gen kartoffelbox-std-s3gen"
+
+env:
+  CRISPASR_REPO: CrispStrobe/CrispASR
+  # Keep in step with ci.yml / release.yml — the check is only meaningful
+  # against the engine the app ships.
+  CRISPASR_REF: 00c9e7524030b7324e628133d43caa2c5f170a74
+
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          path: repos/CrisperWeaver
+
+      - uses: actions/checkout@v5
+        with:
+          repository: ${{ env.CRISPASR_REPO }}
+          ref: ${{ env.CRISPASR_REF }}
+          path: repos/CrispASR
+          submodules: recursive
+
+      - name: Build libcrispasr
+        working-directory: repos/CrispASR
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON \
+            -DCRISPASR_BUILD_TESTS=OFF -DCRISPASR_BUILD_EXAMPLES=OFF \
+            -DCRISPASR_BUILD_SERVER=OFF -DCRISPASR_OPUS_FETCH=ON
+          cmake --build build -j "$(nproc)" --target crispasr-lib
+          ls -la build/src/
+
+      - name: Python binding
+        run: pip install numpy -e repos/CrispASR/python
+
+      - name: Download models
+        env:
+          CASES: ${{ inputs.cases }}
+        run: |
+          mkdir -p models && cd models
+          get() { curl -fsSL -o "$1" "https://huggingface.co/$2/resolve/main/$1"; }
+          get parakeet-tdt-0.6b-v3-q4_k.gguf cstr/parakeet-tdt-0.6b-v3-GGUF
+          case " $CASES " in *" fireredtts3"*)
+            get fireredtts3-base-q4_k.gguf cstr/fireredtts3-GGUF
+            get fireredtts3-redae-f16.gguf cstr/fireredtts3-GGUF ;;
+          esac
+          case " $CASES " in *" bt2-tts "*)
+            get breeze-tts-2-q4_k.gguf cstr/breeze-tts-2-GGUF
+            get qwen3-tts-tokenizer-12hz.gguf cstr/qwen3-tts-tokenizer-12hz-GGUF ;;
+          esac
+          case " $CASES " in *" pocket-tts-de"*) get pocket-tts-german-q8_0.gguf cstr/pocket-tts-GGUF ;; esac
+          case " $CASES " in *" pocket-tts-en"*) get pocket-tts-english-f16.gguf cstr/pocket-tts-GGUF ;; esac
+          case " $CASES " in *" kartoffelbox"*)
+            get kartoffelbox-turbo-t3-q8_0.gguf cstr/kartoffelbox-turbo-GGUF
+            get chatterbox-turbo-s3gen-q8_0.gguf cstr/chatterbox-turbo-GGUF
+            get chatterbox-s3gen-q8_0.gguf cstr/chatterbox-GGUF ;;
+          esac
+          ls -la
+
+      - name: Round trip
+        env:
+          CRISPASR_LIB_PATH: ${{ github.workspace }}/repos/CrispASR/build/src/libcrispasr.so
+          LD_LIBRARY_PATH: ${{ github.workspace }}/repos/CrispASR/build/src:${{ github.workspace }}/repos/CrispASR/build/ggml/src
+        run: |
+          python repos/CrisperWeaver/scripts/live_tts_check.py \
+            "$PWD/models" repos/CrispASR/samples/jfk.wav ${{ inputs.cases }}
