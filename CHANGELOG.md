@@ -5,6 +5,27 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 
 ## [Unreleased]
 
+### Added
+
+- Supertonic-3 text-to-speech: 31 languages, ten preset voices, 44.1 kHz,
+  about 200 MB. The Synthesize screen shows a Language picker for it,
+  since it does not guess the language from the text.
+
+### Changed
+
+- Speech engine updated to CrispASR 0.8.35. Parakeet no longer crashes on
+  very long recordings; Qwen3 forced-alignment subtitle times no longer run
+  backwards or land early; M2M100 / WMT21 translation no longer collapses
+  into repetition (it now decodes with beam 5, about 1.5x slower); the
+  temperature setting now takes effect for Voxtral, Qwen3-ASR and Granite;
+  Zonos handles non-Latin scripts.
+
+### Fixed
+
+- Zonos was described as supporting voice cloning. It does not — a
+  reference recording was ignored in favour of a random speaker — and the
+  model list no longer says so.
+
 ## [0.11.1] — 2026-09-23
 
 ### Added
