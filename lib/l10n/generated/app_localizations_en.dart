@@ -3349,7 +3349,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aiTransparencyBody =>
-      'CrisperWeaver uses artificial intelligence systems for:\n\n• Speech recognition (ASR) — converting audio to text\n• Speech synthesis (TTS) — generating spoken audio from text\n• Speaker identification — biometric voice matching\n• Document analysis (OCR) — recognizing text in images\n• Text generation — translation, summarisation, and transcript cleanup by language models\n• Audio Q&A — a language model answers your question about a recording instead of transcribing it\n• Speaker diarisation — separating who spoke when, and spoken-language detection\n• Audio enhancement — noise suppression\n• Semantic search — AI-powered content retrieval\n\nBy default everything runs on your device and nothing is sent anywhere. Some features are off until you switch them on and then do use the network: model downloads, optional cloud transcription, and optional cloud summarisation or cleanup, which send the text or audio concerned to the provider you configure. Speaker profiles and voice recordings never leave your device.\n\nAI-generated audio is automatically watermarked and signed with machine-readable provenance metadata, and AI-generated text carries a disclosure when you copy or export it (EU AI Act Art. 50).\n\nFor details, see the About screen and PRIVACY.md.';
+      'CrisperWeaver uses artificial intelligence systems for:\n\n• Speech recognition (ASR) — converting audio to text\n• Speech synthesis (TTS) — generating spoken audio from text\n• Speaker identification — biometric voice matching\n• Document analysis (OCR) — recognizing text in images\n• Text generation — translation, summarisation, and transcript cleanup by language models\n• Audio Q&A — a language model answers your question about a recording instead of transcribing it\n• Speaker diarisation — separating who spoke when, and spoken-language detection\n• Audio enhancement — noise suppression\n• Music transcription — converting a recording into notes (MIDI)\n• Semantic search — AI-powered content retrieval\n\nBy default everything runs on your device and nothing is sent anywhere. Some features are off until you switch them on and then do use the network: model downloads, optional cloud transcription, and optional cloud summarisation or cleanup, which send the text or audio concerned to the provider you configure. Speaker profiles and voice recordings never leave your device.\n\nAI-generated audio is automatically watermarked and signed with machine-readable provenance metadata, and AI-generated text carries a disclosure when you copy or export it (EU AI Act Art. 50).\n\nFor details, see the About screen and PRIVACY.md.';
 
   @override
   String get aiTransparencyWebNote =>
@@ -3702,7 +3702,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsExperimentalSubtitle =>
-      'Adds transcript comparison, subtitle overlay, voice baking, audio editing, the local API server, and the log and storage inspectors.';
+      'Adds transcript comparison, subtitle overlay, voice baking, audio editing, audio to MIDI, the local API server, and the log and storage inspectors.';
 
   @override
   String get advancedAllOptions => 'All options';
@@ -3967,5 +3967,64 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String workspaceSegmentSemantics(int number, String time, String text) {
     return 'Segment $number at $time: $text';
+  }
+
+  @override
+  String get menuMusicToMidi => 'Audio → MIDI';
+
+  @override
+  String get musicIntro =>
+      'Transcribe a recording into notes and save them as a MIDI file. Runs on this device; nothing is uploaded.';
+
+  @override
+  String get musicPickAudio => 'Choose audio';
+
+  @override
+  String get musicModelLabel => 'Transcription model';
+
+  @override
+  String get musicNoModels =>
+      'No music transcription model is downloaded yet. Basic Pitch is about 110 KB.';
+
+  @override
+  String get musicTranscribe => 'Transcribe to notes';
+
+  @override
+  String get musicWorking =>
+      'Transcribing… MT3 and Piano Transcription can take several minutes on a CPU.';
+
+  @override
+  String get musicNoNotes => 'No notes found.';
+
+  @override
+  String get musicSaveMidi => 'Save MIDI';
+
+  @override
+  String get musicSaveAs => 'Save MIDI file';
+
+  @override
+  String get modelsFilterMusic => 'Music';
+
+  @override
+  String get modelsUseMusic => 'audio to MIDI';
+
+  @override
+  String musicResult(int notes, String seconds, String elapsed) {
+    return '$notes notes up to $seconds s, transcribed in $elapsed s';
+  }
+
+  @override
+  String musicInstruments(String names) {
+    return 'Instruments: $names';
+  }
+
+  @override
+  String musicSavedTo(String path) {
+    return 'Saved to $path';
+  }
+
+  @override
+  String musicFailed(String error) {
+    return 'Music transcription failed: $error';
   }
 }

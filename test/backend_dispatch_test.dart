@@ -212,6 +212,8 @@ void main() {
         ModelKind.asr,
         ModelKind.tts,
         ModelKind.translate,
+        // Opened by MusicTranscriptionService through the same session.
+        ModelKind.music,
       };
       // Backends catalogued AHEAD of their C-side dispatch arm — known,
       // documented gaps. Keep this list tight: every entry is a deferred
@@ -338,22 +340,19 @@ void main() {
         // beep disclaimer — see PLAN §15.2g.
         'rvc-svc',
 
-        // Music analysis / source separation. CrisperWeaver is a speech
-        // app: there is no ModelKind for beats, chords, pitch, stems or
-        // tablature, and no screen that consumes their output. They stay
-        // CLI-only until a music surface exists.
+        // Music analysis / source separation. Note transcription has a
+        // surface (ModelKind.music, the Audio → MIDI screen: basic-pitch,
+        // mt3, piano-transcription); beats, chords, pitch curves, stems
+        // and tablature do not — no screen consumes that output.
         'beat-this',
         'btc-chords',
         'crepe',
         'htdemucs',
         'mel-band-roformer',
-        'piano-transcription',
         'tabcnn',
-        // Note transcription, CrispASR 0.8.32+ (hft-transformer and
-        // onsets-and-frames are post-0.8.35 main; listed so a dylib built
-        // from main does not trip this check). Same reason as above.
-        'basic-pitch',
-        'mt3',
+        // Note transcribers on CrispASR main after 0.8.35, listed so a
+        // dylib built from main does not trip this check. They share the
+        // piano ABI, so cataloguing them is a model addition once pinned.
         'onsets-and-frames',
         'hft-transformer',
 

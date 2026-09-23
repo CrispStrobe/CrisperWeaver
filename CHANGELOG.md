@@ -15,6 +15,12 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
   giving the whole segment one speaker. Recognisers that return long
   segments — Parakeet can return a 30-second recording as one — now show
   each speaker's turn separately.
+- Audio → MIDI (advanced features): transcribe a recording into notes and
+  save a MIDI file, on the device. Basic Pitch (about 110 KB, fast, any
+  single instrument or voice), MT3 (names each note's instrument and writes
+  one MIDI track per instrument, drums on channel 10; slow on a CPU) and
+  Piano Transcription (solo piano, very slow on a CPU). New "Music" filter
+  in the model manager.
 
 ### Changed
 

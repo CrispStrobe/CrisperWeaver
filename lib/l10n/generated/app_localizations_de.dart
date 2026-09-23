@@ -3369,7 +3369,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get aiTransparencyBody =>
-      'CrisperWeaver verwendet Systeme der Künstlichen Intelligenz für:\n\n• Spracherkennung (ASR) — Umwandlung von Audio in Text\n• Sprachsynthese (TTS) — Erzeugung gesprochener Audiodaten aus Text\n• Sprecheridentifikation — biometrischer Stimmabgleich\n• Dokumentenanalyse (OCR) — Texterkennung in Bildern\n• Textgenerierung — Übersetzung, Zusammenfassung und Transkript-Bereinigung durch Sprachmodelle\n• Audio-Fragen — ein Sprachmodell beantwortet Ihre Frage zu einer Aufnahme, statt sie zu transkribieren\n• Sprecher-Diarisierung — wer wann gesprochen hat — sowie Erkennung der gesprochenen Sprache\n• Audio-Aufbereitung — Rauschunterdrückung\n• Semantische Suche — KI-gestützte Inhaltssuche\n\nStandardmäßig läuft alles auf Ihrem Gerät und es werden keine Daten übertragen. Einige Funktionen sind zunächst deaktiviert und nutzen nach dem Einschalten das Netzwerk: Modell-Downloads, optionale Cloud-Transkription sowie optionale Cloud-Zusammenfassung oder -Bereinigung, die den betreffenden Text bzw. das Audio an den von Ihnen konfigurierten Anbieter senden. Sprecherprofile und Sprachaufnahmen verlassen Ihr Gerät nie.\n\nKI-generierte Audiodaten werden automatisch mit Wasserzeichen versehen und mit maschinenlesbaren Herkunftsmetadaten signiert; KI-generierter Text trägt beim Kopieren oder Exportieren einen Hinweis (EU AI Act Art. 50).\n\nWeitere Informationen finden Sie im Info-Bildschirm und in PRIVACY.md.';
+      'CrisperWeaver verwendet Systeme der Künstlichen Intelligenz für:\n\n• Spracherkennung (ASR) — Umwandlung von Audio in Text\n• Sprachsynthese (TTS) — Erzeugung gesprochener Audiodaten aus Text\n• Sprecheridentifikation — biometrischer Stimmabgleich\n• Dokumentenanalyse (OCR) — Texterkennung in Bildern\n• Textgenerierung — Übersetzung, Zusammenfassung und Transkript-Bereinigung durch Sprachmodelle\n• Audio-Fragen — ein Sprachmodell beantwortet Ihre Frage zu einer Aufnahme, statt sie zu transkribieren\n• Sprecher-Diarisierung — wer wann gesprochen hat — sowie Erkennung der gesprochenen Sprache\n• Audio-Aufbereitung — Rauschunterdrückung\n• Musiktranskription — Umwandlung einer Aufnahme in Noten (MIDI)\n• Semantische Suche — KI-gestützte Inhaltssuche\n\nStandardmäßig läuft alles auf Ihrem Gerät und es werden keine Daten übertragen. Einige Funktionen sind zunächst deaktiviert und nutzen nach dem Einschalten das Netzwerk: Modell-Downloads, optionale Cloud-Transkription sowie optionale Cloud-Zusammenfassung oder -Bereinigung, die den betreffenden Text bzw. das Audio an den von Ihnen konfigurierten Anbieter senden. Sprecherprofile und Sprachaufnahmen verlassen Ihr Gerät nie.\n\nKI-generierte Audiodaten werden automatisch mit Wasserzeichen versehen und mit maschinenlesbaren Herkunftsmetadaten signiert; KI-generierter Text trägt beim Kopieren oder Exportieren einen Hinweis (EU AI Act Art. 50).\n\nWeitere Informationen finden Sie im Info-Bildschirm und in PRIVACY.md.';
 
   @override
   String get aiTransparencyWebNote =>
@@ -3727,7 +3727,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get settingsExperimentalSubtitle =>
-      'Ergänzt Transkriptvergleich, Untertitel-Overlay, Voice-Baking, Audiobearbeitung, den lokalen API-Server sowie Log- und Speicheransicht.';
+      'Ergänzt Transkriptvergleich, Untertitel-Overlay, Voice-Baking, Audiobearbeitung, Audio zu MIDI, den lokalen API-Server sowie Log- und Speicheransicht.';
 
   @override
   String get advancedAllOptions => 'Alle Optionen';
@@ -3993,5 +3993,64 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String workspaceSegmentSemantics(int number, String time, String text) {
     return 'Segment $number bei $time: $text';
+  }
+
+  @override
+  String get menuMusicToMidi => 'Audio → MIDI';
+
+  @override
+  String get musicIntro =>
+      'Wandelt eine Aufnahme in Noten um und speichert sie als MIDI-Datei. Läuft auf diesem Gerät; nichts wird hochgeladen.';
+
+  @override
+  String get musicPickAudio => 'Audio auswählen';
+
+  @override
+  String get musicModelLabel => 'Transkriptionsmodell';
+
+  @override
+  String get musicNoModels =>
+      'Es ist noch kein Modell zur Musiktranskription heruntergeladen. Basic Pitch ist etwa 110 KB groß.';
+
+  @override
+  String get musicTranscribe => 'In Noten umwandeln';
+
+  @override
+  String get musicWorking =>
+      'Transkription läuft… MT3 und Piano Transcription können auf der CPU mehrere Minuten brauchen.';
+
+  @override
+  String get musicNoNotes => 'Keine Noten gefunden.';
+
+  @override
+  String get musicSaveMidi => 'MIDI speichern';
+
+  @override
+  String get musicSaveAs => 'MIDI-Datei speichern';
+
+  @override
+  String get modelsFilterMusic => 'Musik';
+
+  @override
+  String get modelsUseMusic => 'Audio zu MIDI';
+
+  @override
+  String musicResult(int notes, String seconds, String elapsed) {
+    return '$notes Noten bis $seconds s, transkribiert in $elapsed s';
+  }
+
+  @override
+  String musicInstruments(String names) {
+    return 'Instrumente: $names';
+  }
+
+  @override
+  String musicSavedTo(String path) {
+    return 'Gespeichert unter $path';
+  }
+
+  @override
+  String musicFailed(String error) {
+    return 'Musiktranskription fehlgeschlagen: $error';
   }
 }

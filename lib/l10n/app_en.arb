@@ -2163,7 +2163,7 @@
   "aboutSyntheticComplianceText": "Synthetic speech outputs are watermarked and carry machine-readable provenance metadata. Speaker enrollment requires explicit biometric consent (GDPR Art. 9). All data stays on-device; you can delete your data at any time.",
   "syntheticDisclosureNote": "This content contains AI-generated synthetic speech.",
   "aiTransparencyTitle": "AI-Powered Application",
-  "aiTransparencyBody": "CrisperWeaver uses artificial intelligence systems for:\n\n• Speech recognition (ASR) — converting audio to text\n• Speech synthesis (TTS) — generating spoken audio from text\n• Speaker identification — biometric voice matching\n• Document analysis (OCR) — recognizing text in images\n• Text generation — translation, summarisation, and transcript cleanup by language models\n• Audio Q&A — a language model answers your question about a recording instead of transcribing it\n• Speaker diarisation — separating who spoke when, and spoken-language detection\n• Audio enhancement — noise suppression\n• Semantic search — AI-powered content retrieval\n\nBy default everything runs on your device and nothing is sent anywhere. Some features are off until you switch them on and then do use the network: model downloads, optional cloud transcription, and optional cloud summarisation or cleanup, which send the text or audio concerned to the provider you configure. Speaker profiles and voice recordings never leave your device.\n\nAI-generated audio is automatically watermarked and signed with machine-readable provenance metadata, and AI-generated text carries a disclosure when you copy or export it (EU AI Act Art. 50).\n\nFor details, see the About screen and PRIVACY.md.",
+  "aiTransparencyBody": "CrisperWeaver uses artificial intelligence systems for:\n\n• Speech recognition (ASR) — converting audio to text\n• Speech synthesis (TTS) — generating spoken audio from text\n• Speaker identification — biometric voice matching\n• Document analysis (OCR) — recognizing text in images\n• Text generation — translation, summarisation, and transcript cleanup by language models\n• Audio Q&A — a language model answers your question about a recording instead of transcribing it\n• Speaker diarisation — separating who spoke when, and spoken-language detection\n• Audio enhancement — noise suppression\n• Music transcription — converting a recording into notes (MIDI)\n• Semantic search — AI-powered content retrieval\n\nBy default everything runs on your device and nothing is sent anywhere. Some features are off until you switch them on and then do use the network: model downloads, optional cloud transcription, and optional cloud summarisation or cleanup, which send the text or audio concerned to the provider you configure. Speaker profiles and voice recordings never leave your device.\n\nAI-generated audio is automatically watermarked and signed with machine-readable provenance metadata, and AI-generated text carries a disclosure when you copy or export it (EU AI Act Art. 50).\n\nFor details, see the About screen and PRIVACY.md.",
   "aiTransparencyWebNote": "Note for this web version: unlike the desktop and mobile apps, the browser build has no on-device engine. Speech recognition and synthesis run on a remote CrispASR server, so the audio you submit is sent there for processing. Text embeddings for search still run locally in your browser.",
   "aiTransparencyAcknowledge": "I understand",
   "historySearchSemanticTooltip": "Semantic search (active)",
@@ -2382,7 +2382,7 @@
   "@settingsExperimentalSection": {},
   "settingsExperimentalTitle": "Show advanced features",
   "@settingsExperimentalTitle": {},
-  "settingsExperimentalSubtitle": "Adds transcript comparison, subtitle overlay, voice baking, audio editing, the local API server, and the log and storage inspectors.",
+  "settingsExperimentalSubtitle": "Adds transcript comparison, subtitle overlay, voice baking, audio editing, audio to MIDI, the local API server, and the log and storage inspectors.",
   "@settingsExperimentalSubtitle": {},
   "advancedAllOptions": "All options",
   "@advancedAllOptions": {},
@@ -2545,6 +2545,56 @@
         "type": "String"
       },
       "text": {
+        "type": "String"
+      }
+    }
+  },
+  "menuMusicToMidi": "Audio → MIDI",
+  "musicIntro": "Transcribe a recording into notes and save them as a MIDI file. Runs on this device; nothing is uploaded.",
+  "musicPickAudio": "Choose audio",
+  "musicModelLabel": "Transcription model",
+  "musicNoModels": "No music transcription model is downloaded yet. Basic Pitch is about 110 KB.",
+  "musicTranscribe": "Transcribe to notes",
+  "musicWorking": "Transcribing… MT3 and Piano Transcription can take several minutes on a CPU.",
+  "musicNoNotes": "No notes found.",
+  "musicSaveMidi": "Save MIDI",
+  "musicSaveAs": "Save MIDI file",
+  "modelsFilterMusic": "Music",
+  "modelsUseMusic": "audio to MIDI",
+  "musicResult": "{notes} notes up to {seconds} s, transcribed in {elapsed} s",
+  "@musicResult": {
+    "placeholders": {
+      "notes": {
+        "type": "int"
+      },
+      "seconds": {
+        "type": "String"
+      },
+      "elapsed": {
+        "type": "String"
+      }
+    }
+  },
+  "musicInstruments": "Instruments: {names}",
+  "@musicInstruments": {
+    "placeholders": {
+      "names": {
+        "type": "String"
+      }
+    }
+  },
+  "musicSavedTo": "Saved to {path}",
+  "@musicSavedTo": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "musicFailed": "Music transcription failed: {error}",
+  "@musicFailed": {
+    "placeholders": {
+      "error": {
         "type": "String"
       }
     }

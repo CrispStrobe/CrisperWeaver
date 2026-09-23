@@ -77,6 +77,12 @@ enum ModelKind {
   /// Includes SMT++ (bekern), TrOMR (polyphonic MIDI), Flova (LilyPond),
   /// and Transcoda (Humdrum **kern).
   omr,
+
+  /// Music transcription GGUF: audio → note events, exported as MIDI
+  /// (Audio → MIDI screen). Loaded via CrispASR's structured piano ABI
+  /// (`CrispasrSession.pianoNotesWithPrograms`): Basic Pitch, MT3
+  /// (multi-instrument) and piano-transcription.
+  music,
 }
 
 class ModelDefinition {
@@ -3640,6 +3646,52 @@ abstract final class ModelCatalog {
       license:
           'OpenRAIL-M — use restrictions + attribution: https://huggingface.co/Supertone/supertonic-3',
     ),
+    // ----- Music transcription (Audio → MIDI screen) -----
+    // Measured on the 0.8.35 dylib, CPU, a 4.8 s synthetic C-major clip
+    // with 7 notes: Basic Pitch 1.7 s, all 7; MT3 53 s, 6 of 7;
+    // piano-transcription 218 s with many harmonic false positives on a
+    // non-piano timbre. Hence the order and the descriptions.
+    'basic-pitch-f16': ModelDefinition(
+      name: 'basic-pitch-f16',
+      displayName: 'Basic Pitch (f16)',
+      fileName: 'basic-pitch-f16.gguf',
+      url:
+          'https://huggingface.co/cstr/basic-pitch-GGUF/resolve/main/basic-pitch-f16.gguf',
+      sizeBytes: 112160,
+      checksum: '',
+      description:
+          'Spotify Basic Pitch — any single instrument or voice to notes, fast, ~110 KB',
+      quantization: 'f16',
+      backend: 'basic-pitch',
+      kind: ModelKind.music,
+    ),
+    'mt3-f16': ModelDefinition(
+      name: 'mt3-f16',
+      displayName: 'MT3 multi-instrument (f16)',
+      fileName: 'mt3-f16.gguf',
+      url: 'https://huggingface.co/cstr/mt3-GGUF/resolve/main/mt3-f16.gguf',
+      sizeBytes: 96044864,
+      checksum: '',
+      description:
+          'Magenta MT3 — names the instrument of every note, one MIDI track each; slow on CPU, ~96 MB',
+      quantization: 'f16',
+      backend: 'mt3',
+      kind: ModelKind.music,
+    ),
+    'piano-transcription-f16': ModelDefinition(
+      name: 'piano-transcription-f16',
+      displayName: 'Piano Transcription (f16)',
+      fileName: 'piano-transcription-f16.gguf',
+      url:
+          'https://huggingface.co/cstr/piano-transcription-GGUF/resolve/main/piano-transcription-f16.gguf',
+      sizeBytes: 77277792,
+      checksum: '',
+      description:
+          'ByteDance high-resolution piano transcription — solo piano only, very slow on CPU, ~77 MB',
+      quantization: 'f16',
+      backend: 'piano-transcription',
+      kind: ModelKind.music,
+    ),
     // SpeechT5 — Microsoft 80M AR mel decoder + HiFi-GAN vocoder.
     'speecht5-tts-f16': ModelDefinition(
       name: 'speecht5-tts-f16',
@@ -4758,6 +4810,9 @@ abstract final class ModelCatalog {
     'parler-tts': 'parler-mini-v1.1-q8_0',
     'pocket-tts': 'pocket-tts-english-f16',
     'supertonic': 'supertonic3-f16',
+    'basic-pitch': 'basic-pitch-f16',
+    'mt3': 'mt3-f16',
+    'piano-transcription': 'piano-transcription-f16',
     'speecht5': 'speecht5-tts-f16',
     'kugelaudio': 'kugelaudio-0-open-f16',
     'zonos': 'zonos-v0.1-transformer-q4_k',
@@ -5895,6 +5950,30 @@ abstract final class ModelCatalog {
       description: 'Kyutai Pocket TTS 100M — voice clone from WAV (English)',
       kind: ModelKind.tts,
       defaultLanguages: langsEn,
+    ),
+    'basic-pitch': BackendRepo(
+      backend: 'basic-pitch',
+      repoId: 'cstr/basic-pitch-GGUF',
+      baseName: 'basic-pitch',
+      displayPrefix: 'Basic Pitch',
+      description: 'Spotify Basic Pitch — audio to notes',
+      kind: ModelKind.music,
+    ),
+    'mt3': BackendRepo(
+      backend: 'mt3',
+      repoId: 'cstr/mt3-GGUF',
+      baseName: 'mt3',
+      displayPrefix: 'MT3',
+      description: 'Magenta MT3 — multi-instrument audio to notes',
+      kind: ModelKind.music,
+    ),
+    'piano-transcription': BackendRepo(
+      backend: 'piano-transcription',
+      repoId: 'cstr/piano-transcription-GGUF',
+      baseName: 'piano-transcription',
+      displayPrefix: 'Piano Transcription',
+      description: 'ByteDance piano transcription — solo piano to notes',
+      kind: ModelKind.music,
     ),
     'supertonic': BackendRepo(
       backend: 'supertonic',
