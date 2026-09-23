@@ -70,6 +70,13 @@ VERSION=$(grep '^version:' pubspec.yaml | head -1 | sed 's/version: //' | cut -d
 BUILD_NO=$(grep '^version:' pubspec.yaml | head -1 | sed 's/version: //' | cut -d+ -f2)
 echo "==> CrisperWeaver ${VERSION} (${BUILD_NO}) — Mac App Store"
 
+# A store build must not contain the non-commercial models, and it inherits
+# the environment of build_macos.sh, which would honour this.
+if [[ "${CW_NONCOMMERCIAL_MODELS:-0}" != "0" ]]; then
+  echo "!! CW_NONCOMMERCIAL_MODELS is set — refusing a store build with non-commercial models" >&2
+  exit 2
+fi
+
 if [[ -z "$PROFILE" ]]; then
   echo "!! set MAC_PROFILE to the .provisionprofile path" >&2; exit 2
 fi

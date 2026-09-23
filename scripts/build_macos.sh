@@ -279,7 +279,15 @@ CRISPASR_DIR="$CRISPASR_DIR" CRISPEMBED_DIR="$CRISPEMBED_DIR" \
 echo "==> flutter pub get"
 flutter pub get >/dev/null
 
-echo "==> flutter build macos $FLUTTER_FLAG"
+# Development builds only: CW_NONCOMMERCIAL_MODELS=1 also offers the
+# non-commercial models (ModelCatalog.nonCommercialRepos). Never for a
+# store or release build — build_macos_appstore.sh refuses it.
+NC_DEFINE=""
+if [[ "${CW_NONCOMMERCIAL_MODELS:-0}" == "1" ]]; then
+  NC_DEFINE="--dart-define=CW_NONCOMMERCIAL_MODELS=true"
+  echo "!! CW_NONCOMMERCIAL_MODELS=1 — non-commercial models enabled (development build)" >&2
+fi
+echo "==> flutter build macos $FLUTTER_FLAG $NC_DEFINE"
 # The native dependency build may have raised the average since the earlier
 # checks. Do not start Xcode/Flutter compilation on top of a saturated host.
 "$REPO_ROOT/scripts/check_build_load.sh"
@@ -300,7 +308,7 @@ echo "==> Xcode module cache: $MODULE_CACHE_DIR"
 # Harmless on CI, where neither var is set.
 unset GEM_PATH GEM_HOME
 set +e
-flutter build macos $FLUTTER_FLAG 2>&1 \
+flutter build macos $FLUTTER_FLAG $NC_DEFINE 2>&1 \
   | grep -vE "(Run script build phase|Metal\.xctoolchain)"
 FLUTTER_STATUS=${PIPESTATUS[0]}
 set -e

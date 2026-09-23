@@ -15,6 +15,9 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
   giving the whole segment one speaker. Recognisers that return long
   segments — Parakeet can return a 30-second recording as one — now show
   each speaker's turn separately.
+- More voices: Pocket TTS in German, Spanish, Italian and Portuguese
+  (each speaks in the voice of a reference recording), Chatterbox Nano
+  (the smallest Chatterbox) and a Finnish Chatterbox Nano.
 - Audio → MIDI (advanced features): transcribe a recording into notes and
   save a MIDI file, on the device. Basic Pitch (about 110 KB, fast, any
   single instrument or voice), MT3 (names each note's instrument and writes
@@ -24,6 +27,10 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 
 ### Changed
 
+- Non-commercial models are no longer part of the app: F5-TTS, OuteTTS,
+  Voxtral 4B TTS, the German Moonshine fine-tunes, the BTTR / HMER /
+  PosFormer math OCR models and Qwen2.5-3B. They remain available in
+  development builds (see README, "Non-commercial models").
 - Speech engine updated to CrispASR 0.8.35. Parakeet no longer crashes on
   very long recordings; Qwen3 forced-alignment subtitle times no longer run
   backwards or land early; M2M100 / WMT21 translation no longer collapses
@@ -33,6 +40,9 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 
 ### Fixed
 
+- Chatterbox Turbo now downloads and uses the Turbo S3Gen vocoder it is
+  designed for, instead of the standard one — noticeably faster, same
+  speech.
 - Zonos was described as supporting voice cloning. It does not — a
   reference recording was ignored in favour of a random speaker — and the
   model list no longer says so.
