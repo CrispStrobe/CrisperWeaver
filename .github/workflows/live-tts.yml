@@ -43,7 +43,7 @@ jobs:
             -DCRISPASR_BUILD_TESTS=OFF -DCRISPASR_BUILD_EXAMPLES=ON \
             -DCRISPASR_BUILD_SERVER=OFF -DCRISPASR_OPUS_FETCH=ON
           # The CLI too: bt2-tts-cli compares it with the session path.
-          cmake --build build -j "$(nproc)" --target crispasr-lib crispasr
+          cmake --build build -j "$(nproc)" --target crispasr-lib crispasr-cli
           ls -la build/src/
 
       - name: Python binding
