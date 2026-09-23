@@ -251,7 +251,7 @@ class ModelService {
 
     for (final entry in ModelCatalog.whisperCppModels.entries) {
       final modelDef = entry.value;
-      if (suppressed.contains(modelDef.name)) continue;
+      if (suppressed.contains(modelDef.name) || !modelDef.isOffered) continue;
       final localPath = path.join(whisperCppDir(), modelDef.fileName);
       final isDownloaded = await _isModelDownloaded(localPath, modelDef);
 
@@ -298,7 +298,7 @@ class ModelService {
     };
     for (final entry in merged.entries) {
       final modelDef = entry.value;
-      if (suppressed.contains(modelDef.name)) continue;
+      if (suppressed.contains(modelDef.name) || !modelDef.isOffered) continue;
       final localPath = path.join(whisperCppDir(), modelDef.fileName);
       final isDownloaded = await _isModelDownloaded(localPath, modelDef);
 
@@ -342,11 +342,15 @@ class ModelService {
   }
 
   ModelDefinition? _lookupExact(String name) {
-    return _discoveredModels[name] ??
+    final def = _discoveredModels[name] ??
         ModelCatalog.whisperCppModels[name] ??
         ModelCatalog.crispasrBackendModels[name] ??
         ModelCatalog.ttsVoicepacks[name] ??
         BakedCatalogLoader.cached[name];
+    // Non-commercial models do not exist in a store build: resolving one
+    // (a stale setting, a preset, a queued job) behaves like a removed
+    // model, and downloads resolve through here too.
+    return (def == null || def.isOffered) ? def : null;
   }
 
   /// Persist a backend correction for [name] into the runtime overlay so
@@ -1301,6 +1305,25 @@ class ModelService {
             ))
         .toList()
       ..sort((a, b) => b.bytes.compareTo(a.bytes));
+  }
+
+  /// Whether a model file found on disk may be used in this build. False
+  /// when any catalogue row for [fileName] is non-commercial and the build
+  /// lacks [ModelCatalog.allowNonCommercial]. For callers that discover
+  /// models by scanning the directory rather than through the catalogue —
+  /// a file left over from an older build must not become usable again.
+  bool isOfferedFile(String fileName) {
+    if (ModelCatalog.allowNonCommercial) return true;
+    for (final def in [
+      ...BakedCatalogLoader.cached.values,
+      ...ModelCatalog.whisperCppModels.values,
+      ...ModelCatalog.crispasrBackendModels.values,
+      ...ModelCatalog.ttsVoicepacks.values,
+      ..._discoveredModels.values,
+    ]) {
+      if (def.fileName == fileName && def.isNonCommercial) return false;
+    }
+    return true;
   }
 
   Map<String, String> _buildFilenameBackendMap() {

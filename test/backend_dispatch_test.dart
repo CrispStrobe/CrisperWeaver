@@ -359,18 +359,17 @@ void main() {
         // --- Dispatch aliases the engine began listing in 0.8.32-0.8.35.
         // --- They resolve to a compute path the app already catalogues
         // --- under its canonical backend, so none needs its own id.
-        // chatterbox-turbo / kartoffelbox-turbo / lahgtna-chatterbox are
-        // catalogued under `chatterbox` (chatterbox-turbo-t3,
-        // kartoffelbox-de, lahgtna-chatterbox-t3). chatterbox-nano and
-        // chatterbox-finnish-nano share that path but have no catalogue
-        // entry yet — a model addition, not a dispatch gap.
+        // All catalogued under `chatterbox`: chatterbox-turbo-t3,
+        // chatterbox-nano-t3, chatterbox-finnish-nano-t3, kartoffelbox-de,
+        // lahgtna-chatterbox-t3.
         'chatterbox-turbo',
         'chatterbox-nano',
         'chatterbox-finnish-nano',
         'kartoffelbox-turbo',
         'lahgtna-chatterbox',
-        // Language variants of Kyutai Pocket TTS on the `pocket-tts` path;
-        // only the English GGUF is catalogued so far.
+        // Language releases of Kyutai Pocket TTS, catalogued under
+        // `pocket-tts` (de/es/it/pt). French is not catalogued: upstream's
+        // 24-layer preview produced speech Parakeet could not transcribe.
         'pocket-tts-de',
         'pocket-tts-es',
         'pocket-tts-fr',
@@ -379,11 +378,7 @@ void main() {
         // Alias of `vibevoice-tts` (vibevoice-realtime-0.5b, catalogued).
         'vibevoice-streaming',
 
-        // --- New TTS backends held back from the 0.8.35 bump ---
-        // Breeze-TTS-2: BreezeBlue Research and Non-Commercial licence,
-        // 2.2 GB plus a codec companion. The catalogue can gate NC
-        // downloads, but an NC-only voice is a poor fit for a store app.
-        'bt2-tts',
+        // --- New TTS backend held back from the 0.8.35 bump ---
         // FireRedTTS3 (Apache-2.0): its zero-shot cloning goes through
         // --voice + --ref-text, and the ~2.8 GB pair (base + ReDAE
         // companion) has not been run through the session API from the

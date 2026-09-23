@@ -167,8 +167,16 @@ cd "$REPO_ROOT"
 echo "==> flutter pub get"
 flutter pub get >/dev/null
 
-echo "==> flutter build linux $FLUTTER_FLAG"
-flutter build linux $FLUTTER_FLAG
+# Development builds only: CW_NONCOMMERCIAL_MODELS=1 also offers the
+# non-commercial models (ModelCatalog.nonCommercialRepos). Never for a
+# store or release build — build_macos_appstore.sh refuses it.
+NC_DEFINE=""
+if [[ "${CW_NONCOMMERCIAL_MODELS:-0}" == "1" ]]; then
+  NC_DEFINE="--dart-define=CW_NONCOMMERCIAL_MODELS=true"
+  echo "!! CW_NONCOMMERCIAL_MODELS=1 — non-commercial models enabled (development build)" >&2
+fi
+echo "==> flutter build linux $FLUTTER_FLAG $NC_DEFINE"
+flutter build linux $FLUTTER_FLAG $NC_DEFINE
 
 # Resolve the resulting bundle path. Linux flutter build always lands
 # in build/linux/x64/{debug,release,profile}/bundle.

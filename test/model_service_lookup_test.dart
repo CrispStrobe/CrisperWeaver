@@ -109,6 +109,13 @@ void main() {
   group('defaultForBackend', () {
     test('returns a definition for backends with a recommended default', () {
       for (final entry in ModelCatalog.recommendedDefaultModels.entries) {
+        // A non-commercial default does not exist in this (store) build;
+        // noncommercial_gate_test covers that it resolves to nothing.
+        final raw = ModelCatalog.crispasrBackendModels[entry.value];
+        if (raw != null && !raw.isOffered) {
+          expect(svc.defaultForBackend(entry.key), isNull);
+          continue;
+        }
         final def = svc.defaultForBackend(entry.key);
         expect(def, isNotNull,
             reason: '${entry.key} should resolve to ${entry.value}');

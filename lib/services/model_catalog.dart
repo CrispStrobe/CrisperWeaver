@@ -197,7 +197,13 @@ class ModelDefinition {
   /// True when [license] denotes a non-commercial / research-only grant
   /// (CC-BY-NC, "non-commercial", "research only"). Used to warn before
   /// download/use so users don't unknowingly take on NC terms.
+  ///
+  /// Also true for any file from a repo in
+  /// [ModelCatalog.nonCommercialRepos]: rows from the baked catalogue and
+  /// the live HF probe carry no licence string, and a quant discovered in
+  /// a non-commercial repo is exactly as non-commercial as the curated one.
   bool get isNonCommercial {
+    if (ModelCatalog.isNonCommercialUrl(url)) return true;
     final l = license;
     if (l == null) return false;
     final s = l.toLowerCase();
@@ -207,6 +213,11 @@ class ModelDefinition {
         s.contains('research only') ||
         s.contains('research-only');
   }
+
+  /// Whether this build may list, resolve or download this model. False
+  /// only for non-commercial models in a build without
+  /// [ModelCatalog.allowNonCommercial].
+  bool get isOffered => ModelCatalog.allowNonCommercial || !isNonCommercial;
 
   /// True when this row should appear under the given language
   /// filter. `''` (the "Any" sentinel) always passes; `['*']`
@@ -498,6 +509,45 @@ class ModelException implements Exception {
 // ─── Static catalog container ───
 
 abstract final class ModelCatalog {
+  /// Non-commercial models exist only in development builds:
+  ///
+  ///     flutter run --dart-define=CW_NONCOMMERCIAL_MODELS=true
+  ///     CW_NONCOMMERCIAL_MODELS=1 scripts/build_macos.sh   (or build_linux.sh)
+  ///
+  /// Everything else — CI, the release workflow, the store builds — leaves
+  /// it unset, and those models are then not listed, resolved or
+  /// downloadable at all (not merely gated behind the licence dialog).
+  /// scripts/build_macos_appstore.sh refuses to build with it set.
+  static const bool allowNonCommercial =
+      bool.fromEnvironment('CW_NONCOMMERCIAL_MODELS');
+
+  /// Hugging Face repos whose weights are licensed for non-commercial use
+  /// only, from each repo's model card (audited 2026-09-23) and CrispASR's
+  /// registry licences. Keyed by repo rather than by file so every quant
+  /// in the repo is covered, including ones the live probe finds later.
+  static const Set<String> nonCommercialRepos = {
+    'cstr/f5-tts-GGUF', // CC-BY-NC-4.0 (Emilia-trained weights)
+    'cstr/outetts-0.3-1b-GGUF', // CC-BY-NC-SA-4.0
+    'cstr/voxtral-4b-tts-GGUF', // CC-BY-NC-4.0
+    'cstr/moonshine-base-de-fidoriel-GGUF', // CC-BY-NC-SA-4.0
+    'cstr/moonshine-tiny-de-fidoriel-GGUF', // CC-BY-NC-SA-4.0
+    'cstr/bttr-handwritten-math-gguf', // CC-BY-NC-SA-3.0
+    'cstr/hmer-handwritten-math-gguf', // CC-BY-NC-SA-3.0
+    'cstr/posformer-crohme-GGUF', // CC-BY-NC-SA-3.0
+    'bartowski/Qwen2.5-3B-Instruct-GGUF', // Qwen Research License
+    'cstr/breeze-tts-2-GGUF', // BreezeBlue Research and Non-Commercial
+    'cstr/raon-opentts-0.3b-GGUF', // CC-BY-NC-4.0
+    'cstr/raon-opentts-1b-GGUF', // CC-BY-NC-4.0
+    'cstr/quds-v4-fa-GGUF', // CC-BY-NC-4.0
+  };
+
+  static bool isNonCommercialUrl(String url) {
+    for (final repo in nonCommercialRepos) {
+      if (url.contains('huggingface.co/$repo/')) return true;
+    }
+    return false;
+  }
+
   /// Upstream ggerganov repo — the canonical source for F16 GGML Whisper models.
   static const String whisperCppBaseUrl =
       'https://huggingface.co/ggerganov/whisper.cpp/resolve/main';
@@ -2962,13 +3012,72 @@ abstract final class ModelCatalog {
           'https://huggingface.co/cstr/chatterbox-turbo-GGUF/resolve/main/chatterbox-turbo-t3-q8_0.gguf',
       sizeBytes: 658897152,
       checksum: '',
-      description: 'Chatterbox turbo TTS T3 (faster AR transformer) — needs a '
-          'chatterbox-s3gen-* companion',
+      description: 'Chatterbox turbo TTS T3 (faster AR transformer) — needs the '
+          'chatterbox-turbo-s3gen companion',
       quantization: 'q8_0',
       backend: 'chatterbox',
       kind: ModelKind.tts,
-      companions: ['chatterbox-s3gen-q8_0'],
+      // Turbo S3Gen, as CrispASR's registry pairs it. Was the standard
+      // S3Gen, which also works: on the 0.8.35 dylib both pairings gave a
+      // word-exact TTS→Parakeet round trip, in 96 s with the Turbo S3Gen
+      // against 271 s with the standard one (the latter run also paid for
+      // loading from cold cache, so read that as "slower", not "2.8x").
+      companions: ['chatterbox-turbo-s3gen-q8_0'],
       languages: langsEn,
+    ),
+    // Turbo S3Gen: the 2-step MeanFlow vocoder the Turbo-architecture T3s
+    // (Turbo, Nano, Finnish Nano) are paired with in CrispASR's registry.
+    'chatterbox-turbo-s3gen-q8_0': ModelDefinition(
+      name: 'chatterbox-turbo-s3gen-q8_0',
+      displayName: 'Chatterbox turbo S3Gen (q8_0)',
+      fileName: 'chatterbox-turbo-s3gen-q8_0.gguf',
+      url:
+          'https://huggingface.co/cstr/chatterbox-turbo-GGUF/resolve/main/chatterbox-turbo-s3gen-q8_0.gguf',
+      sizeBytes: 366820384,
+      checksum: '',
+      description:
+          'Chatterbox turbo S3Gen (2-step MeanFlow) vocoder — companion to the turbo / nano T3s',
+      quantization: 'q8_0',
+      backend: 'chatterbox',
+      kind: ModelKind.codec,
+    ),
+    // Chatterbox Nano (CrispASR 0.8.3x): a smaller Turbo-architecture T3
+    // (n_kv_heads=12 in the GGUF) on the same runtime branch and Turbo
+    // S3Gen. MIT. Verified on the 0.8.35 dylib with a TTS→Parakeet round
+    // trip: "The quick brown fox jumps over the lazy dog." word-exact.
+    'chatterbox-nano-t3-q8_0': ModelDefinition(
+      name: 'chatterbox-nano-t3-q8_0',
+      displayName: 'Chatterbox nano T3 (q8_0)',
+      fileName: 'chatterbox-nano-t3-q8_0.gguf',
+      url:
+          'https://huggingface.co/cstr/chatterbox-nano-GGUF/resolve/main/chatterbox-nano-t3-q8_0.gguf',
+      sizeBytes: 345147872,
+      checksum: '',
+      description:
+          'Chatterbox nano TTS T3 — smallest Chatterbox; needs the chatterbox-turbo-s3gen companion',
+      quantization: 'q8_0',
+      backend: 'chatterbox',
+      kind: ModelKind.tts,
+      companions: ['chatterbox-turbo-s3gen-q8_0'],
+      languages: langsEn,
+    ),
+    // Finnish-only Nano fine-tune by its author (JJarvinen), MIT, same
+    // Turbo S3Gen companion.
+    'chatterbox-finnish-nano-t3-q8_0': ModelDefinition(
+      name: 'chatterbox-finnish-nano-t3-q8_0',
+      displayName: 'Chatterbox nano Finnish T3 (q8_0)',
+      fileName: 'chatterbox-finnish-nano-v0.1.3-t3-q8_0.gguf',
+      url:
+          'https://huggingface.co/JJarvinen/chatterbox-finnish-nano-GGUF/resolve/main/chatterbox-finnish-nano-v0.1.3-t3-q8_0.gguf',
+      sizeBytes: 345147872,
+      checksum: '',
+      description:
+          'Chatterbox nano Finnish TTS T3 (v0.1.3) — needs the chatterbox-turbo-s3gen companion',
+      quantization: 'q8_0',
+      backend: 'chatterbox',
+      kind: ModelKind.tts,
+      companions: ['chatterbox-turbo-s3gen-q8_0'],
+      languages: <String>['fi'],
     ),
     // Chatterbox S3Gen flow-matching vocoder — companion of chatterbox-t3.
     'chatterbox-s3gen-q8_0': ModelDefinition(
@@ -3646,6 +3755,85 @@ abstract final class ModelCatalog {
       license:
           'OpenRAIL-M — use restrictions + attribution: https://huggingface.co/Supertone/supertonic-3',
     ),
+    // ----- Non-commercial, development builds only -----
+    // Hidden from every build without CW_NONCOMMERCIAL_MODELS (see
+    // ModelCatalog.allowNonCommercial); their repos are in
+    // nonCommercialRepos, which is what hides them, and the licence strings
+    // drive the existing download confirmation in development builds.
+    // Breeze-TTS-2: the session ABI has no set_voice arm for it (cloning is
+    // CLI-only), and it finds its codec as a sibling file at open time, so
+    // the companion must sit in the same models directory.
+    'breeze-tts-2-q4_k': ModelDefinition(
+      name: 'breeze-tts-2-q4_k',
+      displayName: 'Breeze-TTS-2 (q4_k)',
+      fileName: 'breeze-tts-2-q4_k.gguf',
+      url:
+          'https://huggingface.co/cstr/breeze-tts-2-GGUF/resolve/main/breeze-tts-2-q4_k.gguf',
+      sizeBytes: 2206392384,
+      checksum: '',
+      description:
+          'MediaTek Breeze-TTS-2 — Mandarin/English; needs the qwen3-tts-tokenizer-12hz codec, ~2.2 GB',
+      quantization: 'q4_k',
+      backend: 'bt2-tts',
+      kind: ModelKind.tts,
+      companions: ['qwen3-tts-tokenizer-12hz'],
+      languages: langsEnZh,
+      license:
+          'Non-commercial only — BreezeBlue Research and Non-Commercial License v1.1',
+    ),
+    // Raon-OpenTTS rides CrispASR's f5-tts runtime (#387). Built-in voice
+    // only: the session API's f5-tts set_voice loads the reference at 24 kHz,
+    // and Raon's mel front-end runs at 16 kHz (the CLI resamples, the
+    // session ABI does not yet), so a user clone would be fed the wrong rate.
+    'raon-opentts-0.3b-f16': ModelDefinition(
+      name: 'raon-opentts-0.3b-f16',
+      displayName: 'Raon-OpenTTS 0.3B (f16)',
+      fileName: 'raon-opentts-0.3b-f16.gguf',
+      url:
+          'https://huggingface.co/cstr/raon-opentts-0.3b-GGUF/resolve/main/raon-opentts-0.3b-f16.gguf',
+      sizeBytes: 1004907296,
+      checksum: '',
+      description:
+          'KRAFTON Raon-OpenTTS 0.3B — built-in voice (cloning not supported yet), ~1 GB',
+      quantization: 'f16',
+      backend: 'f5-tts',
+      kind: ModelKind.tts,
+      languages: langsEn,
+      license: 'CC-BY-NC-4.0 — non-commercial only',
+    ),
+    'raon-opentts-1b-f16': ModelDefinition(
+      name: 'raon-opentts-1b-f16',
+      displayName: 'Raon-OpenTTS 1B (f16)',
+      fileName: 'raon-opentts-1b-f16.gguf',
+      url:
+          'https://huggingface.co/cstr/raon-opentts-1b-GGUF/resolve/main/raon-opentts-1b-f16.gguf',
+      sizeBytes: 2815445056,
+      checksum: '',
+      description:
+          'KRAFTON Raon-OpenTTS 1B — built-in voice (cloning not supported yet), ~2.8 GB',
+      quantization: 'f16',
+      backend: 'f5-tts',
+      kind: ModelKind.tts,
+      languages: langsEn,
+      license: 'CC-BY-NC-4.0 — non-commercial only',
+    ),
+    // Quds v4: Persian FastConformer on the parakeet runtime, like
+    // ReazonSpeech (backend `parakeet`, no dispatch alias of its own).
+    'quds-v4-fa-q8_0': ModelDefinition(
+      name: 'quds-v4-fa-q8_0',
+      displayName: 'Quds v4 Persian (q8_0)',
+      fileName: 'quds-v4-fa-q8_0.gguf',
+      url:
+          'https://huggingface.co/cstr/quds-v4-fa-GGUF/resolve/main/quds-v4-fa-q8_0.gguf',
+      sizeBytes: 127483168,
+      checksum: '',
+      description: 'Quds v4 — Persian speech recognition, ~122 MB',
+      quantization: 'q8_0',
+      backend: 'parakeet',
+      kind: ModelKind.asr,
+      languages: <String>['fa'],
+      license: 'CC-BY-NC-4.0 — non-commercial only',
+    ),
     // ----- Music transcription (Audio → MIDI screen) -----
     // Measured on the 0.8.35 dylib, CPU, a 4.8 s synthetic C-major clip
     // with 7 notes: Basic Pitch 1.7 s, all 7; MT3 53 s, 6 of 7;
@@ -3691,6 +3879,76 @@ abstract final class ModelCatalog {
       quantization: 'f16',
       backend: 'piano-transcription',
       kind: ModelKind.music,
+    ),
+    // Pocket TTS language releases (CrispASR 0.8.3x dispatch aliases
+    // pocket-tts-de/-es/-it/-pt on the same runtime). Unlike a baked
+    // voicepack model, they need a reference clip: without one the German
+    // q8_0 produced 0.16 s of near-silence. With one (jfk.wav as the
+    // reference), a TTS→Parakeet round trip on the 0.8.35 dylib returned
+    // the input sentence in each language. The French release is left out:
+    // upstream's 24-layer preview checkpoint took 337 s for one sentence
+    // and Parakeet could not transcribe a word of it.
+    // No BackendRepo per language on purpose: a probe-discovered quant would
+    // not carry requiresVoice and would synthesise silence.
+    'pocket-tts-german-q8_0': ModelDefinition(
+      name: 'pocket-tts-german-q8_0',
+      displayName: 'Pocket TTS German (q8_0)',
+      fileName: 'pocket-tts-german-q8_0.gguf',
+      url:
+          'https://huggingface.co/cstr/pocket-tts-GGUF/resolve/main/pocket-tts-german-q8_0.gguf',
+      sizeBytes: 123633408,
+      checksum: '',
+      description: 'Kyutai Pocket TTS 100M (German) — speaks in the voice of a reference recording, ~124 MB',
+      quantization: 'q8_0',
+      backend: 'pocket-tts',
+      kind: ModelKind.tts,
+      languages: <String>['de'],
+      requiresVoice: true,
+    ),
+    'pocket-tts-spanish-q8_0': ModelDefinition(
+      name: 'pocket-tts-spanish-q8_0',
+      displayName: 'Pocket TTS Spanish (q8_0)',
+      fileName: 'pocket-tts-spanish-q8_0.gguf',
+      url:
+          'https://huggingface.co/cstr/pocket-tts-GGUF/resolve/main/pocket-tts-spanish-q8_0.gguf',
+      sizeBytes: 123634464,
+      checksum: '',
+      description: 'Kyutai Pocket TTS 100M (Spanish) — speaks in the voice of a reference recording, ~124 MB',
+      quantization: 'q8_0',
+      backend: 'pocket-tts',
+      kind: ModelKind.tts,
+      languages: <String>['es'],
+      requiresVoice: true,
+    ),
+    'pocket-tts-italian-q8_0': ModelDefinition(
+      name: 'pocket-tts-italian-q8_0',
+      displayName: 'Pocket TTS Italian (q8_0)',
+      fileName: 'pocket-tts-italian-q8_0.gguf',
+      url:
+          'https://huggingface.co/cstr/pocket-tts-GGUF/resolve/main/pocket-tts-italian-q8_0.gguf',
+      sizeBytes: 123633664,
+      checksum: '',
+      description: 'Kyutai Pocket TTS 100M (Italian) — speaks in the voice of a reference recording, ~124 MB',
+      quantization: 'q8_0',
+      backend: 'pocket-tts',
+      kind: ModelKind.tts,
+      languages: <String>['it'],
+      requiresVoice: true,
+    ),
+    'pocket-tts-portuguese-q8_0': ModelDefinition(
+      name: 'pocket-tts-portuguese-q8_0',
+      displayName: 'Pocket TTS Portuguese (q8_0)',
+      fileName: 'pocket-tts-portuguese-q8_0.gguf',
+      url:
+          'https://huggingface.co/cstr/pocket-tts-GGUF/resolve/main/pocket-tts-portuguese-q8_0.gguf',
+      sizeBytes: 123634592,
+      checksum: '',
+      description: 'Kyutai Pocket TTS 100M (Portuguese) — speaks in the voice of a reference recording, ~124 MB',
+      quantization: 'q8_0',
+      backend: 'pocket-tts',
+      kind: ModelKind.tts,
+      languages: <String>['pt'],
+      requiresVoice: true,
     ),
     // SpeechT5 — Microsoft 80M AR mel decoder + HiFi-GAN vocoder.
     'speecht5-tts-f16': ModelDefinition(
@@ -5307,7 +5565,7 @@ abstract final class ModelCatalog {
       displayPrefix: 'Chatterbox turbo T3',
       description: 'Chatterbox turbo TTS T3 — pair with chatterbox-turbo-s3gen',
       kind: ModelKind.tts,
-      defaultCompanions: ['chatterbox-s3gen-q8_0'],
+      defaultCompanions: ['chatterbox-turbo-s3gen-q8_0'],
       defaultLanguages: langsEn,
     ),
     'chatterbox-turbo-s3gen': BackendRepo(
@@ -5321,6 +5579,26 @@ abstract final class ModelCatalog {
     ),
     // Kartoffelbox — German Chatterbox finetune. Only T3 weights ship on
     // HF; pair with the English Chatterbox S3Gen at synth time.
+    'chatterbox-nano': BackendRepo(
+      backend: 'chatterbox',
+      repoId: 'cstr/chatterbox-nano-GGUF',
+      baseName: 'chatterbox-nano-t3',
+      displayPrefix: 'Chatterbox nano T3',
+      description: 'Chatterbox nano TTS T3 — pair with chatterbox-turbo-s3gen',
+      kind: ModelKind.tts,
+      defaultCompanions: ['chatterbox-turbo-s3gen-q8_0'],
+      defaultLanguages: langsEn,
+    ),
+    'chatterbox-finnish-nano': BackendRepo(
+      backend: 'chatterbox',
+      repoId: 'JJarvinen/chatterbox-finnish-nano-GGUF',
+      baseName: 'chatterbox-finnish-nano-v0.1.3-t3',
+      displayPrefix: 'Chatterbox nano Finnish T3',
+      description: 'Chatterbox nano Finnish TTS T3 — pair with chatterbox-turbo-s3gen',
+      kind: ModelKind.tts,
+      defaultCompanions: ['chatterbox-turbo-s3gen-q8_0'],
+      defaultLanguages: <String>['fi'],
+    ),
     'kartoffelbox': BackendRepo(
       backend: 'chatterbox',
       repoId: 'cstr/kartoffelbox-turbo-GGUF',

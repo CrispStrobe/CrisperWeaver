@@ -203,7 +203,7 @@ class OcrService {
     await for (final e in dir.list()) {
       if (e is! File) continue;
       final name = p.basename(e.path);
-      if (isOcrModelFilename(name)) {
+      if (isOcrModelFilename(name) && modelService.isOfferedFile(name)) {
         results.add(e.path);
       }
     }

@@ -209,7 +209,7 @@ class SynthesizeScreen extends ConsumerStatefulWidget {
   /// Which backend a model's *companions* (voicepacks, codec/tokenizer
   /// GGUFs) are catalogued under.
   ///
-  /// Usually the model's own backend — but three families file their
+  /// Usually the model's own backend — but four families file their
   /// companion rows under a *different* backend than the model carries,
   /// and matching on the model's own backend then yields an empty
   /// dropdown even with the companion sitting on disk:
@@ -221,11 +221,16 @@ class SynthesizeScreen extends ConsumerStatefulWidget {
   ///   * `zonos` — its one codec companion is `dac-44khz`, the shared DAC
   ///     row, which is filed under `dia`. `dia` has no other codec row,
   ///     so this widens zonos' codec dropdown from empty to exactly the
-  ///     companion it declares.
+  ///     companion it declares;
+  ///   * `bt2-tts` (Breeze-TTS-2, development builds only) — its codec is
+  ///     the `qwen3-tts-tokenizer-12hz` row, filed under `qwen3-tts`. The
+  ///     engine finds that file next to the model by name, so the dropdown
+  ///     only has to show it, not route it.
   ///
   /// Identity for every other backend, so nothing else changes shape.
   /// `companionBackendFor` is only ever asked about a *model's* backend,
-  /// so the mapped-to families (`vibevoice-tts`, `cosyvoice3-tts`, `dia`)
+  /// so the mapped-to families (`vibevoice-tts`, `cosyvoice3-tts`, `dia`,
+  /// `qwen3-tts`)
   /// keep resolving to themselves and are unaffected.
   ///
   /// Pure + static so the mapping is unit-testable; the catalogue-wide
@@ -239,6 +244,8 @@ class SynthesizeScreen extends ConsumerStatefulWidget {
         return 'cosyvoice3-tts';
       case 'zonos':
         return 'dia';
+      case 'bt2-tts':
+        return 'qwen3-tts';
       default:
         return modelBackend;
     }

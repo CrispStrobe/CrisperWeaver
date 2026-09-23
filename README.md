@@ -115,21 +115,22 @@ One dispatcher (`CrispasrSession`) handles every backend; bundled `libcrispasr` 
 | **VibeVoice**     | realtime 0.5B (f32 + tokenizer), 1.5B base | + voicepack via `setVoice`; 1.5B supports runtime WAV cloning |
 | **Qwen3-TTS**     | 0.6B base + customvoice + codec, 1.7B base/CV/VoiceDesign, Gwen-TTS (Vietnamese) | Customvoice has 9 baked speakers; VoiceDesign + Parler-TTS accept natural-language voice descriptions via `setInstruct` |
 | **Orpheus**       | 3B + SNAC codec + German variants (lex-au, Kartoffel natural/synthetic) | 8 baked English speakers; SNAC via `setCodecPath` |
-| **Chatterbox**    | 850 MB base + turbo / Kartoffelbox (DE) / Lahgtna (Arabic) | T3 AR + S3Gen flow-matching; voice cloning via baked GGUF |
+| **Chatterbox**    | 850 MB base + turbo / nano / Finnish nano / Kartoffelbox (DE) / Lahgtna (Arabic) | T3 AR + S3Gen flow-matching; voice cloning via baked GGUF |
 | **IndexTTS**      | 1.6 GB                          | GPT-2 AR + BigVGAN; zero-shot WAV cloning, ZH+EN |
 | **VoxCPM2**       | q4_k (1.6 GB) + f16             | Tokenizer-free diffusion AR; zero-shot, 29 languages, 48 kHz native |
 | **CosyVoice3**    | 0.5B (LLM + flow + HiFT + voices) | 9 languages + 18 Chinese dialects; zero-shot voice cloning |
-| **F5-TTS**        | v1 Base (~953 MB)               | DiT flow-matching; zero-shot voice clone from 3-15 s WAV   |
+| **F5-TTS**        | v1 Base (~953 MB)               | DiT flow-matching; zero-shot voice clone from 3-15 s WAV; non-commercial, development builds only |
 | **Bark**          | small (~500 MB)                 | 3-stage GPT-2; multilingual, 10 German speakers             |
 | **CSM**           | 1B (q4_k ~1.4 GB)              | Sesame CSM-1B conversational TTS, single EN voice           |
 | **Dia**           | 1.6B (f16 ~3 GB) + DAC codec   | Dialogue TTS with `[S1]`/`[S2]` speaker tags, English       |
 | **FastPitch**     | 60M (~120 MB)                   | NVIDIA non-autoregressive parallel TTS, deterministic, EN   |
 | **MeloTTS**       | v2 (4 EN speakers) + v3 + BERT companion | VITS2, 44.1 kHz                            |
-| **OuteTTS**       | 0.3 1B + WavTokenizer decoder   | OLMo-1B + VQ-GAN; voice clone via JSON speaker, EN          |
+| **OuteTTS**       | 0.3 1B + WavTokenizer decoder   | OLMo-1B + VQ-GAN; voice clone via JSON speaker, EN; non-commercial, development builds only |
 | **Parler-TTS**    | Mini v1.1 (~900 MB)             | Describe voice in natural language via `setInstruct`, EN    |
-| **Pocket TTS**    | 100M (~220 MB)                  | Kyutai continuous-latent AR; voice clone from WAV, EN       |
+| **Pocket TTS**    | 100M (~124-220 MB)              | Kyutai continuous-latent AR; speaks in the voice of a reference WAV; EN, DE, ES, IT, PT |
 | **SpeechT5**      | 80M (~300 MB)                   | Microsoft AR mel decoder + HiFi-GAN, EN                     |
-| **Zonos**         | v0.1 (q4_k ~872 MB, f16 ~3.1 GB) + DAC codec | Zyphra 500M — emotion, pitch, rate control, speaker cloning, 44.1 kHz |
+| **Zonos**         | v0.1 (q4_k ~872 MB, f16 ~3.1 GB) + DAC codec | Zyphra 500M — emotion, pitch, rate control, 44.1 kHz (no voice cloning) |
+| **Supertonic-3**  | f16 (~200 MB)                   | Non-autoregressive, 31 languages (pick one in Synthesize), 10 preset voices, 44.1 kHz |
 | **KugelAudio**    | 0 Open (f16 ~14 GB)            | Large TTS model                                              |
 | **Piper**         | 15-60 MB per voice              | VITS, 250+ community voices, 30+ languages                  |
 
@@ -141,6 +142,11 @@ One dispatcher (`CrispasrSession`) handles every backend; bundled `libcrispasr` 
 | **FireRedPunc**   | ZH + EN            | BERT-based punctuation + capitalisation     |
 | **Fullstop-punc** | EN / DE / FR / IT  | Multilingual punctuation restoration        |
 | **Truecaser LSTM**| DE / EN / ES / RU  | BiLSTM character-level truecasing (97.9% F1 German) |
+
+### Music transcription (Audio → MIDI)
+
+Basic Pitch (~110 KB, fast), MT3 (multi-instrument, one MIDI track per
+instrument) and Piano Transcription — behind *Show advanced features*.
 
 ### Diarisation / LID / VAD GGUFs
 
@@ -236,6 +242,20 @@ flutter run -d macos        # or: linux, windows, android, ios
 ```
 
 `flutter run` picks up the freshly-built CrispASR shared library directly from `../CrispASR/build/src/` for fast inner-loop work.
+
+**Non-commercial models** (F5-TTS, OuteTTS, Voxtral 4B TTS, Breeze-TTS-2,
+Raon-OpenTTS, Quds, the German Moonshine fine-tunes, the BTTR / HMER /
+PosFormer math OCR models and Qwen2.5-3B) are left out of every build unless
+you ask for them — they are not listed, resolvable or downloadable otherwise:
+
+```bash
+flutter run -d macos --dart-define=CW_NONCOMMERCIAL_MODELS=true
+CW_NONCOMMERCIAL_MODELS=1 scripts/build_macos.sh    # or build_linux.sh
+```
+
+CI, the release workflow and the store builds never set it, and
+`scripts/build_macos_appstore.sh` refuses to run with it. The list is
+`ModelCatalog.nonCommercialRepos`.
 
 ---
 
