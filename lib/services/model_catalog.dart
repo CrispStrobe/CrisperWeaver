@@ -702,6 +702,14 @@ abstract final class ModelCatalog {
   static const List<String> langsEnZh = <String>['en', 'zh'];
   static const List<String> langsJaEn = <String>['ja', 'en'];
   static const List<String> langsRuEn = <String>['ru', 'en'];
+  // Supertonic-3's accepted output languages, in the order
+  // supertonic_set_language() lists them (CrispASR src/supertonic_tts.cpp;
+  // its trailing "na" is a language-neutral tag, not a language).
+  static const List<String> langsSupertonic = <String>[
+    'en', 'ko', 'ja', 'ar', 'bg', 'cs', 'da', 'de', 'el', 'es', 'et', //
+    'fi', 'fr', 'hi', 'hr', 'hu', 'id', 'it', 'lt', 'lv', 'nl', 'pl', //
+    'pt', 'ro', 'ru', 'sk', 'sl', 'sv', 'tr', 'uk', 'vi',
+  ];
   // The 25-language EU set Canary 1B-v2 + Parakeet TDT v3 advertise.
   // Per the upstream HF model cards: includes Maltese (mt), excludes
   // Norwegian (the EU25 ASR set uses Swedish for Scandinavia and
@@ -3609,6 +3617,29 @@ abstract final class ModelCatalog {
       kind: ModelKind.tts,
       languages: langsEn,
     ),
+    // Supertonic-3 (CrispASR 0.8.33, #434) — Supertone's non-AR
+    // flow-matching TTS, 44.1 kHz, 31 languages. The ten preset voices
+    // (F1-F5, M1-M5) and the text indexer are baked into the one GGUF, so
+    // there are no companions. No cloning: a voice is a preset name, which
+    // TtsService routes through setVoice rather than setSpeakerName. The
+    // upstream repo publishes f16 only.
+    'supertonic3-f16': ModelDefinition(
+      name: 'supertonic3-f16',
+      displayName: 'Supertonic-3 (f16)',
+      fileName: 'supertonic3-f16.gguf',
+      url:
+          'https://huggingface.co/cstr/supertonic-3-GGUF/resolve/main/supertonic3-f16.gguf',
+      sizeBytes: 200332512,
+      checksum: '',
+      description:
+          'Supertonic-3 — 31 languages, 10 preset voices, 44.1 kHz, ~200 MB',
+      quantization: 'f16',
+      backend: 'supertonic',
+      kind: ModelKind.tts,
+      languages: langsSupertonic,
+      license:
+          'OpenRAIL-M — use restrictions + attribution: https://huggingface.co/Supertone/supertonic-3',
+    ),
     // SpeechT5 — Microsoft 80M AR mel decoder + HiFi-GAN vocoder.
     'speecht5-tts-f16': ModelDefinition(
       name: 'speecht5-tts-f16',
@@ -4723,6 +4754,7 @@ abstract final class ModelCatalog {
     'outetts': 'outetts-0.3-1b-q8_0',
     'parler-tts': 'parler-mini-v1.1-q8_0',
     'pocket-tts': 'pocket-tts-english-f16',
+    'supertonic': 'supertonic3-f16',
     'speecht5': 'speecht5-tts-f16',
     'kugelaudio': 'kugelaudio-0-open-f16',
     'zonos': 'zonos-v0.1-transformer-q4_k',
@@ -5860,6 +5892,15 @@ abstract final class ModelCatalog {
       description: 'Kyutai Pocket TTS 100M — voice clone from WAV (English)',
       kind: ModelKind.tts,
       defaultLanguages: langsEn,
+    ),
+    'supertonic': BackendRepo(
+      backend: 'supertonic',
+      repoId: 'cstr/supertonic-3-GGUF',
+      baseName: 'supertonic3',
+      displayPrefix: 'Supertonic-3',
+      description: 'Supertonic-3 — 31 languages, 10 preset voices, 44.1 kHz',
+      kind: ModelKind.tts,
+      defaultLanguages: langsSupertonic,
     ),
     'speecht5': BackendRepo(
       backend: 'speecht5',
