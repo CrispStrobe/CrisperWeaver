@@ -139,6 +139,31 @@ class TtsService {
   int? _prepSpeakerId;
   String? _prepInstructPrompt;
   String? _prepRefText;
+  String? _prepOutputLanguage;
+
+  /// Supertonic-3's ten preset voices. The engine does not enumerate them
+  /// through `speakers()` — it takes a preset name through `setVoice` —
+  /// so the list lives here. M1 first: it is the engine's default voice.
+  static const supertonicVoices = <String>[
+    'M1', 'M2', 'M3', 'M4', 'M5', 'F1', 'F2', 'F3', 'F4', 'F5', //
+  ];
+
+  /// Backends whose spoken language is chosen by the caller rather than
+  /// inferred from the text or voice. They read the session's target
+  /// language, so the Synthesize screen offers a language picker for them.
+  static const outputLanguageBackends = <String>{'supertonic'};
+
+  /// Select preset speaker [name] on [s]. Supertonic takes its presets
+  /// through `setVoice`; every other preset-speaker backend through
+  /// `setSpeakerName`.
+  static void applyPresetSpeaker(
+      crispasr.CrispasrSession s, String? backend, String name) {
+    if (backend == 'supertonic') {
+      s.setVoice(name);
+    } else {
+      s.setSpeakerName(name);
+    }
+  }
 
   String _makeKey(String? m, String? v, String? c) =>
       '${m ?? ""}|${v ?? ""}|${c ?? ""}';
@@ -195,6 +220,7 @@ class TtsService {
     int? speakerId,
     String? instructPrompt,
     String? referenceLanguage,
+    String? outputLanguage,
     int minSpeechTokens = 0,
   }) async {
     final modelPath = await _resolvePath(modelName);
@@ -225,7 +251,7 @@ class TtsService {
     }
 
     final key = _makeKey(
-        '$modelPath#${speakerName ?? ''}#${speakerId ?? ''}#${instructPrompt ?? ''}',
+        '$modelPath#${speakerName ?? ''}#${speakerId ?? ''}#${instructPrompt ?? ''}#${outputLanguage ?? ''}',
         voicePath, codecPath);
     if (_session != null && _key == key) {
       return TtsLoadStatus.ready(_backend!);
@@ -293,7 +319,7 @@ class TtsService {
         }
       } else if (speakerName != null && speakerName.isNotEmpty) {
         try {
-          s.setSpeakerName(speakerName);
+          applyPresetSpeaker(s, s.backend, speakerName);
         } catch (e) {
           Log.instance.d('tts', 'setSpeakerName rejected',
               fields: {'name': speakerName, 'err': e.toString()});
@@ -349,6 +375,15 @@ class TtsService {
             fields: {'identity': identity, 'err': e.toString()});
       }
 
+      if (outputLanguage != null && outputLanguage.isNotEmpty) {
+        try {
+          s.setTargetLanguage(outputLanguage);
+        } catch (e) {
+          Log.instance.d('tts', 'setTargetLanguage rejected',
+              fields: {'lang': outputLanguage, 'err': e.toString()});
+        }
+      }
+
       // #360 — output-length floor, in the backend's own AR decode steps.
       // MOSS TTS is the only consumer today (one unit = one 80 ms codec
       // frame); everything else returns -2 and the binding no-ops.
@@ -380,6 +415,7 @@ class TtsService {
       _prepSpeakerId = speakerId;
       _prepInstructPrompt = instructPrompt;
       _prepRefText = refText;
+      _prepOutputLanguage = outputLanguage;
       Log.instance.i('tts', 'session opened', fields: {
         'model': p.basename(modelPath),
         'voice': voicePath == null ? '' : p.basename(voicePath),
@@ -411,7 +447,11 @@ class TtsService {
   /// Preset speaker names for the active backend (orpheus baked
   /// English speakers, qwen3-tts customvoice speakers, etc.). Empty
   /// list when the backend has no preset-speaker contract.
-  List<String> get presetSpeakers => _session?.speakers() ?? const [];
+  List<String> get presetSpeakers {
+    if (_session == null) return const [];
+    if (_backend == 'supertonic') return supertonicVoices;
+    return _session!.speakers();
+  }
 
   /// Synthesise [text] using the currently-prepared session.
   ///
@@ -483,6 +523,7 @@ class TtsService {
       final speakerId = _prepSpeakerId;
       final instructPrompt = _prepInstructPrompt;
       final refText = _prepRefText;
+      final outputLanguage = _prepOutputLanguage;
 
       Log.instance.i('tts', 'synth starting', fields: {
         'backend': backend ?? '',
@@ -513,11 +554,14 @@ class TtsService {
           if (instructPrompt != null && instructPrompt.isNotEmpty) {
             s.setInstruct(instructPrompt);
           } else if (speakerName != null && speakerName.isNotEmpty) {
-            s.setSpeakerName(speakerName);
+            applyPresetSpeaker(s, s.backend, speakerName);
           } else if (speakerId != null) {
             s.setSpeakerID(speakerId);
           } else if (voicePath != null) {
             s.setVoice(voicePath, refText: refText);
+          }
+          if (outputLanguage != null && outputLanguage.isNotEmpty) {
+            try { s.setTargetLanguage(outputLanguage); } catch (_) {}
           }
           // Per-call sampling overrides. Setters no-op on backends
           // that don't honour the field — swallow safely.
