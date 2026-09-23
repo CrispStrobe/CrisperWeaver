@@ -349,6 +349,47 @@ void main() {
         'mel-band-roformer',
         'piano-transcription',
         'tabcnn',
+        // Note transcription, CrispASR 0.8.32+ (hft-transformer and
+        // onsets-and-frames are post-0.8.35 main; listed so a dylib built
+        // from main does not trip this check). Same reason as above.
+        'basic-pitch',
+        'mt3',
+        'onsets-and-frames',
+        'hft-transformer',
+
+        // --- Dispatch aliases the engine began listing in 0.8.32-0.8.35.
+        // --- They resolve to a compute path the app already catalogues
+        // --- under its canonical backend, so none needs its own id.
+        // chatterbox-turbo / kartoffelbox-turbo / lahgtna-chatterbox are
+        // catalogued under `chatterbox` (chatterbox-turbo-t3,
+        // kartoffelbox-de, lahgtna-chatterbox-t3). chatterbox-nano and
+        // chatterbox-finnish-nano share that path but have no catalogue
+        // entry yet — a model addition, not a dispatch gap.
+        'chatterbox-turbo',
+        'chatterbox-nano',
+        'chatterbox-finnish-nano',
+        'kartoffelbox-turbo',
+        'lahgtna-chatterbox',
+        // Language variants of Kyutai Pocket TTS on the `pocket-tts` path;
+        // only the English GGUF is catalogued so far.
+        'pocket-tts-de',
+        'pocket-tts-es',
+        'pocket-tts-fr',
+        'pocket-tts-it',
+        'pocket-tts-pt',
+        // Alias of `vibevoice-tts` (vibevoice-realtime-0.5b, catalogued).
+        'vibevoice-streaming',
+
+        // --- New TTS backends held back from the 0.8.35 bump ---
+        // Breeze-TTS-2: BreezeBlue Research and Non-Commercial licence,
+        // 2.2 GB plus a codec companion. The catalogue can gate NC
+        // downloads, but an NC-only voice is a poor fit for a store app.
+        'bt2-tts',
+        // FireRedTTS3 (Apache-2.0): its zero-shot cloning goes through
+        // --voice + --ref-text, and the ~2.8 GB pair (base + ReDAE
+        // companion) has not been run through the session API from the
+        // app. Catalogue it once that path is verified end to end.
+        'fireredtts3',
 
         // Confucius4-TTS (CrispASR #377), new in the 110fd5ce pin.
         // Held back deliberately, not overlooked:
