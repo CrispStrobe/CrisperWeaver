@@ -12,7 +12,7 @@ on:
       cases:
         description: "Space-separated cases from scripts/live_tts_check.py"
         required: true
-        default: "fireredtts3 fireredtts3-clone bt2-tts bt2-tts-cli pocket-tts-de-clone hojo-asr-de"
+        default: "fireredtts3 fireredtts3-clone bt2-tts bt2-tts-cli pocket-tts-de-clone hojo-asr-de hojo-asr-de-real pocket-tts-fr-clone voxtral-4b-tts"
 
 env:
   CRISPASR_REPO: CrispStrobe/CrispASR
@@ -66,6 +66,14 @@ jobs:
           esac
           case " $CASES " in *" pocket-tts-de"*|*" hojo-asr-de"*) get pocket-tts-german-q8_0.gguf cstr/pocket-tts-GGUF ;; esac
           case " $CASES " in *" hojo-asr-de"*) get hojo-asr-multi-v1-q4_k.gguf cstr/Hojo-ASR-Multi-V1-GGUF ;; esac
+          case " $CASES " in *" hojo-asr-de-real"*)
+            # Spoken Wikipedia "Abwasch" (de), CC BY-SA 3.0, Wikimedia Commons.
+            curl -fsSL -A "CrisperWeaver-live-tts (GitHub Actions)" -o de-abwasch.ogg \
+              https://upload.wikimedia.org/wikipedia/commons/d/d7/De-Abwasch-article.ogg
+            ffmpeg -loglevel error -i de-abwasch.ogg -t 60 -ac 1 -ar 16000 de-abwasch-60s.wav ;;
+          esac
+          case " $CASES " in *" pocket-tts-fr"*) get pocket-tts-french_24l-q8_0.gguf cstr/pocket-tts-GGUF ;; esac
+          case " $CASES " in *" voxtral-4b-tts"*) get voxtral-4b-tts-q4_k.gguf cstr/voxtral-4b-tts-GGUF ;; esac
           case " $CASES " in *" pocket-tts-en"*) get pocket-tts-english-f16.gguf cstr/pocket-tts-GGUF ;; esac
           case " $CASES " in *" kartoffelbox"*)
             get kartoffelbox-turbo-t3-q8_0.gguf cstr/kartoffelbox-turbo-GGUF
