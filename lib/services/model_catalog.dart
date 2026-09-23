@@ -3670,7 +3670,10 @@ abstract final class ModelCatalog {
       kind: ModelKind.tts,
     ),
     // Zonos v0.1 — Zyphra 500M-param transformer TTS with emotion/pitch/rate
-    // control, speaker cloning, 44.1 kHz native via DAC codec. Apache 2.0.
+    // control, 44.1 kHz native via DAC codec. Apache 2.0. No voice cloning:
+    // upstream has one, but the ResNet293 speaker encoder is not ported, and
+    // CrispASR 0.8.34 dropped the capability it had been claiming (a
+    // reference clip was ignored in favour of a random speaker).
     'zonos-v0.1-transformer-q4_k': ModelDefinition(
       name: 'zonos-v0.1-transformer-q4_k',
       displayName: 'Zonos v0.1 (q4_k)',
@@ -3680,7 +3683,7 @@ abstract final class ModelCatalog {
       sizeBytes: 872 * 1024 * 1024,
       checksum: '',
       description:
-          'Zonos v0.1 TTS — emotion/pitch/rate control, speaker clone, 44.1 kHz, ~872 MB',
+          'Zonos v0.1 TTS — emotion/pitch/rate control, 44.1 kHz, ~872 MB',
       quantization: 'q4_k',
       backend: 'zonos',
       kind: ModelKind.tts,
@@ -5925,7 +5928,7 @@ abstract final class ModelCatalog {
       baseName: 'zonos-v0.1-transformer',
       displayPrefix: 'Zonos',
       description:
-          'Zonos v0.1 TTS — emotion/pitch/rate control, voice cloning, 44.1 kHz',
+          'Zonos v0.1 TTS — emotion/pitch/rate control, 44.1 kHz',
       kind: ModelKind.tts,
       defaultCompanions: ['dac-44khz'],
       defaultLanguages: langsAll,
