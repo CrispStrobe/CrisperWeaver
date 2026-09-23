@@ -201,6 +201,7 @@ class _FakeTtsService implements TtsService {
     int? speakerId,
     String? instructPrompt,
     String? referenceLanguage,
+    String? outputLanguage,
     int minSpeechTokens = 0,
   }) async {
     preparedModel = modelName;
