@@ -10,6 +10,11 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 - Supertonic-3 text-to-speech: 31 languages, ten preset voices, 44.1 kHz,
   about 200 MB. The Synthesize screen shows a Language picker for it,
   since it does not guess the language from the text.
+- FoxNose speaker diarization now splits a transcript segment where the
+  speaker changes inside it (when word timings are available), instead of
+  giving the whole segment one speaker. Recognisers that return long
+  segments — Parakeet can return a 30-second recording as one — now show
+  each speaker's turn separately.
 
 ### Changed
 
