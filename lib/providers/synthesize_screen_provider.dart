@@ -95,6 +95,9 @@ class SynthesizeScreenState {
   final bool loadingSpeakers;
   final int nSpeakers;
   final int? selectedSpeakerId;
+  /// Spoken language for backends that take it from the caller
+  /// (TtsService.outputLanguageBackends). Null = the backend's default.
+  final String? outputLanguage;
   final String? customVoiceWavPath;
   final File? lastWav;
   final bool trimSilence;
@@ -117,6 +120,7 @@ class SynthesizeScreenState {
     this.loadingSpeakers = false,
     this.nSpeakers = 0,
     this.selectedSpeakerId,
+    this.outputLanguage,
     this.customVoiceWavPath,
     this.lastWav,
     this.trimSilence = false,
@@ -140,6 +144,8 @@ class SynthesizeScreenState {
     bool? loadingSpeakers,
     int? nSpeakers,
     int? selectedSpeakerId,
+    String? outputLanguage,
+    bool clearOutputLanguage = false,
     String? customVoiceWavPath,
     File? lastWav,
     bool? trimSilence,
@@ -178,6 +184,9 @@ class SynthesizeScreenState {
         presetSpeakers: presetSpeakers ?? this.presetSpeakers,
         loadingSpeakers: loadingSpeakers ?? this.loadingSpeakers,
         nSpeakers: nSpeakers ?? this.nSpeakers,
+        outputLanguage: clearOutputLanguage
+            ? null
+            : (outputLanguage ?? this.outputLanguage),
         selectedSpeakerId: clearSelectedSpeakerId
             ? null
             : (selectedSpeakerId ?? this.selectedSpeakerId),
@@ -219,6 +228,8 @@ class SynthesizeScreenNotifier
   void setLoadingSpeakers(bool v) =>
       state = state.copyWith(loadingSpeakers: v);
   void setNSpeakers(int v) => state = state.copyWith(nSpeakers: v);
+  void setOutputLanguage(String? v) => state =
+      state.copyWith(outputLanguage: v, clearOutputLanguage: v == null);
   void setSelectedSpeakerId(int? v) => state = state.copyWith(
       selectedSpeakerId: v, clearSelectedSpeakerId: v == null);
   void setCustomVoiceWavPath(String? v) => state = state.copyWith(

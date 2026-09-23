@@ -13,6 +13,7 @@ import '../native/crispasr_import.dart' as crispasr;
 import '../utils/platform_utils.dart' as plat;
 import '../services/voice_baking_service.dart';
 
+import '../constants/app_constants.dart';
 import '../l10n/generated/app_localizations.dart';
 import '../main.dart' show modelServiceProvider;
 import '../providers/synthesize_screen_provider.dart';
@@ -92,6 +93,24 @@ class SynthesizeScreen extends ConsumerStatefulWidget {
     if (speakers.isEmpty) return null;
     if (current != null && speakers.contains(current)) return current;
     return speakers.first;
+  }
+
+  /// Spoken language to request for [backend], or null when the backend
+  /// chooses its own (anything outside TtsService.outputLanguageBackends).
+  /// Keeps [chosen] while the model supports it, so switching between two
+  /// models that both speak it does not reset the pick; otherwise falls
+  /// back to the UI language, then to the model's first language.
+  static String? resolveOutputLanguage({
+    required String? backend,
+    required List<String> languages,
+    required String? chosen,
+    required String uiLanguage,
+  }) {
+    if (!TtsService.outputLanguageBackends.contains(backend)) return null;
+    if (languages.isEmpty) return null;
+    if (chosen != null && languages.contains(chosen)) return chosen;
+    if (languages.contains(uiLanguage)) return uiLanguage;
+    return languages.first;
   }
 
   /// #35 — backends whose `crispasr_session_set_voice()` accepts a
@@ -357,7 +376,22 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
   /// Backends that may expose preset speakers. We only open the model to
   /// enumerate speakers for these — opening kokoro / vibevoice / chatterbox
   /// just to discover an always-empty speaker list would be wasted work.
-  static const _speakerCapableBackends = {'orpheus', 'qwen3-tts'};
+  // supertonic: its presets come from TtsService.supertonicVoices rather
+  // than the session, but the enumeration path is the same.
+  static const _speakerCapableBackends = {'orpheus', 'qwen3-tts', 'supertonic'};
+
+  /// [SynthesizeScreen.resolveOutputLanguage] for the selected model.
+  String? _outputLanguage(SynthesizeScreenState ss) {
+    final name = ss.selectedModel;
+    if (name == null) return null;
+    final def = ref.read(modelServiceProvider).lookupDefinition(name);
+    return SynthesizeScreen.resolveOutputLanguage(
+      backend: def?.backend,
+      languages: def?.languages ?? const [],
+      chosen: ss.outputLanguage,
+      uiLanguage: Localizations.localeOf(context).languageCode,
+    );
+  }
 
   /// Backends with integer-indexed speakers (melotts, piper, fastpitch).
   /// Uses setSpeakerID(int) instead of setSpeakerName(String).
@@ -910,6 +944,7 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
         speakerId: cloning ? null : ss.selectedSpeakerId,
         instructPrompt: instructPrompt.isEmpty ? null : instructPrompt,
         voiceWavPath: voiceWavPath,
+        outputLanguage: _outputLanguage(ss),
       );
       if (!status.ready) {
         Log.instance.w('synth', 'prepare failed', fields: {
@@ -968,6 +1003,7 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
           voiceName: ss.selectedVoice,
           codecName: ss.selectedCodec,
           speakerName: speakers.first,
+          outputLanguage: _outputLanguage(ss),
         );
       }
 
@@ -1520,6 +1556,28 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
                     ] else if (ss.loadingSpeakers) ...[
                       const SizedBox(height: 8),
                       const LinearProgressIndicator(),
+                    ],
+                    // Spoken-language picker for backends that do not infer
+                    // it (Supertonic-3). Without it every text is read as
+                    // the backend default, English.
+                    if (_outputLanguage(ss) case final lang?) ...[
+                      const SizedBox(height: 8),
+                      DropdownButtonFormField<String>(
+                        key: ValueKey('synth-lang-${ss.selectedModel}'),
+                        decoration: InputDecoration(labelText: l.language),
+                        initialValue: lang,
+                        items: [
+                          for (final code in modelDef?.languages ?? const <String>[])
+                            DropdownMenuItem(
+                              value: code,
+                              child: Text(
+                                  AppConstants.supportedLanguages[code] ??
+                                      code.toUpperCase(),
+                                  overflow: TextOverflow.ellipsis),
+                            ),
+                        ],
+                        onChanged: ss.busy ? null : sn.setOutputLanguage,
+                      ),
                     ],
                   ],
                   const SizedBox(height: 16),
