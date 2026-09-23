@@ -132,6 +132,7 @@ class SynthesizeScreen extends ConsumerStatefulWidget {
     'cosyvoice3-tts-rl',
     'dots-tts',
     'f5-tts',
+    'fireredtts3',
     'indextts',
     'moss-tts',
     'omnivoice',

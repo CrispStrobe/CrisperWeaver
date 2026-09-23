@@ -3142,11 +3142,13 @@ abstract final class ModelCatalog {
       sizeBytes: 653201696,
       checksum: '',
       description:
-          'Kartoffelbox-turbo German T3 (Chatterbox finetune) — pair with a chatterbox-s3gen companion',
+          'Kartoffelbox-turbo German T3 (Chatterbox finetune) — needs the chatterbox-turbo-s3gen companion',
       quantization: 'q8_0',
       backend: 'chatterbox',
       kind: ModelKind.tts,
-      companions: ['chatterbox-s3gen-q8_0'],
+      // Turbo-architecture T3 → Turbo S3Gen, as CrispASR's registry pairs
+      // it. The live-tts workflow found both S3Gens word-exact in German.
+      companions: ['chatterbox-turbo-s3gen-q8_0'],
       languages: langsDe,
     ),
     // IndexTTS 1.5 is split into two GGUFs in cstr/indextts-1.5-GGUF:
@@ -3726,11 +3728,14 @@ abstract final class ModelCatalog {
           'https://huggingface.co/cstr/pocket-tts-GGUF/resolve/main/pocket-tts-english-f16.gguf',
       sizeBytes: 220 * 1024 * 1024,
       checksum: '',
-      description: 'Kyutai Pocket TTS 100M — voice clone from WAV, ~220 MB',
+      description: 'Kyutai Pocket TTS 100M — speaks in the voice of a reference recording, ~220 MB',
       quantization: 'f16',
       backend: 'pocket-tts',
       kind: ModelKind.tts,
       languages: langsEn,
+      // Without a reference it produces audio but no words: 6.7 s that
+      // Parakeet could not transcribe at all (live-tts workflow, 0.8.35).
+      requiresVoice: true,
     ),
     // Supertonic-3 (CrispASR 0.8.33, #434) — Supertone's non-AR
     // flow-matching TTS, 44.1 kHz, 31 languages. The ten preset voices
@@ -3762,7 +3767,10 @@ abstract final class ModelCatalog {
     // drive the existing download confirmation in development builds.
     // Breeze-TTS-2: the session ABI has no set_voice arm for it (cloning is
     // CLI-only), and it finds its codec as a sibling file at open time, so
-    // the companion must sit in the same models directory.
+    // the companion must sit in the same models directory. Known defect on
+    // the 0.8.35 engine (live-tts workflow): "The quick brown fox jumps over
+    // the lazy dog." came back as "Fox jumps over the lazy" — both ends of
+    // the sentence are lost. Development builds only, so kept, but flagged.
     'breeze-tts-2-q4_k': ModelDefinition(
       name: 'breeze-tts-2-q4_k',
       displayName: 'Breeze-TTS-2 (q4_k)',
@@ -3772,7 +3780,7 @@ abstract final class ModelCatalog {
       sizeBytes: 2206392384,
       checksum: '',
       description:
-          'MediaTek Breeze-TTS-2 — Mandarin/English; needs the qwen3-tts-tokenizer-12hz codec, ~2.2 GB',
+          'MediaTek Breeze-TTS-2 — Mandarin/English, may drop the start and end of a sentence; needs the qwen3-tts-tokenizer-12hz codec, ~2.2 GB',
       quantization: 'q4_k',
       backend: 'bt2-tts',
       kind: ModelKind.tts,
@@ -3879,6 +3887,48 @@ abstract final class ModelCatalog {
       quantization: 'f16',
       backend: 'piano-transcription',
       kind: ModelKind.music,
+    ),
+    // FireRedTTS3 (CrispASR 0.8.33, Apache-2.0): Qwen3-1.7B LLM + DiT flow
+    // head over RedAE latents, 24 kHz, 24 languages. Zero-shot cloning from
+    // a reference clip + transcript; without one a built-in English prompt
+    // is used. The RedAE companion is found by name next to the base GGUF
+    // at open time (crispasr_c_api), so it must sit in the models directory.
+    // Too large for the dev VPS; verified by .github/workflows/live-tts.yml
+    // on the 0.8.35 engine: word-exact TTS→Parakeet round trip with and
+    // without a reference, and the reference audibly applied (output
+    // differs from the same seed without it).
+    'fireredtts3-base-q4_k': ModelDefinition(
+      name: 'fireredtts3-base-q4_k',
+      displayName: 'FireRedTTS3 (q4_k)',
+      fileName: 'fireredtts3-base-q4_k.gguf',
+      url:
+          'https://huggingface.co/cstr/fireredtts3-GGUF/resolve/main/fireredtts3-base-q4_k.gguf',
+      sizeBytes: 2434120704,
+      checksum: '',
+      description:
+          'FireRedTTS3 — 24 languages, speaks in the voice of a reference recording; needs the fireredtts3-redae companion, ~2.4 GB',
+      quantization: 'q4_k',
+      backend: 'fireredtts3',
+      kind: ModelKind.tts,
+      companions: ['fireredtts3-redae-f16'],
+      languages: <String>[
+        'ar', 'zh', 'cs', 'nl', 'en', 'fi', 'fr', 'de', 'el', 'hi', 'id', //
+        'it', 'ja', 'ko', 'pl', 'pt', 'ro', 'ru', 'es', 'th', 'tr', 'uk', 'vi',
+      ],
+    ),
+    'fireredtts3-redae-f16': ModelDefinition(
+      name: 'fireredtts3-redae-f16',
+      displayName: 'FireRedTTS3 RedAE (f16)',
+      fileName: 'fireredtts3-redae-f16.gguf',
+      url:
+          'https://huggingface.co/cstr/fireredtts3-GGUF/resolve/main/fireredtts3-redae-f16.gguf',
+      sizeBytes: 1089335648,
+      checksum: '',
+      description:
+          'FireRedTTS3 RedAE autoencoder + CAM++ speaker encoder — companion to fireredtts3-base',
+      quantization: 'f16',
+      backend: 'fireredtts3',
+      kind: ModelKind.codec,
     ),
     // Pocket TTS language releases (CrispASR 0.8.3x dispatch aliases
     // pocket-tts-de/-es/-it/-pt on the same runtime). Unlike a baked
@@ -5604,9 +5654,9 @@ abstract final class ModelCatalog {
       repoId: 'cstr/kartoffelbox-turbo-GGUF',
       baseName: 'kartoffelbox-turbo-t3',
       displayPrefix: 'Kartoffelbox turbo T3 (DE)',
-      description: 'Kartoffelbox-turbo German T3 — pair with chatterbox-s3gen',
+      description: 'Kartoffelbox-turbo German T3 — pair with chatterbox-turbo-s3gen',
       kind: ModelKind.tts,
-      defaultCompanions: ['chatterbox-s3gen-q8_0'],
+      defaultCompanions: ['chatterbox-turbo-s3gen-q8_0'],
       defaultLanguages: <String>['de', 'en'],
     ),
     // Kartoffel-Orpheus — German Orpheus finetunes (natural / synthetic
@@ -6228,6 +6278,15 @@ abstract final class ModelCatalog {
       description: 'Kyutai Pocket TTS 100M — voice clone from WAV (English)',
       kind: ModelKind.tts,
       defaultLanguages: langsEn,
+    ),
+    'fireredtts3': BackendRepo(
+      backend: 'fireredtts3',
+      repoId: 'cstr/fireredtts3-GGUF',
+      baseName: 'fireredtts3-base',
+      displayPrefix: 'FireRedTTS3',
+      description: 'FireRedTTS3 — 24 languages; pair with fireredtts3-redae',
+      kind: ModelKind.tts,
+      defaultCompanions: ['fireredtts3-redae-f16'],
     ),
     'basic-pitch': BackendRepo(
       backend: 'basic-pitch',

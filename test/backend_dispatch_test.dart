@@ -378,12 +378,6 @@ void main() {
         // Alias of `vibevoice-tts` (vibevoice-realtime-0.5b, catalogued).
         'vibevoice-streaming',
 
-        // --- New TTS backend held back from the 0.8.35 bump ---
-        // FireRedTTS3 (Apache-2.0): its zero-shot cloning goes through
-        // --voice + --ref-text, and the ~2.8 GB pair (base + ReDAE
-        // companion) has not been run through the session API from the
-        // app. Catalogue it once that path is verified end to end.
-        'fireredtts3',
 
         // Confucius4-TTS (CrispASR #377), new in the 110fd5ce pin.
         // Held back deliberately, not overlooked:

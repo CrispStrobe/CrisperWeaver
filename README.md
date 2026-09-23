@@ -130,6 +130,7 @@ One dispatcher (`CrispasrSession`) handles every backend; bundled `libcrispasr` 
 | **Pocket TTS**    | 100M (~124-220 MB)              | Kyutai continuous-latent AR; speaks in the voice of a reference WAV; EN, DE, ES, IT, PT |
 | **SpeechT5**      | 80M (~300 MB)                   | Microsoft AR mel decoder + HiFi-GAN, EN                     |
 | **Zonos**         | v0.1 (q4_k ~872 MB, f16 ~3.1 GB) + DAC codec | Zyphra 500M — emotion, pitch, rate control, 44.1 kHz (no voice cloning) |
+| **FireRedTTS3**   | q4_k (~2.4 GB) + RedAE (~1.1 GB) | Zero-shot voice cloning, 24 languages + Chinese dialects |
 | **Supertonic-3**  | f16 (~200 MB)                   | Non-autoregressive, 31 languages (pick one in Synthesize), 10 preset voices, 44.1 kHz |
 | **KugelAudio**    | 0 Open (f16 ~14 GB)            | Large TTS model                                              |
 | **Piper**         | 15-60 MB per voice              | VITS, 250+ community voices, 30+ languages                  |
