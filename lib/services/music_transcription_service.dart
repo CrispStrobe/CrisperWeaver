@@ -35,7 +35,8 @@ class MusicTranscription {
 
 /// Audio → note events through CrispASR's structured piano ABI
 /// (`pianoNotesWithPrograms`), which every note-transcription backend
-/// implements: basic-pitch, mt3 and piano-transcription.
+/// implements: basic-pitch, mt3, piano-transcription, onsets-and-frames
+/// and hft-transformer.
 class MusicTranscriptionService {
   MusicTranscriptionService({
     required this.modelService,
@@ -45,7 +46,13 @@ class MusicTranscriptionService {
   final ModelService modelService;
   final AudioService audioService;
 
-  static const backends = <String>{'basic-pitch', 'mt3', 'piano-transcription'};
+  static const backends = <String>{
+    'basic-pitch',
+    'mt3',
+    'piano-transcription',
+    'onsets-and-frames',
+    'hft-transformer',
+  };
 
   Future<MusicTranscription> transcribe({
     required String audioPath,

@@ -347,10 +347,12 @@ class ModelService {
         ModelCatalog.crispasrBackendModels[name] ??
         ModelCatalog.ttsVoicepacks[name] ??
         BakedCatalogLoader.cached[name];
-    // Non-commercial models do not exist in a store build: resolving one
-    // (a stale setting, a preset, a queued job) behaves like a removed
-    // model, and downloads resolve through here too.
-    return (def == null || def.isOffered) ? def : null;
+    // Non-commercial models do not exist in a store build, nor do unusable
+    // files (isOffered): resolving one (a stale setting, a preset, a queued
+    // job) behaves like a removed model, and downloads resolve through here
+    // too. normalized() adds backend-level facts baked/probed rows lack.
+    if (def == null || !def.isOffered) return null;
+    return ModelCatalog.normalized(def);
   }
 
   /// Persist a backend correction for [name] into the runtime overlay so

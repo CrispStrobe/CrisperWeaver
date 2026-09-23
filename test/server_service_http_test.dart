@@ -173,7 +173,16 @@ class _FakeTtsService implements TtsService {
     this.synthesizeError,
     this.s2sAudio,
     this.s2sError,
+    this.presets = const [],
   });
+
+  /// Built-in speakers the "loaded model" reports (Supertonic, Orpheus, ...).
+  final List<String> presets;
+  String? preparedSpeaker;
+  String? preparedOutputLanguage;
+
+  @override
+  List<String> get presetSpeakers => presets;
 
   final TtsLoadStatus? prepareStatus;
   final SynthesizedAudio? audio;
@@ -206,6 +215,8 @@ class _FakeTtsService implements TtsService {
   }) async {
     preparedModel = modelName;
     preparedVoice = voiceName;
+    preparedSpeaker = speakerName;
+    preparedOutputLanguage = outputLanguage;
     return prepareStatus ?? TtsLoadStatus.ready('fake');
   }
 
@@ -1027,6 +1038,37 @@ void main() {
       expect(r.statusCode, 403);
       expect(r.body, contains('consent_attestation'));
       expect(r.body, contains('Art. 50(4)'));
+    });
+
+    test('a built-in speaker name selects the preset, with no consent needed',
+        () async {
+      final tts = _FakeTtsService(
+          presets: const ['M1', 'M2', 'F1', 'F2'],
+          audio: SynthesizedAudio(
+              samples: Float32List(2), sampleRate: 44100));
+      final h = await start(tts: tts);
+      final r = await postJson(h.uri('/v1/audio/speech'), {
+        'model': 'supertonic3-f16',
+        'input': 'hi',
+        'voice': 'f2', // case-insensitive; resolved to the model's spelling
+        'language': 'de',
+      });
+      expect(r.statusCode, 200);
+      expect(tts.preparedSpeaker, 'F2');
+      expect(tts.preparedVoice, isNull);
+      expect(tts.preparedOutputLanguage, 'de');
+      // Not a clone: no reference voice reaches the disclosure path.
+      expect(tts.wavVoiceRefPath, isNull);
+    });
+
+    test('a name that is not a built-in speaker is still a clone request',
+        () async {
+      final h = await start(
+          tts: _FakeTtsService(presets: const ['M1', 'F1']));
+      final r = await postJson(h.uri('/v1/audio/speech'),
+          {'model': 'supertonic3-f16', 'input': 'hi', 'voice': 'alice'});
+      expect(r.statusCode, 403);
+      expect(r.body, contains('consent_attestation'));
     });
 
     test('consent_attestation unlocks a voice-clone request', () async {

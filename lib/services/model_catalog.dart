@@ -214,10 +214,12 @@ class ModelDefinition {
         s.contains('research-only');
   }
 
-  /// Whether this build may list, resolve or download this model. False
-  /// only for non-commercial models in a build without
-  /// [ModelCatalog.allowNonCommercial].
-  bool get isOffered => ModelCatalog.allowNonCommercial || !isNonCommercial;
+  /// Whether this build may list, resolve or download this model. False for
+  /// non-commercial models in a build without [ModelCatalog.allowNonCommercial],
+  /// and for files the app cannot use at all ([ModelCatalog.isUnusableFile]).
+  bool get isOffered =>
+      !ModelCatalog.isUnusableFile(fileName) &&
+      (ModelCatalog.allowNonCommercial || !isNonCommercial);
 
   /// True when this row should appear under the given language
   /// filter. `''` (the "Any" sentinel) always passes; `['*']`
@@ -540,6 +542,28 @@ abstract final class ModelCatalog {
     'cstr/raon-opentts-1b-GGUF', // CC-BY-NC-4.0
     'cstr/quds-v4-fa-GGUF', // CC-BY-NC-4.0
   };
+
+  /// Backends where every model needs a reference clip to produce speech.
+  /// Hand-written rows say so with `requiresVoice`; rows from the baked
+  /// catalogue and the live HF probe carry no such field, so
+  /// [normalized] applies it by backend. Pocket TTS without a reference
+  /// produced audio with no recognisable words (English f16: 6.7 s, 0% of
+  /// words transcribable; German q8_0: 0.16 s of near-silence).
+  static const Set<String> voiceRequiredBackends = {'pocket-tts'};
+
+  /// [def] with the backend-level facts rows from the baked catalogue and
+  /// the HF probe cannot carry. Identity for everything else.
+  static ModelDefinition normalized(ModelDefinition def) =>
+      (!def.requiresVoice && voiceRequiredBackends.contains(def.backend))
+          ? def.copyWith(requiresVoice: true)
+          : def;
+
+  /// GGUFs published beside usable ones that the app cannot use. Pocket
+  /// TTS `-novc` builds drop the Mimi encoder: they cannot clone, and
+  /// without a reference they produce near-silence — so there is no input
+  /// under which they speak. The baked catalogue shipped three of them.
+  static bool isUnusableFile(String fileName) =>
+      fileName.startsWith('pocket-tts-') && fileName.contains('-novc');
 
   static bool isNonCommercialUrl(String url) {
     for (final repo in nonCommercialRepos) {
@@ -1688,6 +1712,40 @@ abstract final class ModelCatalog {
       backend: 'funasr',
     ),
     // Paraformer — FunASR family, Mandarin-focused NAR ASR.
+    // CrispASR past 0.8.35 (pin c97fc1aa), #436. Apache-2.0. On the bundled
+    // paraformer_zh clip both returned the right sentence; X-ASR punctuates,
+    // Dolphin does not (upstream behaviour), and they differ by one
+    // character (现实 / 现世). X-ASR on jfk.wav: "And so my fellow americans
+    // asked not what your country can do for you. Ask what you can do for
+    // your country".
+    'dolphin-cn-dialect-small-streaming-q4_k': ModelDefinition(
+      name: 'dolphin-cn-dialect-small-streaming-q4_k',
+      displayName: 'Dolphin CN-Dialect small (q4_k)',
+      fileName: 'dolphin-cn-dialect-small-streaming-q4_k.gguf',
+      url:
+          'https://huggingface.co/cstr/dolphin-cn-dialect-small-streaming-GGUF/resolve/main/dolphin-cn-dialect-small-streaming-q4_k.gguf',
+      sizeBytes: 257562784,
+      checksum: '',
+      description:
+          'DataoceanAI Dolphin — Mandarin and 20+ Chinese dialects, no punctuation, ~258 MB',
+      quantization: 'q4_k',
+      backend: 'dolphin',
+      languages: langsZh,
+    ),
+    'x-asr-zh-en-q8_0': ModelDefinition(
+      name: 'x-asr-zh-en-q8_0',
+      displayName: 'X-ASR zh-en (q8_0)',
+      fileName: 'x-asr-zh-en-q8_0.gguf',
+      url:
+          'https://huggingface.co/cstr/x-asr-zh-en-GGUF/resolve/main/x-asr-zh-en-q8_0.gguf',
+      sizeBytes: 168189920,
+      checksum: '',
+      description:
+          'X-ASR streaming Zipformer — Chinese and English, punctuated, ~168 MB',
+      quantization: 'q8_0',
+      backend: 'xasr',
+      languages: langsEnZh,
+    ),
     'paraformer-zh-q4_k': ModelDefinition(
       name: 'paraformer-zh-q4_k',
       displayName: 'Paraformer ZH (q4_k)',
@@ -3789,10 +3847,10 @@ abstract final class ModelCatalog {
       license:
           'Non-commercial only — BreezeBlue Research and Non-Commercial License v1.1',
     ),
-    // Raon-OpenTTS rides CrispASR's f5-tts runtime (#387). Built-in voice
-    // only: the session API's f5-tts set_voice loads the reference at 24 kHz,
-    // and Raon's mel front-end runs at 16 kHz (the CLI resamples, the
-    // session ABI does not yet), so a user clone would be fed the wrong rate.
+    // Raon-OpenTTS rides CrispASR's f5-tts runtime (#387). Voice cloning
+    // needs the engine at c97fc1aa or later: before it, the session ABI
+    // loaded the reference at 24 kHz while Raon's mel front-end runs at
+    // 16 kHz (reference mel 747 frames vs the CLI's 680, cos 0.94).
     'raon-opentts-0.3b-f16': ModelDefinition(
       name: 'raon-opentts-0.3b-f16',
       displayName: 'Raon-OpenTTS 0.3B (f16)',
@@ -3802,7 +3860,7 @@ abstract final class ModelCatalog {
       sizeBytes: 1004907296,
       checksum: '',
       description:
-          'KRAFTON Raon-OpenTTS 0.3B — built-in voice (cloning not supported yet), ~1 GB',
+          'KRAFTON Raon-OpenTTS 0.3B — English, voice cloning from a reference recording, ~1 GB',
       quantization: 'f16',
       backend: 'f5-tts',
       kind: ModelKind.tts,
@@ -3818,7 +3876,7 @@ abstract final class ModelCatalog {
       sizeBytes: 2815445056,
       checksum: '',
       description:
-          'KRAFTON Raon-OpenTTS 1B — built-in voice (cloning not supported yet), ~2.8 GB',
+          'KRAFTON Raon-OpenTTS 1B — English, voice cloning from a reference recording, ~2.8 GB',
       quantization: 'f16',
       backend: 'f5-tts',
       kind: ModelKind.tts,
@@ -3859,6 +3917,37 @@ abstract final class ModelCatalog {
           'Spotify Basic Pitch — any single instrument or voice to notes, fast, ~110 KB',
       quantization: 'f16',
       backend: 'basic-pitch',
+      kind: ModelKind.music,
+    ),
+    // Piano transcribers on CrispASR past 0.8.35 (pin c97fc1aa). Same
+    // synthetic clip: Onsets & Frames 3.2 s, 6 of 7 notes, no false ones;
+    // hFT-Transformer 62 s, all 7 plus one octave error. Both MIT.
+    'onsets-and-frames-q8_0': ModelDefinition(
+      name: 'onsets-and-frames-q8_0',
+      displayName: 'Onsets & Frames piano (q8_0)',
+      fileName: 'onsets-and-frames-q8_0.gguf',
+      url:
+          'https://huggingface.co/cstr/onsets-and-frames-GGUF/resolve/main/onsets-and-frames-q8_0.gguf',
+      sizeBytes: 32244960,
+      checksum: '',
+      description:
+          'Google Magenta Onsets & Frames — solo piano, fast, ~31 MB',
+      quantization: 'q8_0',
+      backend: 'onsets-and-frames',
+      kind: ModelKind.music,
+    ),
+    'hft-transformer-q8_0': ModelDefinition(
+      name: 'hft-transformer-q8_0',
+      displayName: 'hFT-Transformer piano (q8_0)',
+      fileName: 'hft-transformer-q8_0.gguf',
+      url:
+          'https://huggingface.co/cstr/hft-transformer-GGUF/resolve/main/hft-transformer-q8_0.gguf',
+      sizeBytes: 7318880,
+      checksum: '',
+      description:
+          'Sony hFT-Transformer — solo piano, most accurate, slow on CPU, ~7 MB',
+      quantization: 'q8_0',
+      backend: 'hft-transformer',
       kind: ModelKind.music,
     ),
     'mt3-f16': ModelDefinition(
@@ -5120,6 +5209,8 @@ abstract final class ModelCatalog {
     'supertonic': 'supertonic3-f16',
     'basic-pitch': 'basic-pitch-f16',
     'mt3': 'mt3-f16',
+    'onsets-and-frames': 'onsets-and-frames-q8_0',
+    'hft-transformer': 'hft-transformer-q8_0',
     'piano-transcription': 'piano-transcription-f16',
     'speecht5': 'speecht5-tts-f16',
     'kugelaudio': 'kugelaudio-0-open-f16',
@@ -6294,6 +6385,22 @@ abstract final class ModelCatalog {
       baseName: 'basic-pitch',
       displayPrefix: 'Basic Pitch',
       description: 'Spotify Basic Pitch — audio to notes',
+      kind: ModelKind.music,
+    ),
+    'onsets-and-frames': BackendRepo(
+      backend: 'onsets-and-frames',
+      repoId: 'cstr/onsets-and-frames-GGUF',
+      baseName: 'onsets-and-frames',
+      displayPrefix: 'Onsets & Frames',
+      description: 'Onsets & Frames — solo piano to notes',
+      kind: ModelKind.music,
+    ),
+    'hft-transformer': BackendRepo(
+      backend: 'hft-transformer',
+      repoId: 'cstr/hft-transformer-GGUF',
+      baseName: 'hft-transformer',
+      displayPrefix: 'hFT-Transformer',
+      description: 'hFT-Transformer — solo piano to notes',
       kind: ModelKind.music,
     ),
     'mt3': BackendRepo(
