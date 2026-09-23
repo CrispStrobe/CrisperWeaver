@@ -18,6 +18,8 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 - More voices: Pocket TTS in German, Spanish, Italian and Portuguese
   (each speaks in the voice of a reference recording), Chatterbox Nano
   (the smallest Chatterbox) and a Finnish Chatterbox Nano.
+- FireRedTTS3: 24 languages, speaks in the voice of a reference recording
+  (or a built-in English voice), about 3.5 GB with its companion.
 - Audio → MIDI (advanced features): transcribe a recording into notes and
   save a MIDI file, on the device. Basic Pitch (about 110 KB, fast, any
   single instrument or voice), MT3 (names each note's instrument and writes
@@ -40,9 +42,11 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 
 ### Fixed
 
-- Chatterbox Turbo now downloads and uses the Turbo S3Gen vocoder it is
-  designed for, instead of the standard one — noticeably faster, same
-  speech.
+- Chatterbox Turbo and Kartoffelbox now download and use the Turbo S3Gen
+  vocoder they are designed for, instead of the standard one — noticeably
+  faster for Turbo, same speech.
+- English Pocket TTS now asks for a reference recording before
+  synthesising. Without one it produced audio with no recognisable words.
 - Zonos was described as supporting voice cloning. It does not — a
   reference recording was ignored in favour of a random speaker — and the
   model list no longer says so.
