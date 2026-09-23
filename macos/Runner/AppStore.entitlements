@@ -21,8 +21,6 @@
 	<!-- Files the user picks or drops. Sandbox grants nothing else. -->
 	<key>com.apple.security.files.user-selected.read-write</key>
 	<true/>
-	<key>com.apple.security.files.downloads.read-only</key>
-	<true/>
 	<!-- The user-selected grant above dies with the session that opened the
 	     panel. The watch folder has to survive a relaunch, so the picked
 	     directory is persisted as a security-scoped bookmark and re-resolved

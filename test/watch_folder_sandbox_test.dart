@@ -158,4 +158,17 @@ void main() {
           'this file exists to prevent.',
     );
   });
+
+  test('no entitlement without matching functionality (App Review 2.4.5(i))',
+      () {
+    // Rejected 2026-09 for files.downloads.read-only: nothing reads
+    // ~/Downloads directly — every file comes through the picker, a drop,
+    // or a security-scoped bookmark, all covered by user-selected.read-write.
+    for (final name in ['AppStore', 'Release', 'DebugProfile']) {
+      final ents =
+          File('macos/Runner/$name.entitlements').readAsStringSync();
+      expect(ents.contains('com.apple.security.files.downloads'), isFalse,
+          reason: '$name.entitlements');
+    }
+  });
 }
