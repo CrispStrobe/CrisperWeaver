@@ -915,7 +915,32 @@ jobs:
         # is the floor).
         run: timeout 120 dart run scripts/bake_models_catalog.dart || true
 
-      - name: Build APK (release, unsigned)
+      # Issue #36: without key.properties, build.gradle.kts falls back to the
+      # debug signing config, and each runner generates a throwaway debug key
+      # — every release up to v0.12.0 carried a different "CN=Android Debug"
+      # certificate, so no APK could ever install as an update over the last.
+      # A release is now signed with the persistent CrisperWeaver key, and the
+      # job FAILS rather than fall back when the secrets are absent.
+      - name: Configure release signing
+        working-directory: repos/CrisperWeaver
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+        run: |
+          if [ -z "$ANDROID_KEYSTORE_BASE64" ] || [ -z "$ANDROID_KEY_ALIAS" ] \
+             || [ -z "$ANDROID_KEY_PASSWORD" ] || [ -z "$ANDROID_STORE_PASSWORD" ]; then
+            echo "::error::Android signing secrets missing — refusing to ship a debug-signed APK (#36)"
+            exit 1
+          fi
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/release.jks
+          # storeFile is resolved relative to the app module (android/app).
+          printf 'storePassword=%s\nkeyPassword=%s\nkeyAlias=%s\nstoreFile=release.jks\n' \
+            "$ANDROID_STORE_PASSWORD" "$ANDROID_KEY_PASSWORD" "$ANDROID_KEY_ALIAS" \
+            > android/key.properties
+
+      - name: Build APK (release, signed)
         working-directory: repos/CrisperWeaver
         run: flutter build apk --release --target-platform=android-arm64
 
@@ -926,6 +951,28 @@ jobs:
              crisper_weaver-android-arm64.apk
           sha256sum crisper_weaver-android-arm64.apk | tee crisper_weaver-android-arm64.apk.sha256
 
+      # The certificate every CrisperWeaver release must carry. A mismatch
+      # (debug fallback, wrong or rotated key) fails the release here instead
+      # of reaching users as an APK that cannot update the installed app.
+      - name: Verify the APK is signed with the release key
+        working-directory: repos/CrisperWeaver
+        env:
+          EXPECTED_CERT_SHA256: f810e2ca1033655e406a82e3baec2923cf8bdc73d2c5c38bcb8344a46f44a5d9
+        run: |
+          APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner 2>/dev/null | sort -V | tail -1)
+          if [ -z "$APKSIGNER" ]; then
+            sdkmanager --install "build-tools;35.0.0" >/dev/null
+            APKSIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
+          fi
+          "$APKSIGNER" verify --print-certs crisper_weaver-android-arm64.apk | tee signing.txt
+          GOT=$(sed -n 's/.*certificate SHA-256 digest: //p' signing.txt | head -1)
+          if [ "$GOT" != "$EXPECTED_CERT_SHA256" ]; then
+            echo "::error::APK signed with $GOT, expected $EXPECTED_CERT_SHA256 (#36)"
+            exit 1
+          fi
+          echo "$GOT" > crisper_weaver-android-signing-cert.sha256.txt
+          rm -f android/app/release.jks android/key.properties
+
       - name: Upload APK
         uses: softprops/action-gh-release@v3
         with:
@@ -933,6 +980,7 @@ jobs:
           files: |
             repos/CrisperWeaver/crisper_weaver-android-arm64.apk
             repos/CrisperWeaver/crisper_weaver-android-arm64.apk.sha256
+            repos/CrisperWeaver/crisper_weaver-android-signing-cert.sha256.txt
           draft: false
           prerelease: false
           fail_on_unmatched_files: true
