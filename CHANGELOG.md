@@ -16,6 +16,10 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
   on, updates install normally. The certificate's SHA-256 is published with
   each release (`crisper_weaver-android-signing-cert.sha256.txt`):
   `f810e2ca1033655e406a82e3baec2923cf8bdc73d2c5c38bcb8344a46f44a5d9`.
+- Batch queue: saving a job could leave its file empty for a moment, so a
+  job being read at that instant — or the whole job, if the app was killed
+  mid-save — could disappear from the queue. Job files are now replaced
+  atomically.
 
 ### Changed
 

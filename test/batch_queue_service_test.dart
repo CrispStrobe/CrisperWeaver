@@ -173,10 +173,12 @@ void main() {
       // mid-file resume is commit 2 of this slice).
       expect(j.status, BatchJobStatus.queued);
       expect(j.progress, 0.0);
-      // Demotion was persisted too.
+      // Demotion was persisted too. Await the write before reading the
+      // disk: load() persists the demotion asynchronously, and reading
+      // first raced it (CI run 35949416305).
+      await reborn.whenPersisted();
       final diskAfter = await persistence.loadAllJobs();
       expect(diskAfter.single.status, BatchJobStatus.queued);
-      await reborn.whenPersisted();
       reborn.dispose();
     });
 
