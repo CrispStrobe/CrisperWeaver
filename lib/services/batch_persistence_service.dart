@@ -135,19 +135,34 @@ class BatchPersistenceService {
 
   /// Job-file write. Each call to a given `job.id` is serialised against
   /// every other filesystem op on the same id (delete, checkpoint
-  /// append) so the disk state matches the caller's call-order. Direct
-  /// write — `writeAsString` already opens/writes/closes atomically per
-  /// the dart:io contract; the previous `.tmp` + `rename` dance racing
-  /// itself was the bug, not what it was guarding against.
+  /// append) so the disk state matches the caller's call-order.
+  ///
+  /// Written to a sibling `.tmp` file and renamed over the job file.
+  /// `writeAsString` is NOT atomic: it truncates the file, then writes it,
+  /// so a concurrent [loadAllJobs] could read it empty and drop the job,
+  /// and a crash between the two left an empty file — the queued job was
+  /// gone at the next start. A rename within one directory is atomic, and
+  /// dart:io's rename replaces an existing file on every platform. (An
+  /// earlier `.tmp` + rename "raced itself" before saves were serialised
+  /// per id; with [_serial] two saves of one job can no longer overlap.)
   Future<void> saveJob(BatchJob job) {
     return _serial(job.id, () async {
       final dir = await _ensureDir();
       final dst = File(p.join(dir.path, _jobFilename(job.id)));
+      final tmp = File('${dst.path}.${_tmpCounter++}.tmp');
       final encoded =
           const JsonEncoder.withIndent('  ').convert(job.toJson());
-      await dst.writeAsString(encoded, flush: true);
+      try {
+        await tmp.writeAsString(encoded, flush: true);
+        await tmp.rename(dst.path);
+      } catch (_) {
+        if (await tmp.exists()) await tmp.delete();
+        rethrow;
+      }
     });
   }
+
+  int _tmpCounter = 0;
 
   /// Read every persisted job, sorted by `createdAt` ascending so the
   /// queue order in memory matches the order jobs were originally

@@ -275,6 +275,34 @@ void main() {
       final resumable = await svc.findResumableJobs();
       expect(resumable, ['running-with-ckpt']);
     });
+
+    test('a reader never sees a job file half-written (crash / concurrent read)',
+        () async {
+      // saveJob used writeAsString, which truncates the file and then
+      // writes it. A concurrent loadAllJobs could read it empty and drop
+      // the job (the CI flake in batch_queue_service_test), and a crash
+      // between truncate and write would lose the queued job for good.
+      final job = BatchJob(
+        id: 'job-atomic',
+        filePath: '/tmp/a.wav',
+        status: BatchJobStatus.queued,
+        createdAt: DateTime.utc(2026, 9, 24),
+        // Large enough that a write is not over before a read can start.
+        resultText: 'x' * 200000,
+      );
+      await svc.saveJob(job);
+
+      var bad = 0;
+      final writes = <Future<void>>[];
+      for (var i = 0; i < 40; i++) {
+        writes.add(svc.saveJob(job.copyWith(progress: i / 40)));
+        final seen = await svc.loadAllJobs();
+        if (seen.length != 1) bad++;
+      }
+      await Future.wait(writes);
+      expect(bad, 0, reason: 'reads that saw no intact job file');
+      expect(await svc.loadAllJobs(), hasLength(1));
+    });
   });
 
   group('BatchJob JSON', () {
