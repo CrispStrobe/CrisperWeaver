@@ -5,6 +5,18 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 
 ## [Unreleased]
 
+## [0.12.1] — 2026-09-24
+
+### Fixed
+
+- Android: the APK is now signed with a permanent release key (#36). Until
+  now every release was signed with a throwaway debug key made on the build
+  machine, so Android refused to install any release over the previous one.
+  **Uninstall the old version once before installing 0.12.1**; from 0.12.1
+  on, updates install normally. The certificate's SHA-256 is published with
+  each release (`crisper_weaver-android-signing-cert.sha256.txt`):
+  `f810e2ca1033655e406a82e3baec2923cf8bdc73d2c5c38bcb8344a46f44a5d9`.
+
 ### Changed
 
 - Speech engine updated to CrispASR 0.8.36. Kaldi-style front-ends
