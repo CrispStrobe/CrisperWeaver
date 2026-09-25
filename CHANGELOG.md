@@ -5,6 +5,21 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 
 ## [Unreleased]
 
+### Added
+
+- Canary 180M Flash: a compact, commercial-use multilingual ASR model for
+  English, German, Spanish and French. The Models screen offers Q4_K_M for the
+  smallest transcription download and Q5_K_M as the smallest locally validated
+  EN↔DE/ES/FR speech-translation option. Additional upstream quantizations are
+  discoverable through the Hugging Face refresh.
+
+### Fixed
+
+- Speech-translation target languages now reach the worker-isolate session used
+  by the default Android transcription path. Selecting different source and
+  target languages for Canary therefore invokes translation instead of silently
+  returning a same-language transcript.
+
 ## [0.12.1] — 2026-09-24
 
 ### Fixed
