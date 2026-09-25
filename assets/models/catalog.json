@@ -312,6 +312,114 @@
     ]
   },
   {
+    "name": "canary-180m-flash-f16",
+    "displayName": "Canary 180M Flash (f16)",
+    "fileName": "canary-180m-flash-F16.gguf",
+    "url": "https://huggingface.co/handy-computer/canary-180m-flash-gguf/resolve/main/canary-180m-flash-F16.gguf",
+    "sizeBytes": 381632192,
+    "checksum": "",
+    "description": "Compact Canary ASR with English-pivot translation (en/de/es/fr) — 364.0 MB",
+    "quantization": "f16",
+    "backend": "canary",
+    "kind": "asr",
+    "languages": [
+      "en",
+      "de",
+      "es",
+      "fr"
+    ]
+  },
+  {
+    "name": "canary-180m-flash-f32",
+    "displayName": "Canary 180M Flash (f32)",
+    "fileName": "canary-180m-flash-F32.gguf",
+    "url": "https://huggingface.co/handy-computer/canary-180m-flash-gguf/resolve/main/canary-180m-flash-F32.gguf",
+    "sizeBytes": 756498112,
+    "checksum": "",
+    "description": "Compact Canary ASR with English-pivot translation (en/de/es/fr) — 721.5 MB",
+    "quantization": "f32",
+    "backend": "canary",
+    "kind": "asr",
+    "languages": [
+      "en",
+      "de",
+      "es",
+      "fr"
+    ]
+  },
+  {
+    "name": "canary-180m-flash-q4_k_m",
+    "displayName": "Canary 180M Flash (q4_k_m)",
+    "fileName": "canary-180m-flash-Q4_K_M.gguf",
+    "url": "https://huggingface.co/handy-computer/canary-180m-flash-gguf/resolve/main/canary-180m-flash-Q4_K_M.gguf",
+    "sizeBytes": 139223744,
+    "checksum": "",
+    "description": "Compact Canary ASR with English-pivot translation (en/de/es/fr) — 132.8 MB",
+    "quantization": "q4_k_m",
+    "backend": "canary",
+    "kind": "asr",
+    "languages": [
+      "en",
+      "de",
+      "es",
+      "fr"
+    ]
+  },
+  {
+    "name": "canary-180m-flash-q5_k_m",
+    "displayName": "Canary 180M Flash (q5_k_m)",
+    "fileName": "canary-180m-flash-Q5_K_M.gguf",
+    "url": "https://huggingface.co/handy-computer/canary-180m-flash-gguf/resolve/main/canary-180m-flash-Q5_K_M.gguf",
+    "sizeBytes": 158704320,
+    "checksum": "",
+    "description": "Compact Canary ASR with English-pivot translation (en/de/es/fr) — 151.4 MB",
+    "quantization": "q5_k_m",
+    "backend": "canary",
+    "kind": "asr",
+    "languages": [
+      "en",
+      "de",
+      "es",
+      "fr"
+    ]
+  },
+  {
+    "name": "canary-180m-flash-q6_k",
+    "displayName": "Canary 180M Flash (q6_k)",
+    "fileName": "canary-180m-flash-Q6_K.gguf",
+    "url": "https://huggingface.co/handy-computer/canary-180m-flash-gguf/resolve/main/canary-180m-flash-Q6_K.gguf",
+    "sizeBytes": 176291520,
+    "checksum": "",
+    "description": "Compact Canary ASR with English-pivot translation (en/de/es/fr) — 168.1 MB",
+    "quantization": "q6_k",
+    "backend": "canary",
+    "kind": "asr",
+    "languages": [
+      "en",
+      "de",
+      "es",
+      "fr"
+    ]
+  },
+  {
+    "name": "canary-180m-flash-q8_0",
+    "displayName": "Canary 180M Flash (q8_0)",
+    "fileName": "canary-180m-flash-Q8_0.gguf",
+    "url": "https://huggingface.co/handy-computer/canary-180m-flash-gguf/resolve/main/canary-180m-flash-Q8_0.gguf",
+    "sizeBytes": 218447552,
+    "checksum": "",
+    "description": "Compact Canary ASR with English-pivot translation (en/de/es/fr) — 208.3 MB",
+    "quantization": "q8_0",
+    "backend": "canary",
+    "kind": "asr",
+    "languages": [
+      "en",
+      "de",
+      "es",
+      "fr"
+    ]
+  },
+  {
     "name": "cohere-transcribe-q4_k",
     "displayName": "Cohere Transcribe (q4_k)",
     "fileName": "cohere-transcribe-q4_k.gguf",

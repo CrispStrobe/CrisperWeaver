@@ -1147,6 +1147,7 @@ class CrispASREngine implements TranscriptionEngine {
             final mapped = await _runSessionTranscriptionViaPool(
               trimmed,
               language: language,
+              targetLanguage: targetLanguage,
               translate: translate,
               initialPrompt: initialPrompt,
               bestOf: bestOf,
@@ -1223,6 +1224,7 @@ class CrispASREngine implements TranscriptionEngine {
           mapped = await _runSessionTranscriptionViaPool(
             trimmed,
             language: language,
+            targetLanguage: targetLanguage,
             translate: translate,
             initialPrompt: initialPrompt,
             bestOf: bestOf,
@@ -1764,6 +1766,7 @@ class CrispASREngine implements TranscriptionEngine {
   Future<List<TranscriptionSegment>> _runSessionTranscriptionViaPool(
     Float32List pcm, {
     String? language,
+    String? targetLanguage,
     bool translate = false,
     String? initialPrompt,
     int bestOf = 1,
@@ -1792,6 +1795,7 @@ class CrispASREngine implements TranscriptionEngine {
     final raw = await _sessionPool!.dispatch(
       samples: pcm,
       language: langHint,
+      targetLanguage: targetLanguage,
       translate: translate,
       askPrompt: prompt,
       bestOf: bestOf,

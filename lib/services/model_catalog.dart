@@ -287,6 +287,7 @@ class BackendRepo {
   final String displayPrefix; // UI-friendly name; e.g. "Parakeet TDT 0.6B v3"
   final String description;
   final String extension; // typically ".gguf", Whisper uses ".bin"
+  final bool lowercaseQuantLabels;
   // What ModelKind newly-discovered variants belong to. Without this the
   // probe stamped every quant as ModelKind.asr (the ModelDefinition
   // default), and merging _discoveredModels last overwrote the hardcoded
@@ -335,6 +336,7 @@ class BackendRepo {
     required this.displayPrefix,
     required this.description,
     this.extension = '.gguf',
+    this.lowercaseQuantLabels = false,
     this.kind = ModelKind.asr,
     this.voicepackBaseName,
     this.defaultCompanions = const [],
@@ -1518,6 +1520,40 @@ abstract final class ModelCatalog {
       description: 'Multilingual ASR with speech-translation — ~600 MB',
       quantization: 'q5_0',
       backend: 'canary',
+    ),
+    'canary-180m-flash-q4_k_m': ModelDefinition(
+      name: 'canary-180m-flash-q4_k_m',
+      displayName: 'Canary 180M Flash (q4_k_m)',
+      fileName: 'canary-180m-flash-Q4_K_M.gguf',
+      url:
+          'https://huggingface.co/handy-computer/canary-180m-flash-gguf/resolve/main/canary-180m-flash-Q4_K_M.gguf',
+      sizeBytes: 139223744,
+      checksum: '',
+      description:
+          'Smallest Canary 180M Flash ASR option; recommended for '
+          'transcription. Local EN→DE translation emitted immediate EOS; '
+          'use Q5_K_M or higher for direct translation',
+      quantization: 'q4_k_m',
+      backend: 'canary',
+      kind: ModelKind.asr,
+      languages: ['en', 'de', 'es', 'fr'],
+    ),
+    'canary-180m-flash-q5_k_m': ModelDefinition(
+      name: 'canary-180m-flash-q5_k_m',
+      displayName: 'Canary 180M Flash (q5_k_m)',
+      fileName: 'canary-180m-flash-Q5_K_M.gguf',
+      url:
+          'https://huggingface.co/handy-computer/canary-180m-flash-gguf/resolve/main/canary-180m-flash-Q5_K_M.gguf',
+      sizeBytes: 158704320,
+      checksum: '',
+      description:
+          'Smallest locally validated full ASR + English-pivot translation '
+          'option; the basic JFK gate does not establish broad translation '
+          'accuracy',
+      quantization: 'q5_k_m',
+      backend: 'canary',
+      kind: ModelKind.asr,
+      languages: ['en', 'de', 'es', 'fr'],
     ),
     // Cohere / Granite / FastConformer-CTC / Wav2Vec2 have the widest
     // naming drift between our guess and the actual HF layouts, so they
@@ -5379,6 +5415,16 @@ abstract final class ModelCatalog {
       description:
           'NVIDIA Canary — multilingual speech translation (25 EU langs)',
       defaultLanguages: langsEU25,
+    ),
+    'canary-180m-flash': BackendRepo(
+      backend: 'canary',
+      repoId: 'handy-computer/canary-180m-flash-gguf',
+      baseName: 'canary-180m-flash',
+      displayPrefix: 'Canary 180M Flash',
+      description:
+          'Compact Canary ASR with English-pivot translation (en/de/es/fr)',
+      lowercaseQuantLabels: true,
+      defaultLanguages: ['en', 'de', 'es', 'fr'],
     ),
     'cohere': BackendRepo(
       backend: 'cohere',
