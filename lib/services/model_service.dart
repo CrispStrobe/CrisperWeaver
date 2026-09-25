@@ -745,6 +745,7 @@ class ModelService {
         modelNameKey = '${repo.baseName}-f16';
       } else if (stem.startsWith('${repo.baseName}-')) {
         quant = stem.substring(repo.baseName.length + 1);
+        if (repo.lowercaseQuantLabels) quant = quant.toLowerCase();
         modelNameKey = '${repo.baseName}-$quant';
       } else {
         // Skip files that don't follow the expected naming convention.

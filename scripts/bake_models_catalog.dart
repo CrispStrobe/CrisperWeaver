@@ -66,6 +66,7 @@ class RepoSpec {
   final String kind; // ModelKind.<value>
   final String? voicepackBaseName;
   final String extension;
+  final bool lowercaseQuantLabels;
 
   /// Upstream weight licence string, mirrored from the CrispASR registry
   /// (`crispasr_model_registry.cpp`, 6th field). `null` = permissive.
@@ -86,6 +87,7 @@ class RepoSpec {
     this.kind = 'asr',
     this.voicepackBaseName,
     this.extension = '.gguf',
+    this.lowercaseQuantLabels = false,
     this.license,
     this.requiresVoice = false,
   });
@@ -114,6 +116,15 @@ const _repos = <RepoSpec>[
     baseName: 'canary-1b-v2',
     displayPrefix: 'Canary 1B v2',
     description: 'NVIDIA Canary — speech translation',
+  ),
+  RepoSpec(
+    backend: 'canary',
+    repoId: 'handy-computer/canary-180m-flash-gguf',
+    baseName: 'canary-180m-flash',
+    displayPrefix: 'Canary 180M Flash',
+    description:
+        'Compact Canary ASR with English-pivot translation (en/de/es/fr)',
+    lowercaseQuantLabels: true,
   ),
   RepoSpec(
     backend: 'cohere',
@@ -864,6 +875,7 @@ Future<void> main() async {
         key = '${repo.baseName}-f16';
       } else if (stem.startsWith('${repo.baseName}-')) {
         quant = stem.substring(repo.baseName.length + 1);
+        if (repo.lowercaseQuantLabels) quant = quant.toLowerCase();
         key = '${repo.baseName}-$quant';
       } else {
         continue;

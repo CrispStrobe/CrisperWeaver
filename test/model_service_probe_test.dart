@@ -9,6 +9,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:crisper_weaver/services/baked_catalog_loader.dart';
 import 'package:crisper_weaver/services/model_service.dart';
 import 'package:crisper_weaver/services/settings_service.dart';
 
@@ -49,6 +50,20 @@ const _hfPayload = '''
     {"rfilename": "README.md", "size": 1234},
     {"rfilename": "config.json", "size": 99},
     {"rfilename": "ggml-tiny.bin", "size": 77000000}
+  ]
+}
+''';
+
+const _canaryFlashPayload = '''
+{
+  "id": "handy-computer/canary-180m-flash-gguf",
+  "siblings": [
+    {"rfilename": "canary-180m-flash-F16.gguf", "size": 381632192},
+    {"rfilename": "canary-180m-flash-F32.gguf", "size": 756498112},
+    {"rfilename": "canary-180m-flash-Q4_K_M.gguf", "size": 139223744},
+    {"rfilename": "canary-180m-flash-Q5_K_M.gguf", "size": 158704320},
+    {"rfilename": "canary-180m-flash-Q6_K.gguf", "size": 176291520},
+    {"rfilename": "canary-180m-flash-Q8_0.gguf", "size": 218447552}
   ]
 }
 ''';
@@ -155,5 +170,43 @@ void main() {
       // Nothing found → nothing persisted.
       expect(settings.hfUserRepos, isEmpty);
     });
+  });
+
+  test('backend refresh normalizes uppercase Canary quant names', () async {
+    BakedCatalogLoader.loadFromString('[]');
+    addTearDown(BakedCatalogLoader.reset);
+    final svc = serviceWith(_CannedAdapter(_canaryFlashPayload));
+
+    final result = await svc.refreshAvailableQuants();
+
+    expect(result.failedRepos, isEmpty);
+    // Q4_K_M and Q5_K_M normalize onto the curated rows, so only the four
+    // non-curated upstream variants count as newly discovered.
+    expect(result.added, 4);
+    const expected = <String, String>{
+      'canary-180m-flash-f16': 'f16',
+      'canary-180m-flash-f32': 'f32',
+      'canary-180m-flash-q4_k_m': 'q4_k_m',
+      'canary-180m-flash-q5_k_m': 'q5_k_m',
+      'canary-180m-flash-q6_k': 'q6_k',
+      'canary-180m-flash-q8_0': 'q8_0',
+    };
+    for (final entry in expected.entries) {
+      final model = svc.lookupDefinition(entry.key);
+      expect(model, isNotNull, reason: 'missing live-probed ${entry.key}');
+      expect(model!.name, entry.key);
+      expect(model.quantization, entry.value);
+    }
+    for (final uppercase in const <String>[
+      'canary-180m-flash-F16',
+      'canary-180m-flash-F32',
+      'canary-180m-flash-Q4_K_M',
+      'canary-180m-flash-Q5_K_M',
+      'canary-180m-flash-Q6_K',
+      'canary-180m-flash-Q8_0',
+    ]) {
+      expect(svc.lookupDefinition(uppercase), isNull,
+          reason: 'live probe must not create persisted uppercase key');
+    }
   });
 }
