@@ -2399,6 +2399,13 @@ class AppLocalizationsDe extends AppLocalizations {
       'Höher = härtere Einschränkung, niedriger = weichere Empfehlung. Upstream-Standard ist 100; sinnvoller Bereich 50..200.';
 
   @override
+  String get advancedGrammarStrict => 'Strikte Grammatik';
+
+  @override
+  String get advancedGrammarStrictHelper =>
+      'Nicht aufhören, bevor die Grammatik vollständig ist, damit keine Phrase abgeschnitten wird („Springer nach f“ statt „Springer nach f3“).';
+
+  @override
   String get advancedTranscribeWindowTitle =>
       'Transkriptions-Fenster (Offset + Dauer)';
 
@@ -2569,6 +2576,10 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get advancedDiarizeFoxnose =>
       'FoxNose (WeSpeaker-Embeddings, GGUF nötig)';
+
+  @override
+  String get advancedDiarizeSortformer =>
+      'Sortformer (NVIDIA Nemotron, GGUF nötig)';
 
   @override
   String get advancedSpeakerRecognition => 'Eingespeicherte Sprecher erkennen';

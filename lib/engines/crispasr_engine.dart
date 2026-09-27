@@ -922,6 +922,14 @@ class CrispASREngine implements TranscriptionEngine {
         _session!.setGrammar(advanced.grammarText,
             rootRule: advanced.grammarRootRule,
             penalty: advanced.grammarPenalty);
+        // Also fired every dispatch, so strictness never outlives the
+        // grammar it was set for.
+        try {
+          _session!.setGrammarStrict(advanced.grammarStrict &&
+              advanced.grammarText.trim().isNotEmpty);
+        } on UnsupportedError {
+          // Pre-0.8.37 dylib: the grammar still applies, not strictly.
+        }
       } on UnsupportedError catch (e) {
         Log.instance.d('crispasr',
             'setGrammar unsupported on this dylib: $e');

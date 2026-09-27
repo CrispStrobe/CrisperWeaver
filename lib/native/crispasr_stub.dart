@@ -133,6 +133,8 @@ enum DiarizeMethod {
   // #324 — WeSpeaker embeddings + spectral clustering. Mirrors the FFI
   // enum; the ordinal has to line up even though nothing here dispatches.
   foxNose,
+  // #466 — Nemotron-3-Diarization (Sortformer); ordinal 5, as in the FFI enum.
+  sortformer,
 }
 
 class RegistryEntry {
@@ -527,6 +529,10 @@ class CrispasrSession {
     throw UnsupportedError('CrispasrSession is not available on web');
   }
 
+  void setGrammarStrict(bool strict) {
+    throw UnsupportedError('CrispasrSession is not available on web');
+  }
+
   void setGrammar(String text,
       {String rootRule = 'root', double penalty = 100.0}) {
     throw UnsupportedError('CrispasrSession is not available on web');
@@ -848,6 +854,7 @@ bool diarizeSegments({
   int minSpeakers = 0,
   int maxSpeakers = 0,
   int numSpeakers = 0,
+  String? sortformerModelPath,
   List<DiarizeTurn>? outTurns,
   dynamic lib,
 }) {

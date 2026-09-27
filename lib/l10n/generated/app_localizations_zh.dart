@@ -2296,6 +2296,13 @@ class AppLocalizationsZh extends AppLocalizations {
       '越高 = 约束越硬，越低 = 约束越软。上游默认值为 100；有效范围 50..200。';
 
   @override
+  String get advancedGrammarStrict => '严格语法';
+
+  @override
+  String get advancedGrammarStrictHelper =>
+      '在语法完整之前不结束，避免短语被截断（例如“马到 f”而不是“马到 f3”）。';
+
+  @override
   String get advancedTranscribeWindowTitle => '转录窗口（偏移量 + 时长）';
 
   @override
@@ -2461,6 +2468,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get advancedDiarizeFoxnose => 'FoxNose（WeSpeaker 声纹嵌入，需要 GGUF）';
+
+  @override
+  String get advancedDiarizeSortformer => 'Sortformer（NVIDIA Nemotron，需要 GGUF）';
 
   @override
   String get advancedSpeakerRecognition => '识别已注册说话人';

@@ -52,11 +52,11 @@ env:
   # backends or add them to its documented `engineOnly` set, then commit
   # the bump on its own so a regression bisects cleanly.
   CRISPASR_REPO: CrispStrobe/CrispASR
-  # Pinned to the v0.8.36 tag. It carries the session-ABI fixes made for
-  # this app (Raon's reference rate, Breeze-TTS-2's output rate, the `raon`
-  # alias), the Kaldi-fbank / SenseVoice CMVN / Paraformer front-end fixes,
-  # and the Dolphin, X-ASR, Onsets & Frames and hFT-Transformer backends.
-  CRISPASR_REF: d39005a21a69639834917610351d3f747036e243
+  # Pinned to CrispASR main after v0.8.36 (52ae1d79). On top of v0.8.36 it adds
+  # the Nemotron-3-Diarization Sortformer backend and its Dart
+  # `DiarizeMethod.sortformer`, strict grammar mode, the Parakeet ultra/redux
+  # models, Raon-Speech-9B and the core beam-decode fixes.
+  CRISPASR_REF: 52ae1d79217a3684eaab7b3969d4fcef086a342f
   CRISPEMBED_REPO: CrispStrobe/CrispEmbed
   CRISPEMBED_REF: 40e7b7dd00bb6b1505c9e6ac74bef0c97efef337
   GLINT_REPO: CrispStrobe/glint

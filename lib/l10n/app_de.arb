@@ -1444,6 +1444,8 @@
     }
   },
   "advancedGrammarPenaltyHelper": "Höher = härtere Einschränkung, niedriger = weichere Empfehlung. Upstream-Standard ist 100; sinnvoller Bereich 50..200.",
+  "advancedGrammarStrict": "Strikte Grammatik",
+  "advancedGrammarStrictHelper": "Nicht aufhören, bevor die Grammatik vollständig ist, damit keine Phrase abgeschnitten wird („Springer nach f“ statt „Springer nach f3“).",
   "advancedTranscribeWindowTitle": "Transkriptions-Fenster (Offset + Dauer)",
   "advancedTranscribeWindowSubtitle": "Nur einen [Start, Start+Dauer)-Ausschnitt der Audio verarbeiten. Leer / 0 = gesamte Datei (Standard).",
   "advancedTranscribeWindowSubtitleActive": "Aktiv: {start}s..{end}s der Datei. Zeitstempel bleiben absolut.",
@@ -1542,6 +1544,7 @@
   "advancedDiarizeEnergy": "Stereo L/R-Energie",
   "advancedDiarizeXcorr": "Stereo-Kreuzkorrelation",
   "advancedDiarizeFoxnose": "FoxNose (WeSpeaker-Embeddings, GGUF nötig)",
+  "advancedDiarizeSortformer": "Sortformer (NVIDIA Nemotron, GGUF nötig)",
   "advancedSpeakerRecognition": "Eingespeicherte Sprecher erkennen",
   "advancedSpeakerRecognitionSubtitle": "Gleicht nach der Diarisierung jeden Sprecher-Cluster mit der lokalen Sprecher-Datenbank (Einstellungen → Sprecher) ab und ersetzt „Sprecher N“ durch den gespeicherten Namen, sobald die Übereinstimmung sicher ist. Benötigt das TitaNet-GGUF.",
   "advancedTdrz": "Tinydiarize-Sprecherwechsel (nur Whisper)",

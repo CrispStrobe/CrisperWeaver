@@ -541,6 +541,7 @@ abstract final class ModelCatalog {
     'cstr/raon-opentts-0.3b-GGUF', // CC-BY-NC-4.0
     'cstr/raon-opentts-1b-GGUF', // CC-BY-NC-4.0
     'cstr/quds-v4-fa-GGUF', // CC-BY-NC-4.0
+    'cstr/raon-speech-9b-GGUF', // CC-BY-NC-4.0
   };
 
   /// Backends where every model needs a reference clip to produce speech.
@@ -1481,6 +1482,41 @@ abstract final class ModelCatalog {
       description: 'Fast English ASR (NVIDIA Parakeet) — ~467 MB',
       quantization: 'q4_k',
       backend: 'parakeet',
+    ),
+    // moondream's parakeet-ultra / parakeet-redux (CrispASR 0.8.37, #454;
+    // CrisperWeaver #38): parakeet-tdt-0.6b-v3 architecture, 25 EU
+    // languages, on the parakeet runtime unchanged. CrispASR verified the
+    // transcripts equal transformers and moondream Photon at every quant.
+    // CC-BY-4.0.
+    'parakeet-ultra-q4_k': ModelDefinition(
+      name: 'parakeet-ultra-q4_k',
+      displayName: 'Parakeet Ultra (q4_k)',
+      fileName: 'parakeet-ultra-q4_k.gguf',
+      url:
+          'https://huggingface.co/cstr/parakeet-ultra-GGUF/resolve/main/parakeet-ultra-q4_k.gguf',
+      sizeBytes: 402226496,
+      checksum: '',
+      description:
+          'moondream Parakeet Ultra — faster, more accurate Parakeet v3 fine-tune, 25 languages — ~402 MB',
+      quantization: 'q4_k',
+      backend: 'parakeet',
+      languages: langsEU25,
+      license: 'CC-BY-4.0',
+    ),
+    'parakeet-redux-q4_k': ModelDefinition(
+      name: 'parakeet-redux-q4_k',
+      displayName: 'Parakeet Redux (q4_k)',
+      fileName: 'parakeet-redux-q4_k.gguf',
+      url:
+          'https://huggingface.co/cstr/parakeet-redux-GGUF/resolve/main/parakeet-redux-q4_k.gguf',
+      sizeBytes: 402226496,
+      checksum: '',
+      description:
+          'moondream Parakeet Redux — Parakeet v3 with a ternary encoder, 25 languages — ~402 MB',
+      quantization: 'q4_k',
+      backend: 'parakeet',
+      languages: langsEU25,
+      license: 'CC-BY-4.0',
     ),
     'parakeet-tdt-0.6b-v2-q4_k': ModelDefinition(
       name: 'parakeet-tdt-0.6b-v2-q4_k',
@@ -3343,6 +3379,25 @@ abstract final class ModelCatalog {
       backend: 'wespeaker',
       kind: ModelKind.diarize,
     ),
+    // NVIDIA Nemotron-3-Diarization — a streaming Sortformer v3 (CrispASR
+    // #466, DiarizeMethod.sortformer). Derives speaker turns from the audio,
+    // like FoxNose, so segments are split at speaker changes. NVIDIA's own
+    // q8_0 GGUF, OpenMDW-1.1 (commercial use allowed).
+    'nemotron-3-diarization-q8_0': ModelDefinition(
+      name: 'nemotron-3-diarization-q8_0',
+      displayName: 'Nemotron-3-Diarization (Sortformer)',
+      fileName: 'Nemotron-3-Diarization.q8_0.gguf',
+      url:
+          'https://huggingface.co/nvidia/Nemotron-3-Diarization/resolve/main/Nemotron-3-Diarization.q8_0.gguf',
+      sizeBytes: 107012128,
+      checksum: '',
+      description:
+          'NVIDIA Sortformer v3 diarisation — speaker turns from the audio, mono — ~102 MB',
+      quantization: 'q8_0',
+      backend: 'sortformer',
+      kind: ModelKind.diarize,
+      license: 'OpenMDW-1.1',
+    ),
     // ---------- Alternative VAD backends ----------
     // CrispASR ships four VAD options; silero is bundled as a Flutter
     // asset (no download needed). The other three live in the catalog
@@ -3819,6 +3874,23 @@ abstract final class ModelCatalog {
           'OpenRAIL-M — use restrictions + attribution: https://huggingface.co/Supertone/supertonic-3',
     ),
     // ----- Non-commercial, development builds only -----
+    // Raon-Speech-9B speech-to-text (CrispASR 0.8.37, #455): Qwen3-Omni audio
+    // tower + adaptor + Qwen3 LLM on the qwen3-asr runtime; English + Korean.
+    'raon-speech-9b-q4_k': ModelDefinition(
+      name: 'raon-speech-9b-q4_k',
+      displayName: 'Raon-Speech 9B (q4_k)',
+      fileName: 'raon-speech-9b-q4_k.gguf',
+      url:
+          'https://huggingface.co/cstr/raon-speech-9b-GGUF/resolve/main/raon-speech-9b-q4_k.gguf',
+      sizeBytes: 4978430112,
+      checksum: '',
+      description:
+          'KRAFTON Raon-Speech 9B — English and Korean speech recognition, ~5 GB',
+      quantization: 'q4_k',
+      backend: 'raon-speech',
+      languages: <String>['en', 'ko'],
+      license: 'CC-BY-NC-4.0 — non-commercial only',
+    ),
     // Hidden from every build without CW_NONCOMMERCIAL_MODELS (see
     // ModelCatalog.allowNonCommercial); their repos are in
     // nonCommercialRepos, which is what hides them, and the licence strings

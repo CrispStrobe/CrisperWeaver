@@ -167,6 +167,7 @@ Future<void> transcriptionWorkerEntry(TranscriptionWorkerArgs args) async {
     final grammarRootRule = raw['grammarRootRule'] as String? ?? 'root';
     final grammarPenalty =
         (raw['grammarPenalty'] as num?)?.toDouble() ?? 100.0;
+    final grammarStrict = raw['grammarStrict'] as bool? ?? false;
     // Whisper decoder-fallback thresholds (whisper-only; other
     // backends silently ignore).
     final sensitivityPreset = (raw['sensitivityPreset'] as String?) ?? '';
@@ -303,6 +304,12 @@ Future<void> transcriptionWorkerEntry(TranscriptionWorkerArgs args) async {
       try {
         session.setGrammar(grammarText,
             rootRule: grammarRootRule, penalty: grammarPenalty);
+        try {
+          session.setGrammarStrict(
+              grammarStrict && grammarText.trim().isNotEmpty);
+        } on UnsupportedError {
+          // Pre-0.8.37 dylib: the grammar still applies, not strictly.
+        }
       } on UnsupportedError {
         // Pre-0.5.9 dylib — log + carry on unconstrained. The C
         // side wouldn't have honoured grammar anyway.

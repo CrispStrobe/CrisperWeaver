@@ -31,6 +31,7 @@ const _knownNonCommercial = [
   'raon-opentts-0.3b-f16',
   'raon-opentts-1b-f16',
   'quds-v4-fa-q8_0',
+  'raon-speech-9b-q4_k',
 ];
 
 void main() {

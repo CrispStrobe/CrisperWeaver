@@ -1446,6 +1446,8 @@
     }
   },
   "advancedGrammarPenaltyHelper": "Higher = harder constraint, lower = softer suggestion. Upstream default is 100; useful range is 50..200.",
+  "advancedGrammarStrict": "Strict grammar",
+  "advancedGrammarStrictHelper": "Don't stop until the grammar is complete, so a phrase is never cut off (\"knight to f\" instead of \"knight to f3\").",
   "advancedTranscribeWindowTitle": "Transcribe window (offset + duration)",
   "advancedTranscribeWindowSubtitle": "Process only a [start, start+duration) slice of the audio. Empty / 0 = transcribe the whole file (default).",
   "advancedTranscribeWindowSubtitleActive": "Active: {start}s..{end}s of the file. Timestamps remain absolute on output.",
@@ -1544,6 +1546,7 @@
   "advancedDiarizeEnergy": "Stereo L/R energy",
   "advancedDiarizeXcorr": "Stereo cross-correlation",
   "advancedDiarizeFoxnose": "FoxNose (WeSpeaker embeddings, needs GGUF)",
+  "advancedDiarizeSortformer": "Sortformer (NVIDIA Nemotron, needs GGUF)",
   "advancedSpeakerRecognition": "Identify enrolled speakers",
   "advancedSpeakerRecognitionSubtitle": "After diarisation, match each speaker cluster against the on-device speaker DB (Settings → Speakers) and replace 'Speaker N' with the enrolled name when confident. Requires the TitaNet GGUF.",
   "advancedTdrz": "Tinydiarize speaker turns (Whisper only)",

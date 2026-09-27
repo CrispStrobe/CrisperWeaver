@@ -213,6 +213,11 @@ class AdvancedOptions {
   /// than a hard constraint; the recommended range is 50..200.
   final double grammarPenalty;
 
+  /// CrispASR 0.8.37 `setGrammarStrict`: no end-of-text until the grammar
+  /// can be complete, so a constrained decode does not stop mid-phrase
+  /// ("knight to f" for "knight to f3"). Only meaningful with a grammar.
+  final bool grammarStrict;
+
   /// Whisper text-suppression + prompt-carry extras (whisper-only;
   /// other backends ignore). Defaults match whisper_full_default_params.
   ///
@@ -387,6 +392,7 @@ class AdvancedOptions {
     this.grammarText = '',
     this.grammarRootRule = 'root',
     this.grammarPenalty = 100.0,
+    this.grammarStrict = false,
     this.sensitivityPreset = '',
     this.entropyThold = 2.4,
     this.logprobThold = -1.0,
@@ -441,6 +447,7 @@ class AdvancedOptions {
     String? grammarText,
     String? grammarRootRule,
     double? grammarPenalty,
+    bool? grammarStrict,
     String? sensitivityPreset,
     double? entropyThold,
     double? logprobThold,
@@ -495,6 +502,7 @@ class AdvancedOptions {
         grammarText: grammarText ?? this.grammarText,
         grammarRootRule: grammarRootRule ?? this.grammarRootRule,
         grammarPenalty: grammarPenalty ?? this.grammarPenalty,
+        grammarStrict: grammarStrict ?? this.grammarStrict,
         sensitivityPreset: sensitivityPreset ?? this.sensitivityPreset,
         entropyThold: entropyThold ?? this.entropyThold,
         logprobThold: logprobThold ?? this.logprobThold,
@@ -1380,6 +1388,9 @@ class _AdvancedDecodingSectionState
               value: crispasr.DiarizeMethod.foxNose,
               child: Text(l.advancedDiarizeFoxnose)),
           DropdownMenuItem(
+              value: crispasr.DiarizeMethod.sortformer,
+              child: Text(l.advancedDiarizeSortformer)),
+          DropdownMenuItem(
               value: crispasr.DiarizeMethod.energy,
               child: Text(l.advancedDiarizeEnergy)),
           DropdownMenuItem(
@@ -1579,6 +1590,18 @@ class _AdvancedDecodingSectionState
         ),
         Text(l.advancedGrammarPenaltyHelper,
             style: TextStyle(fontSize: 11, color: Colors.grey.shade700)),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          dense: true,
+          title: Text(l.advancedGrammarStrict),
+          subtitle: Text(l.advancedGrammarStrictHelper,
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade700)),
+          value: opts.grammarStrict,
+          onChanged: hasGrammar
+              ? (v) => ref.read(advancedOptionsProvider.notifier).state =
+                  opts.copyWith(grammarStrict: v)
+              : null,
+        ),
       ],
     );
   }

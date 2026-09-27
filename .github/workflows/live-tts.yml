@@ -18,7 +18,7 @@ env:
   CRISPASR_REPO: CrispStrobe/CrispASR
   # Keep in step with ci.yml / release.yml — the check is only meaningful
   # against the engine the app ships.
-  CRISPASR_REF: d39005a21a69639834917610351d3f747036e243
+  CRISPASR_REF: 52ae1d79217a3684eaab7b3969d4fcef086a342f
 
 jobs:
   live:

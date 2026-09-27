@@ -162,6 +162,7 @@ Map<String, dynamic> _advancedOptionsToJson(AdvancedOptions o) =>
       'grammarText': o.grammarText,
       'grammarRootRule': o.grammarRootRule,
       'grammarPenalty': o.grammarPenalty,
+      'grammarStrict': o.grammarStrict,
       'entropyThold': o.entropyThold,
       'logprobThold': o.logprobThold,
       'noSpeechThold': o.noSpeechThold,
@@ -229,6 +230,7 @@ AdvancedOptions _advancedOptionsFromJson(Map<String, dynamic> j) {
     grammarRootRule: (j['grammarRootRule'] as String?) ?? 'root',
     grammarPenalty:
         ((j['grammarPenalty'] as num?) ?? 100.0).toDouble(),
+    grammarStrict: (j['grammarStrict'] as bool?) ?? false,
     entropyThold: ((j['entropyThold'] as num?) ?? 2.4).toDouble(),
     logprobThold: ((j['logprobThold'] as num?) ?? -1.0).toDouble(),
     noSpeechThold: ((j['noSpeechThold'] as num?) ?? 0.6).toDouble(),

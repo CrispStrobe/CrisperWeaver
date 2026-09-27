@@ -4072,6 +4072,18 @@ abstract class AppLocalizations {
   /// **'Higher = harder constraint, lower = softer suggestion. Upstream default is 100; useful range is 50..200.'**
   String get advancedGrammarPenaltyHelper;
 
+  /// No description provided for @advancedGrammarStrict.
+  ///
+  /// In en, this message translates to:
+  /// **'Strict grammar'**
+  String get advancedGrammarStrict;
+
+  /// No description provided for @advancedGrammarStrictHelper.
+  ///
+  /// In en, this message translates to:
+  /// **'Don\'t stop until the grammar is complete, so a phrase is never cut off (\"knight to f\" instead of \"knight to f3\").'**
+  String get advancedGrammarStrictHelper;
+
   /// No description provided for @advancedTranscribeWindowTitle.
   ///
   /// In en, this message translates to:
@@ -4347,6 +4359,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'FoxNose (WeSpeaker embeddings, needs GGUF)'**
   String get advancedDiarizeFoxnose;
+
+  /// No description provided for @advancedDiarizeSortformer.
+  ///
+  /// In en, this message translates to:
+  /// **'Sortformer (NVIDIA Nemotron, needs GGUF)'**
+  String get advancedDiarizeSortformer;
 
   /// No description provided for @advancedSpeakerRecognition.
   ///

@@ -128,6 +128,7 @@ class AdvancedTranscribeOptions {
 
   /// Whisper's `grammar_penalty` scalar (upstream default 100.0).
   final double grammarPenalty;
+  final bool grammarStrict;
 
   /// Named bundle of the four fallback thresholds below —
   /// `conservative` / `balanced` / `aggressive` (CrispASR `--sensitivity`).
@@ -227,6 +228,7 @@ class AdvancedTranscribeOptions {
     this.grammarText = '',
     this.grammarRootRule = 'root',
     this.grammarPenalty = 100.0,
+    this.grammarStrict = false,
     this.entropyThold = 2.4,
     this.logprobThold = -1.0,
     this.noSpeechThold = 0.6,

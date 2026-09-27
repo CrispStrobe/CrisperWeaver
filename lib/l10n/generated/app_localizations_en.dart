@@ -2381,6 +2381,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'Higher = harder constraint, lower = softer suggestion. Upstream default is 100; useful range is 50..200.';
 
   @override
+  String get advancedGrammarStrict => 'Strict grammar';
+
+  @override
+  String get advancedGrammarStrictHelper =>
+      'Don\'t stop until the grammar is complete, so a phrase is never cut off (\"knight to f\" instead of \"knight to f3\").';
+
+  @override
   String get advancedTranscribeWindowTitle =>
       'Transcribe window (offset + duration)';
 
@@ -2552,6 +2559,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get advancedDiarizeFoxnose =>
       'FoxNose (WeSpeaker embeddings, needs GGUF)';
+
+  @override
+  String get advancedDiarizeSortformer =>
+      'Sortformer (NVIDIA Nemotron, needs GGUF)';
 
   @override
   String get advancedSpeakerRecognition => 'Identify enrolled speakers';

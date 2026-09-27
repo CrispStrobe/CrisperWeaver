@@ -89,6 +89,30 @@ class DiarizationService {
     return null;
   }
 
+  /// Locate the Nemotron-3-Diarization GGUF for
+  /// [crispasr.DiarizeMethod.sortformer] (catalogue file
+  /// `Nemotron-3-Diarization.q8_0.gguf`).
+  Future<String?> _findSortformerModel() async {
+    final svc = modelService;
+    if (svc == null) return null;
+    try {
+      final dir = Directory(svc.whisperCppDir());
+      if (!await dir.exists()) return null;
+      await for (final ent in dir.list()) {
+        if (ent is! File) continue;
+        final base = p.basename(ent.path).toLowerCase();
+        if (base.startsWith('nemotron-3-diarization') &&
+            base.endsWith('.gguf')) {
+          return ent.path;
+        }
+      }
+    } catch (e, st) {
+      Log.instance.w('diarize', 'failed to locate sortformer GGUF',
+          error: e, stack: st);
+    }
+    return null;
+  }
+
   /// Locate the WeSpeaker embedder GGUF for [crispasr.DiarizeMethod.foxNose].
   /// Same shape as [_findPyannoteModel]: whatever the user downloaded wins,
   /// and a miss is reported rather than guessed at.
@@ -188,6 +212,20 @@ class DiarizationService {
     // Needs the turn ABI (CrispASR 0.8.30+); older dylibs label segments
     // only.
     final turns = <crispasr.DiarizeTurn>[];
+    // Sortformer (#466) likewise needs its GGUF; degrade to vad-turns
+    // rather than hand the C layer a null path.
+    String? sortformerPath;
+    if (method == crispasr.DiarizeMethod.sortformer) {
+      sortformerPath = await _findSortformerModel();
+      if (sortformerPath == null) {
+        Log.instance.w(
+            'diarize',
+            'sortformer method requested but Nemotron-3-Diarization GGUF not '
+                'on disk — falling back to vad-turns');
+        method = crispasr.DiarizeMethod.vadTurns;
+      }
+    }
+
     try {
       // When using pyannote, try the pre-computed cache path first.
       // The cache avoids re-running the expensive encoder on the same
@@ -228,7 +266,9 @@ class DiarizationService {
       }
 
       if (!usedCache) {
-        final wantTurns = method == crispasr.DiarizeMethod.foxNose &&
+        // FoxNose and Sortformer both derive turns from the audio.
+        final wantTurns = (method == crispasr.DiarizeMethod.foxNose ||
+                method == crispasr.DiarizeMethod.sortformer) &&
             DynamicLibrary.open(crispasr.CrispASR.defaultLibName())
                 .providesSymbol('crispasr_diarize_segments_turns_abi');
         final ok = crispasr.diarizeSegments(
@@ -239,6 +279,7 @@ class DiarizationService {
           method: method,
           pyannoteModelPath: resolvedPyannotePath,
           foxnoseEmbedderPath: resolvedFoxnosePath,
+          sortformerModelPath: sortformerPath,
           // 0 is the library's "use your default" for all three, which is
           // also what null means here — so an unset hint stays unset rather
           // than becoming a hard bound of zero speakers.

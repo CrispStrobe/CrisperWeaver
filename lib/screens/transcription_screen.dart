@@ -200,6 +200,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
       await svc.initialize();
       var hasPyannote = false;
       var hasWespeaker = false;
+      var hasSortformer = false;
       final dir = Directory(svc.whisperCppDir());
       if (await dir.exists()) {
         await for (final ent in dir.list()) {
@@ -208,6 +209,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
           if (!base.endsWith('.gguf')) continue;
           if (base.startsWith('pyannote')) hasPyannote = true;
           if (base.startsWith('wespeaker')) hasWespeaker = true;
+          if (base.startsWith('nemotron-3-diarization')) hasSortformer = true;
         }
       }
       if (!mounted) return;
@@ -215,6 +217,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
         _missingDiarizationModels = <crispasr.DiarizeMethod>{
           if (!hasPyannote) crispasr.DiarizeMethod.pyannote,
           if (!hasWespeaker) crispasr.DiarizeMethod.foxNose,
+          if (!hasSortformer) crispasr.DiarizeMethod.sortformer,
         };
       });
     } catch (e) {
@@ -2505,6 +2508,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
         grammarText: adv.grammarText,
         grammarRootRule: adv.grammarRootRule,
         grammarPenalty: adv.grammarPenalty,
+        grammarStrict: adv.grammarStrict,
         sensitivityPreset: adv.sensitivityPreset,
         entropyThold: adv.entropyThold,
         logprobThold: adv.logprobThold,
@@ -2777,6 +2781,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
       grammarText: adv.grammarText,
       grammarRootRule: adv.grammarRootRule,
       grammarPenalty: adv.grammarPenalty,
+      grammarStrict: adv.grammarStrict,
       sensitivityPreset: adv.sensitivityPreset,
       entropyThold: adv.entropyThold,
       logprobThold: adv.logprobThold,
@@ -3301,6 +3306,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
         grammarText: adv.grammarText,
         grammarRootRule: adv.grammarRootRule,
         grammarPenalty: adv.grammarPenalty,
+        grammarStrict: adv.grammarStrict,
         sensitivityPreset: adv.sensitivityPreset,
         entropyThold: adv.entropyThold,
         logprobThold: adv.logprobThold,

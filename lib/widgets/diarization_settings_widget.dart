@@ -62,6 +62,7 @@ class DiarizationSettingsWidget extends StatelessWidget {
         crispasr.DiarizeMethod.vadTurns,
         crispasr.DiarizeMethod.pyannote,
         crispasr.DiarizeMethod.foxNose,
+        crispasr.DiarizeMethod.sortformer,
         // Stereo-only methods stay in the list when they're the current
         // selection, so a value picked in Advanced options never falls
         // out from under the dropdown.
@@ -83,6 +84,8 @@ class DiarizationSettingsWidget extends StatelessWidget {
       base = l.advancedDiarizePyannote;
     } else if (m == crispasr.DiarizeMethod.foxNose) {
       base = l.advancedDiarizeFoxnose;
+    } else if (m == crispasr.DiarizeMethod.sortformer) {
+      base = l.advancedDiarizeSortformer;
     } else if (m == crispasr.DiarizeMethod.energy) {
       base = l.advancedDiarizeEnergy;
     } else if (m == crispasr.DiarizeMethod.xcorr) {
