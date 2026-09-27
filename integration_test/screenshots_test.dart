@@ -10,13 +10,13 @@
 //   SHOT_DEVICE=ipad    2064 x 2752  (13" display, 1032 x 1376 @2x)
 //   SHOT_DEVICE=mac     2880 x 1800  (1440 x 900 @2x)
 //
-// PNGs go to `<system temp>/cw-shots/`; the workflow collects them from the
-// simulator's or the sandboxed app's container, whichever the platform used.
+// PNGs go to `~/cw-shots/` on the simulator's host, else `<system temp>/cw-shots/`.
 import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:crisper_weaver/main.dart' as app;
+import 'package:crisper_weaver/services/ios_helpers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -60,7 +60,10 @@ void main() {
     final data = await tester
         .runAsync(() => image!.toByteData(format: ui.ImageByteFormat.png));
     image!.dispose();
-    final dir = Directory(p.join(Directory.systemTemp.path, 'cw-shots'))
+    // A simulator app can write to the host, which outlives the uninstall
+    // `flutter test` does when it finishes (that wipes the app's container).
+    final host = Platform.environment['SIMULATOR_HOST_HOME'];
+    final dir = Directory(p.join(host ?? Directory.systemTemp.path, 'cw-shots'))
       ..createSync(recursive: true);
     final f = File(p.join(dir.path, '${_prefix}_$name.png'));
     f.writeAsBytesSync(data!.buffer.asUint8List());
@@ -164,7 +167,12 @@ Future<List<String>> _seed() async {
   // Placeholder weights so the model manager, Synthesize and Audio→MIDI show
   // a set-up app. Sparse files at the catalogue size: ModelService only checks
   // that a file of plausible size is present, and no shot runs inference.
-  final models = Directory(p.join(docs.path, 'models', 'whisper_cpp'))
+  // Same base ModelService picks: the App Group container on iOS.
+  final group = Platform.isIOS
+      ? await appGroupContainerPath('group.com.crispstrobe.crisperweaver')
+      : null;
+  final base = (group != null && group.isNotEmpty) ? group : docs.path;
+  final models = Directory(p.join(base, 'models', 'whisper_cpp'))
     ..createSync(recursive: true);
   for (final (file, bytes) in _seedModels) {
     final raf = File(p.join(models.path, file)).openSync(mode: FileMode.write);

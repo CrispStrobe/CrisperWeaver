@@ -2095,14 +2095,20 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
                                       CircularProgressIndicator(strokeWidth: 2),
                                 )
                               : const Icon(Icons.graphic_eq),
-                          label: Text(l.synthRunButton),
+                          label: Text(l.synthRunButton,
+                              maxLines: 1, overflow: TextOverflow.ellipsis),
                         ),
                       ),
                       const SizedBox(width: 8),
-                      OutlinedButton.icon(
-                        onPressed: ss.lastWav == null ? null : _shareWav,
-                        icon: const Icon(Icons.ios_share),
-                        label: Text(l.synthShareButton),
+                      // Equal halves: at its intrinsic width this button squeezed the
+                      // primary one to a letter per line in German ("Über / setze / n").
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: ss.lastWav == null ? null : _shareWav,
+                          icon: const Icon(Icons.ios_share),
+                          label: Text(l.synthShareButton,
+                              maxLines: 1, overflow: TextOverflow.ellipsis),
+                        ),
                       ),
                     ],
                   ),

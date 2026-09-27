@@ -326,27 +326,33 @@ class _TranslateScreenState extends ConsumerState<TranslateScreen> {
                                       CircularProgressIndicator(strokeWidth: 2),
                                 )
                               : const Icon(Icons.translate),
-                          label: Text(l.translateRunButton),
+                          label: Text(l.translateRunButton,
+                              maxLines: 1, overflow: TextOverflow.ellipsis),
                         ),
                       ),
                       const SizedBox(width: 8),
-                      OutlinedButton.icon(
-                        onPressed: _outputController.text.isEmpty
-                            ? null
-                            : () {
-                                // EU AI Act Art. 50(2): machine-translated
-                                // text is AI-generated, so the disclosure
-                                // goes on the clipboard with it — the
-                                // screen's context does not travel.
-                                Clipboard.setData(ClipboardData(
-                                    text: AiTextDisclosure.forTranslation(
-                                        _outputController.text)));
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text(l.copied)),
-                                );
-                              },
-                        icon: const Icon(Icons.content_copy),
-                        label: Text(l.copyClipboard),
+                      // Equal halves: at its intrinsic width this button squeezed the
+                      // primary one to a letter per line in German ("Über / setze / n").
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: _outputController.text.isEmpty
+                              ? null
+                              : () {
+                                  // EU AI Act Art. 50(2): machine-translated
+                                  // text is AI-generated, so the disclosure
+                                  // goes on the clipboard with it — the
+                                  // screen's context does not travel.
+                                  Clipboard.setData(ClipboardData(
+                                      text: AiTextDisclosure.forTranslation(
+                                          _outputController.text)));
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text(l.copied)),
+                                  );
+                                },
+                          icon: const Icon(Icons.content_copy),
+                          label: Text(l.copyClipboard,
+                              maxLines: 1, overflow: TextOverflow.ellipsis),
+                        ),
                       ),
                     ],
                   ),

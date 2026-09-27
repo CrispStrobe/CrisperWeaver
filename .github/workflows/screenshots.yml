@@ -115,8 +115,8 @@ jobs:
           echo "IPHONE_UDID=$IPHONE" >> "$GITHUB_ENV"
           echo "IPAD_UDID=$IPAD" >> "$GITHUB_ENV"
 
-      # The test writes to <temp>/cw-shots inside the app's container; each
-      # capture is followed by a sweep of wherever that landed.
+      # Simulator runs write to ~/cw-shots on the host (SIMULATOR_HOST_HOME);
+      # macOS runs to $TMPDIR/cw-shots. Each capture is followed by a sweep.
       - name: Capture
         working-directory: repos/CrisperWeaver
         env:
@@ -138,9 +138,9 @@ jobs:
           }
           for loc in $LOCALES; do
             capture "$IPHONE_UDID" iphone "$loc"
-            collect ~/Library/Developer/CoreSimulator/Devices/"$IPHONE_UDID"
+            collect ~/cw-shots ~/Library/Developer/CoreSimulator/Devices
             capture "$IPAD_UDID" ipad "$loc"
-            collect ~/Library/Developer/CoreSimulator/Devices/"$IPAD_UDID"
+            collect ~/cw-shots ~/Library/Developer/CoreSimulator/Devices
             if [ "$WITH_MACOS" = "true" ]; then
               capture macos mac "$loc"
               collect ~/Library/Containers "${TMPDIR:-/tmp}"
