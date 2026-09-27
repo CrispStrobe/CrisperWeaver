@@ -149,7 +149,7 @@ void main() {
     // 8 — settings.
     await go(tester, '/settings');
     await shot(tester, '08_settings');
-  });
+  }, timeout: const Timeout(Duration(minutes: 10)));
 }
 
 /// Seeds preferences and History; returns the history ids, hero entry first.

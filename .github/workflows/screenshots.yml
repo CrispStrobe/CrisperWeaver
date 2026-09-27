@@ -131,10 +131,24 @@ jobs:
             find "$@" -path '*cw-shots*' -name '*.png' 2>/dev/null \
               | while read -r f; do mv "$f" "$OUT/"; done
           }
+          # A 15-minute watchdog per capture: on iOS the test's output only
+          # arrives when it ends, so a hang shows nothing and would otherwise
+          # eat the whole job. On timeout, dump the app's own log.
           capture() { # device-id shot-device locale
             flutter test integration_test/screenshots_test.dart -d "$1" \
               --dart-define=SHOT_DEVICE="$2" --dart-define=SHOT_LOCALE="$3" \
-              --dart-define=SHOT_PREFIX="$2_$3" || failed=1
+              --dart-define=SHOT_PREFIX="$2_$3" &
+            local pid=$!
+            ( sleep 900; echo "::warning::$2 $3 timed out"; touch /tmp/cw-timeout; kill -TERM $pid ) &
+            local dog=$!
+            wait $pid || failed=1
+            kill $dog 2>/dev/null
+            if [ -f /tmp/cw-timeout ]; then
+              rm -f /tmp/cw-timeout
+              [ "$1" != macos ] && xcrun simctl spawn "$1" log show --last 20m --style compact \
+                --predicate 'process == "Runner"' 2>/dev/null | tail -150
+              ls ~/cw-shots 2>/dev/null
+            fi
           }
           for loc in $LOCALES; do
             capture "$IPHONE_UDID" iphone "$loc"
