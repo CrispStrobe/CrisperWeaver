@@ -5,6 +5,33 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 
 ## [Unreleased]
 
+## [0.13.0] — 2026-09-27
+
+### Added
+
+- Speaker diarization: **Sortformer (NVIDIA Nemotron)**, an end-to-end
+  diarization model (107 MB, OpenMDW licence) that labels up to eight
+  speakers in order of appearance. Download *Nemotron-3-Diarization* in
+  Models; without it the method falls back to voice-activity turns.
+- Advanced options: **Strict grammar**. With a GBNF grammar set, the
+  decoder may only emit text the grammar accepts, instead of being nudged
+  towards it.
+- Models: **Parakeet Ultra** and **Parakeet Redux** (25 European
+  languages, CC-BY-4.0), faster than the previous Parakeet (#38).
+
+### Fixed
+
+- Synthesize: the voice and codec pickers overflowed the screen on phones
+  when a voice was not downloaded yet.
+- Models: on phones, model names were cut to a few letters ("Whisper B…")
+  by the badges and the Download button. The name now has its own line.
+- Translate: opening the screen raised an error in debug builds.
+
+### Changed
+
+- Speech engine updated to CrispASR 0.8.37 (plus the Dart Sortformer
+  binding): Raon-Speech-9B, Whisper phrase scoring, core beam-decode fixes.
+
 ## [0.12.1] — 2026-09-24
 
 ### Fixed
