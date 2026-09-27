@@ -213,7 +213,9 @@ class _TranslateScreenState extends ConsumerState<TranslateScreen> {
       ),
       body: s.loading
           ? const Center(child: CircularProgressIndicator())
-          : Padding(
+          // Scrolls: on a phone the on-screen keyboard (or opening Advanced)
+          // left this column taller than the body and it overflowed.
+          : SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,

@@ -115,21 +115,23 @@ jobs:
           echo "IPHONE_UDID=$IPHONE" >> "$GITHUB_ENV"
           echo "IPAD_UDID=$IPAD" >> "$GITHUB_ENV"
 
-      # Simulator runs write to ~/cw-shots on the host (SIMULATOR_HOST_HOME);
-      # macOS runs to $TMPDIR/cw-shots. Each capture is followed by a sweep.
+      # Shots are written straight to $OUT (SHOT_HOST_DIR) where the app may;
+      # otherwise to its temp dir, which the sweep after each capture collects.
       - name: Capture
         working-directory: repos/CrisperWeaver
         env:
           LOCALES: ${{ inputs.locales }}
           WITH_MACOS: ${{ inputs.macos }}
         run: |
-          set -uo pipefail
+          # Not -e (GitHub's default): one failed capture must not stop the rest.
+          set +e -u
           OUT="$GITHUB_WORKSPACE/screenshots"
           mkdir -p "$OUT"
           failed=0
           collect() {
             find "$@" -path '*cw-shots*' -name '*.png' 2>/dev/null \
               | while read -r f; do mv "$f" "$OUT/"; done
+            return 0
           }
           # A 15-minute watchdog per capture: on iOS the test's output only
           # arrives when it ends, so a hang shows nothing and would otherwise
@@ -137,7 +139,7 @@ jobs:
           capture() { # device-id shot-device locale
             flutter test integration_test/screenshots_test.dart -d "$1" \
               --dart-define=SHOT_DEVICE="$2" --dart-define=SHOT_LOCALE="$3" \
-              --dart-define=SHOT_PREFIX="$2_$3" &
+              --dart-define=SHOT_PREFIX="$2_$3" --dart-define=SHOT_HOST_DIR="$OUT" &
             local pid=$!
             ( sleep 900; echo "::warning::$2 $3 timed out"; touch /tmp/cw-timeout; kill -TERM $pid ) &
             local dog=$!
@@ -147,14 +149,13 @@ jobs:
               rm -f /tmp/cw-timeout
               [ "$1" != macos ] && xcrun simctl spawn "$1" log show --last 20m --style compact \
                 --predicate 'process == "Runner"' 2>/dev/null | tail -150
-              ls ~/cw-shots 2>/dev/null
             fi
           }
           for loc in $LOCALES; do
             capture "$IPHONE_UDID" iphone "$loc"
-            collect ~/cw-shots ~/Library/Developer/CoreSimulator/Devices
+            collect ~/Library/Developer/CoreSimulator/Devices
             capture "$IPAD_UDID" ipad "$loc"
-            collect ~/cw-shots ~/Library/Developer/CoreSimulator/Devices
+            collect ~/Library/Developer/CoreSimulator/Devices
             if [ "$WITH_MACOS" = "true" ]; then
               capture macos mac "$loc"
               collect ~/Library/Containers "${TMPDIR:-/tmp}"

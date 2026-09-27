@@ -10,7 +10,8 @@
 //   SHOT_DEVICE=ipad    2064 x 2752  (13" display, 1032 x 1376 @2x)
 //   SHOT_DEVICE=mac     2880 x 1800  (1440 x 900 @2x)
 //
-// PNGs go to `~/cw-shots/` on the simulator's host, else `<system temp>/cw-shots/`.
+// PNGs go to SHOT_HOST_DIR when the app may write there (simulators can write
+// to the host), else to `<system temp>/cw-shots/`.
 import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
@@ -29,11 +30,20 @@ import 'package:shared_preferences/shared_preferences.dart';
 const _device = String.fromEnvironment('SHOT_DEVICE', defaultValue: 'iphone');
 const _locale = String.fromEnvironment('SHOT_LOCALE', defaultValue: 'en');
 const _prefix = String.fromEnvironment('SHOT_PREFIX', defaultValue: 'shot');
+const _hostDir = String.fromEnvironment('SHOT_HOST_DIR');
 
-({Size logical, double ratio}) get _target => switch (_device) {
-      'ipad' => (logical: const Size(1032, 1376), ratio: 2.0),
-      'mac' => (logical: const Size(1440, 900), ratio: 2.0),
-      _ => (logical: const Size(440, 956), ratio: 3.0),
+/// Logical size, pixel ratio and safe-area insets (logical px) per device.
+/// The insets are forced too, so a desktop run lays out like the device.
+({Size logical, double ratio, double top, double bottom}) get _target =>
+    switch (_device) {
+      'ipad' => (
+          logical: const Size(1032, 1376),
+          ratio: 2.0,
+          top: 24,
+          bottom: 20
+        ),
+      'mac' => (logical: const Size(1440, 900), ratio: 2.0, top: 0, bottom: 0),
+      _ => (logical: const Size(440, 956), ratio: 3.0, top: 62, bottom: 34),
     };
 
 bool get _de => _locale == 'de';
@@ -60,13 +70,22 @@ void main() {
     final data = await tester
         .runAsync(() => image!.toByteData(format: ui.ImageByteFormat.png));
     image!.dispose();
-    // A simulator app can write to the host, which outlives the uninstall
-    // `flutter test` does when it finishes (that wipes the app's container).
-    final host = Platform.environment['SIMULATOR_HOST_HOME'];
-    final dir = Directory(p.join(host ?? Directory.systemTemp.path, 'cw-shots'))
-      ..createSync(recursive: true);
-    final f = File(p.join(dir.path, '${_prefix}_$name.png'));
-    f.writeAsBytesSync(data!.buffer.asUint8List());
+    // A simulator app can write straight to the host, which outlives the
+    // uninstall `flutter test` does when it finishes (that wipes the app's
+    // container). Elsewhere, or if the host path is refused, use temp.
+    final bytes = data!.buffer.asUint8List();
+    File f;
+    try {
+      if (_hostDir.isEmpty) throw const FileSystemException('no host dir');
+      Directory(_hostDir).createSync(recursive: true);
+      f = File(p.join(_hostDir, '${_prefix}_$name.png'))
+        ..writeAsBytesSync(bytes);
+    } on FileSystemException {
+      final dir = Directory(p.join(Directory.systemTemp.path, 'cw-shots'))
+        ..createSync(recursive: true);
+      f = File(p.join(dir.path, '${_prefix}_$name.png'))
+        ..writeAsBytesSync(bytes);
+    }
     debugPrint('SHOT ${f.path} ${image.width}x${image.height}');
   }
 
@@ -82,6 +101,9 @@ void main() {
     final t = _target;
     tester.view.physicalSize = t.logical * t.ratio;
     tester.view.devicePixelRatio = t.ratio;
+    tester.view.padding = FakeViewPadding(
+        top: t.top * t.ratio, bottom: t.bottom * t.ratio);
+    tester.view.viewPadding = tester.view.padding;
     addTearDown(tester.view.reset);
 
     final ids = await _seed();
