@@ -265,6 +265,8 @@ CI, the release workflow and the store builds never set it, and
 
 ## Using it
 
+New here? **[Getting started](docs/GETTING_STARTED.md)** walks from install to the first transcript, with screenshots.
+
 1. **First run**: onboarding asks what you want to do — transcribe, run a meeting, translate, or make speech — and downloads a device-appropriate starter set for that task, then drops you on the matching screen (with Home reachable from it). The model and voice it picked become your defaults, so *Synthesize* opens on the voice that was actually downloaded. Prefer to choose yourself? Skip onboarding and open *Settings → Manage models*; the default pick is Whisper base (~140 MB, covers 99 languages).
 2. **Transcribe a file**: back to the main screen, drop a file or click the picker. Language auto-detects by default.
 3. **Record from the mic**: use the recorder card. Stop → transcribe.
