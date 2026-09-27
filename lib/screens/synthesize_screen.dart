@@ -1449,6 +1449,7 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
                     const SizedBox(height: 8),
                     DropdownButtonFormField<String>(
                       decoration: InputDecoration(labelText: l.synthModelLabel),
+                      isExpanded: true,
                       initialValue: ss.selectedModel,
                       items: downloadedTtsModels
                           .map((m) => DropdownMenuItem(
@@ -1471,6 +1472,7 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
                       DropdownButtonFormField<String>(
                         decoration:
                             InputDecoration(labelText: l.synthVoiceLabel),
+                        isExpanded: true,
                         initialValue: ss.selectedVoice,
                         items: voices
                             .map((m) => DropdownMenuItem(
@@ -1490,6 +1492,7 @@ class _SynthesizeScreenState extends ConsumerState<SynthesizeScreen> {
                       DropdownButtonFormField<String>(
                         decoration:
                             InputDecoration(labelText: l.synthCodecLabel),
+                        isExpanded: true,
                         initialValue: ss.selectedCodec,
                         items: codecs
                             .map((m) => DropdownMenuItem(

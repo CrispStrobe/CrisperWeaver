@@ -38,7 +38,11 @@ class _TranslateScreenState extends ConsumerState<TranslateScreen> {
   void initState() {
     super.initState();
     _inputController.text = widget.initialText ?? '';
-    _refresh();
+    // After the first frame: _refresh writes to translateScreenProvider, and
+    // Riverpod forbids that while the tree is building (initState included).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _refresh();
+    });
   }
 
   @override

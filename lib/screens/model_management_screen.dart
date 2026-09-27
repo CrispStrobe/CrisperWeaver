@@ -781,70 +781,34 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
                   : Colors.grey.shade600,
             ),
           ),
-          title: Row(
+          // Name on its own line, badges wrapping beneath it: in one Row the
+          // badges and the Download button left a phone ~40 px for the name,
+          // which ellipsised to "Whisper B…" / "M…".
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Flexible(
-                child: Text(
-                  model.displayName,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                  overflow: TextOverflow.ellipsis,
-                ),
+              Text(
+                model.displayName,
+                style: const TextStyle(fontWeight: FontWeight.bold),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(width: 6),
-              if (model.backend.isNotEmpty && model.backend != 'whisper')
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: Colors.indigo.shade100,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    model.backend,
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.indigo.shade900,
-                    ),
-                  ),
-                ),
-              if (model.recommendedDefault) ...[
-                const SizedBox(width: 4),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: Colors.green.shade100,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    AppLocalizations.of(context).modelsRecommendedBadge,
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.green.shade900,
-                    ),
-                  ),
-                ),
-              ],
-              const SizedBox(width: 4),
-              if (model.quantization.isNotEmpty && model.quantization != 'f16')
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: Colors.deepPurple.shade100,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    model.quantization,
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.deepPurple.shade800,
-                    ),
-                  ),
-                ),
+              Wrap(
+                spacing: 4,
+                runSpacing: 4,
+                children: [
+                  if (model.backend.isNotEmpty && model.backend != 'whisper')
+                    _badge(model.backend, Colors.indigo.shade100,
+                        Colors.indigo.shade900),
+                  if (model.recommendedDefault)
+                    _badge(AppLocalizations.of(context).modelsRecommendedBadge,
+                        Colors.green.shade100, Colors.green.shade900),
+                  if (model.quantization.isNotEmpty &&
+                      model.quantization != 'f16')
+                    _badge(model.quantization, Colors.deepPurple.shade100,
+                        Colors.deepPurple.shade800),
+                ],
+              ),
             ],
           ),
           subtitle: Column(
@@ -925,11 +889,18 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
                   tooltip: AppLocalizations.of(context).modelsDelete,
                 ),
               ] else if (!isDownloading) ...[
-                ElevatedButton.icon(
-                  icon: const Icon(Icons.download),
-                  label: Text(AppLocalizations.of(context).modelsDownload),
-                  onPressed: () => _downloadModel(model),
-                ),
+                if (MediaQuery.sizeOf(context).width < 600)
+                  IconButton.filledTonal(
+                    icon: const Icon(Icons.download),
+                    tooltip: AppLocalizations.of(context).modelsDownload,
+                    onPressed: () => _downloadModel(model),
+                  )
+                else
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.download),
+                    label: Text(AppLocalizations.of(context).modelsDownload),
+                    onPressed: () => _downloadModel(model),
+                  ),
               ],
             ],
           ),
@@ -938,6 +909,23 @@ class _ModelManagementScreenState extends ConsumerState<ModelManagementScreen> {
       ),
     );
   }
+
+  Widget _badge(String text, Color background, Color foreground) =>
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          color: background,
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Text(
+          text,
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.bold,
+            color: foreground,
+          ),
+        ),
+      );
 
   String _useCase(ModelInfo model) {
     final l = AppLocalizations.of(context);

@@ -1,59 +1,99 @@
 name: App Store Screenshots
 
+# Seeded store screenshots (integration_test/screenshots_test.dart) at exact
+# App Store sizes: iPhone 6.9" 1320x2868, iPad 13" 2064x2752, Mac 2880x1800.
+# Uploaded as one artifact per locale.
+
 on:
   workflow_dispatch:
     inputs:
-      locale:
-        description: 'App language to capture (en or de)'
-        type: choice
-        options: ['en', 'de']
-        default: 'en'
+      locales:
+        description: 'Space-separated app languages to capture'
+        type: string
+        default: 'en de'
+      macos:
+        description: 'Also capture the macOS shots'
+        type: boolean
+        default: true
+
+env:
+  FLUTTER_VERSION: "3.44.1"
+  # Keep these three in step with release.yml.
+  CRISPASR_REPO: CrispStrobe/CrispASR
+  CRISPASR_REF: 52ae1d79217a3684eaab7b3969d4fcef086a342f
+  CRISPEMBED_REPO: CrispStrobe/CrispEmbed
+  CRISPEMBED_REF: 40e7b7dd00bb6b1505c9e6ac74bef0c97efef337
+  GLINT_REPO: CrispStrobe/glint
+  GLINT_REF: 77738f3ed9b15f627196cc5bbd7f6406814ba2fb
 
 jobs:
   screenshots:
-    runs-on: macos-latest
-    timeout-minutes: 60
-    defaults:
-      run:
-        working-directory: CrisperWeaver
+    # macos-26 for Xcode 26 (device_info_plus needs the iOS 26.1 SDK; see
+    # release.yml's iOS job).
+    runs-on: macos-26
+    timeout-minutes: 120
     steps:
-      - name: Checkout CrisperWeaver
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
-          path: CrisperWeaver
+          path: repos/CrisperWeaver
 
-      - name: Checkout CrispASR
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
-          repository: CrispStrobe/CrispASR
-          ref: main
-          path: CrispASR
+          repository: ${{ env.CRISPASR_REPO }}
+          ref: ${{ env.CRISPASR_REF }}
+          path: repos/CrispASR
+          submodules: recursive
 
-      - name: Checkout CrispEmbed
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
-          repository: CrispStrobe/CrispEmbed
-          ref: main
-          path: CrispEmbed
+          repository: ${{ env.CRISPEMBED_REPO }}
+          ref: ${{ env.CRISPEMBED_REF }}
+          path: repos/CrispEmbed
+          submodules: recursive
 
-      - name: Checkout glint
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
-          repository: CrispStrobe/glint
-          ref: main
-          path: glint
+          repository: ${{ env.GLINT_REPO }}
+          ref: ${{ env.GLINT_REF }}
+          path: repos/glint
 
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.44.4'
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
 
-      - name: Disable Swift Package Manager
-        run: flutter config --no-enable-swift-package-manager
+      # Runner.xcodeproj references ios/Frameworks/crispasr.xcframework; the
+      # simulator build fails without it (the Sep 12 runs). Same scripts as
+      # the release IPA, which build a simulator slice alongside the device one.
+      - name: Build crispasr.xcframework
+        working-directory: repos/CrisperWeaver
+        env:
+          CRISPASR_DIR: ${{ github.workspace }}/repos/CrispASR
+          CRISPEMBED_DIR: ${{ github.workspace }}/repos/CrispEmbed
+          IOS_MIN_OS_VERSION: "13.0"
+        run: bash scripts/build_ios_xcframework.sh
 
-      - name: Resolve dependencies
-        run: flutter pub get
+      - name: Wire crispasr.xcframework
+        working-directory: repos/CrisperWeaver
+        run: |
+          gem install xcodeproj --no-document
+          ruby scripts/wire_ios_xcframework.rb
+
+      - name: Build + wire glint.xcframework
+        working-directory: repos/CrisperWeaver
+        env:
+          GLINT_DIR: ${{ github.workspace }}/repos/glint
+          IOS_MIN_OS_VERSION: "13.0"
+        run: |
+          bash scripts/build_ios_glint_xcframework.sh
+          ruby scripts/wire_ios_glint.rb
+
+      - name: Pub get
+        working-directory: repos/CrisperWeaver
+        run: |
+          flutter config --no-enable-swift-package-manager
+          flutter pub get
 
       - name: Boot simulators
         run: |
@@ -65,47 +105,57 @@ jobs:
             done
             return 1
           }
-          IPHONE=$(pick "iPhone 16 Pro Max" "iPhone 1[5-9].*Pro Max" "iPhone .*Pro Max")
+          IPHONE=$(pick "iPhone 1[6-9] Pro Max" "iPhone .*Pro Max")
           IPAD=$(pick "iPad Pro 13-inch" "iPad Pro .*12.9-inch" "iPad Pro")
-          echo "iPhone: $IPHONE"; echo "iPad: $IPAD"
-          [ -n "$IPHONE" ] && [ -n "$IPAD" ] || { echo "missing a device"; exit 1; }
+          echo "iPhone: $IPHONE  iPad: $IPAD"
           xcrun simctl boot "$IPHONE" || true
           xcrun simctl boot "$IPAD" || true
+          xcrun simctl bootstatus "$IPHONE" -b
+          xcrun simctl bootstatus "$IPAD" -b
           echo "IPHONE_UDID=$IPHONE" >> "$GITHUB_ENV"
           echo "IPAD_UDID=$IPAD" >> "$GITHUB_ENV"
 
-      - name: Capture — iPhone 6.9"
+      # The test writes to <temp>/cw-shots inside the app's container; each
+      # capture is followed by a sweep of wherever that landed.
+      - name: Capture
+        working-directory: repos/CrisperWeaver
+        env:
+          LOCALES: ${{ inputs.locales }}
+          WITH_MACOS: ${{ inputs.macos }}
         run: |
-          mkdir -p screenshots
-          flutter test integration_test/screenshots_test.dart \
-            --dart-define=SHOT_PREFIX=iphone_${{ inputs.locale }} \
-            --dart-define=SHOT_LOCALE=${{ inputs.locale }} \
-            --dart-define=SHOT_DIR=screenshots \
-            -d "$IPHONE_UDID"
-
-      - name: Capture — iPad 13"
-        if: always()
-        run: |
-          flutter test integration_test/screenshots_test.dart \
-            --dart-define=SHOT_PREFIX=ipad_${{ inputs.locale }} \
-            --dart-define=SHOT_LOCALE=${{ inputs.locale }} \
-            --dart-define=SHOT_DIR=screenshots \
-            -d "$IPAD_UDID"
-
-      - name: Capture — macOS
-        if: always()
-        run: |
-          flutter config --enable-macos-desktop
-          flutter test integration_test/screenshots_test.dart \
-            --dart-define=SHOT_PREFIX=macos_${{ inputs.locale }} \
-            --dart-define=SHOT_LOCALE=${{ inputs.locale }} \
-            --dart-define=SHOT_DIR=screenshots \
-            -d macos
+          set -uo pipefail
+          OUT="$GITHUB_WORKSPACE/screenshots"
+          mkdir -p "$OUT"
+          failed=0
+          collect() {
+            find "$@" -path '*cw-shots*' -name '*.png' 2>/dev/null \
+              | while read -r f; do mv "$f" "$OUT/"; done
+          }
+          capture() { # device-id shot-device locale
+            flutter test integration_test/screenshots_test.dart -d "$1" \
+              --dart-define=SHOT_DEVICE="$2" --dart-define=SHOT_LOCALE="$3" \
+              --dart-define=SHOT_PREFIX="$2_$3" || failed=1
+          }
+          for loc in $LOCALES; do
+            capture "$IPHONE_UDID" iphone "$loc"
+            collect ~/Library/Developer/CoreSimulator/Devices/"$IPHONE_UDID"
+            capture "$IPAD_UDID" ipad "$loc"
+            collect ~/Library/Developer/CoreSimulator/Devices/"$IPAD_UDID"
+            if [ "$WITH_MACOS" = "true" ]; then
+              capture macos mac "$loc"
+              collect ~/Library/Containers "${TMPDIR:-/tmp}"
+            fi
+          done
+          ls -l "$OUT"
+          for f in "$OUT"/*.png; do
+            echo "$(basename "$f"): $(sips -g pixelWidth -g pixelHeight "$f" | awk '/pixel/{printf "%s ", $2}')"
+          done
+          exit $failed
 
       - name: Upload screenshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: app-store-screenshots-${{ inputs.locale }}
-          path: CrisperWeaver/screenshots/*.png
-          if-no-files-found: warn
+          name: app-store-screenshots
+          path: screenshots/*.png
+          if-no-files-found: error
