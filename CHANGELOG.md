@@ -5,6 +5,20 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 
 ## [Unreleased]
 
+## [0.13.1] — 2026-09-27
+
+### Fixed
+
+- German: the *Übersetzen* and *Synthetisieren* buttons wrapped one letter
+  per line on phones; they now share the row with the button next to them.
+- Translate: the screen now scrolls. On phones the on-screen keyboard (or
+  opening *Advanced*) pushed its content off the bottom.
+
+### Added
+
+- A step-by-step [getting-started guide](docs/GETTING_STARTED.md) with
+  screenshots (#34).
+
 ## [0.13.0] — 2026-09-27
 
 ### Added
