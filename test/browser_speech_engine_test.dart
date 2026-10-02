@@ -4,7 +4,8 @@ import 'package:crisper_weaver/engines/browser_speech_engine.dart';
 import 'package:crisper_weaver/services/browser_speech_client.dart';
 
 class _Client extends BrowserSpeechClient {
-  _Client() : super('crispasr');
+  _Client({this.text = 'A local result'}) : super('crispasr');
+  final String text;
   final operations = <String>[];
   bool failLoad = false;
   @override
@@ -15,7 +16,7 @@ class _Client extends BrowserSpeechClient {
     if (operation == 'transcribe') {
       return {
         'segments': [
-          {'text': 'A local result', 'start': 0.0, 'end': 1.0}
+          {'text': text, 'start': 0.0, 'end': 1.0}
         ]
       };
     }
@@ -24,6 +25,20 @@ class _Client extends BrowserSpeechClient {
 }
 
 void main() {
+  test('browser model emotion tags are stripped before callbacks and output',
+      () async {
+    final engine = BrowserSpeechEngine('crispasr',
+        client: _Client(text: '<|HAPPY|>A local result<|ANGRY|>'));
+    await engine.initialize();
+    await engine.loadModel('tiny');
+    final emitted = <String>[];
+    final result = await engine.transcribe(Float32List(16000),
+        onSegment: (segment) => emitted.add(segment.text));
+    expect(result.fullText, 'A local result');
+    expect(result.segments.single.text, 'A local result');
+    expect(emitted, ['A local result']);
+  });
+
   test('failed replacement cannot transcribe using a stale model', () async {
     final client = _Client();
     final engine = BrowserSpeechEngine('crispasr', client: client);

@@ -154,6 +154,9 @@ void main() {
       const {
         'lib/engines/crispasr_engine.dart': 5,
         'lib/engines/hfspace_engine.dart': 2,
+        // Local browser ASR uses the same emotion-stripping destination
+        // factory and stamps generated translation provenance afterward.
+        'lib/engines/browser_speech_engine.dart': 1,
         'lib/services/transcription_worker.dart': 1,
         // The factory itself.
         'lib/engines/transcription_engine.dart': 1,
