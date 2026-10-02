@@ -25,11 +25,23 @@ function rss(root) {
     return rows.reduce((sum, [pid, , memory]) => sum + (children.has(pid) ? memory * 1024 : 0), 0);
   } catch (_) { return null; }
 }
+function gpuMemory() {
+  if (!hardware) return null;
+  try {
+    return execFileSync('nvidia-smi', ['--query-gpu=index,name,uuid,memory.used,memory.total', '--format=csv,noheader,nounits'], { encoding: 'utf8', timeout: 1000 }).trim().split('\n').map(row => {
+      const [index, name, uuid, used, total] = row.split(',').map(value => value.trim());
+      return { index, name, uuid, usedBytes: Number(used) * 1024 * 1024, totalBytes: Number(total) * 1024 * 1024 };
+    });
+  } catch (_) { return null; }
+}
+report.gpuMemoryScope = 'Optional NVIDIA device-wide memory usage, includes other processes; null when unavailable. Unified-memory GPU allocation is not inferred from RSS.';
+const extraArgs = JSON.parse(process.env.BENCHMARK_BROWSER_ARGS || '[]');
+if (!Array.isArray(extraArgs) || !extraArgs.every(value => typeof value === 'string')) throw new Error('BENCHMARK_BROWSER_ARGS must be a JSON string array');
 for (const entry of models) {
   const [engine, model] = entry.split(':');
   for (const mode of engine === 'onnx' ? (process.env.BENCHMARK_PROVIDERS || 'wasm,webgpu').split(',').map(preference => ({ preference, cpuThreads: 1, lowHeap: false })) : (process.env.BENCHMARK_CPU_MODES || 'baseline,lowheap,threaded').split(',').map(name => ({ preference: 'wasm', cpuThreads: name === 'threaded' ? 4 : 1, lowHeap: name === 'lowheap' }))) {
     const { preference, cpuThreads, lowHeap } = mode;
-    const server = await runtime.launchServer({ args: runtime === chromium ? ['--disable-dev-shm-usage', '--enable-unsafe-webgpu', ...(hardware ? [] : ['--use-angle=swiftshader'])] : [] });
+    const server = await runtime.launchServer({ headless: process.env.BENCHMARK_HEADED !== '1', args: runtime === chromium ? ['--disable-dev-shm-usage', '--enable-unsafe-webgpu', ...(hardware ? [] : ['--use-angle=swiftshader']), ...extraArgs] : [] });
     const browser = await runtime.connect(server.wsEndpoint());
     const measurement = { engine, model, preference, cpuThreads, lowHeap, runs: [] };
     try {
@@ -56,7 +68,15 @@ for (const entry of models) {
       for (const temperature of ['cold', ...Array.from({ length: repetitions }, (_, index) => `warm-${index + 1}`)]) {
         console.log(`Assessing ${entry} / ${preference} / threads=${cpuThreads} / smallHeap=${lowHeap} / ${temperature}`);
         let peak = rss(server.process().pid), baseline = peak;
-        const timer = setInterval(() => { const current = rss(server.process().pid); if (current !== null) peak = Math.max(peak || 0, current); }, 250);
+        const baselineGpuMemory = gpuMemory();
+        const peakGpuMemory = baselineGpuMemory?.map(device => ({ ...device }));
+        const timer = setInterval(() => {
+          const current = rss(server.process().pid); if (current !== null) peak = Math.max(peak || 0, current);
+          for (const device of gpuMemory() || []) {
+            const previous = peakGpuMemory?.find(item => item.uuid === device.uuid);
+            if (previous) previous.usedBytes = Math.max(previous.usedBytes, device.usedBytes);
+          }
+        }, hardware ? 1000 : 250);
         try {
           const result = await page.evaluate(async ({ engine, model, fixture, cold }) => {
             const bridge = window.CrisperBrowserSpeech, client = bridge.create(engine, true);
@@ -72,7 +92,7 @@ for (const entry of models) {
           }, { engine, model, fixture, cold: temperature === 'cold' });
           if (hardware && preference === 'webgpu' && result.inference.provider !== 'webgpu') throw new Error('Hardware GPU inference fell back to CPU: ' + result.inference.fallbackReason);
           if (cpuThreads > 1 && result.inference.runtimeMode !== 'threaded') throw new Error('Requested threaded inference used the single-thread fallback');
-          measurement.runs.push({ cache: temperature, ...result, baselineBrowserRssBytes: baseline, peakBrowserRssBytes: peak });
+          measurement.runs.push({ cache: temperature, ...result, baselineBrowserRssBytes: baseline, peakBrowserRssBytes: peak, baselineGpuMemory, peakGpuMemory });
           if (uploads.length) throw new Error('Unexpected off-origin upload during local inference');
         } finally { clearInterval(timer); }
       }
