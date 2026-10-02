@@ -11,6 +11,34 @@ pending.
 
 ---
 
+## Lite and local browser speech (2026-10-02)
+
+Added a compile-time Lite flavor with remote AI disabled, optional downloads,
+literal-loopback native model endpoints, and signed macOS package-only CI.
+No Lite Apple upload or review submission was performed by this work.
+
+Full and Lite now have separate Vercel deployments with local CrispASR WASM
+and ONNX ASR, English Kokoro synthesis, microphone/file input, resampling,
+IndexedDB history and cancellable worker execution. The small default model
+list includes Whisper, Moonshine and FastConformer. A separate persistent
+setting requires acknowledging the crash warning before exposing the wider
+catalogue; worker operations enforce it even for saved model selections.
+
+Phonon-2 Q4 passed actual local Chromium inference after adding fixed-buffer
+compatibility for resizable WASM TextDecoder/Web Crypto views. An earlier
+constrained-host loading attempt crashed, so Q4 remains experimental; the
+Q8/F16 exports are candidates rather than validated defaults.
+
+Production evidence: [Full, 15 passed and 2 Lite-only skipped](https://github.com/CrispStrobe/CrisperWeaver/actions/runs/36983354146);
+[Lite, 17 passed and successful isolated Phonon-2 Q4 assessment](https://github.com/CrispStrobe/CrisperWeaver/actions/runs/36983351056).
+Tests include real inference, fresh-worker cache reuse with external requests
+blocked, the Flutter warning flow and Lite endpoint restrictions. The Q4
+runner took approximately 9 seconds to load and 47 seconds total for an
+11-second fixture; these are one-run observations, not device guarantees.
+Browser scope and deployment commands live in [web-e2e/README.md](web-e2e/README.md)
+and [docs/PARITY.md](docs/PARITY.md); next optimizations are in PLAN §B0.
+
+
 ## Releases
 
 | Tag | Date | Highlights |

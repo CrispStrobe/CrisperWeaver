@@ -421,7 +421,12 @@ Every file the app synthesises is watermarked, C2PA-signed and metadata-tagged a
 
 **Received audio you believe impersonates someone?** [Report it here](https://github.com/CrispStrobe/CrisperWeaver/issues/new?labels=abuse-report&template=abuse-report.md). That address is embedded in the provenance manifest of every generated file, so it travels with the audio.
 
-## Lite build
+## Browser builds
+
+Open [CrisperWeaver](https://crisperweaver-web.vercel.app) or
+[CrisperWeaver Lite](https://crisperweaver-lite-web.vercel.app). Both run
+local inference on the device; Lite disables remote AI processing while
+allowing model downloads. The runtime assets are served with the app.
 
 Both web flavors offer small Whisper, Moonshine and FastConformer ASR models using local WASM
 and ONNX inference. The browser model screen filters large and unvalidated
@@ -441,6 +446,15 @@ experimental choice. Q8 and F16 have not been validated in the browser. Cached
 weights do not remove inference memory requirements. Supported backends and
 model companions are checked or loaded locally; unsupported combinations can
 still fail after opting in.
+
+Browser synthesis currently supports English Kokoro with the `af_heart`
+voice. Browser ASR does not offer streaming, diarization or word timestamps;
+ONNX Moonshine reports chunk boundaries. History uses IndexedDB and models
+use browser caches, which the browser can evict. See the
+[browser test and deployment guide](web-e2e/README.md) and
+[platform parity matrix](docs/PARITY.md) for the validated scope.
+
+## Lite build
 
 Lite is a compile-time variant (`CW_FLAVOR=lite`). It keeps the on-device
 CrispASR, CrispEmbed and native model runtimes, including local GGUF cleanup

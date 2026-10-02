@@ -34,15 +34,24 @@ Archived to HISTORY.md: §0, §8–§18.
 
 ## A. Current state
 
-**Version:** 0.10.1+83, with v0.11.0 in preparation. `main` is clean and pushed.
+**Version:** 0.13.1+89, with Lite and local browser speech work in Unreleased.
+Current browser validation is dated 2026-10-02; the native health figures
+below are historical and are not a claim about the current complete suite.
 
-**Where the ship is.** The app is feature-complete and the current work is
-store submission, not features.
+**Current work.** Full and Lite browser deployments run local speech inference.
+Phonon-2 Q4 passed an isolated Chromium assessment after fixing resizable
+WASM memory compatibility; it remains experimental because a constrained
+host crashed during an earlier loading attempt. Default production suites
+passed 15 tests for Full and 17 for Lite. See [HISTORY.md](HISTORY.md#lite-and-local-browser-speech-2026-10-02)
+and [web-e2e/README.md](web-e2e/README.md) for the exact scope and evidence.
+The signed macOS Lite CI artifact has been built; this work has not uploaded
+or submitted Lite to Apple. Storefront changes and App Review remain separate
+store tasks.
 
 | Track | State |
 |---|---|
 | iOS App Store | Building and uploading. First valid build was 75 / v0.9.5. Signing is **manual**, not `flutter build ipa` — see the auto-memory note on iOS signing before touching it. |
-| macOS App Store | First build delivered 2026-08-03 (`crisper_weaver-macos-appstore.pkg`). Sandboxed target = `AppStore.entitlements`. |
+| macOS App Store | Review message dated 2026-10-01 rejected Full 1.0 (85) for China mainland remote-AI references/functionality. Signed Lite package-only CI succeeded; storefront changes and a separate Lite submission remain pending. Sandboxed target = `AppStore.entitlements`. |
 | TestFlight | Builds are uploading and processing. No evidence in the repo that **external** Beta App Review has been submitted — confirm in App Store Connect before assuming either way. |
 | Google Play | Not started. |
 | Compliance | EU AI Act: seven audit rounds, all closed. 155 compliance tests green. |
@@ -76,6 +85,37 @@ question is **"has anyone walked this path on a real build?"** — see §B6.
 ## B. What to do next
 
 Ordered. Each item states what "done" means, so it can be picked up cold.
+
+### B0. Browser optimization follow-up
+
+Priorities for the next browser iteration; these are proposed work, not
+features already implemented. Keep the model warning and Lite policy.
+
+1. **Measure and reduce peak memory.** Track cold/warm loading, heap growth,
+   transcription time and failures on constrained devices. Transfer audio
+   buffers to workers where ownership allows; release model/file/PCM
+   buffers promptly. Check upstream graph/model-loading allocations for
+   Phonon-2. Replace the rough six-times-weight estimate with measured,
+   model-specific guidance; do not infer safety from download size.
+2. **Benchmark faster local execution.** Test WebGPU for the ONNX models,
+   with WASM fallback, quality checks and operator compatibility. This
+   does not accelerate the existing CrispASR GGUF path automatically.
+   Investigate a separate threaded CrispASR WASM build only after validating
+   worker call topology and deployment isolation; the upstream synchronous
+   pthread build previously deadlocked.
+3. **Improve long-recording boundaries.** Compare silence-aware overlapping
+   chunks with the current fixed windows, checking dropped/repeated words
+   and timestamps against real fixtures. Preserve honest Moonshine chunk
+   timings and cancellation.
+4. **Make downloads and compatibility durable.** Add explicit cached-model
+   deletion/storage-quota controls, resumable large downloads and pinned
+   revisions/integrity checks for remaining mutable model URLs. Expand
+   Firefox/WebKit and constrained-device coverage before promoting models
+   out of the experimental list.
+
+**Done when:** cold/warm and peak-memory measurements are recorded by model,
+supported paths preserve accuracy and Lite's no-remote-AI checks, and every
+new default is backed by inference on the browsers/devices it claims to fit.
 
 ### B1. Ship the external TestFlight beta — **the critical path**
 

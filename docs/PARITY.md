@@ -1,6 +1,28 @@
 # CrisperWeaver — capability parity matrix (GUI · CLI · Server)
 
 Tracks which user-facing surface reaches each on-device speech capability.
+The main matrix below describes native builds. Browser support is narrower
+and is recorded separately here rather than inferred from native parity.
+
+## Browser support — Full and Lite (2026-10-02)
+
+| Capability | Browser state |
+|---|---|
+| Local ASR | CrispASR WASM: Whisper tiny/base, Moonshine tiny, FastConformer Q4. ONNX WASM: Whisper tiny/base and Moonshine tiny. |
+| Experimental ASR | Wider native catalogue and ONNX Whisper small require the separate warning-gated override. Phonon-2 Q4 passed Chromium CI; Q8/F16 remain unvalidated. Backend availability is checked before native-model download. |
+| Microphone | Record, decode/resample to 16 kHz, then transcribe; no live streaming. |
+| Local TTS | English Kokoro, `af_heart`, at most 1,000 characters per request. |
+| Timings | ASR segments; ONNX Moonshine uses chunk boundaries. No word timestamps or forced alignment. |
+| History and model cache | IndexedDB history; CacheStorage weights. Fresh-worker cached inference is tested with off-origin requests blocked. Browser eviction remains possible. |
+| Diarization / voice cloning / native auxiliary tools | Not exposed by the browser speech adapter. |
+| Remote AI | Full retains optional cloud processing. Lite disables it; the experimental-model override does not change that policy. |
+
+Real inference and UI checks passed: Full 15 tests (2 Lite-only skipped),
+Lite 17, plus the isolated Phonon-2 Q4 assessment. See
+[test results and deployment commands](../web-e2e/README.md).
+
+## Native surfaces
+
 Surfaces:
 
 - **GUI** — Flutter screens/widgets (`lib/screens`, `lib/widgets`).

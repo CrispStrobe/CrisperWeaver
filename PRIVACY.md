@@ -47,13 +47,23 @@ off-device under any setting. Transcript **text** likewise stays on
 the device unless you turn on cloud cleanup or cloud summarisation,
 which send it to an endpoint you configure — see §3.3.
 
+In the browser builds, transcript history is stored locally in IndexedDB
+for the site's origin. Browser storage clearing or eviction can remove it.
+
 ### 1.3 Model Files
 
 When you download speech recognition, text-to-speech, or embedding
-models, the app fetches GGUF files from HuggingFace
+models, the app fetches model files (including GGUF and ONNX) from HuggingFace
 (huggingface.co). These downloads are standard HTTPS requests. No
 personal data is sent — only the model URL is accessed. Downloaded
 models are cached locally on your device.
+
+Browser speech runtimes are served with the app by its hosting provider;
+model and tokenizer downloads use HuggingFace/CDN HTTPS requests. These
+services receive ordinary connection/request information, including your
+IP address. Local browser inference does not upload the audio or transcript
+to those download hosts. The Lite experimental-model setting only expands
+the local model list; it does not enable remote AI processing.
 
 ### 1.4 Crash Data and Analytics
 
@@ -134,6 +144,10 @@ All data is stored locally on your device:
 - **Downloaded models:** in the app's models directory
 - **Settings:** via platform-standard preferences (NSUserDefaults
   on iOS, SharedPreferences on Android)
+
+The web builds use IndexedDB for transcript history, browser caches for
+model files, and browser local storage for settings. These are scoped to
+the site's origin; Full and Lite deployments have separate storage.
 
 You can delete all data at any time by:
 - Deleting individual transcripts from the History screen

@@ -5,8 +5,31 @@ screenshots are from the macOS build, but Windows and Linux look and work
 the same way. On a phone the same screens are stacked vertically, with
 Transcribe / History / Settings at the bottom.
 
-Everything runs on your computer. The only time CrisperWeaver goes online
-is to download a model you pick.
+Local inference runs on your device after downloading a model. The full
+app also offers optional remote AI processing; Lite disables it. See the
+[privacy policy](../PRIVACY.md) for the network options.
+
+## Use it in a browser
+
+Open [CrisperWeaver](https://crisperweaver-web.vercel.app) or
+[CrisperWeaver Lite](https://crisperweaver-lite-web.vercel.app).
+Choose a local engine in Settings, then open **Models** and download a
+small model. Whisper tiny/base, Moonshine tiny and FastConformer Q4 are
+available through the supported browser runtimes. Import an audio file or
+record with the microphone, then press **Transcribe**. **Synthesize** offers
+local English Kokoro speech with the `af_heart` voice.
+
+The default browser list filters out large and unvalidated models. To try
+Phonon-2 Q4 or another experimental candidate, enable **Allow experimental
+browser models** in Settings or Models and accept the warning. Save your
+work first: a model can exhaust memory or crash the tab. Disabling the
+setting blocks experimental models again, including saved selections.
+
+Browser support covers file/recorded ASR and this local TTS voice. Streaming,
+diarization and word timestamps remain native features. ONNX Moonshine
+returns chunk boundaries. Cached models can run without further downloads,
+but browser storage may be evicted. The instructions and screenshots below
+describe the native app.
 
 ## 1. Install
 

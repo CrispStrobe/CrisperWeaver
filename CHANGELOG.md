@@ -5,6 +5,37 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 
 ## [Unreleased]
 
+### Added
+
+- Separate CrisperWeaver Lite flavor: model downloads remain available,
+  remote AI processing is disabled, and optional native model servers are
+  restricted to literal loopback addresses. GitHub CI can build a signed
+  macOS Lite installer without uploading or submitting it to Apple.
+- Local browser speech recognition through CrispASR WASM and ONNX Runtime
+  Web, including Whisper, Moonshine and FastConformer; local English Kokoro
+  synthesis. Full and Lite have separate Vercel deployments.
+- Browser model filtering with a separate, persistent experimental-model
+  setting that requires accepting a crash warning. Load, import and
+  transcription enforce the setting, including previously selected models.
+- Phonon-2 Q4 as an experimental browser model, validated with real local
+  transcription in Chromium CI. Q8/F16 remain unvalidated candidates.
+- Playwright coverage of real ASR/TTS, Flutter upload/output flows, cached
+  inference with external requests blocked, warning acceptance and Lite
+  endpoint restrictions; optional isolated Phonon model assessments in CI.
+
+### Fixed
+
+- Browser compatibility with resizable WASM memory views passed to
+  TextDecoder and Web Crypto, including Phonon-2 random initialization.
+- Browser audio resampling to 16 kHz, microphone recording input,
+  IndexedDB transcript history and cancellation through worker termination.
+
+### Changed
+
+- Large CrispASR browser downloads consume the cache branch concurrently
+  and use a preallocated download buffer when possible. Model loading lets
+  MEMFS own the downloaded buffer to avoid another full model copy.
+
 ## [0.13.1] — 2026-09-27
 
 ### Fixed

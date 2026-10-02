@@ -29,8 +29,8 @@ their backend, extra files or working memory fit a particular browser.
 Dispatch either deployment from a branch containing this workflow:
 
 ```sh
-gh workflow run deploy-web.yml --ref feat/macos-lite-ci -f flavor=full
-gh workflow run deploy-web.yml --ref feat/macos-lite-ci -f flavor=lite
+gh workflow run deploy-web.yml --ref main -f flavor=full
+gh workflow run deploy-web.yml --ref main -f flavor=lite
 ```
 
 For an isolated experimental-model assessment, add `-f probe_model=phonon2-q4_k`
@@ -46,6 +46,13 @@ fixture. The worker copies resizable WASM memory slices for TextDecoder and
 Web Crypto calls that reject those views. Q4 remains opt-in because a
 memory-constrained local host crashed during an earlier loading attempt;
 Q8 and F16 have not been assessed successfully.
+
+The same deployed worker passed the full production suites on 2026-10-02:
+[Full: 15 passed, 2 Lite-only tests skipped](https://github.com/CrispStrobe/CrisperWeaver/actions/runs/36983354146),
+[Lite: 17 passed, plus the isolated Q4 assessment](https://github.com/CrispStrobe/CrisperWeaver/actions/runs/36983351056).
+These timings describe one Chromium runner and one fixture, not a speed or
+memory guarantee for other devices. Pushes to `main` deploy Full; dispatch
+`flavor=lite` separately to update Lite. Neither workflow submits to Apple.
 
 Lite targets its own `crisperweaver-lite-web` Vercel project. Full targets the
 existing `crisperweaver-web` project. CI self-hosts runtime assets and retains

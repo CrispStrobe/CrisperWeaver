@@ -6,6 +6,36 @@ If a learning is still live (affects current work), it's linked from [`PLAN.md`]
 
 ---
 
+## Browser WASM and model feasibility (2026-10-02)
+
+- **Resizable WASM views are not accepted by every web API.** Chromium
+  rejected Emscripten memory slices in both TextDecoder and
+  `crypto.getRandomValues`. Copy only the bounded slice into a fixed buffer;
+  for random filling, copy back and return the original typed array. Keep
+  native type/quota validation. This belongs in the worker adapter so the
+  vendored runtime and its checksum stay unchanged.
+- **A tab crash on a busy host does not prove the backend is incompatible.**
+  Phonon-2 Q4 first crashed locally under memory pressure. A fresh runner
+  exposed the Web Crypto error; after fixing it, actual local transcription
+  passed in Chromium. The 402 MB GGUF is different from the upstream 164 MB
+  compressed transport, and neither number is peak working memory. Q4
+  stays experimental; Q8/F16 are not validated by that success.
+- **Avoid duplicate complete download buffers.** Consume the CacheStorage
+  clone while reading the inference branch, preallocate when content length
+  permits, and use MEMFS ownership for the ASR model buffer. These reduce
+  loading copies, but do not bound model graph allocations or browser memory.
+- **Compiled backend availability is only one part of support.** Pass the
+  actual backend to `asrOpen`, reject absent backends before download, and
+  include tokenizer companions in caching/readiness. A native catalogue
+  entry alone does not establish browser compatibility.
+- **Test the shipped UI and real inference separately from metadata.**
+  The browser override is separate from general beta settings and requires
+  acknowledgement. Load/import/transcription recheck it. Production tests
+  use real speech and then a fresh worker with external requests blocked;
+  an optional isolated CI job reports risky-model failures independently of
+  the default-model suite. See [web-e2e/README.md](web-e2e/README.md).
+
+
 ## Dart FFI
 
 ### Generic helpers over `NativeFunction<T>` fail under `flutter test`, not `dart test`
@@ -583,4 +613,3 @@ When packaging shared libraries (e.g. `libcrispasr.so.0.7.1`), the tarball must 
 ### optipng -o2 is the sweet spot for CI-friendly PNG compression
 
 `-o7` on a 1 MB PNG takes 5+ minutes; `-o2` takes seconds and captures ~90% of the savings (37% reduction on 1024×1024 RGBA). Uncompressed PNGs from design tools often have inefficient IDAT encoding that lossless recompression fixes trivially.
-
