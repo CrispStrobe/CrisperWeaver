@@ -433,8 +433,11 @@ turning it off also blocks a previously selected experimental model.
 
 Download size is not working memory. Phonon-2's GGUF exports are approximately
 402 MB (Q4), 674 MB (Q8), and 1,255 MB (F16), rather than the upstream 164 MB
-compressed transport. Phonon-2 Q4 crashed a test tab on the constrained local
-host during loading, so it remains an explicit experimental choice. Cached
+compressed transport. Phonon-2 Q4 successfully transcribed real speech locally
+in Chromium on a fresh GitHub runner: approximately 9 seconds to load and
+47 seconds total for an 11-second recording, including loading. An earlier
+test crashed on a constrained local host, so it remains an explicit
+experimental choice. Q8 and F16 have not been validated in the browser. Cached
 weights do not remove inference memory requirements. Supported backends and
 model companions are checked or loaded locally; unsupported combinations can
 still fail after opting in.
