@@ -8,6 +8,16 @@ TextDecoder.prototype.decode = function (input, options) {
   if (ArrayBuffer.isView(input) && input.buffer.resizable) input = new Uint8Array(input.buffer, input.byteOffset, input.byteLength).slice();
   return decodeText.call(this, input, options);
 };
+// Web Crypto also rejects resizable WASM views. Fill a fixed buffer, then
+// copy back into the original view; preserve native type and size validation.
+const randomValues = crypto.getRandomValues.bind(crypto);
+crypto.getRandomValues = function (input) {
+  if (ArrayBuffer.isView(input) && input.buffer.resizable) {
+    const fixed = new input.constructor(input.length);
+    randomValues(fixed); input.set(fixed); return input;
+  }
+  return randomValues(input);
+};
 let runtime, runtimeReady, pipeline, transformerEnv, asr, modelId, ttsReady = false;
 const CACHE = 'crisperweaver-speech-models-v1';
 const progress = (id, value) => postMessage({ id, progress: value });
