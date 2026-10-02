@@ -24,6 +24,6 @@ The workflow creates/reuses the `crisperweaver-lite-web` Vercel project with
 existing CI credentials and deploys there. It never targets the full web project.
 Lite self-hosts CanvasKit, identifies itself in its title/manifest, and displays
 an explicit browser preview notice: desktop ASR/TTS/ONNX engines are unavailable,
-so speech uses a mock engine for UI testing. Browser tests also verify no external
-requests at startup, suppress saved cloud settings, and reject remote endpoints.
+so speech uses a mock engine for UI testing. Browser tests also reject external
+requests at startup except static fallback-font downloads, suppress saved cloud settings, and reject remote endpoints.
 Screenshots from successful and failed runs are retained as CI artifacts.

@@ -22,7 +22,10 @@ test('Lite branding, browser limitation, and no remote AI requests on boot', asy
   page.on('request', req => {
     const url = new URL(req.url());
     if (['http:', 'https:'].includes(url.protocol) && url.origin !== new URL(TARGET).origin) {
-      outgoing.push(`${req.method()} ${req.url()}`);
+      // Flutter downloads fallback font files; these are static assets.
+      const staticFont = req.method() === 'GET' && url.hostname === 'fonts.gstatic.com'
+        && /^\/s\/(roboto|notosanssymbols)\//.test(url.pathname) && url.pathname.endsWith('.woff2');
+      if (!staticFont) outgoing.push(`${req.method()} ${req.url()}`);
     }
   });
   await page.goto(TARGET, { waitUntil: 'domcontentloaded' });
