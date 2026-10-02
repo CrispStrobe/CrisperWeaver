@@ -18,6 +18,14 @@ then create a fresh worker and repeat with off-origin requests blocked. The
 upload-flow tests verify real text appears through Flutter. Local synthesis
 must return non-silent PCM. Network checks reject off-origin uploads.
 
+The expanded model suite also runs Moonshine through both runtimes, FastConformer, and ONNX
+Whisper base, including fresh-worker cache reuse. It checks that hidden models
+cannot load before the user enables the browser override, and that enabling
+the setting requires accepting the crash warning. Phonon-2 GGUF variants and
+the remaining native ASR catalogue are experimental candidates; they are not
+part of the default supported-model list. Showing them does not establish that
+their backend, extra files or working memory fit a particular browser.
+
 Dispatch either deployment from a branch containing this workflow:
 
 ```sh

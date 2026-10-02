@@ -9,3 +9,4 @@ cp web-runtime/node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded*.wasm bu
 cp web-runtime/node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded*.mjs build/web/vendor/ort/
 cp web-runtime/node_modules/@huggingface/transformers/LICENSE build/web/vendor/TRANSFORMERS_LICENSE
 cp web-runtime/node_modules/onnxruntime-web/README.md build/web/vendor/ort/README.md
+python3 scripts/build_browser_catalog.py

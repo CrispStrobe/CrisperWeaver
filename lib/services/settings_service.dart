@@ -630,6 +630,14 @@ class SettingsService {
       _prefs.getBool('experimental_features') ?? false;
   set experimentalFeatures(bool value) =>
       _prefs.setBool('experimental_features', value);
+
+  bool get browserAllowExperimentalModels =>
+      _prefs.getBool('browser_allow_experimental_models') ?? false;
+  set browserAllowExperimentalModels(bool value) =>
+      _prefs.setBool('browser_allow_experimental_models', value);
+  Future<void> setBrowserAllowExperimentalModels(bool value) async {
+    await _prefs.setBool('browser_allow_experimental_models', value);
+  }
 }
 
 /// Provider for the SettingsService.

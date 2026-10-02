@@ -7,6 +7,7 @@ import '../engines/transcription_engine.dart';
 import '../services/settings_service.dart';
 import '../main.dart' show transcriptionServiceProvider;
 import '../widgets/root_aware_back_leading.dart';
+import '../widgets/browser_model_safety_settings.dart';
 
 class BrowserModelsScreen extends ConsumerStatefulWidget {
   const BrowserModelsScreen({super.key});
@@ -80,6 +81,9 @@ class _BrowserModelsScreenState extends ConsumerState<BrowserModelsScreen> {
           const Text(
               'Models run locally in your browser. Downloads retrieve weights only; audio and text are not uploaded. Cached models can be reused without downloading again.'),
           const SizedBox(height: 16),
+          BrowserModelSafetySettings(onChanged: _refresh),
+          const Text(
+              'The default list filters out large and unvalidated native models. Memory figures below are rough planning estimates, not guarantees. Some browsers allow less memory even on powerful devices.'),
           DropdownButton<EngineType>(
               value: _engine,
               items: const [
@@ -118,6 +122,11 @@ class _BrowserModelsScreenState extends ConsumerState<BrowserModelsScreen> {
                               style: Theme.of(context).textTheme.titleMedium),
                           Text(
                               '${(model.sizeBytes / 1000000).round()} MB · ${model.isDownloaded ? 'Cached in browser' : 'Download on first use'}'),
+                          if (model.metadata['estimatedMemoryMB'] != null)
+                            Text(
+                                'Estimated working memory: ${model.metadata['estimatedMemoryMB']} MB'),
+                          if (model.metadata['experimental'] == true)
+                            Text('Experimental: ${model.description}'),
                           Wrap(spacing: 12, children: [
                             TextButton(
                                 onPressed: _busy ? null : () => _load(model),

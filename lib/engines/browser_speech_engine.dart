@@ -61,11 +61,16 @@ class BrowserSpeechEngine implements TranscriptionEngine {
           id: m['id'] as String,
           name: m['name'] as String,
           description:
-              'Runs locally in this browser. Model weights are cached after first use.',
+              m['browserReason'] as String? ?? 'Runs locally in this browser.',
           sizeBytes: m['sizeBytes'] as int,
           supportedLanguages: List<String>.from(m['languages'] as List),
           isDownloaded: m['cached'] == true,
-          metadata: {'backend': 'whisper', 'local': true});
+          metadata: {
+            'backend': m['backend'] ?? 'whisper',
+            'local': true,
+            'experimental': m['experimental'] == true,
+            'estimatedMemoryMB': m['estimatedMemoryMB']
+          });
     }).toList();
   }
 

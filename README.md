@@ -423,6 +423,22 @@ Every file the app synthesises is watermarked, C2PA-signed and metadata-tagged a
 
 ## Lite build
 
+Both web flavors offer small Whisper, Moonshine and FastConformer ASR models using local WASM
+and ONNX inference. The browser model screen filters large and unvalidated
+native models by default. Settings → **Allow experimental browser models**
+requires accepting a warning before revealing the wider ASR catalogue,
+including Phonon-2 Q4/Q8/F16. The setting never enables remote processing in
+Lite. Browser workers check this preference at load and transcription time;
+turning it off also blocks a previously selected experimental model.
+
+Download size is not working memory. Phonon-2's GGUF exports are approximately
+402 MB (Q4), 674 MB (Q8), and 1,255 MB (F16), rather than the upstream 164 MB
+compressed transport. Phonon-2 Q4 crashed a test tab on the constrained local
+host during loading, so it remains an explicit experimental choice. Cached
+weights do not remove inference memory requirements. Supported backends and
+model companions are checked or loaded locally; unsupported combinations can
+still fail after opting in.
+
 Lite is a compile-time variant (`CW_FLAVOR=lite`). It keeps the on-device
 CrispASR, CrispEmbed and native model runtimes, including local GGUF cleanup
 and summaries. Remote ASR, TTS and translation are disabled. HTTP language

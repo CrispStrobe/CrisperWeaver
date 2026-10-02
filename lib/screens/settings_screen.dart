@@ -31,6 +31,7 @@ import '../widgets/cloud_llm_settings_form.dart';
 import '../widgets/hotkey_settings_form.dart';
 import '../widgets/local_llm_settings_form.dart';
 import '../widgets/root_aware_back_leading.dart';
+import '../widgets/browser_model_safety_settings.dart';
 
 /// True when [path] points into Android's shared external storage
 /// (`/storage/emulated/0/...`, `/sdcard/...`, `/storage/self/primary/...`)
@@ -92,6 +93,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         children: [
           _buildLocaleSettings(settings),
           _buildEngineSettings(settings),
+          if (plat.isWeb) const BrowserModelSafetySettings(),
           _buildTranscriptionSettings(settings),
           _buildAudioSettings(settings),
           _buildDiarizationSettings(settings),

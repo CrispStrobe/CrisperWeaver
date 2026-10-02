@@ -23,7 +23,8 @@
       return new Promise((resolve, reject) => {
         const timer = setTimeout(() => this.cancel('Browser inference timed out'), 900000);
         this.pending.set(id, { resolve, reject, progress, timer });
-        this.worker.postMessage({ id, op, payload, engine: this.engine, allowDownloads: this.allowDownloads });
+        const allowExperimentalModels = localStorage.getItem('flutter.browser_allow_experimental_models') === 'true';
+        this.worker.postMessage({ id, op, payload, engine: this.engine, allowDownloads: this.allowDownloads, allowExperimentalModels });
       });
     }
     cancel(message = 'Browser inference cancelled') {
