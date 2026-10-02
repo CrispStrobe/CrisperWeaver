@@ -57,7 +57,7 @@ async function catalogue(engine) {
   return Promise.all(CW_SPEECH_MODELS[engine].map(async m => ({ ...m,
     ...(m.url ? { url: (await resource(m.url)).url, sizeBytes: (await resource(m.url)).size,
       companions: await Promise.all((m.companions || []).map(async c => ({ ...c, url: (await resource(c.url)).url }))) }
-      : { revision: locks[m.repo].revision }),
+      : { revision: locks[m.repo].revision, sizeBytes: onnxDownloadSize(m, executionPreference !== 'wasm' ? 'webgpu' : 'wasm') }),
     experimental: !m.recommended,
     browserReason: m.recommended ? 'Small model supported by the browser adapter.'
       : 'Not validated in this browser. May require unsupported features or more memory than the browser can allocate.',
@@ -71,12 +71,21 @@ async function modelResources(model) {
   if (model.url) return Promise.all([model.url, ...(model.companions || []).map(c => c.url)].map(resource));
   return Object.values(locks[model.repo].files);
 }
+function requiredOnnxFiles(model, device) {
+  const pattern = device === 'webgpu' ? /onnx\/(encoder_model|decoder_model_merged)\.onnx$/
+    : /onnx\/(encoder_model_quantized|decoder_model_merged_quantized)\.onnx$/;
+  return Object.values(locks[model.repo].files).filter(file => pattern.test(file.url));
+}
+function onnxDownloadSize(model, device) {
+  const shared = Object.values(locks[model.repo].files).filter(file => !file.url.endsWith('.onnx'));
+  return [...requiredOnnxFiles(model, device), ...shared].reduce((sum, file) => sum + file.size, 0);
+}
 async function modelCached(model, device = 'wasm') {
-  const files = await modelResources(model);
   // Optional ONNX configuration files do not determine model readiness.
-  const required = model.url ? files : files.filter(file => (device === 'webgpu' ? /onnx\/(encoder_model|decoder_model_merged)\.onnx$/ : /onnx\/(encoder_model_quantized|decoder_model_merged_quantized)\.onnx$/).test(file.url));
+  const required = model.url ? await modelResources(model) : requiredOnnxFiles(model, device);
   return required.length > 0 && (await Promise.all(required.map(file => CW_DOWNLOADS.cached(file)))).every(Boolean);
 }
+
 async function crisp() {
   if (!runtimeReady) {
     runtimeReady = (async () => {
@@ -311,7 +320,7 @@ async function handle({ id, op, payload, engine, allowDownloads, allowExperiment
   let result;
   if (op === 'models') {
     const models = (await catalogue(engine)).filter(m => !m.experimental || allowExperimentalModels);
-    result = await Promise.all(models.map(async m => ({ ...m, cached: await modelCached(m),
+    result = await Promise.all(models.map(async m => ({ ...m, cached: await modelCached(m, engine === 'onnx' && executionPreference !== 'wasm' ? 'webgpu' : 'wasm'),
       resumeBytes: (await Promise.all((await modelResources(m)).map(file => CW_DOWNLOADS.meta(file.url)))).reduce((sum, part) => sum + (part?.verified ? 0 : part?.offset || 0), 0) })));
   } else if (op === 'load') result = await load(engine, payload.model, allowDownloads, id, payload.bytes, allowExperimentalModels);
   else if (op === 'import') {

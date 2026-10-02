@@ -103,7 +103,7 @@ All three also pass threaded TTS→ASR. Native bindings merged to CrispASR main
 at 2e936f5a1; browser artifacts retain their tested immutable 70e15c9a0 pin.
 All 12 quota/interruption/eviction/reload checks pass across the three browsers.
 Native analyze, tests and both desktop builds passed run 37002105924; the new
-thread settings test is being checked in a fresh native run.
+thread settings test, analysis and both desktop builds pass run 37008726830.
 
 Three-model CPU A/B reports (three warm repetitions, decoded parity) are in
 `docs/browser-hardening-2026-10-02/`: the 128 MiB SIMD variant improves Moonshine,
@@ -120,8 +120,9 @@ and match decoded CPU transcripts. Reports include actual provider, precision,
 RSS and device-wide VRAM scope. CPU fallback is never
 counted as successful GPU validation.
 
-Fresh compiled-artifact validation: Full 37008639394 (including Whisper A/B),
-Lite 37008642912. Continuous English retention regressed with the wider pause
+Whisper A/B passed run 37008639394. Final compiled-artifact validation is
+queued/running for both flavors; earlier smoke failures identified the cache
+assertion and timestamp omissions described below. Continuous English retention regressed with the wider pause
 search; Whisper retries energetic windows that timestamp mode omitted using text-
 only decoding and honest chunk-level timestamps. The 30-second window budget
 is preserved; shorter windows added cost without fixing the underlying issue. French/German noisy fixtures compare

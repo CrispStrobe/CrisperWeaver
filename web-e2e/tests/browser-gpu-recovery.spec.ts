@@ -1,6 +1,24 @@
 import { test, expect } from '@playwright/test';
 import { bootRuntime } from './runtime-page';
 
+test('ONNX catalogue shows the selected provider download size', async ({ page }) => {
+  await bootRuntime(page);
+  const result = await page.evaluate(async () => {
+    const client = (window as any).CrisperBrowserSpeech.create('onnx', false);
+    try {
+      localStorage.setItem('flutter.browser_execution_provider', 'wasm');
+      const cpu = (await client.request('models')).find((model: any) => model.id === 'onnx-moonshine-tiny');
+      localStorage.setItem('flutter.browser_execution_provider', 'webgpu');
+      const gpu = (await client.request('models')).find((model: any) => model.id === cpu.id);
+      return { cpu, gpu };
+    } finally { client.dispose(); }
+  });
+  expect(result.cpu.sizeBytes).toBeLessThan(40_000_000);
+  expect(result.gpu.sizeBytes).toBeGreaterThan(100_000_000);
+  expect(result.gpu.sizeBytes).toBeGreaterThan(result.cpu.sizeBytes * 3);
+  expect(result.gpu.cached).toBe(false);
+});
+
 for (const failure of ['operator', 'worker crash']) test(`GPU ${failure} failure preserves owned audio and restarts on CPU`, async ({ page }) => {
   await bootRuntime(page);
   const result = await page.evaluate(async failure => {

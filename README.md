@@ -458,11 +458,21 @@ Browser model switches and unloads terminate the old worker to release its
 grown WASM heap. Owned audio buffers are transferred, and bounded overlapping
 windows prefer quiet boundaries; duplicate removal is limited to the short
 shared context so intentional repeated sentences are kept. Moonshine uses
-15-second windows; other models use at most 30 seconds.
+15-second windows; other models use at most 30 seconds. Whisper retries
+energetic windows omitted by timestamp mode using text decoding and reports
+window-level timing for those fallback segments. Progress resets inactivity
+timeouts on long recordings.
 
-CPU processing is the default. **ONNX processing** in Settings/Models offers
+CPU processing is the default. CrispASR uses the validated SIMD runtime with
+128 MiB initial memory, growing as needed. Its one/two/four-thread setting
+keeps one thread as default: more threads help some models and slow others.
+Parallel mode requires browser isolation and uses asynchronous compute calls.
+**ONNX processing** in Settings/Models offers
 warning-gated GPU attempts, with local WASM recovery for unsupported adapters,
-model/operator errors and stalled initialization. Some graphics drivers can
+model/operator errors and inactive processing. GPU mode downloads larger fp32
+weights; download sizes and cache readiness follow the chosen provider.
+Actual Tesla T4 runs match CPU output for Moonshine tiny and Whisper tiny
+English, but do not validate every GPU or model. Some graphics drivers can
 still crash the tab; a crashed tab cannot recover automatically. This does
 not accelerate CrispASR GGUF models or enable remote AI in Lite.
 
@@ -473,9 +483,10 @@ and resume with a validated HTTP range; servers that ignore Range restart
 cleanly. Corrupt responses/cache entries cannot reach inference. The Models
 screen shows quota and incomplete-download usage and can delete individual
 cached models, incomplete downloads or the speech cache without deleting
-transcript history. Models of 64 MB or more retain their verified IndexedDB
-chunks as the cache; smaller files temporarily need space for checkpoints
-and CacheStorage promotion. Builds never refresh model pins implicitly; run
+transcript history. Verified IndexedDB chunks cache models of every size,
+including across worker termination. ONNX verification uses bounded staging
+without an extra full-model buffer. Legacy CacheStorage entries remain readable
+until deleted. Builds never refresh model pins implicitly; run
 `python3 scripts/lock_browser_models.py` deliberately to update them.
 
 The former weight-size multiplier is no longer presented as working memory.
