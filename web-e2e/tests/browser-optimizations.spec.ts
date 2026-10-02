@@ -196,7 +196,7 @@ test('long Moonshine recording preserves repeated speech across quiet boundaries
 
 test('a GPU adapter failure falls back to verified local WASM inference', async ({ page }) => {
   test.setTimeout(600_000);
-  await page.route('**/speech/worker.js', async route => {
+  await page.route(/\/speech\/worker\.js(?:\?.*)?$/, async route => {
     const response = await route.fetch();
     await route.fulfill({ response, body: `Object.defineProperty(navigator, 'gpu', { value: { requestAdapter: async () => { throw new Error('Test adapter failure'); } } });\n` + await response.text() });
   });
@@ -214,6 +214,7 @@ test('a GPU adapter failure falls back to verified local WASM inference', async 
   expect(result.loaded.diagnostics.provider).toBe('wasm');
   expect(result.loaded.diagnostics.fallbackReason).toContain('Test adapter failure');
   expect(result.result.local).toBe(true);
+  expect(result.result.diagnostics.fallbackReason).toContain('Test adapter failure');
   expect(result.result.segments.map((s: any) => s.text).join(' ').toLowerCase()).toContain('country');
 });
 

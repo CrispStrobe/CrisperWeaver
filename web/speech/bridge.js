@@ -10,6 +10,7 @@
       this.loadedPreference = null;
       this.loadedCpuThreads = null;
       this.loadedLowHeap = null;
+      this.workerFallbackReason = null;
     }
     request(op, payload = {}, progress, forcedPreference, forcedThreads) {
       const executionPreference = forcedPreference || localStorage.getItem('flutter.browser_execution_provider')?.replaceAll('"', '') || 'wasm';
@@ -37,6 +38,7 @@
             if (entry.model) { this.loadedModel = entry.model; this.loadedPreference = entry.preference; this.loadedCpuThreads = entry.cpuThreads; this.loadedLowHeap = entry.lowHeap; }
             if (data.result?.diagnostics) {
               const measurement = data.result.diagnostics;
+              if (!measurement.fallbackReason && this.workerFallbackReason) measurement.fallbackReason = this.workerFallbackReason;
               measurement.observedJsHeapBytes = performance.memory?.usedJSHeapSize ?? null;
               try {
                 const parsed = JSON.parse(localStorage.getItem('cw.browserMeasurements') || '[]');
@@ -108,7 +110,8 @@
       this.request('load', { model }, entry.progress, 'wasm', 1).then(() =>
         this.request('transcribe', entry.payload, entry.progress, 'wasm', 1)
       ).then(result => {
-        if (result?.diagnostics) result.diagnostics.fallbackReason = reason.slice(16);
+        this.workerFallbackReason = reason.slice(16);
+        if (result?.diagnostics) result.diagnostics.fallbackReason = this.workerFallbackReason;
         entry.resolve(result);
       }, entry.reject);
       return true;
@@ -118,6 +121,7 @@
       clearTimeout(entry.timer);
       this.cancel('Restarting model load with single-thread CPU');
       this.request('load', entry.payload, entry.progress, 'wasm', 1).then(result => {
+        this.workerFallbackReason = reason;
         if (result?.diagnostics) result.diagnostics.fallbackReason = reason;
         entry.resolve(result);
       }, entry.reject);
@@ -129,6 +133,7 @@
       this.loadedPreference = null;
       this.loadedCpuThreads = null;
       this.loadedLowHeap = null;
+      this.workerFallbackReason = null;
       for (const entry of this.pending.values()) { clearTimeout(entry.timer); entry.reject(new Error(message)); }
       this.pending.clear();
     }
