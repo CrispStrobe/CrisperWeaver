@@ -71,4 +71,26 @@ void main() {
     expect(settings.browserAllowExperimentalModels, false);
     expect(find.byType(AlertDialog), findsNothing);
   });
+
+  testWidgets('browser thread setting persists independently of GPU selection',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({'browser_cpu_threads': 3});
+    final settings = SettingsService(await SharedPreferences.getInstance());
+    expect(settings.browserCpuThreads, 1);
+    await tester.pumpWidget(ProviderScope(
+        overrides: [settingsServiceProvider.overrideWithValue(settings)],
+        child: const MaterialApp(
+            home: Scaffold(body: BrowserModelSafetySettings()))));
+    await tester.tap(find.byType(DropdownButton<int>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Four threads').last);
+    await tester.pumpAndSettle();
+    expect(settings.browserCpuThreads, 4);
+    expect(SettingsService(await SharedPreferences.getInstance()).browserCpuThreads,
+        4);
+    expect(settings.browserExecutionProvider, 'wasm');
+    expect(settings.browserAllowExperimentalModels, false);
+    await expectLater(settings.setBrowserCpuThreads(8), throwsArgumentError);
+  });
+
 }
