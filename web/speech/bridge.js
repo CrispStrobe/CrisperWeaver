@@ -14,7 +14,7 @@
     request(op, payload = {}, progress, forcedPreference, forcedThreads) {
       const executionPreference = forcedPreference || localStorage.getItem('flutter.browser_execution_provider')?.replaceAll('"', '') || 'wasm';
       const requestedThreads = forcedThreads ?? Number(localStorage.getItem('flutter.browser_cpu_threads') || 1);
-      const cpuThreads = this.engine === 'crispasr' && crossOriginIsolated && typeof SharedArrayBuffer !== 'undefined'
+      const cpuThreads = this.engine === 'crispasr' && !['models', 'clearCache', 'deleteCache', 'unload'].includes(op) && crossOriginIsolated && typeof SharedArrayBuffer !== 'undefined'
         ? ([2, 4].includes(requestedThreads) ? requestedThreads : 1) : 1;
       const lowHeap = localStorage.getItem('cw.browserLowMemoryRuntime') === 'true';
       if (op === 'unload') { this.cancel(); return Promise.resolve(true); }
@@ -29,7 +29,7 @@
           if (!entry) return;
           if (data.progress != null) { entry.progress?.(data.progress); return; }
           clearTimeout(entry.timer); this.pending.delete(data.id);
-          if (data.error) entry.reject(new Error(data.error));
+          if (data.error) { if (!this.retryCpu(entry, data.error)) entry.reject(new Error(data.error)); }
           else {
             if (entry.model) { this.loadedModel = entry.model; this.loadedPreference = entry.preference; this.loadedCpuThreads = entry.cpuThreads; this.loadedLowHeap = entry.lowHeap; }
             if (data.result?.diagnostics) {
@@ -49,7 +49,17 @@
             entry.resolve(data.result);
           }
         };
-        this.worker.onerror = e => this.cancel(e.message || 'Browser speech worker failed');
+        this.worker.onerror = e => {
+          const reason = e.message || 'Browser speech worker failed';
+          const entry = Array.from(this.pending.values()).find(item => item.op === 'load');
+          if (entry) {
+            const key = Array.from(this.pending.entries()).find(([, value]) => value === entry)?.[0];
+            this.pending.delete(key);
+            if (this.retryCpu(entry, reason)) return;
+            clearTimeout(entry.timer); entry.reject(new Error(reason));
+          }
+          this.cancel(reason);
+        };
       }
       const id = ++this.sequence;
       return new Promise((resolve, reject) => {
@@ -62,13 +72,9 @@
           const entry = this.pending.get(id);
           if (!entry) return;
           this.pending.delete(id);
-          this.cancel('Parallel runtime stalled; restarting with single-thread CPU');
-          this.request(op, payload, progress, 'wasm', 1).then(result => {
-            if (result?.diagnostics) result.diagnostics.fallbackReason = 'Parallel runtime stalled; worker restarted with single-thread CPU';
-            entry.resolve(result);
-          }, entry.reject);
+          this.retryCpu(entry, 'Parallel runtime stalled; worker restarted with single-thread CPU');
         }, (retryCpu || retrySingle) ? 120000 : 900000);
-        this.pending.set(id, { resolve, reject, progress, timer, op, cpuThreads, lowHeap, preference: executionPreference, model: ['load', 'import'].includes(op) ? payload.model : null });
+        this.pending.set(id, { resolve, reject, progress, timer, op, payload, cpuThreads, lowHeap, preference: executionPreference, model: ['load', 'import'].includes(op) ? payload.model : null });
         const allowExperimentalModels = localStorage.getItem('flutter.browser_allow_experimental_models') === 'true';
         const transfer = [];
         if (payload.audio instanceof Float32Array) {
@@ -81,6 +87,16 @@
         }
         this.worker.postMessage({ id, op, payload: { ...payload, executionPreference }, engine: this.engine, allowDownloads: this.allowDownloads, allowExperimentalModels }, transfer);
       });
+    }
+    retryCpu(entry, reason) {
+      if (entry.op !== 'load' || !(this.engine === 'onnx' && entry.preference !== 'wasm' || this.engine === 'crispasr' && entry.cpuThreads > 1)) return false;
+      clearTimeout(entry.timer);
+      this.cancel('Restarting model load with single-thread CPU');
+      this.request('load', entry.payload, entry.progress, 'wasm', 1).then(result => {
+        if (result?.diagnostics) result.diagnostics.fallbackReason = reason;
+        entry.resolve(result);
+      }, entry.reject);
+      return true;
     }
     cancel(message = 'Browser inference cancelled') {
       this.worker?.terminate(); this.worker = null;

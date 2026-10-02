@@ -65,3 +65,25 @@ test('threaded TTS produces speech that threaded ASR recognizes', async ({ page 
   expect(text).toContain('speech'); expect(text).toContain('browser');
   await info.attach('threaded-roundtrip.json', { body: Buffer.from(JSON.stringify(result)), contentType: 'application/json' });
 });
+
+test('threaded startup failure recovers with single-thread CPU inference', async ({ page }) => {
+  test.setTimeout(600_000);
+  await page.context().route('**/wasm/crispasr-threaded/libwhisper.js', route => route.fulfill({
+    contentType: 'application/javascript', body: "throw new Error('Threaded startup failed for recovery control');",
+  }));
+  await page.goto(TARGET);
+  const fixture = Array.from(await readFile(path.join(__dirname, '../fixtures/jfk.wav')));
+  const result = await page.evaluate(async fixture => {
+    localStorage.setItem('flutter.browser_cpu_threads', '4');
+    const bridge = (window as any).CrisperBrowserSpeech, client = bridge.create('crispasr', true);
+    try {
+      const loaded = await client.request('load', { model: 'moonshine-tiny-q4_k' });
+      const output = await client.request('transcribe', { audio: await bridge.decode(new Uint8Array(fixture)), language: 'en' });
+      return { loaded, output };
+    } finally { client.dispose(); }
+  }, fixture);
+  expect(result.loaded.diagnostics.fallbackReason).toContain('Threaded startup failed');
+  expect(result.output.diagnostics.runtimeMode).toBe('single');
+  expect(result.output.diagnostics.cpuThreads).toBe(1);
+  expect(result.output.segments.map((s: any) => s.text).join(' ').toLowerCase()).toContain('country');
+});
