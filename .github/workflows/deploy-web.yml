@@ -271,11 +271,19 @@ jobs:
           retention-days: 14
 
   model-benchmark:
-    name: Benchmark local browser models
+    name: Benchmark local browser models (${{ matrix.suite }})
     needs: build
     if: needs.build.outputs.deployed == 'true' && inputs.benchmark_models == true
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - suite: standard
+            models: crispasr:moonshine-tiny-q4_k,crispasr:stt-en-fastconformer-ctc-large-q4_k,onnx:onnx-moonshine-tiny,onnx:onnx-tiny.en
+          - suite: phonon
+            models: crispasr:phonon2-q4_k
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v4
@@ -300,12 +308,13 @@ jobs:
 
       - name: Measure cold/warm inference and memory
         env:
+          BENCHMARK_MODELS: ${{ matrix.models }}
           BASE_URL: ${{ inputs.validate_only && 'http://127.0.0.1:8766' || needs.build.outputs.flavor == 'lite' && 'https://crisperweaver-lite-web.vercel.app' || 'https://crisperweaver-web.vercel.app' }}
         run: node scripts/benchmark_browser_models.mjs
       - name: Upload local benchmark results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: browser-model-benchmark-${{ inputs.flavor }}
+          name: browser-model-benchmark-${{ inputs.flavor }}-${{ matrix.suite }}
           path: web-e2e/artifacts/model-benchmark
           retention-days: 14
