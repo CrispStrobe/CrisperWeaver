@@ -39,7 +39,7 @@ on:
         default: false
 
 concurrency:
-  group: deploy-web-${{ inputs.flavor || 'full' }}-${{ github.ref }}
+  group: deploy-web-${{ inputs.flavor || 'full' }}-${{ github.ref }}-${{ inputs.validate_only && github.sha || 'production' }}
   cancel-in-progress: false
 
 jobs:
