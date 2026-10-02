@@ -855,7 +855,7 @@ class _CrisperWeaverAppState extends ConsumerState<CrisperWeaverApp> {
             'locale',
             'onGenerateTitle resolved to locale=${Localizations.localeOf(ctx)} '
                 'appName="${l.appName}"');
-        return l.appName;
+        return BuildFlavor.isLite ? BuildFlavor.appName : l.appName;
       },
     );
   }
