@@ -103,10 +103,10 @@ exact sizes and SHA-256 hashes. Builds copy it without contacting Hub metadata.
 Refresh deliberately with `python3 scripts/lock_browser_models.py`, then
 review and rerun inference. Noble's pinned incremental SHA-256 implementation
 is bundled locally, avoiding another full-model Web Crypto digest copy.
-IndexedDB checkpoints use 4 MB parts. Models of 64 MB or more retain verified
-chunks as their persistent cache, avoiding Chromium's large-response cache
-promotion failure and a second stored copy. Smaller files stream into
-CacheStorage and temporarily need space for both copies.
+IndexedDB checkpoints use 4 MB parts. Models of every size retain verified
+chunks as their persistent cache, avoiding giant-response promotion, duplicate
+stored copies and WebKit's loss of dedicated-worker CacheStorage entries after
+worker termination. Legacy CacheStorage entries remain readable until removed.
 Web Locks serialize a model's downloads and protect cleanup where supported.
 
 ### Recorded measurements (2026-10-02)
@@ -134,9 +134,12 @@ browser allocations and is not comparable to whole-browser RSS above.
 
 ## Browser hardening validation (in progress)
 
-The Chromium two-thread ASR/cancellation/cached-reload check passed locally
-using the actual proxy runtime (45 s, 2026-10-02). Other checks below are still
-pending; successful build/export checks alone do not prove inference.
+Two/four-thread real ASR, cancellation and downloads-disabled reload pass in
+Chromium, Firefox and WebKit. All three pass four-thread Kokoro→Moonshine
+round trips. The 12 storage-recovery checks and the three fresh-worker GPU
+recovery controls pass. Compiled Full/Lite CI is still running; build/export
+checks alone do not prove inference. Evidence and benchmark scope are recorded
+in [the report](../docs/browser-hardening-2026-10-02/README.md).
 
 The browser matrix now includes Chromium, Firefox and WebKit for both flavors.
 To validate a compiled artifact on isolated runners before changing production:
@@ -175,8 +178,11 @@ WASM allocated bytes and sampled browser RSS. Phonon Q4 runs in its own CI job.
 `browser-hardware-gpu.yml` targets an existing GPU runner selected by JSON
 labels. It rejects software adapters and CPU fallback, checks the real decoded
 transcript against CPU, and records adapter identity and three warm runs. This
-host has a virtual display adapter and no render device; no physical GPU run
-has been recorded yet. A runner label/access method is still needed.
+host has a virtual adapter; physical validation instead ran on Kaggle Tesla
+T4 using the same Full/Lite worker assets. Moonshine tiny and Whisper tiny
+English fp32 both complete actual WebGPU inference, match decoded CPU output
+and have three warm runs. See the report linked above. CPU q8 remains default;
+GPU fp32 downloads larger weights. Other GPUs/models remain experimental.
 
 ```sh
 gh workflow run browser-hardware-gpu.yml --ref main \

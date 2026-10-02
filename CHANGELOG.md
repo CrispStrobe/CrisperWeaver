@@ -15,8 +15,9 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
   committed progress and clears invalid verified streams.
 - Added Chromium/Firefox/WebKit CI checks for both flavors, continuous
   multilingual recordings with noise, and isolated pre-deployment validation.
-  Smaller initial-heap runtimes and Phonon thread/memory comparisons remain
-  gated pending correctness and performance results.
+  Real threaded ASR/TTS and recovery pass in all three browsers. Recorded
+  three-run comparisons validate Moonshine/FastConformer/Phonon output parity;
+  Whisper comparisons still gate a default runtime change.
 
 - Added cache/quota controls, individual model deletion and incomplete
   download cleanup; transcript history is preserved.
@@ -28,8 +29,12 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 - Pinned models and companions to immutable Hub revisions and SHA-256 locks.
   Download checkpoints survive cancellation and resume with validated HTTP
   ranges; corrupt responses/cache entries cannot reach inference.
-- Large verified models retain chunk storage directly, avoiding a second
-  persistent copy and Chromium's large-response cache promotion failure.
+- Verified models of every size retain IndexedDB chunks, avoiding duplicate
+  storage, Chromium's large-response promotion failure and WebKit's loss of
+  dedicated-worker CacheStorage after termination.
+- ONNX GPU processing uses larger fp32 weights; actual Tesla T4 inference
+  passes decoded CPU parity for Moonshine tiny and Whisper tiny English.
+  GPU operator failures retry retained audio in a fresh CPU worker.
 - Model unload/switch terminates the worker to release grown heaps. Owned
   audio and synthesized PCM use transfer lists, and MEMFS staging files are
   released after model/voice parsing.

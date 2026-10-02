@@ -191,7 +191,11 @@ async function load(engine, selected, allowDownloads, id, bytes, allowExperiment
         if (/swiftshader|software/i.test(adapterDescription)) throw new Error('Software WebGPU adapter is unreliable for speech models; using local CPU processing');
         diagnostics.cachedLoad = await modelCached(model, 'webgpu');
         asr = await gpuDeadline(onnxSession(model, 'webgpu', allowDownloads, id), 90000, 'WebGPU model initialization'); provider = 'webgpu';
-      } catch (error) { fallbackReason = String(error.message || error).slice(0, 400); }
+      } catch (error) {
+        // Initialization may also leave ORT in an invalid state. Let the
+        // bridge discard this worker before loading the CPU session.
+        throw new Error(String(error.message || error).slice(0, 400));
+      }
     }
     if (!asr) asr = await onnxSession(model, 'wasm', allowDownloads, id);
   }
@@ -255,8 +259,16 @@ async function transcribe(engine, audio, options, id) {
       if (options.language && options.language !== 'auto') args.language = options.language;
       args.task = options.translate ? 'translate' : 'transcribe';
     } else if (options.translate) throw new Error('Use a multilingual model for translation');
-    for (const window of CW_CHUNKS.plan(audio)) {
-      const result = await inferOnnx(audio.subarray(window.start, window.end), args, id);
+    for (const window of CW_CHUNKS.plan(audio, 15)) {
+      const input = audio.subarray(window.start, window.end);
+      let result = await inferOnnx(input, args, id);
+      if (!result.text?.trim() && input.reduce((sum, value) => sum + value * value, 0) / input.length > 0.0001) {
+        // Timestamp decoding can reject speech when a window begins midway
+        // through an utterance. Retry text decoding for an energetic window;
+        // its fallback segment reports the whole window, not token precision.
+        result = await inferOnnx(input, { ...args, return_timestamps: false }, id);
+        diagnostics.timestampFallbackWindows = (diagnostics.timestampFallbackWindows || 0) + 1;
+      }
       const candidates = (result.chunks || []).map(chunk => ({ text: chunk.text,
         start: (chunk.timestamp[0] || 0) + window.start / 16000,
         end: (chunk.timestamp[1] ?? (window.end - window.start) / 16000) + window.start / 16000 }));
@@ -265,7 +277,7 @@ async function transcribe(engine, audio, options, id) {
       progress(id, Math.min(0.99, window.coreEnd / audio.length));
     }
   }
-  progress(id, 1); return { segments, model: modelId, engine, local: true };
+  progress(id, 1); return { segments, model: modelId, engine, local: true, timestampPrecision: diagnostics.timestampFallbackWindows ? 'mixed' : 'segment' };
 }
 async function synthesize(payload, allowDownloads, id) {
   const m = await crisp();

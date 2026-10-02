@@ -11,16 +11,27 @@ If a learning is still live (affects current work), it's linked from [`PLAN.md`]
 - **Verified large downloads need a storage path that avoids giant blobs.**
   Chromium rejected CacheStorage promotion of the 402 MB Phonon-2 Q4 model
   with `Unexpected internal error`. Retain verified 4 MB IndexedDB parts for
-  resources of 64 MB or more; mark them verified only after the complete
-  size/hash check, reverify on reads, and exclude them from incomplete cleanup.
-  Smaller resources can still stream into CacheStorage. This also avoids a
-  second persistent copy of large weights.
+  all resource sizes; mark them verified only after the complete size/hash
+  check, reverify on reads, and exclude them from incomplete cleanup. WebKit
+  lost small CacheStorage entries after dedicated-worker termination while
+  IndexedDB checkpoints survived. One canonical chunk cache avoids a second
+  persistent copy and works for both small and large weights.
 - **A WebGPU adapter is not evidence of usable inference.** Both ONNX
   Moonshine Tiny and Whisper Tiny English crashed Chromium's SwiftShader
   renderer on an isolated runner, while their WASM paths produced correct
   speech. Detect software adapters and retain WASM, recording the reason.
   Keep physical GPU attempts independently warning-gated; these results do
   not measure hardware GPU performance.
+- **GPU quantization needs actual output validation.** Tesla T4 WebGPU q8
+  Moonshine produced incorrect text; q8 Whisper hit an alignment fault. fp32
+  passes known speech and decoded CPU parity for both across three warm runs.
+  GPU failures restart a fresh CPU worker because the failed ORT session can
+  poison WASM state. A physical adapter alone still proves nothing.
+- **A pthread servicer must remain available.** Synchronous model-open/ASR on
+  the worker that services pthread requests can block thread startup or joins.
+  Proxy native compute asynchronously and create JS values on the servicer.
+  Reject unready/non-proxy async calls rather than running inline. Keep the
+  single-thread runtime and cancellation by worker termination.
 - **Deduplication must be limited to overlapping audio.** A fixed 24-word
   text match erased intentional repetition in a four-utterance fixture.
   Limit the matching suffix/prefix to actual context duration and keep the
@@ -37,9 +48,9 @@ If a learning is still live (affects current work), it's linked from [`PLAN.md`]
   passed in Chromium. The 402 MB GGUF is different from the upstream 164 MB
   compressed transport, and neither number is peak working memory. Q4
   stays experimental; Q8/F16 are not validated by that success.
-- **Avoid duplicate complete download buffers.** Consume the CacheStorage
-  clone while reading the inference branch, preallocate when content length
-  permits, and use MEMFS ownership for the ASR model buffer. These reduce
+- **Avoid duplicate complete download buffers.** ONNX download verification
+  uses bounded chunk staging without a second full destination; preallocate
+  when native inference needs complete bytes, and use MEMFS ownership. These reduce
   loading copies, but do not bound model graph allocations or browser memory.
 - **Compiled backend availability is only one part of support.** Pass the
   actual backend to `asrOpen`, reject absent backends before download, and

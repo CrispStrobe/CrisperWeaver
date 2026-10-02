@@ -1,0 +1,1143 @@
+{
+  "target": "http://127.0.0.1:8766",
+  "created": "2026-10-02T12:45:48.031Z",
+  "platform": "linux",
+  "memoryScope": "Sampled sum of Chromium process-tree RSS, including browser baseline and shared pages counted per process; not live tensor memory or device VRAM.",
+  "results": [
+    {
+      "engine": "onnx",
+      "model": "onnx-moonshine-tiny",
+      "preference": "wasm",
+      "cpuThreads": 1,
+      "lowHeap": false,
+      "runs": [
+        {
+          "cache": "cold",
+          "loaded": {
+            "operation": "load",
+            "model": "onnx-moonshine-tiny",
+            "engine": "onnx",
+            "peakWasmBytes": null,
+            "cachedLoad": false,
+            "elapsedMs": 6885.280000000028,
+            "runtimeMode": "onnx",
+            "cpuThreads": 1,
+            "dtype": "q8",
+            "provider": "wasm",
+            "fallbackReason": null,
+            "observedJsHeapBytes": 10000000
+          },
+          "inference": {
+            "operation": "transcribe",
+            "model": "onnx-moonshine-tiny",
+            "engine": "onnx",
+            "peakWasmBytes": null,
+            "elapsedMs": 1668.6999999999534,
+            "runtimeMode": "onnx",
+            "cpuThreads": 1,
+            "dtype": "q8",
+            "provider": "wasm",
+            "fallbackReason": null,
+            "audioSeconds": 11,
+            "observedJsHeapBytes": 10000000
+          },
+          "transcript": "And so my fellow Americans ask not what your country can do for you, ask what you can do for your country.",
+          "local": true,
+          "baselineBrowserRssBytes": 575717376,
+          "peakBrowserRssBytes": 1234763776,
+          "baselineGpuMemory": [
+            {
+              "index": "0",
+              "name": "Tesla T4",
+              "uuid": "GPU-902b2f4d-a499-85c1-49f5-f43af069668d",
+              "usedBytes": 42991616,
+              "totalBytes": 16106127360
+            },
+            {
+              "index": "1",
+              "name": "Tesla T4",
+              "uuid": "GPU-6311a1b0-3e42-ac5a-a500-76e408667885",
+              "usedBytes": 1048576,
+              "totalBytes": 16106127360
+            }
+          ],
+          "peakGpuMemory": [
+            {
+              "index": "0",
+              "name": "Tesla T4",
+              "uuid": "GPU-902b2f4d-a499-85c1-49f5-f43af069668d",
+              "usedBytes": 42991616,
+              "totalBytes": 16106127360
+            },
+            {
+              "index": "1",
+              "name": "Tesla T4",
+              "uuid": "GPU-6311a1b0-3e42-ac5a-a500-76e408667885",
+              "usedBytes": 1048576,
+              "totalBytes": 16106127360
+            }
+          ]
+        },
+        {
+          "cache": "warm-1",
+          "loaded": {
+            "operation": "load",
+            "model": "onnx-moonshine-tiny",
+            "engine": "onnx",
+            "peakWasmBytes": null,
+            "cachedLoad": true,
+            "elapsedMs": 5178.300000000047,
+            "runtimeMode": "onnx",
+            "cpuThreads": 1,
+            "dtype": "q8",
+            "provider": "wasm",
+            "fallbackReason": null,
+            "observedJsHeapBytes": 10000000
+          },
+          "inference": {
+            "operation": "transcribe",
+            "model": "onnx-moonshine-tiny",
+            "engine": "onnx",
+            "peakWasmBytes": null,
+            "elapsedMs": 1757.7399999999907,
+            "runtimeMode": "onnx",
+            "cpuThreads": 1,
+            "dtype": "q8",
+            "provider": "wasm",
+            "fallbackReason": null,
+            "audioSeconds": 11,
+            "observedJsHeapBytes": 10000000
+          },
+          "transcript": "And so my fellow Americans ask not what your country can do for you, ask what you can do for your country.",
+          "local": true,
+          "baselineBrowserRssBytes": 1062764544,
+          "peakBrowserRssBytes": 1255301120,
+          "baselineGpuMemory": [
+            {
+              "index": "0",
+              "name": "Tesla T4",
+              "uuid": "GPU-902b2f4d-a499-85c1-49f5-f43af069668d",
+              "usedBytes": 38797312,
+              "totalBytes": 16106127360
+            },
+            {
+              "index": "1",
+              "name": "Tesla T4",
+              "uuid": "GPU-6311a1b0-3e42-ac5a-a500-76e408667885",
+              "usedBytes": 1048576,
+              "totalBytes": 16106127360
+            }
+          ],
+          "peakGpuMemory": [
+            {
+              "index": "0",
+              "name": "Tesla T4",
+              "uuid": "GPU-902b2f4d-a499-85c1-49f5-f43af069668d",
+              "usedBytes": 38797312,
+              "totalBytes": 16106127360
+            },
+            {
+              "index": "1",
+              "name": "Tesla T4",
+              "uuid": "GPU-6311a1b0-3e42-ac5a-a500-76e408667885",
+              "usedBytes": 1048576,
+              "totalBytes": 16106127360
+            }
+          ]
+        },
+        {
+          "cache": "warm-2",
+          "loaded": {
+            "operation": "load",
+            "model": "onnx-moonshine-tiny",
+            "engine": "onnx",
+            "peakWasmBytes": null,
+            "cachedLoad": true,
+            "elapsedMs": 5251.429999999935,
+            "runtimeMode": "onnx",
+            "cpuThreads": 1,
+            "dtype": "q8",
+            "provider": "wasm",
+            "fallbackReason": null,
+            "observedJsHeapBytes": 10000000
+          },
+          "inference": {
+            "operation": "transcribe",
+            "model": "onnx-moonshine-tiny",
+            "engine": "onnx",
+            "peakWasmBytes": null,
+            "elapsedMs": 1799.5600000000559,
+            "runtimeMode": "onnx",
+            "cpuThreads": 1,
+            "dtype": "q8",
+            "provider": "wasm",
+            "fallbackReason": null,
+            "audioSeconds": 11,
+            "observedJsHeapBytes": 10000000
+          },
+          "transcript": "And so my fellow Americans ask not what your country can do for you, ask what you can do for your country.",
+          "local": true,
+          "baselineBrowserRssBytes": 1032650752,
+          "peakBrowserRssBytes": 1336487936,
+          "baselineGpuMemory": [
+            {
+              "index": "0",
+              "name": "Tesla T4",
+              "uuid": "GPU-902b2f4d-a499-85c1-49f5-f43af069668d",
+              "usedBytes": 38797312,
+              "totalBytes": 16106127360
+            },
+            {
+              "index": "1",
+              "name": "Tesla T4",
+              "uuid": "GPU-6311a1b0-3e42-ac5a-a500-76e408667885",
+              "usedBytes": 1048576,
+              "totalBytes": 16106127360
+            }
+          ],
+          "peakGpuMemory": [
+            {
+              "index": "0",
+              "name": "Tesla T4",
+              "uuid": "GPU-902b2f4d-a499-85c1-49f5-f43af069668d",
+              "usedBytes": 38797312,
+              "totalBytes": 16106127360
+            },
+            {
+              "index": "1",
+              "name": "Tesla T4",
+              "uuid": "GPU-6311a1b0-3e42-ac5a-a500-76e408667885",
+              "usedBytes": 1048576,
+              "totalBytes": 16106127360
+            }
+          ]
+        },
+        {
+          "cache": "warm-3",
+          "loaded": {
+            "operation": "load",
+            "model": "onnx-moonshine-tiny",
+            "engine": "onnx",
+            "peakWasmBytes": null,
+            "cachedLoad": true,
+            "elapsedMs": 5295.104999999981,
+            "runtimeMode": "onnx",
+            "cpuThreads": 1,
+            "dtype": "q8",
+            "provider": "wasm",
+            "fallbackReason": null,
+            "observedJsHeapBytes": 10000000
+          },
+          "inference": {
+            "operation": "transcribe",
+            "model": "onnx-moonshine-tiny",
+            "engine": "onnx",
+            "peakWasmBytes": null,
+            "elapsedMs": 1638.6950000000652,
+            "runtimeMode": "onnx",
+            "cpuThreads": 1,
+            "dtype": "q8",
+            "provider": "wasm",
+            "fallbackReason": null,
+            "audioSeconds": 11,
+            "observedJsHeapBytes": 10000000
+          },
+          "transcript": "And so my fellow Americans ask not what your country can do for you, ask what you can do for your country.",
+          "local": true,
+          "baselineBrowserRssBytes": 1063907328,
+          "peakBrowserRssBytes": 1261776896,
+          "baselineGpuMemory": [
+            {
+              "index": "0",
+              "name": "Tesla T4",
+              "uuid": "GPU-902b2f4d-a499-85c1-49f5-f43af069668d",
+              "usedBytes": 38797312,
+              "totalBytes": 16106127360
+            },
+            {
+              "index": "1",
+              "name": "Tesla T4",
+              "uuid": "GPU-6311a1b0-3e42-ac5a-a500-76e408667885",
+              "usedBytes": 1048576,
+              "totalBytes": 16106127360
+            }
+          ],
+          "peakGpuMemory": [
+            {
+              "index": "0",
+              "name": "Tesla T4",
+              "uuid": "GPU-902b2f4d-a499-85c1-49f5-f43af069668d",
+              "usedBytes": 38797312,
+              "totalBytes": 16106127360
+            },
+            {
+              "index": "1",
+              "name": "Tesla T4",
+              "uuid": "GPU-6311a1b0-3e42-ac5a-a500-76e408667885",
+              "usedBytes": 1048576,
+              "totalBytes": 16106127360
+            }
+          ]
+        }
+      ],
+      "gpu": {
+        "description": "",
+        "vendor": "nvidia",
+        "architecture": "turing"
+      },
+      "medianWarmInferenceMs": 1757.7399999999907
+    },
+    {
+      "engine": "onnx",
+      "model": "onnx-moonshine-tiny",
+      "preference": "webgpu",
+      "cpuThreads": 1,
+      "lowHeap": false,
+      "runs": [
+        {
+          "cache": "cold",
+          "loaded": {
+            "operation": "load",
+            "model": "onnx-moonshine-tiny",
+            "engine": "onnx",
+            "peakWasmBytes": null,
+            "cachedLoad": false,
+            "elapsedMs": 10133.305000000168,
+            "runtimeMode": "onnx",
+            "cpuThreads": 1,
+            "dtype": "fp32",
+            "provider": "webgpu",
+            "fallbackReason": null,
+            "observedJsHeapBytes": 10000000
+          },
+          "inference": {
+            "operation": "transcribe",
+            "model": "onnx-moonshine-tiny",
+            "engine": "onnx",
+            "peakWasmBytes": null,
+            "elapsedMs": 3376.440000000177,
+            "runtimeMode": "onnx",
+            "cpuThreads": 1,
+            "dtype": "fp32",
+            "provider": "webgpu",
+            "fallbackReason": null,
+            "audioSeconds": 11,
+            "observedJsHeapBytes": 10000000
+          },
+          "transcript": "And so my fellow Americans ask not what your country can do for you, ask what you can do for your country.",
+          "local": true,
+          "baselineBrowserRssBytes": 545554432,
+          "peakBrowserRssBytes": 1845002240,
+          "baselineGpuMemory": [
+            {
+              "index": "0",
+              "name": "Tesla T4",
+              "uuid": "GPU-902b2f4d-a499-85c1-49f5-f43af069668d",
+              "usedBytes": 42991616,
+              "totalBytes": 16106127360
+            },
+            {
+              "index": "1",
+              "name": "Tesla T4",
+              "uuid": "GPU-6311a1b0-3e42-ac5a-a500-76e408667885",
+              "usedBytes": 1048576,
+              "totalBytes": 16106127360
+            }
+          ],
+          "peakGpuMemory": [
+            {
+              "index": "0",
+              "name": "Tesla T4",
+              "uuid": "GPU-902b2f4d-a499-85c1-49f5-f43af069668d",
+              "usedBytes": 364904448,
+              "totalBytes": 16106127360
+            },
+            {
+              "index": "1",
+              "name": "Tesla T4",
+              "uuid": "GPU-6311a1b0-3e42-ac5a-a500-76e408667885",
+              "usedBytes": 1048576,
+              "totalBytes": 16106127360
+            }
+          ]
+        },
+        {
+          "cache": "warm-1",
+          "loaded": {
+            "operation": "load",
+            "model": "onnx-moonshine-tiny",
+            "engine": "onnx",
+            "peakWasmBytes": null,
+            "cachedLoad": true,
+            "elapsedMs": 6190.089999999851,
+            "runtimeMode": "onnx",
+            "cpuThreads": 1,
+            "dtype": "fp32",
+            "provider": "webgpu",
+            "fallbackReason": null,
+            "observedJsHeapBytes": 10000000
+          },
+          "inference": {
+            "operation": "transcribe",
+            "model": "onnx-moonshine-tiny",
+            "engine": "onnx",
+            "peakWasmBytes": null,
+            "elapsedMs": 2060.405000000028,
+            "runtimeMode": "onnx",
+            "cpuThreads": 1,
+            "dtype": "fp32",
+            "provider": "webgpu",
+            "fallbackReason": null,
+            "audioSeconds": 11,
+            "observedJsHeapBytes": 10000000
+          },
+          "transcript": "And so my fellow Americans ask not what your country can do for you, ask what you can do for your country.",
+          "local": true,
+          "baselineBrowserRssBytes": 1766072320,
+          "peakBrowserRssBytes": 1851957248,
+          "baselineGpuMemory": [
+            {
+              "index": "0",
+              "name": "Tesla T4",
+              "uuid": "GPU-902b2f4d-a499-85c1-49f5-f43af069668d",
+              "usedBytes": 93323264,
+              "totalBytes": 16106127360
+            },
+            {
+              "index": "1",
+              "name": "Tesla T4",
+              "uuid": "GPU-6311a1b0-3e42-ac5a-a500-76e408667885",
+              "usedBytes": 1048576,
+              "totalBytes": 16106127360
+            }
+          ],
+          "peakGpuMemory": [
+            {
+              "index": "0",
+              "name": "Tesla T4",
+              "uuid": "GPU-902b2f4d-a499-85c1-49f5-f43af069668d",
+              "usedBytes": 364904448,
+              "totalBytes": 16106127360
+            },
+            {
+              "index": "1",
+              "name": "Tesla T4",
+              "uuid": "GPU-6311a1b0-3e42-ac5a-a500-76e408667885",
+              "usedBytes": 1048576,
+              "totalBytes": 16106127360
+            }
+          ]
+        },
+        {
+          "cache": "warm-2",
+          "loaded": {
+            "operation": "load",
+            "model": "onnx-moonshine-tiny",
+            "engine": "onnx",
+            "peakWasmBytes": null,
+            "cachedLoad": true,
+            "elapsedMs": 6315.800000000047,
+            "runtimeMode": "onnx",
+            "cpuThreads": 1,
+            "dtype": "fp32",
+            "provider": "webgpu",
+            "fallbackReason": null,
+            "observedJsHeapBytes": 10000000
+          },
+          "inference": {
+            "operation": "transcribe",
+            "model": "onnx-moonshine-tiny",
+            "engine": "onnx",
+            "peakWasmBytes": null,
+            "elapsedMs": 2046.3300000000745,
+            "runtimeMode": "onnx",
+            "cpuThreads": 1,
+            "dtype": "fp32",
+            "provider": "webgpu",
+            "fallbackReason": null,
+            "audioSeconds": 11,
+            "observedJsHeapBytes": 10000000
+          },
+          "transcript": "And so my fellow Americans ask not what your country can do for you, ask what you can do for your country.",
+          "local": true,
+          "baselineBrowserRssBytes": 1738186752,
+          "peakBrowserRssBytes": 1860935680,
+          "baselineGpuMemory": [
+            {
+              "index": "0",
+              "name": "Tesla T4",
+              "uuid": "GPU-902b2f4d-a499-85c1-49f5-f43af069668d",
+              "usedBytes": 33554432,
+              "totalBytes": 16106127360
+            },
+            {
+              "index": "1",
+              "name": "Tesla T4",
+              "uuid": "GPU-6311a1b0-3e42-ac5a-a500-76e408667885",
+              "usedBytes": 1048576,
+              "totalBytes": 16106127360
+            }
+          ],
+          "peakGpuMemory": [
+            {
+              "index": "0",
+              "name": "Tesla T4",
+              "uuid": "GPU-902b2f4d-a499-85c1-49f5-f43af069668d",
+              "usedBytes": 364904448,
+              "totalBytes": 16106127360
+            },
+            {
+              "index": "1",
+              "name": "Tesla T4",
+              "uuid": "GPU-6311a1b0-3e42-ac5a-a500-76e408667885",
+              "usedBytes": 1048576,
+              "totalBytes": 16106127360
+            }
+          ]
+        },
+        {
+          "cache": "warm-3",
+          "loaded": {
+            "operation": "load",
+            "model": "onnx-moonshine-tiny",
+            "engine": "onnx",
+            "peakWasmBytes": null,
+            "cachedLoad": true,
+            "elapsedMs": 6446.560000000056,
+            "runtimeMode": "onnx",
+            "cpuThreads": 1,
+            "dtype": "fp32",
+            "provider": "webgpu",
+            "fallbackReason": null,
+            "observedJsHeapBytes": 10000000
+          },
+          "inference": {
+            "operation": "transcribe",
+            "model": "onnx-moonshine-tiny",
+            "engine": "onnx",
+            "peakWasmBytes": null,
+            "elapsedMs": 2044.4899999999907,
+            "runtimeMode": "onnx",
+            "cpuThreads": 1,
+            "dtype": "fp32",
+            "provider": "webgpu",
+            "fallbackReason": null,
+            "audioSeconds": 11,
+            "observedJsHeapBytes": 10000000
+          },
+          "transcript": "And so my fellow Americans ask not what your country can do for you, ask what you can do for your country.",
+          "local": true,
+          "baselineBrowserRssBytes": 1757196288,
+          "peakBrowserRssBytes": 1830973440,
+          "baselineGpuMemory": [
+            {
+              "index": "0",
+              "name": "Tesla T4",
+              "uuid": "GPU-902b2f4d-a499-85c1-49f5-f43af069668d",
+              "usedBytes": 34603008,
+              "totalBytes": 16106127360
+            },
+            {
+              "index": "1",
+              "name": "Tesla T4",
+              "uuid": "GPU-6311a1b0-3e42-ac5a-a500-76e408667885",
+              "usedBytes": 1048576,
+              "totalBytes": 16106127360
+            }
+          ],
+          "peakGpuMemory": [
+            {
+              "index": "0",
+              "name": "Tesla T4",
+              "uuid": "GPU-902b2f4d-a499-85c1-49f5-f43af069668d",
+              "usedBytes": 364904448,
+              "totalBytes": 16106127360
+            },
+            {
+              "index": "1",
+              "name": "Tesla T4",
+              "uuid": "GPU-6311a1b0-3e42-ac5a-a500-76e408667885",
+              "usedBytes": 1048576,
+              "totalBytes": 16106127360
+            }
+          ]
+        }
+      ],
+      "gpu": {
+        "description": "",
+        "vendor": "nvidia",
+        "architecture": "turing"
+      },
+      "medianWarmInferenceMs": 2046.3300000000745,
+      "transcriptParity": true
+    },
+    {
+      "engine": "onnx",
+      "model": "onnx-tiny.en",
+      "preference": "wasm",
+      "cpuThreads": 1,
+      "lowHeap": false,
+      "runs": [
+        {
+          "cache": "cold",
+          "loaded": {
+            "operation": "load",
+            "model": "onnx-tiny.en",
+            "engine": "onnx",
+            "peakWasmBytes": null,
+            "cachedLoad": false,
+            "elapsedMs": 6071.6699999999255,
+            "runtimeMode": "onnx",
+            "cpuThreads": 1,
+            "dtype": "q8",
+            "provider": "wasm",
+            "fallbackReason": null,
+            "observedJsHeapBytes": 10000000
+          },
+          "inference": {
+            "operation": "transcribe",
+            "model": "onnx-tiny.en",
+            "engine": "onnx",
+            "peakWasmBytes": null,
+            "elapsedMs": 4318.309999999823,
+            "runtimeMode": "onnx",
+            "cpuThreads": 1,
+            "dtype": "q8",
+            "provider": "wasm",
+            "fallbackReason": null,
+            "audioSeconds": 11,
+            "observedJsHeapBytes": 10000000
+          },
+          "transcript": "And so my fellow Americans ask not what your country can do for you ask what you can do for your country.",
+          "local": true,
+          "baselineBrowserRssBytes": 551829504,
+          "peakBrowserRssBytes": 1363812352,
+          "baselineGpuMemory": [
+            {
+              "index": "0",
+              "name": "Tesla T4",
+              "uuid": "GPU-902b2f4d-a499-85c1-49f5-f43af069668d",
+              "usedBytes": 42991616,
+              "totalBytes": 16106127360
+            },
+            {
+              "index": "1",
+              "name": "Tesla T4",
+              "uuid": "GPU-6311a1b0-3e42-ac5a-a500-76e408667885",
+              "usedBytes": 1048576,
+              "totalBytes": 16106127360
+            }
+          ],
+          "peakGpuMemory": [
+            {
+              "index": "0",
+              "name": "Tesla T4",
+              "uuid": "GPU-902b2f4d-a499-85c1-49f5-f43af069668d",
+              "usedBytes": 42991616,
+              "totalBytes": 16106127360
+            },
+            {
+              "index": "1",
+              "name": "Tesla T4",
+              "uuid": "GPU-6311a1b0-3e42-ac5a-a500-76e408667885",
+              "usedBytes": 1048576,
+              "totalBytes": 16106127360
+            }
+          ]
+        },
+        {
+          "cache": "warm-1",
+          "loaded": {
+            "operation": "load",
+            "model": "onnx-tiny.en",
+            "engine": "onnx",
+            "peakWasmBytes": null,
+            "cachedLoad": true,
+            "elapsedMs": 4275.72499999986,
+            "runtimeMode": "onnx",
+            "cpuThreads": 1,
+            "dtype": "q8",
+            "provider": "wasm",
+            "fallbackReason": null,
+            "observedJsHeapBytes": 10000000
+          },
+          "inference": {
+            "operation": "transcribe",
+            "model": "onnx-tiny.en",
+            "engine": "onnx",
+            "peakWasmBytes": null,
+            "elapsedMs": 4496.324999999953,
+            "runtimeMode": "onnx",
+            "cpuThreads": 1,
+            "dtype": "q8",
+            "provider": "wasm",
+            "fallbackReason": null,
+            "audioSeconds": 11,
+            "observedJsHeapBytes": 10000000
+          },
+          "transcript": "And so my fellow Americans ask not what your country can do for you ask what you can do for your country.",
+          "local": true,
+          "baselineBrowserRssBytes": 1211367424,
+          "peakBrowserRssBytes": 1343008768,
+          "baselineGpuMemory": [
+            {
+              "index": "0",
+              "name": "Tesla T4",
+              "uuid": "GPU-902b2f4d-a499-85c1-49f5-f43af069668d",
+              "usedBytes": 30408704,
+              "totalBytes": 16106127360
+            },
+            {
+              "index": "1",
+              "name": "Tesla T4",
+              "uuid": "GPU-6311a1b0-3e42-ac5a-a500-76e408667885",
+              "usedBytes": 1048576,
+              "totalBytes": 16106127360
+            }
+          ],
+          "peakGpuMemory": [
+            {
+              "index": "0",
+              "name": "Tesla T4",
+              "uuid": "GPU-902b2f4d-a499-85c1-49f5-f43af069668d",
+              "usedBytes": 41943040,
+              "totalBytes": 16106127360
+            },
+            {
+              "index": "1",
+              "name": "Tesla T4",
+              "uuid": "GPU-6311a1b0-3e42-ac5a-a500-76e408667885",
+              "usedBytes": 1048576,
+              "totalBytes": 16106127360
+            }
+          ]
+        },
+        {
+          "cache": "warm-2",
+          "loaded": {
+            "operation": "load",
+            "model": "onnx-tiny.en",
+            "engine": "onnx",
+            "peakWasmBytes": null,
+            "cachedLoad": true,
+            "elapsedMs": 4331.114999999991,
+            "runtimeMode": "onnx",
+            "cpuThreads": 1,
+            "dtype": "q8",
+            "provider": "wasm",
+            "fallbackReason": null,
+            "observedJsHeapBytes": 10000000
+          },
+          "inference": {
+            "operation": "transcribe",
+            "model": "onnx-tiny.en",
+            "engine": "onnx",
+            "peakWasmBytes": null,
+            "elapsedMs": 4427.5449999999255,
+            "runtimeMode": "onnx",
+            "cpuThreads": 1,
+            "dtype": "q8",
+            "provider": "wasm",
+            "fallbackReason": null,
+            "audioSeconds": 11,
+            "observedJsHeapBytes": 10000000
+          },
+          "transcript": "And so my fellow Americans ask not what your country can do for you ask what you can do for your country.",
+          "local": true,
+          "baselineBrowserRssBytes": 1201557504,
+          "peakBrowserRssBytes": 1338949632,
+          "baselineGpuMemory": [
+            {
+              "index": "0",
+              "name": "Tesla T4",
+              "uuid": "GPU-902b2f4d-a499-85c1-49f5-f43af069668d",
+              "usedBytes": 30408704,
+              "totalBytes": 16106127360
+            },
+            {
+              "index": "1",
+              "name": "Tesla T4",
+              "uuid": "GPU-6311a1b0-3e42-ac5a-a500-76e408667885",
+              "usedBytes": 1048576,
+              "totalBytes": 16106127360
+            }
+          ],
+          "peakGpuMemory": [
+            {
+              "index": "0",
+              "name": "Tesla T4",
+              "uuid": "GPU-902b2f4d-a499-85c1-49f5-f43af069668d",
+              "usedBytes": 41943040,
+              "totalBytes": 16106127360
+            },
+            {
+              "index": "1",
+              "name": "Tesla T4",
+              "uuid": "GPU-6311a1b0-3e42-ac5a-a500-76e408667885",
+              "usedBytes": 1048576,
+              "totalBytes": 16106127360
+            }
+          ]
+        },
+        {
+          "cache": "warm-3",
+          "loaded": {
+            "operation": "load",
+            "model": "onnx-tiny.en",
+            "engine": "onnx",
+            "peakWasmBytes": null,
+            "cachedLoad": true,
+            "elapsedMs": 4209.614999999991,
+            "runtimeMode": "onnx",
+            "cpuThreads": 1,
+            "dtype": "q8",
+            "provider": "wasm",
+            "fallbackReason": null,
+            "observedJsHeapBytes": 10000000
+          },
+          "inference": {
+            "operation": "transcribe",
+            "model": "onnx-tiny.en",
+            "engine": "onnx",
+            "peakWasmBytes": null,
+            "elapsedMs": 4359.215000000084,
+            "runtimeMode": "onnx",
+            "cpuThreads": 1,
+            "dtype": "q8",
+            "provider": "wasm",
+            "fallbackReason": null,
+            "audioSeconds": 11,
+            "observedJsHeapBytes": 10000000
+          },
+          "transcript": "And so my fellow Americans ask not what your country can do for you ask what you can do for your country.",
+          "local": true,
+          "baselineBrowserRssBytes": 1197170688,
+          "peakBrowserRssBytes": 1348952064,
+          "baselineGpuMemory": [
+            {
+              "index": "0",
+              "name": "Tesla T4",
+              "uuid": "GPU-902b2f4d-a499-85c1-49f5-f43af069668d",
+              "usedBytes": 30408704,
+              "totalBytes": 16106127360
+            },
+            {
+              "index": "1",
+              "name": "Tesla T4",
+              "uuid": "GPU-6311a1b0-3e42-ac5a-a500-76e408667885",
+              "usedBytes": 1048576,
+              "totalBytes": 16106127360
+            }
+          ],
+          "peakGpuMemory": [
+            {
+              "index": "0",
+              "name": "Tesla T4",
+              "uuid": "GPU-902b2f4d-a499-85c1-49f5-f43af069668d",
+              "usedBytes": 41943040,
+              "totalBytes": 16106127360
+            },
+            {
+              "index": "1",
+              "name": "Tesla T4",
+              "uuid": "GPU-6311a1b0-3e42-ac5a-a500-76e408667885",
+              "usedBytes": 1048576,
+              "totalBytes": 16106127360
+            }
+          ]
+        }
+      ],
+      "gpu": {
+        "description": "",
+        "vendor": "nvidia",
+        "architecture": "turing"
+      },
+      "medianWarmInferenceMs": 4427.5449999999255
+    },
+    {
+      "engine": "onnx",
+      "model": "onnx-tiny.en",
+      "preference": "webgpu",
+      "cpuThreads": 1,
+      "lowHeap": false,
+      "runs": [
+        {
+          "cache": "cold",
+          "loaded": {
+            "operation": "load",
+            "model": "onnx-tiny.en",
+            "engine": "onnx",
+            "peakWasmBytes": null,
+            "cachedLoad": false,
+            "elapsedMs": 11445.870000000112,
+            "runtimeMode": "onnx",
+            "cpuThreads": 1,
+            "dtype": "fp32",
+            "provider": "webgpu",
+            "fallbackReason": null,
+            "observedJsHeapBytes": 10000000
+          },
+          "inference": {
+            "operation": "transcribe",
+            "model": "onnx-tiny.en",
+            "engine": "onnx",
+            "peakWasmBytes": null,
+            "elapsedMs": 2424.5450000001583,
+            "runtimeMode": "onnx",
+            "cpuThreads": 1,
+            "dtype": "fp32",
+            "provider": "webgpu",
+            "fallbackReason": null,
+            "audioSeconds": 11,
+            "observedJsHeapBytes": 10000000
+          },
+          "transcript": "And so my fellow Americans ask not what your country can do for you ask what you can do for your country.",
+          "local": true,
+          "baselineBrowserRssBytes": 548597760,
+          "peakBrowserRssBytes": 2226102272,
+          "baselineGpuMemory": [
+            {
+              "index": "0",
+              "name": "Tesla T4",
+              "uuid": "GPU-902b2f4d-a499-85c1-49f5-f43af069668d",
+              "usedBytes": 42991616,
+              "totalBytes": 16106127360
+            },
+            {
+              "index": "1",
+              "name": "Tesla T4",
+              "uuid": "GPU-6311a1b0-3e42-ac5a-a500-76e408667885",
+              "usedBytes": 1048576,
+              "totalBytes": 16106127360
+            }
+          ],
+          "peakGpuMemory": [
+            {
+              "index": "0",
+              "name": "Tesla T4",
+              "uuid": "GPU-902b2f4d-a499-85c1-49f5-f43af069668d",
+              "usedBytes": 903872512,
+              "totalBytes": 16106127360
+            },
+            {
+              "index": "1",
+              "name": "Tesla T4",
+              "uuid": "GPU-6311a1b0-3e42-ac5a-a500-76e408667885",
+              "usedBytes": 1048576,
+              "totalBytes": 16106127360
+            }
+          ]
+        },
+        {
+          "cache": "warm-1",
+          "loaded": {
+            "operation": "load",
+            "model": "onnx-tiny.en",
+            "engine": "onnx",
+            "peakWasmBytes": null,
+            "cachedLoad": true,
+            "elapsedMs": 7054.119999999879,
+            "runtimeMode": "onnx",
+            "cpuThreads": 1,
+            "dtype": "fp32",
+            "provider": "webgpu",
+            "fallbackReason": null,
+            "observedJsHeapBytes": 10000000
+          },
+          "inference": {
+            "operation": "transcribe",
+            "model": "onnx-tiny.en",
+            "engine": "onnx",
+            "peakWasmBytes": null,
+            "elapsedMs": 1914.7700000000186,
+            "runtimeMode": "onnx",
+            "cpuThreads": 1,
+            "dtype": "fp32",
+            "provider": "webgpu",
+            "fallbackReason": null,
+            "audioSeconds": 11,
+            "observedJsHeapBytes": 10000000
+          },
+          "transcript": "And so my fellow Americans ask not what your country can do for you ask what you can do for your country.",
+          "local": true,
+          "baselineBrowserRssBytes": 2047864832,
+          "peakBrowserRssBytes": 2223423488,
+          "baselineGpuMemory": [
+            {
+              "index": "0",
+              "name": "Tesla T4",
+              "uuid": "GPU-902b2f4d-a499-85c1-49f5-f43af069668d",
+              "usedBytes": 101711872,
+              "totalBytes": 16106127360
+            },
+            {
+              "index": "1",
+              "name": "Tesla T4",
+              "uuid": "GPU-6311a1b0-3e42-ac5a-a500-76e408667885",
+              "usedBytes": 1048576,
+              "totalBytes": 16106127360
+            }
+          ],
+          "peakGpuMemory": [
+            {
+              "index": "0",
+              "name": "Tesla T4",
+              "uuid": "GPU-902b2f4d-a499-85c1-49f5-f43af069668d",
+              "usedBytes": 903872512,
+              "totalBytes": 16106127360
+            },
+            {
+              "index": "1",
+              "name": "Tesla T4",
+              "uuid": "GPU-6311a1b0-3e42-ac5a-a500-76e408667885",
+              "usedBytes": 1048576,
+              "totalBytes": 16106127360
+            }
+          ]
+        },
+        {
+          "cache": "warm-2",
+          "loaded": {
+            "operation": "load",
+            "model": "onnx-tiny.en",
+            "engine": "onnx",
+            "peakWasmBytes": null,
+            "cachedLoad": true,
+            "elapsedMs": 7205.329999999842,
+            "runtimeMode": "onnx",
+            "cpuThreads": 1,
+            "dtype": "fp32",
+            "provider": "webgpu",
+            "fallbackReason": null,
+            "observedJsHeapBytes": 10000000
+          },
+          "inference": {
+            "operation": "transcribe",
+            "model": "onnx-tiny.en",
+            "engine": "onnx",
+            "peakWasmBytes": null,
+            "elapsedMs": 1925.0999999998603,
+            "runtimeMode": "onnx",
+            "cpuThreads": 1,
+            "dtype": "fp32",
+            "provider": "webgpu",
+            "fallbackReason": null,
+            "audioSeconds": 11,
+            "observedJsHeapBytes": 10000000
+          },
+          "transcript": "And so my fellow Americans ask not what your country can do for you ask what you can do for your country.",
+          "local": true,
+          "baselineBrowserRssBytes": 2041225216,
+          "peakBrowserRssBytes": 2230947840,
+          "baselineGpuMemory": [
+            {
+              "index": "0",
+              "name": "Tesla T4",
+              "uuid": "GPU-902b2f4d-a499-85c1-49f5-f43af069668d",
+              "usedBytes": 101711872,
+              "totalBytes": 16106127360
+            },
+            {
+              "index": "1",
+              "name": "Tesla T4",
+              "uuid": "GPU-6311a1b0-3e42-ac5a-a500-76e408667885",
+              "usedBytes": 1048576,
+              "totalBytes": 16106127360
+            }
+          ],
+          "peakGpuMemory": [
+            {
+              "index": "0",
+              "name": "Tesla T4",
+              "uuid": "GPU-902b2f4d-a499-85c1-49f5-f43af069668d",
+              "usedBytes": 903872512,
+              "totalBytes": 16106127360
+            },
+            {
+              "index": "1",
+              "name": "Tesla T4",
+              "uuid": "GPU-6311a1b0-3e42-ac5a-a500-76e408667885",
+              "usedBytes": 1048576,
+              "totalBytes": 16106127360
+            }
+          ]
+        },
+        {
+          "cache": "warm-3",
+          "loaded": {
+            "operation": "load",
+            "model": "onnx-tiny.en",
+            "engine": "onnx",
+            "peakWasmBytes": null,
+            "cachedLoad": true,
+            "elapsedMs": 7240.905000000028,
+            "runtimeMode": "onnx",
+            "cpuThreads": 1,
+            "dtype": "fp32",
+            "provider": "webgpu",
+            "fallbackReason": null,
+            "observedJsHeapBytes": 10000000
+          },
+          "inference": {
+            "operation": "transcribe",
+            "model": "onnx-tiny.en",
+            "engine": "onnx",
+            "peakWasmBytes": null,
+            "elapsedMs": 1987.059999999823,
+            "runtimeMode": "onnx",
+            "cpuThreads": 1,
+            "dtype": "fp32",
+            "provider": "webgpu",
+            "fallbackReason": null,
+            "audioSeconds": 11,
+            "observedJsHeapBytes": 10000000
+          },
+          "transcript": "And so my fellow Americans ask not what your country can do for you ask what you can do for your country.",
+          "local": true,
+          "baselineBrowserRssBytes": 2042511360,
+          "peakBrowserRssBytes": 2227281920,
+          "baselineGpuMemory": [
+            {
+              "index": "0",
+              "name": "Tesla T4",
+              "uuid": "GPU-902b2f4d-a499-85c1-49f5-f43af069668d",
+              "usedBytes": 101711872,
+              "totalBytes": 16106127360
+            },
+            {
+              "index": "1",
+              "name": "Tesla T4",
+              "uuid": "GPU-6311a1b0-3e42-ac5a-a500-76e408667885",
+              "usedBytes": 1048576,
+              "totalBytes": 16106127360
+            }
+          ],
+          "peakGpuMemory": [
+            {
+              "index": "0",
+              "name": "Tesla T4",
+              "uuid": "GPU-902b2f4d-a499-85c1-49f5-f43af069668d",
+              "usedBytes": 903872512,
+              "totalBytes": 16106127360
+            },
+            {
+              "index": "1",
+              "name": "Tesla T4",
+              "uuid": "GPU-6311a1b0-3e42-ac5a-a500-76e408667885",
+              "usedBytes": 1048576,
+              "totalBytes": 16106127360
+            }
+          ]
+        }
+      ],
+      "gpu": {
+        "description": "",
+        "vendor": "nvidia",
+        "architecture": "turing"
+      },
+      "medianWarmInferenceMs": 1925.0999999998603,
+      "transcriptParity": true
+    }
+  ],
+  "gpuMemoryScope": "Optional NVIDIA device-wide memory usage, includes other processes; null when unavailable. Unified-memory GPU allocation is not inferred from RSS."
+}

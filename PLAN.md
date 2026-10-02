@@ -94,14 +94,37 @@ Implement all six follow-ups: Firefox/WebKit inference coverage, continuous
 multilingual/noisy recording fixtures, quota/eviction/reload recovery, reduced
 heap and model-loading memory with A/B proof, physical-GPU benchmark harness,
 and deadlock-free proxy-to-pthread ASR/TTS integration. Preserve the existing
-single-thread path and Lite policy throughout. Physical GPU access requested;
-local adapter is virtual and must not count as hardware proof.
-Checkpoint: upstream WASM run 36999311622 passed all five variants. Real
-Chromium two-thread ASR/cancel/cached-reload test passed; remaining runtime,
-continuous-recording, cross-browser and benchmark checks are still in flight.
-Native analyze/tests passed on macOS and Linux in run 37002105924; desktop
-builds remain in progress. Full validation 37002105956 and Lite validation
-37002105989 serve compiled artifacts on isolated CI without production deploys.
+single-thread path and Lite policy throughout.
+
+Checkpoint: WASM CI 37004439151 passed all five variants at 70e15c9a0;
+the two 128 MiB browser artifacts are pinned here. Real two- and four-thread
+ASR, offline reload and cancellation pass in Chromium, Firefox and WebKit.
+All three also pass threaded TTS→ASR. Native bindings merged to CrispASR main
+at 2e936f5a1; browser artifacts retain their tested immutable 70e15c9a0 pin.
+All 12 quota/interruption/eviction/reload checks pass across the three browsers.
+Native analyze, tests and both desktop builds passed run 37002105924; the new
+thread settings test is being checked in a fresh native run.
+
+Three-model CPU A/B reports (three warm repetitions, decoded parity) are in
+`docs/browser-hardening-2026-10-02/`: the 128 MiB SIMD variant improves Moonshine,
+FastConformer and Phonon latency. Phonon's peak process RSS barely changes;
+threading helps Phonon but hurts Moonshine. Keep one thread and the original
+single-thread runtime as defaults until Whisper A/B coverage passes.
+
+Physical Tesla T4 WebGPU v1 exposed wrong output with q8 Moonshine and an
+alignment failure with q8 Whisper. The worker now requests fp32 GPU weights
+and retries operator failures in a fresh CPU worker. Kaggle v2 passes
+on physical Tesla T4: both models use WebGPU, complete three warm repetitions
+and match decoded CPU transcripts. Reports include actual provider, precision,
+RSS and device-wide VRAM scope. CPU fallback is never
+counted as successful GPU validation.
+
+Fresh compiled-artifact validation: Full 37008639394 (including Whisper A/B),
+Lite 37008642912. Continuous English retention regressed with the wider pause
+search; nearby pauses now take precedence. French/German noisy fixtures compare
+long-audio WER against the same model's isolated clip and count retained
+utterances; these small-model fixtures have substantial absolute acoustic
+errors and are not evidence of high multilingual accuracy.
 
 ### B0. Browser optimization follow-up
 
