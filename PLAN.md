@@ -112,10 +112,8 @@ Further work is measurement-driven rather than a claim that browser and
 native support are interchangeable:
 
 1. **Measure and reduce peak memory.** Track cold/warm loading, heap growth,
-   transcription time and failures on constrained devices. Transfer audio
-   buffers to workers where ownership allows; release model/file/PCM
-   buffers promptly. Check upstream graph/model-loading allocations for
-   Phonon-2. Replace the rough six-times-weight estimate with measured,
+   transcription time and failures on constrained devices. Check upstream
+   graph/model-loading allocations for Phonon-2 and improve measured,
    model-specific guidance; do not infer safety from download size.
 2. **Benchmark faster local execution.** Test WebGPU for the ONNX models,
    with WASM fallback, quality checks and operator compatibility. This
@@ -123,13 +121,12 @@ native support are interchangeable:
    Investigate a separate threaded CrispASR WASM build only after validating
    worker call topology and deployment isolation; the upstream synchronous
    pthread build previously deadlocked.
-3. **Improve long-recording boundaries.** Compare silence-aware overlapping
-   chunks with the current fixed windows, checking dropped/repeated words
-   and timestamps against real fixtures. Preserve honest Moonshine chunk
+3. **Expand long-recording coverage.** Assess the quiet overlapping windows
+   with multilingual speech, noise and real continuous recordings, checking
+   dropped/repeated words and timestamps. Preserve honest Moonshine chunk
    timings and cancellation.
-4. **Make downloads and compatibility durable.** Add explicit cached-model
-   deletion/storage-quota controls, resumable large downloads and pinned
-   revisions/integrity checks for remaining mutable model URLs. Expand
+4. **Expand compatibility coverage.** Exercise quota eviction and recovery
+   across browsers alongside the verified, resumable downloader. Expand
    Firefox/WebKit and constrained-device coverage before promoting models
    out of the experimental list.
 

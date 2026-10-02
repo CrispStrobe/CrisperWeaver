@@ -177,7 +177,10 @@ async function load(engine, selected, allowDownloads, id, bytes, allowExperiment
     provider = 'wasm'; fallbackReason = '';
     if (executionPreference !== 'wasm') {
       try {
-        if (!navigator.gpu || !(await gpuDeadline(navigator.gpu.requestAdapter(), 8000, 'WebGPU adapter'))) throw new Error('WebGPU is unavailable on this device');
+        const adapter = navigator.gpu && await gpuDeadline(navigator.gpu.requestAdapter(), 8000, 'WebGPU adapter');
+        if (!adapter) throw new Error('WebGPU is unavailable on this device');
+        const adapterDescription = `${adapter.info?.architecture || ''} ${adapter.info?.description || ''}`;
+        if (/swiftshader|software/i.test(adapterDescription)) throw new Error('Software WebGPU adapter is unreliable for speech models; using local CPU processing');
         asr = await gpuDeadline(onnxSession(model, 'webgpu', allowDownloads, id), 90000, 'WebGPU model initialization'); provider = 'webgpu';
       } catch (error) { fallbackReason = String(error.message || error).slice(0, 400); }
     }
@@ -293,7 +296,7 @@ async function handle({ id, op, payload, engine, allowDownloads, allowExperiment
   if (op === 'models') {
     const models = (await catalogue(engine)).filter(m => !m.experimental || allowExperimentalModels);
     result = await Promise.all(models.map(async m => ({ ...m, cached: await modelCached(m),
-      resumeBytes: (await Promise.all((await modelResources(m)).map(file => CW_DOWNLOADS.meta(file.url)))).reduce((sum, part) => sum + (part?.offset || 0), 0) })));
+      resumeBytes: (await Promise.all((await modelResources(m)).map(file => CW_DOWNLOADS.meta(file.url)))).reduce((sum, part) => sum + (part?.verified ? 0 : part?.offset || 0), 0) })));
   } else if (op === 'load') result = await load(engine, payload.model, allowDownloads, id, payload.bytes, allowExperimentalModels);
   else if (op === 'import') {
     if (engine !== 'crispasr') throw new Error('Import is currently supported for CrispASR model files');

@@ -2,6 +2,7 @@
 // this downloader. IndexedDB checkpoints survive worker termination/restarts.
 (() => {
   const CACHE = 'crisperweaver-speech-models-v2', PART = 4 * 1024 * 1024;
+  const CHUNK_CACHE_THRESHOLD = 64 * 1024 * 1024;
   let database, hashing;
   const hash = async () => (hashing ||= import('../vendor/sha256.js')).then(m => m.sha256.create());
   const hex = bytes => Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
@@ -36,10 +37,29 @@
       tx.objectStore('meta').put({ url: resource.url, sha256: resource.sha256, size: resource.size, offset: end }, resource.url);
     });
   }
+  function checkpointResponse(resource) {
+    let index = 0, position = 0;
+    const stream = new ReadableStream({ async pull(controller) {
+      try {
+        if (position === resource.size) { controller.close(); return; }
+        const part = await transaction(['parts'], 'readonly', tx => tx.objectStore('parts').get([resource.url, index++]));
+        if (!part || part.length !== Math.min(PART, resource.size - position)) throw new Error('Download checkpoint disappeared or is corrupt');
+        position += part.length; controller.enqueue(part);
+      } catch (error) { controller.error(error); }
+    } }, { highWaterMark: 0 });
+    return new Response(stream, { headers: {
+      'content-length': String(resource.size), 'x-cw-sha256': resource.sha256,
+    } });
+  }
+  const markVerified = resource => transaction(['meta'], 'readwrite', tx => tx.objectStore('meta').put({
+    url: resource.url, sha256: resource.sha256, size: resource.size, offset: resource.size, verified: true,
+  }, resource.url));
   async function cached(resource) {
     const response = await (await caches.open(CACHE)).match(resource.url);
     if (response?.headers.get('x-cw-sha256') === resource.sha256 && Number(response.headers.get('content-length')) === resource.size) return response;
     if (response) await (await caches.open(CACHE)).delete(resource.url);
+    const saved = await meta(resource.url);
+    if (saved?.verified && saved.sha256 === resource.sha256 && saved.size === resource.size && saved.offset === resource.size) return checkpointResponse(resource);
     return undefined;
   }
   async function verify(resource, bytes) {
@@ -56,6 +76,7 @@
       async flush() {
         if (length !== resource.size || hex(digest.digest()) !== resource.sha256) {
           await (await caches.open(CACHE)).delete(resource.url);
+          await discard(resource.url);
           throw new Error('Cached model checksum mismatch; corrupt cache was removed.');
         }
       },
@@ -63,6 +84,11 @@
   }
   async function put(resource, bytes) {
     await verify(resource, bytes);
+    if (resource.size >= CHUNK_CACHE_THRESHOLD) {
+      for (let from = 0; from < bytes.length; from += PART) await checkpoint(resource, bytes, from, Math.min(from + PART, bytes.length));
+      await markVerified(resource);
+      return;
+    }
     await (await caches.open(CACHE)).put(resource.url, new Response(bytes, { headers: {
       'content-length': String(bytes.length), 'x-cw-sha256': resource.sha256,
     } }));
@@ -70,10 +96,13 @@
   async function readLocked(resource, downloads, progress = () => {}, networkFetch = fetch) {
     const existing = await cached(resource);
     if (existing) {
-      const bytes = new Uint8Array(await existing.arrayBuffer());
-      try { await verify(resource, bytes); return bytes; }
+      try {
+        const bytes = new Uint8Array(await existing.arrayBuffer());
+        await verify(resource, bytes); return bytes;
+      }
       catch (error) {
         await (await caches.open(CACHE)).delete(resource.url);
+        await discard(resource.url);
         // Corrupt data never reaches inference. A subsequent user retry can
         // redownload, but this request explicitly reports the failed check.
         throw error;
@@ -82,7 +111,8 @@
     if (!downloads) throw new Error('Model downloads are disabled. Download or import this model first.');
     if (!Number.isSafeInteger(resource.size) || resource.size <= 0 || !/^[a-f0-9]{64}$/.test(resource.sha256)) throw new Error('Model has no valid size/checksum lock');
     const storage = await navigator.storage?.estimate?.();
-    if (storage?.quota && storage.quota - storage.usage < resource.size * 2) throw new Error('Not enough browser storage for a resumable download and verified cache. Delete cached models or incomplete downloads first.');
+    const storageCopies = resource.size >= CHUNK_CACHE_THRESHOLD ? 1 : 2;
+    if (storage?.quota && storage.quota - storage.usage < resource.size * storageCopies) throw new Error('Not enough browser storage for a resumable download and verified cache. Delete cached models or incomplete downloads first.');
     let saved = await meta(resource.url);
     if (saved && (saved.sha256 !== resource.sha256 || saved.size !== resource.size || saved.offset > resource.size)) { await discard(resource.url); saved = null; }
     let offset = saved?.offset || 0;
@@ -124,20 +154,16 @@
       if (checkpointStart < offset) await checkpoint(resource, bytes, checkpointStart, offset);
     }
     if (hex(digest.digest()) !== resource.sha256) { await discard(resource.url); throw new Error('Model checksum mismatch; incomplete download was removed.'); }
+    // Large response promotion can fail in Chromium's blob/cache machinery.
+    // Keep its already verified chunks as the persistent cache instead: one
+    // stored copy, no giant Blob, and the same hash checks on subsequent reads.
+    if (resource.size >= CHUNK_CACHE_THRESHOLD) {
+      await markVerified(resource);
+      return bytes;
+    }
     // Stream checkpointed parts into CacheStorage instead of cloning another
     // complete large buffer during promotion to the verified cache.
-    let index = 0, position = 0;
-    const stream = new ReadableStream({ async pull(controller) {
-      try {
-        if (position === resource.size) { controller.close(); return; }
-        const part = await transaction(['parts'], 'readonly', tx => tx.objectStore('parts').get([resource.url, index++]));
-        if (!part) throw new Error('Download checkpoint disappeared');
-        position += part.length; controller.enqueue(part);
-      } catch (error) { controller.error(error); }
-    } });
-    await (await caches.open(CACHE)).put(resource.url, new Response(stream, { headers: {
-      'content-length': String(resource.size), 'x-cw-sha256': resource.sha256,
-    } }));
+    await (await caches.open(CACHE)).put(resource.url, checkpointResponse(resource));
     await discard(resource.url);
     return bytes;
   }
@@ -151,15 +177,16 @@
   }
   async function stats() {
     const estimate = await navigator.storage?.estimate?.() || {};
-    const incomplete = await transaction(['meta'], 'readonly', tx => tx.objectStore('meta').getAll());
+    const incomplete = (await transaction(['meta'], 'readonly', tx => tx.objectStore('meta').getAll())).filter(part => !part.verified);
     return { usage: estimate.usage ?? null, quota: estimate.quota ?? null, persistent: await navigator.storage?.persisted?.() || false,
       incompleteBytes: incomplete.reduce((sum, part) => sum + part.offset, 0), incompleteCount: incomplete.length };
   }
   async function clearIncomplete() {
-    await transaction(['meta', 'parts'], 'readwrite', tx => { tx.objectStore('meta').clear(); tx.objectStore('parts').clear(); });
+    const incomplete = (await transaction(['meta'], 'readonly', tx => tx.objectStore('meta').getAll())).filter(part => !part.verified);
+    for (const part of incomplete) await discard(part.url);
   }
   async function clear() {
-    await clearIncomplete();
+    await transaction(['meta', 'parts'], 'readwrite', tx => { tx.objectStore('meta').clear(); tx.objectStore('parts').clear(); });
     for (const name of [CACHE, 'crisperweaver-speech-models-v1', 'transformers-cache']) await caches.delete(name);
   }
   globalThis.CW_DOWNLOADS = { read, cached, verifiedResponse, verify, put,

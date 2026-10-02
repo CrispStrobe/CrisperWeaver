@@ -75,6 +75,43 @@ test('bad ranges retain progress and corrupted downloads/cache never reach infer
   expect(result.removed).toBe(true);
 });
 
+test('large verified chunk caches survive incomplete cleanup and reject corruption', async ({ page }) => {
+  test.setTimeout(180_000);
+  await page.goto(TARGET);
+  await page.addScriptTag({ url: `${TARGET}/speech/downloads.js` });
+  const result = await page.evaluate(async () => {
+    const manager = (window as any).CW_DOWNLOADS;
+    const bytes = new Uint8Array(64 * 1024 * 1024 + 3).fill(11);
+    const sha256 = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), b => b.toString(16).padStart(2, '0')).join('');
+    const resource = { url: `${location.origin}/large-chunk-cache.bin`, sha256, size: bytes.length };
+    await manager.read(resource, true, () => {}, async () => new Response(bytes));
+    const verified = (await manager.meta(resource.url)).verified;
+    const cacheStorageCopy = !!await (await caches.open(manager.CACHE)).match(resource.url);
+    await manager.clearIncomplete();
+    const restored = await manager.read(resource, false, () => {}, () => { throw new Error('Unexpected network access'); });
+    const incompleteCount = (await manager.stats()).incompleteCount;
+    const connection: IDBDatabase = await new Promise((resolve, reject) => {
+      const request = indexedDB.open('crisperweaver-model-downloads-v1');
+      request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
+    });
+    await new Promise<void>((resolve, reject) => {
+      const tx = connection.transaction('parts', 'readwrite');
+      tx.objectStore('parts').put(new Uint8Array(4 * 1024 * 1024).fill(12), [resource.url, 0]);
+      tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error);
+    });
+    connection.close();
+    let error = '';
+    try { await manager.read(resource, false); } catch (failure) { error = String(failure); }
+    return { verified, cacheStorageCopy, size: restored.length, expected: resource.size, incompleteCount, error, removed: !await manager.cached(resource) };
+  });
+  expect(result.verified).toBe(true);
+  expect(result.cacheStorageCopy).toBe(false);
+  expect(result.size).toBe(result.expected);
+  expect(result.incompleteCount).toBe(0);
+  expect(result.error).toContain('checksum mismatch');
+  expect(result.removed).toBe(true);
+});
+
 test('worker unload releases inference state and owned audio is transferred', async ({ page }) => {
   test.setTimeout(600_000);
   await page.goto(TARGET);
@@ -222,6 +259,12 @@ test('model cache deletion requires confirmation and preserves transcript histor
   await page.getByRole('button', { name: 'Delete cached speech models', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Keep models', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Delete', exact: true }).click();
+  await expect.poll(() => page.evaluate(async () => {
+    const client = (window as any).CrisperBrowserSpeech.create('crispasr', false);
+    try {
+      return (await client.request('models', {})).find((model: any) => model.id === 'moonshine-tiny-q4_k').cached;
+    } finally { client.dispose(); }
+  }), { timeout: 60_000 }).toBe(false);
   const result = await page.evaluate(async () => {
     const bridge = (window as any).CrisperBrowserSpeech, client = bridge.create('crispasr', false);
     try {

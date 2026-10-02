@@ -66,7 +66,7 @@ To test a local production bundle, first build Flutter web and run
 
 `browser-optimizations.spec.ts` checks interrupted checkpoints, valid/invalid
 HTTP ranges, servers that ignore ranges, download/cache checksum rejection,
-worker termination, owned-buffer transfer, long repeated speech across quiet
+large verified chunk storage and cleanup, worker termination, owned-buffer transfer, long repeated speech across quiet
 boundaries, local WASM recovery after a GPU adapter failure, and resumption
 against the actual pinned Hugging Face model host.
 
@@ -89,7 +89,9 @@ speech results, actual execution provider, fallback reasons, load/inference
 time and memory scope. `BENCHMARK_MODELS=onnx:onnx-moonshine-tiny` selects a
 subset; `BENCHMARK_PROVIDERS=wasm,webgpu` chooses ONNX cases. Chromium is
 launched with SwiftShader enabled to assess the GPU path on Linux CI; this is
-software GPU execution, not a physical-GPU speed claim. Linux RSS is sampled
+software GPU execution, not a physical-GPU speed claim. Both tested ONNX
+models crashed this renderer during the first assessment; detected software
+adapters now use WASM and record the fallback reason. Linux RSS is sampled
 every 250 ms across this benchmark's Chromium process tree, includes baseline
 and per-process shared mappings, and can miss short peaks. Native WASM
 allocated bytes are recorded separately; missing memory measurements are
@@ -101,6 +103,8 @@ exact sizes and SHA-256 hashes. Builds copy it without contacting Hub metadata.
 Refresh deliberately with `python3 scripts/lock_browser_models.py`, then
 review and rerun inference. Noble's pinned incremental SHA-256 implementation
 is bundled locally, avoiding another full-model Web Crypto digest copy.
-IndexedDB checkpoints use 4 MB parts, and verified cache promotion streams
-those parts. Storage temporarily needs both checkpoints and verified cache.
+IndexedDB checkpoints use 4 MB parts. Models of 64 MB or more retain verified
+chunks as their persistent cache, avoiding Chromium's large-response cache
+promotion failure and a second stored copy. Smaller files stream into
+CacheStorage and temporarily need space for both copies.
 Web Locks serialize a model's downloads and protect cleanup where supported.

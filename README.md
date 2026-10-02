@@ -473,8 +473,9 @@ and resume with a validated HTTP range; servers that ignore Range restart
 cleanly. Corrupt responses/cache entries cannot reach inference. The Models
 screen shows quota and incomplete-download usage and can delete individual
 cached models, incomplete downloads or the speech cache without deleting
-transcript history. Promotion temporarily needs space for checkpoints and
-the verified cache. Builds never refresh model pins implicitly; run
+transcript history. Models of 64 MB or more retain their verified IndexedDB
+chunks as the cache; smaller files temporarily need space for checkpoints
+and CacheStorage promotion. Builds never refresh model pins implicitly; run
 `python3 scripts/lock_browser_models.py` deliberately to update them.
 
 The former weight-size multiplier is no longer presented as working memory.
