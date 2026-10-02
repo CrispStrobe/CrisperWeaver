@@ -11,12 +11,19 @@
         const first = Math.max(coreStart + RATE * 4, coreEnd - RATE * 10);
         // Prefer at least 200 ms of silence near the end, not a single
         // low-energy sample in the middle of a spoken word.
-        const step = 320; let run = 0, best = 0, boundary = coreEnd;
+        const step = 320; let run = 0, best = 0, boundary = coreEnd, nearEnd = false;
         for (let offset = first; offset + step <= coreEnd; offset += step) {
           let energy = 0;
           for (let i = offset; i < offset + step; i++) energy += audio[i] * audio[i];
           run = energy / step < 0.0001 ? run + step : 0;
-          if (run >= RATE * 0.2 && run >= best) { best = run; boundary = offset + step - Math.floor(run / 2); }
+          const candidate = offset + step - Math.floor(run / 2);
+          const nearby = candidate >= coreEnd - RATE * 5;
+          // Prefer a quiet cut in the last five seconds. Search farther back
+          // only when that interval has no useful pause; otherwise an earlier
+          // long pause needlessly shortens Whisper's context.
+          if (run >= RATE * 0.2 && (nearby && !nearEnd || nearby === nearEnd && run >= best)) {
+            best = run; boundary = candidate; nearEnd = nearby;
+          }
         }
         if (best) coreEnd = boundary;
       }

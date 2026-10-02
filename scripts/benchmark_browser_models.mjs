@@ -6,7 +6,7 @@ import { execFileSync } from 'node:child_process';
 const require = createRequire(import.meta.url);
 const { chromium, firefox, webkit } = require('../web-e2e/node_modules/playwright');
 const target = process.env.BASE_URL || 'https://crisperweaver-lite-web.vercel.app';
-const models = (process.env.BENCHMARK_MODELS || 'crispasr:moonshine-tiny-q4_k,crispasr:stt-en-fastconformer-ctc-large-q4_k,onnx:onnx-moonshine-tiny,onnx:onnx-tiny.en').split(',');
+const models = (process.env.BENCHMARK_MODELS || 'crispasr:tiny.en,crispasr:base,crispasr:moonshine-tiny-q4_k,crispasr:stt-en-fastconformer-ctc-large-q4_k,onnx:onnx-moonshine-tiny,onnx:onnx-tiny.en').split(',');
 const hardware = process.env.REQUIRE_HARDWARE_GPU === '1';
 const repetitions = Math.max(3, Number(process.env.BENCHMARK_REPETITIONS) || 3);
 const runtime = { chromium, firefox, webkit }[process.env.BENCHMARK_BROWSER || 'chromium'];
