@@ -2,6 +2,7 @@
 """One physical-GPU WebGPU assessment; no native build and no GPU fishing."""
 import json
 import os
+import re
 from pathlib import Path
 import shutil
 import subprocess
@@ -34,14 +35,14 @@ try:
     run(['apt-get', 'install', '-y', '-qq', '--no-install-recommends', 'vulkan-tools', 'libvulkan1'])
     probe = run(['vulkaninfo', '--summary'], check=False, capture=True)
     evidence['vulkanInitial'] = probe.stdout + probe.stderr
-    if not any(name in evidence['vulkanInitial'] for name in ('NVIDIA', 'Tesla')):
+    if not any(re.search(r'deviceName\s*=.*(?:NVIDIA|Tesla)', line) for line in evidence['vulkanInitial'].splitlines()):
         major = run(['nvidia-smi', '--query-gpu=driver_version', '--format=csv,noheader'], capture=True).stdout.split('.')[0].strip()
         if major.isdigit():
             install = run(['apt-get', 'install', '-y', '-qq', '--no-install-recommends', f'libnvidia-gl-{major}'], check=False)
             evidence['driverLibraryInstallExit'] = install.returncode
         probe = run(['vulkaninfo', '--summary'], check=False, capture=True)
     evidence['vulkan'] = probe.stdout + probe.stderr
-    if not any(name in evidence['vulkan'] for name in ('NVIDIA', 'Tesla')):
+    if not any(re.search(r'deviceName\s*=.*(?:NVIDIA|Tesla)', line) for line in evidence['vulkan'].splitlines()):
         raise RuntimeError('Physical NVIDIA GPU exists, but Vulkan cannot expose it. WebGPU inference is unvalidated; stop without a software benchmark or another GPU draw.')
     CW = SCRATCH / 'CrisperWeaver'
     run(['git', 'clone', '--depth', '1', '--branch', 'feat/browser-hardening', 'https://github.com/CrispStrobe/CrisperWeaver.git', str(CW)])
