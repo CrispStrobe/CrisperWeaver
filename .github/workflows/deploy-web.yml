@@ -281,7 +281,7 @@ jobs:
       matrix:
         include:
           - suite: standard
-            models: crispasr:moonshine-tiny-q4_k,crispasr:stt-en-fastconformer-ctc-large-q4_k,onnx:onnx-moonshine-tiny,onnx:onnx-tiny.en
+            models: crispasr:tiny.en,crispasr:base,crispasr:moonshine-tiny-q4_k,crispasr:stt-en-fastconformer-ctc-large-q4_k,onnx:onnx-moonshine-tiny,onnx:onnx-tiny.en
           - suite: phonon
             models: crispasr:phonon2-q4_k
     steps:
