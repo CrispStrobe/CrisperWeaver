@@ -5,6 +5,25 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 
 ## [Unreleased]
 
+### Browser optimizations
+
+- Added cache/quota controls, individual model deletion and incomplete
+  download cleanup; transcript history is preserved.
+- Added cold/warm benchmarks with actual provider/fallback reporting,
+  WASM allocation measurements and sampled Chromium process-tree RSS.
+- Added warning-gated ONNX WebGPU attempts, including local CPU recovery;
+  CPU remains the default. Tab/driver crashes still require reopening.
+- Pinned models and companions to immutable Hub revisions and SHA-256 locks.
+  Download checkpoints survive cancellation and resume with validated HTTP
+  ranges; corrupt responses/cache entries cannot reach inference.
+- Model unload/switch terminates the worker to release grown heaps. Owned
+  audio and synthesized PCM use transfer lists, and MEMFS staging files are
+  released after model/voice parsing.
+- Long recordings use quiet boundaries and short context overlaps with
+  bounded deduplication so intentional repeated speech is retained.
+- Memory labels now use observed allocation instead of an unmeasured
+  multiplier; unobserved browser/GPU memory is explicitly excluded.
+
 ### Added
 
 - Separate CrisperWeaver Lite flavor: model downloads remain available,

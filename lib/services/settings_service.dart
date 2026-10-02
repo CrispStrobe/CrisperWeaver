@@ -638,6 +638,22 @@ class SettingsService {
   Future<void> setBrowserAllowExperimentalModels(bool value) async {
     await _prefs.setBool('browser_allow_experimental_models', value);
   }
+
+  String get browserExecutionProvider =>
+      _prefs.getString('browser_execution_provider') ?? 'wasm';
+  bool get browserGpuWarningAccepted =>
+      _prefs.getBool('browser_gpu_warning_accepted') ?? false;
+  Future<void> acknowledgeBrowserGpuWarning() async {
+    await _prefs.setBool('browser_gpu_warning_accepted', true);
+  }
+
+  Future<void> setBrowserExecutionProvider(String value) async {
+    if (!['auto', 'wasm', 'webgpu'].contains(value)) {
+      throw ArgumentError.value(
+          value, 'value', 'Unknown browser execution provider');
+    }
+    await _prefs.setString('browser_execution_provider', value);
+  }
 }
 
 /// Provider for the SettingsService.

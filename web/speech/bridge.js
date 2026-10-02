@@ -6,8 +6,13 @@
       if (!['crispasr', 'onnx'].includes(engine)) throw new Error('Unknown browser speech engine');
       this.engine = engine; this.allowDownloads = allowDownloads;
       this.pending = new Map(); this.sequence = 0; this.worker = null;
+      this.loadedModel = null;
+      this.loadedPreference = null;
     }
-    request(op, payload = {}, progress) {
+    request(op, payload = {}, progress, forcedPreference) {
+      const executionPreference = forcedPreference || localStorage.getItem('flutter.browser_execution_provider')?.replaceAll('"', '') || 'wasm';
+      if (op === 'unload') { this.cancel(); return Promise.resolve(true); }
+      if (['load', 'import'].includes(op) && (payload.model !== this.loadedModel || executionPreference !== this.loadedPreference)) this.cancel();
       if (!this.worker) {
         this.worker = new Worker(new URL('speech/worker.js', document.baseURI));
         this.worker.onmessage = ({ data }) => {
@@ -15,20 +20,62 @@
           if (!entry) return;
           if (data.progress != null) { entry.progress?.(data.progress); return; }
           clearTimeout(entry.timer); this.pending.delete(data.id);
-          if (data.error) entry.reject(new Error(data.error)); else entry.resolve(data.result);
+          if (data.error) entry.reject(new Error(data.error));
+          else {
+            if (entry.model) { this.loadedModel = entry.model; this.loadedPreference = entry.preference; }
+            if (data.result?.diagnostics) {
+              const measurement = data.result.diagnostics;
+              measurement.observedJsHeapBytes = performance.memory?.usedJSHeapSize ?? null;
+              try {
+                const parsed = JSON.parse(localStorage.getItem('cw.browserMeasurements') || '[]');
+                const previous = Array.isArray(parsed) ? parsed : [];
+                localStorage.setItem('cw.browserMeasurements', JSON.stringify([...previous.slice(-19), measurement]));
+              } catch (_) {}
+            }
+            if (entry.op === 'models') {
+              let measurements = [];
+              try { const parsed = JSON.parse(localStorage.getItem('cw.browserMeasurements') || '[]'); if (Array.isArray(parsed)) measurements = parsed; } catch (_) {}
+              data.result = data.result.map(model => ({ ...model, observedWasmBytes: measurements.filter(m => m?.model === model.id).reduce((max, m) => Math.max(max, m.peakWasmBytes || 0), 0) || null }));
+            }
+            entry.resolve(data.result);
+          }
         };
         this.worker.onerror = e => this.cancel(e.message || 'Browser speech worker failed');
       }
       const id = ++this.sequence;
       return new Promise((resolve, reject) => {
-        const timer = setTimeout(() => this.cancel('Browser inference timed out'), 900000);
-        this.pending.set(id, { resolve, reject, progress, timer });
+        // The main thread can terminate a GPU initialization that blocks its
+        // worker event loop. A worker-local Promise timeout cannot do that.
+        const retryCpu = this.engine === 'onnx' && op === 'load' && executionPreference !== 'wasm';
+        const timer = setTimeout(() => {
+          if (!retryCpu) { this.cancel('Browser inference timed out'); return; }
+          const entry = this.pending.get(id);
+          if (!entry) return;
+          this.pending.delete(id);
+          this.cancel('GPU initialization stalled; restarting on local CPU');
+          this.request(op, payload, progress, 'wasm').then(result => {
+            if (result?.diagnostics) result.diagnostics.fallbackReason = 'GPU initialization stalled; worker restarted on local CPU';
+            entry.resolve(result);
+          }, entry.reject);
+        }, retryCpu ? 120000 : 900000);
+        this.pending.set(id, { resolve, reject, progress, timer, op, preference: executionPreference, model: ['load', 'import'].includes(op) ? payload.model : null });
         const allowExperimentalModels = localStorage.getItem('flutter.browser_allow_experimental_models') === 'true';
-        this.worker.postMessage({ id, op, payload, engine: this.engine, allowDownloads: this.allowDownloads, allowExperimentalModels });
+        const transfer = [];
+        if (payload.audio instanceof Float32Array) {
+          // Only detach explicitly owned buffers. Other callers keep their
+          // input; one bounded copy is transferred instead of cloned again.
+          const input = payload.audio;
+          const owned = payload.transferAudio === true && input.buffer instanceof ArrayBuffer && !input.buffer.resizable;
+          const audio = owned ? input : input.slice();
+          payload = { ...payload, audio }; transfer.push(audio.buffer);
+        }
+        this.worker.postMessage({ id, op, payload: { ...payload, executionPreference }, engine: this.engine, allowDownloads: this.allowDownloads, allowExperimentalModels }, transfer);
       });
     }
     cancel(message = 'Browser inference cancelled') {
       this.worker?.terminate(); this.worker = null;
+      this.loadedModel = null;
+      this.loadedPreference = null;
       for (const entry of this.pending.values()) { clearTimeout(entry.timer); entry.reject(new Error(message)); }
       this.pending.clear();
     }

@@ -454,6 +454,36 @@ use browser caches, which the browser can evict. See the
 [browser test and deployment guide](web-e2e/README.md) and
 [platform parity matrix](docs/PARITY.md) for the validated scope.
 
+Browser model switches and unloads terminate the old worker to release its
+grown WASM heap. Owned audio buffers are transferred, and bounded overlapping
+windows prefer quiet boundaries; duplicate removal is limited to the short
+shared context so intentional repeated sentences are kept. Moonshine uses
+15-second windows; other models use at most 30 seconds.
+
+CPU processing is the default. **ONNX processing** in Settings/Models offers
+warning-gated GPU attempts, with local WASM recovery for unsupported adapters,
+model/operator errors and stalled initialization. Some graphics drivers can
+still crash the tab; a crashed tab cannot recover automatically. This does
+not accelerate CrispASR GGUF models or enable remote AI in Lite.
+
+All browser model resources use the checked-in
+[`model-lock.json`](web/speech/model-lock.json): immutable revisions, exact
+sizes and SHA-256 checksums. Interrupted downloads checkpoint in IndexedDB
+and resume with a validated HTTP range; servers that ignore Range restart
+cleanly. Corrupt responses/cache entries cannot reach inference. The Models
+screen shows quota and incomplete-download usage and can delete individual
+cached models, incomplete downloads or the speech cache without deleting
+transcript history. Promotion temporarily needs space for checkpoints and
+the verified cache. Builds never refresh model pins implicitly; run
+`python3 scripts/lock_browser_models.py` deliberately to update them.
+
+The former weight-size multiplier is no longer presented as working memory.
+The Models screen shows locally observed WASM allocation when available;
+other browser memory and GPU VRAM are excluded. The last 20 timing/allocation
+measurements stay in local storage, with no transcript/audio and no telemetry.
+The optional CI benchmark compares cold/warm inference and, on Linux,
+samples Chromium process-tree RSS. See [browser benchmarks](web-e2e/README.md).
+
 ## Lite build
 
 Lite is a compile-time variant (`CW_FLAVOR=lite`). It keeps the on-device

@@ -10,3 +10,9 @@ cp web-runtime/node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded*.mjs bui
 cp web-runtime/node_modules/@huggingface/transformers/LICENSE build/web/vendor/TRANSFORMERS_LICENSE
 cp web-runtime/node_modules/onnxruntime-web/README.md build/web/vendor/ort/README.md
 python3 scripts/build_browser_catalog.py
+node --input-type=module <<'JS'
+import { build } from './web-runtime/node_modules/esbuild/lib/main.js';
+await build({ stdin: { contents: "export { sha256 } from '@noble/hashes/sha256';", resolveDir: 'web-runtime' },
+  bundle: true, format: 'esm', minify: true, outfile: 'build/web/vendor/sha256.js' });
+JS
+cp web-runtime/node_modules/@noble/hashes/LICENSE build/web/vendor/NOBLE_LICENSE

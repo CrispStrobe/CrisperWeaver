@@ -75,8 +75,12 @@ test('experimental browser catalogue requires explicit warning acceptance', asyn
   await override.click();
   await page.getByRole('button', { name: 'I understand; show models', exact: true }).click();
   await expect(override).toBeChecked();
+  await page.mouse.move(900, 500);
+  await page.mouse.wheel(0, 700);
   await expect.poll(() => page.evaluate(() => Array.from(document.querySelectorAll('[aria-label]')).map(e => e.getAttribute('aria-label')).join(' ') + document.body.innerText)).toContain('Phonon-2');
   await page.screenshot({ path: info.outputPath('experimental-browser-catalogue.png') });
+  await page.mouse.wheel(0, -1200);
+  await expect(override).toBeVisible();
   await override.click();
   await expect(override).not.toBeChecked();
   await expect.poll(() => page.evaluate(async () => {

@@ -65,6 +65,13 @@ IP address. Local browser inference does not upload the audio or transcript
 to those download hosts. The Lite experimental-model setting only expands
 the local model list; it does not enable remote AI processing.
 
+Browser download checkpoints are stored locally in IndexedDB. The Models
+screen can delete model caches and incomplete downloads without deleting
+transcript history. Local timing and allocation diagnostics retain only the
+last 20 measurements, including model/provider, elapsed time and audio
+duration; they contain no audio or transcript and are not uploaded. GPU
+processing, when selected after its warning, remains on this device.
+
 ### 1.4 Crash Data and Analytics
 
 CrisperWeaver does **not** include any analytics SDKs, crash

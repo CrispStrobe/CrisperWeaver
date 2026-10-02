@@ -2,5 +2,9 @@
   "name": "crisperweaver-browser-runtime",
   "private": true,
   "version": "1.0.0",
-  "dependencies": { "@huggingface/transformers": "3.8.1" }
+  "dependencies": {
+    "@huggingface/transformers": "3.8.1",
+    "@noble/hashes": "1.8.0",
+    "esbuild": "0.25.12"
+  }
 }

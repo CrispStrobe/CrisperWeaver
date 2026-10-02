@@ -61,3 +61,46 @@ screenshots, inference results, and failure traces.
 To test a local production bundle, first build Flutter web and run
 `scripts/build_browser_runtime.sh`, then from the repo root run
 `node web-e2e/serve.mjs build/web`. Use `BASE_URL=http://127.0.0.1:8765` for tests.
+
+## Browser optimization checks and benchmarks
+
+`browser-optimizations.spec.ts` checks interrupted checkpoints, valid/invalid
+HTTP ranges, servers that ignore ranges, download/cache checksum rejection,
+worker termination, owned-buffer transfer, long repeated speech across quiet
+boundaries, local WASM recovery after a GPU adapter failure, and resumption
+against the actual pinned Hugging Face model host.
+
+CPU is the production default. GPU selection requires its own acknowledgement;
+it never bypasses the large-model warning or Lite network policy. Unsupported
+GPU adapters/models/operators fall back to local WASM, while initialization
+that stalls its worker is terminated and retried on CPU. Driver/tab crashes
+cannot recover automatically. Browser backend coverage is not proof of GPU
+support on every device.
+
+To retain cold/warm measurements from an isolated deployed build:
+
+```sh
+gh workflow run deploy-web.yml --ref main -f flavor=lite -f benchmark_models=true
+BASE_URL=http://127.0.0.1:8765 node scripts/benchmark_browser_models.mjs
+```
+
+The CI artifact `browser-model-benchmark-<flavor>/results.json` records known
+speech results, actual execution provider, fallback reasons, load/inference
+time and memory scope. `BENCHMARK_MODELS=onnx:onnx-moonshine-tiny` selects a
+subset; `BENCHMARK_PROVIDERS=wasm,webgpu` chooses ONNX cases. Chromium is
+launched with SwiftShader enabled to assess the GPU path on Linux CI; this is
+software GPU execution, not a physical-GPU speed claim. Linux RSS is sampled
+every 250 ms across this benchmark's Chromium process tree, includes baseline
+and per-process shared mappings, and can miss short peaks. Native WASM
+allocated bytes are recorded separately; missing memory measurements are
+`null`, never invented estimates. Keep benchmarks separate from local
+Playwright runs, which clean their artifact directory.
+
+The checked-in `web/speech/model-lock.json` contains immutable revisions,
+exact sizes and SHA-256 hashes. Builds copy it without contacting Hub metadata.
+Refresh deliberately with `python3 scripts/lock_browser_models.py`, then
+review and rerun inference. Noble's pinned incremental SHA-256 implementation
+is bundled locally, avoiding another full-model Web Crypto digest copy.
+IndexedDB checkpoints use 4 MB parts, and verified cache promotion streams
+those parts. Storage temporarily needs both checkpoints and verified cache.
+Web Locks serialize a model's downloads and protect cleanup where supported.

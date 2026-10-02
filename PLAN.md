@@ -88,8 +88,28 @@ Ordered. Each item states what "done" means, so it can be picked up cold.
 
 ### B0. Browser optimization follow-up
 
-Priorities for the next browser iteration; these are proposed work, not
-features already implemented. Keep the model warning and Lite policy.
+The first iteration of all four items below is implemented in the browser
+runtime, with production CI validation in progress. The model warning and
+Lite policy remain enforced. Deployment evidence is kept in
+[web-e2e/README.md](web-e2e/README.md).
+
+- Memory: owned-buffer transfers, MEMFS staging cleanup, worker termination
+  on unload/switch and local allocation/timing diagnostics. The unmeasured
+  six-times-weight estimate is removed. Linux benchmarks sample Chromium
+  process-tree RSS and record its scope separately from WASM allocation.
+- Execution: CPU default; a separate acknowledged warning precedes ONNX GPU
+  attempts. Recoverable adapter/model/operator failures use local WASM;
+  stalled initialization can restart its worker on CPU. Crashed tabs cannot
+  recover automatically. GPU remains experimental pending more device data.
+- Boundaries: quiet cuts, bounded overlapping context, limited deduplication
+  and 15-second Moonshine windows. A real 48-second repeated-speech fixture
+  guards against accidentally removing intentional repetition.
+- Downloads: checked-in immutable revision/size/SHA-256 locks, 4 MB IndexedDB
+  checkpoints, strict range validation, cache-corruption rejection and
+  cache/quota/deletion controls that preserve transcript history.
+
+Further work is measurement-driven rather than a claim that browser and
+native support are interchangeable:
 
 1. **Measure and reduce peak memory.** Track cold/warm loading, heap growth,
    transcription time and failures on constrained devices. Transfer audio

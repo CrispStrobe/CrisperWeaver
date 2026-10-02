@@ -69,7 +69,8 @@ class BrowserSpeechEngine implements TranscriptionEngine {
             'backend': m['backend'] ?? 'whisper',
             'local': true,
             'experimental': m['experimental'] == true,
-            'estimatedMemoryMB': m['estimatedMemoryMB']
+            'observedWasmBytes': m['observedWasmBytes'],
+            'resumeBytes': m['resumeBytes'],
           });
     }).toList();
   }
@@ -148,7 +149,9 @@ class BrowserSpeechEngine implements TranscriptionEngine {
       final result = await _client.request(
           'transcribe',
           {
-            'audio': Float32List.fromList(audioData.sublist(offset)),
+            'audio': Float32List.fromList(
+                Float32List.sublistView(audioData, offset)),
+            'transferAudio': true,
             'language': language,
             'translate': translate,
             'diarize': enableSpeakerDiarization,
@@ -171,7 +174,13 @@ class BrowserSpeechEngine implements TranscriptionEngine {
           fullText: segments.map((s) => s.text).join(' ').trim(),
           segments: segments,
           processingTime: DateTime.now().difference(started),
-          metadata: {'local': true, 'engine': engineId, 'model': _model});
+          metadata: {
+            'local': true,
+            'engine': engineId,
+            'model': _model,
+            if (result['diagnostics'] != null)
+              'diagnostics': result['diagnostics']
+          });
     } finally {
       _processing = false;
     }
@@ -196,6 +205,20 @@ class BrowserSpeechEngine implements TranscriptionEngine {
   Future<void> unloadModel() async {
     await _client.request('unload', {});
     _model = null;
+  }
+
+  Future<Map<String, dynamic>> browserStorage() async =>
+      Map<String, dynamic>.from(await _client.request('storage', {}) as Map);
+
+  Future<void> deleteCachedModel(String model) async {
+    await unloadModel();
+    await _client.request('delete', {'model': model});
+  }
+
+  Future<void> clearBrowserCache({bool incompleteOnly = false}) async {
+    await unloadModel();
+    await _client
+        .request(incompleteOnly ? 'clearIncomplete' : 'clearCache', {});
   }
 
   @override

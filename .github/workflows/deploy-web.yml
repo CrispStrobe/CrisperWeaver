@@ -29,6 +29,10 @@ on:
         type: choice
         options: [none, phonon2-q4_k, phonon2-q8_0]
         default: none
+      benchmark_models:
+        description: Run isolated cold/warm model benchmarks (including WebGPU assessment)
+        type: boolean
+        default: false
 
 concurrency:
   group: deploy-web-${{ inputs.flavor || 'full' }}-${{ github.ref }}
@@ -231,4 +235,34 @@ jobs:
         with:
           name: browser-model-probe-${{ inputs.probe_model }}
           path: web-e2e/artifacts/model-probe
+          retention-days: 14
+
+  model-benchmark:
+    name: Benchmark local browser models
+    needs: build
+    if: needs.build.outputs.deployed == 'true' && inputs.benchmark_models == true
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: web-e2e/package-lock.json
+      - name: Install browser tools
+        working-directory: web-e2e
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: Measure cold/warm inference and memory
+        env:
+          BASE_URL: ${{ needs.build.outputs.flavor == 'lite' && 'https://crisperweaver-lite-web.vercel.app' || 'https://crisperweaver-web.vercel.app' }}
+        run: node scripts/benchmark_browser_models.mjs
+      - name: Upload local benchmark results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-model-benchmark-${{ inputs.flavor }}
+          path: web-e2e/artifacts/model-benchmark
           retention-days: 14

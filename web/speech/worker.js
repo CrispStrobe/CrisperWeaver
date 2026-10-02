@@ -1,5 +1,39 @@
 // All processing happens in this worker; network requests only retrieve models.
 importScripts('./catalog.js');
+importScripts('./chunks.js', './downloads.js');
+const networkFetch = self.fetch.bind(self);
+let lockReady, locks, downloadsAllowed = true, downloadProgress = () => {};
+async function lock() {
+  if (!lockReady) lockReady = (async () => {
+    const response = await networkFetch(new URL('./model-lock.json', self.location.href));
+    if (!response.ok) throw new Error('Model integrity lock is unavailable');
+    locks = (await response.json()).repositories;
+  })();
+  await lockReady;
+}
+async function resource(url) {
+  await lock();
+  const match = /^https:\/\/huggingface.co\/(datasets\/)?([^/]+\/[^/]+)\/resolve\/([^/]+)\/(.+)$/.exec(url);
+  if (!match) throw new Error('Unrecognized model download URL');
+  const repo = locks[(match[1] || '') + match[2]], file = decodeURIComponent(match[4]);
+  if (!repo || !repo.files[file] || !['main', repo.revision].includes(decodeURIComponent(match[3]))) throw new Error('Model resource is not in the integrity lock');
+  return repo.files[file];
+}
+// Transformers.js 3.8.1 uses global fetch. Route its model requests through
+// the same verified/resumable downloader; unknown optional files are 404.
+self.fetch = async (input, options) => {
+  const url = String(input instanceof Request ? input.url : input);
+  if (!url.startsWith('https://huggingface.co/')) {
+    const parsed = new URL(url, self.location.href);
+    if (parsed.origin !== self.location.origin) throw new Error('Speech workers only retrieve locked models and self-hosted runtimes');
+    return networkFetch(input, options);
+  }
+  if ((options?.method || 'GET') !== 'GET') throw new Error('Model hosts only accept downloads');
+  let file;
+  try { file = await resource(url); } catch (_) { return new Response('', { status: 404 }); }
+  await CW_DOWNLOADS.read(file, downloadsAllowed, downloadProgress, networkFetch);
+  return CW_DOWNLOADS.verifiedResponse(file);
+};
 // Emscripten uses resizable WASM memory views. Chromium's TextDecoder rejects
 // such views; copy only the bounded string slice before decoding. Keep the
 // vendored runtime unchanged so its upstream checksum remains verifiable.
@@ -19,8 +53,11 @@ crypto.getRandomValues = function (input) {
   return randomValues(input);
 };
 let runtime, runtimeReady, pipeline, transformerEnv, asr, modelId, ttsReady = false;
-const CACHE = 'crisperweaver-speech-models-v1';
-const progress = (id, value) => postMessage({ id, progress: value });
+let provider = 'wasm', fallbackReason = '', activeModel, executionPreference = 'wasm', diagnostics;
+const sampleMemory = () => {
+  if (diagnostics && runtime) diagnostics.peakWasmBytes = Math.max(diagnostics.peakWasmBytes || 0, runtime.HEAPU8.byteLength);
+};
+const progress = (id, value) => { sampleMemory(); postMessage({ id, progress: value }); };
 let catalogueReady;
 async function catalogue(engine) {
   if (!catalogueReady) catalogueReady = (async () => {
@@ -31,41 +68,29 @@ async function catalogue(engine) {
     CW_SPEECH_MODELS.crispasr.push(...candidates.filter(m => !known.has(m.id)));
   })();
   await catalogueReady;
-  return CW_SPEECH_MODELS[engine].map(m => ({ ...m,
+  await lock();
+  return Promise.all(CW_SPEECH_MODELS[engine].map(async m => ({ ...m,
+    ...(m.url ? { url: (await resource(m.url)).url, sizeBytes: (await resource(m.url)).size,
+      companions: await Promise.all((m.companions || []).map(async c => ({ ...c, url: (await resource(c.url)).url }))) }
+      : { revision: locks[m.repo].revision }),
     experimental: !m.recommended,
-    estimatedMemoryMB: Math.ceil((m.sizeBytes * 6 + 128 * 1024 * 1024) / 1024 / 1024),
     browserReason: m.recommended ? 'Small model supported by the browser adapter.'
       : 'Not validated in this browser. May require unsupported features or more memory than the browser can allocate.',
-  }));
+  })));
 }
 
 async function modelBytes(url, allowDownloads, id) {
-  const cache = await caches.open(CACHE);
-  const cached = await cache.match(url);
-  if (cached) return new Uint8Array(await cached.arrayBuffer());
-  if (!allowDownloads) throw new Error('Model downloads are disabled. Import a model first.');
-  const res = await fetch(url, { credentials: 'omit' });
-  if (!res.ok) throw new Error(`Model download failed: HTTP ${res.status}`);
-  const stored = res.clone();
-  // Consume the cache branch concurrently so Response.clone() does not buffer
-  // a second complete large model while inference waits for the first branch.
-  const cacheWrite = cache.put(url, stored).catch(e => console.warn('Model cache unavailable:', e.message));
-  const reader = res.body.getReader(), chunks = []; let length = 0;
-  const total = Number(res.headers.get('content-length'));
-  let preallocated = total > 0 && !res.headers.get('content-encoding') ? new Uint8Array(total) : null;
-  while (true) {
-    const { done, value } = await reader.read(); if (done) break;
-    if (preallocated && length + value.length > preallocated.length) {
-      chunks.push(preallocated.subarray(0, length)); preallocated = null;
-    }
-    if (preallocated) preallocated.set(value, length); else chunks.push(value);
-    length += value.length;
-    progress(id, total > 0 ? Math.min(0.85, length / total * 0.85) : 0.1);
-  }
-  const bytes = preallocated ? preallocated.subarray(0, length) : new Uint8Array(length); let offset = 0;
-  if (!preallocated) for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.length; }
-  await cacheWrite;
-  return bytes;
+  return CW_DOWNLOADS.read(await resource(url), allowDownloads, value => progress(id, value * 0.85), networkFetch);
+}
+async function modelResources(model) {
+  if (model.url) return Promise.all([model.url, ...(model.companions || []).map(c => c.url)].map(resource));
+  return Object.values(locks[model.repo].files);
+}
+async function modelCached(model) {
+  const files = await modelResources(model);
+  // Optional ONNX configuration files do not determine model readiness.
+  const required = model.url ? files : files.filter(file => /onnx\/(encoder_model_quantized|decoder_model_merged_quantized)\.onnx$/.test(file.url));
+  return required.length > 0 && (await Promise.all(required.map(file => CW_DOWNLOADS.cached(file)))).every(Boolean);
 }
 async function crisp() {
   if (!runtimeReady) {
@@ -95,6 +120,18 @@ async function transformers() {
     const module = await import('../vendor/transformers.web.js');
     module.env.allowLocalModels = false;
     module.env.useBrowserCache = true;
+    module.env.useCustomCache = true;
+    module.env.customCache = {
+      async match(url) {
+        try { return await CW_DOWNLOADS.verifiedResponse(await resource(String(url))); }
+        catch (_) { return undefined; }
+      },
+      async put(url, response) {
+        const file = await resource(String(url));
+        // The fetch adapter already verified and stored downloaded files.
+        if (!(await CW_DOWNLOADS.cached(file))) await CW_DOWNLOADS.put(file, new Uint8Array(await response.arrayBuffer()));
+      },
+    };
     module.env.backends.onnx.wasm.wasmPaths = new URL('../vendor/ort/', self.location.href).href;
     module.env.backends.onnx.wasm.numThreads = 1;
     transformerEnv = module.env;
@@ -108,7 +145,12 @@ async function load(engine, selected, allowDownloads, id, bytes, allowExperiment
   if (model.experimental && !allowExperimentalModels) throw new Error('This model is filtered out for browsers. Enable experimental browser models in Settings after accepting the warning.');
   if (modelId === selected) return true;
   modelId = null;
+  activeModel = model;
+  diagnostics.cachedLoad = await modelCached(model);
+  downloadsAllowed = allowDownloads;
+  downloadProgress = value => progress(id, value * 0.85);
   if (engine === 'crispasr') {
+    provider = 'wasm'; fallbackReason = '';
     const m = await crisp();
     if (!m.availableBackends().split(',').map(x => x.trim()).includes(model.backend)) throw new Error('This backend is not compiled into the browser runtime: ' + model.backend);
     const data = bytes || await modelBytes(model.url, allowDownloads, id);
@@ -116,24 +158,61 @@ async function load(engine, selected, allowDownloads, id, bytes, allowExperiment
     for (const companion of model.companions || []) {
       const contents = await modelBytes(companion.url, allowDownloads, id);
       try { m.FS_unlink(companion.path); } catch (_) {}
-      m.FS_createDataFile('/', companion.path.slice(1), contents, true, true);
+      m.FS_createDataFile('/', companion.path.slice(1), contents, true, true, true);
     }
     try { m.FS_unlink('/model.bin'); } catch (_) {}
     m.FS_createDataFile('/', 'model.bin', data, true, true, true);
     try {
+      if (bytes) await CW_DOWNLOADS.verify(await resource(model.url), bytes);
       if (!m.asrOpen('/model.bin', model.backend, 1)) throw new Error('CrispASR could not open this model');
-    } finally { m.FS_unlink('/model.bin'); }
+    } finally {
+      m.FS_unlink('/model.bin');
+      for (const companion of model.companions || []) m.FS_unlink(companion.path);
+    }
   } else {
-    const factory = await transformers();
+    await transformers();
     transformerEnv.allowLocalModels = !allowDownloads;
     transformerEnv.allowRemoteModels = allowDownloads;
     await asr?.dispose(); asr = null;
-    asr = await factory('automatic-speech-recognition', model.repo, {
-      device: 'wasm', dtype: 'q8', local_files_only: !allowDownloads,
-      progress_callback: data => { if (data.progress != null) progress(id, data.progress / 100 * 0.85); },
-    });
+    provider = 'wasm'; fallbackReason = '';
+    if (executionPreference !== 'wasm') {
+      try {
+        if (!navigator.gpu || !(await gpuDeadline(navigator.gpu.requestAdapter(), 8000, 'WebGPU adapter'))) throw new Error('WebGPU is unavailable on this device');
+        asr = await gpuDeadline(onnxSession(model, 'webgpu', allowDownloads, id), 90000, 'WebGPU model initialization'); provider = 'webgpu';
+      } catch (error) { fallbackReason = String(error.message || error).slice(0, 400); }
+    }
+    if (!asr) asr = await onnxSession(model, 'wasm', allowDownloads, id);
   }
-  modelId = selected; progress(id, 1); return true;
+  modelId = selected; progress(id, 1); return { loaded: true, local: true };
+}
+async function onnxSession(model, device, allowDownloads, id) {
+  return pipeline('automatic-speech-recognition', model.repo, {
+    device, dtype: 'q8', revision: model.revision, local_files_only: !allowDownloads,
+    progress_callback: data => { if (data.progress != null) progress(id, data.progress / 100 * 0.85); },
+  });
+}
+async function gpuDeadline(promise, milliseconds, label) {
+  let timer, expired = false;
+  const cleanup = promise.then(value => { if (expired) value?.dispose?.(); return value; });
+  try {
+    return await Promise.race([cleanup, new Promise((_, reject) => {
+      timer = setTimeout(() => { expired = true; reject(new Error(label + ' timed out; using local CPU processing')); }, milliseconds);
+    })]);
+  } finally { clearTimeout(timer); }
+}
+async function inferOnnx(audio, args, id) {
+  try { return provider === 'webgpu' ? await gpuDeadline(asr(audio, args), 60000, 'WebGPU inference') : await asr(audio, args); }
+  catch (error) {
+    if (provider !== 'webgpu') throw error;
+    // Some GPU operator/shape failures only appear at the first run. Reuse
+    // verified cached weights and retry this same window locally on WASM.
+    fallbackReason = String(error.message || error).slice(0, 400);
+    await gpuDeadline(asr.dispose(), 3000, 'WebGPU cleanup').catch(() => {}); asr = null;
+    transformerEnv.allowRemoteModels = false;
+    transformerEnv.allowLocalModels = true;
+    asr = await onnxSession(activeModel, 'wasm', false, id); provider = 'wasm';
+    return asr(audio, args);
+  }
 }
 async function transcribe(engine, audio, options, id) {
   if (!modelId) throw new Error('Load a speech model first');
@@ -146,24 +225,21 @@ async function transcribe(engine, audio, options, id) {
   if (engine === 'crispasr') {
     runtime.asrSetTranslate(!!options.translate);
     runtime.asrSetSourceLanguage(options.language || 'auto');
-    // Bounded windows prevent long recordings from retaining a large encoder graph.
-    const size = 16000 * 30;
-    for (let offset = 0; offset < audio.length; offset += size) {
-      for (const segment of runtime.asrTranscribe(audio.subarray(offset, offset + size), options.language || '')) {
-        segments.push({ text: segment.text, start: segment.t0 / 100 + offset / 16000, end: segment.t1 / 100 + offset / 16000 });
-      }
-      progress(id, Math.min(0.99, (offset + size) / audio.length));
+    for (const window of CW_CHUNKS.plan(audio, selected.backend === 'moonshine' ? 15 : 30)) {
+      const candidates = Array.from(runtime.asrTranscribe(audio.subarray(window.start, window.end), options.language || ''),
+        segment => ({ text: segment.text, start: segment.t0 / 100 + window.start / 16000, end: segment.t1 / 100 + window.start / 16000 }));
+      CW_CHUNKS.append(segments, candidates, window);
+      progress(id, Math.min(0.99, window.coreEnd / audio.length));
     }
   } else {
     const selected = (await catalogue(engine)).find(m => m.id === modelId);
     if (selected.backend !== 'whisper') {
       if (options.translate) throw new Error('This browser model does not support speech translation');
       // Moonshine does not return token timestamps. Keep honest chunk boundaries.
-      for (let offset = 0; offset < audio.length; offset += 16000 * 15) {
-        const window = audio.subarray(offset, offset + 16000 * 15);
-        const result = await asr(window, { max_new_tokens: 128 });
-        if (result.text) segments.push({ text: result.text, start: offset / 16000, end: (offset + window.length) / 16000 });
-        progress(id, Math.min(0.99, (offset + window.length) / audio.length));
+      for (const window of CW_CHUNKS.plan(audio, 15)) {
+        const result = await inferOnnx(audio.subarray(window.start, window.end), { max_new_tokens: 128 }, id);
+        CW_CHUNKS.append(segments, [{ text: result.text, start: window.start / 16000, end: window.end / 16000 }], window);
+        progress(id, Math.min(0.99, window.coreEnd / audio.length));
       }
       return { segments, model: modelId, engine, local: true, timestampPrecision: 'chunk' };
     }
@@ -172,10 +248,15 @@ async function transcribe(engine, audio, options, id) {
       if (options.language && options.language !== 'auto') args.language = options.language;
       args.task = options.translate ? 'translate' : 'transcribe';
     } else if (options.translate) throw new Error('Use a multilingual model for translation');
-    const result = await asr(audio, args);
-    for (const chunk of result.chunks || []) segments.push({ text: chunk.text, start: chunk.timestamp[0] || 0,
-      end: chunk.timestamp[1] ?? audio.length / 16000 });
-    if (!segments.length && result.text) segments.push({ text: result.text, start: 0, end: audio.length / 16000 });
+    for (const window of CW_CHUNKS.plan(audio)) {
+      const result = await inferOnnx(audio.subarray(window.start, window.end), args, id);
+      const candidates = (result.chunks || []).map(chunk => ({ text: chunk.text,
+        start: (chunk.timestamp[0] || 0) + window.start / 16000,
+        end: (chunk.timestamp[1] ?? (window.end - window.start) / 16000) + window.start / 16000 }));
+      if (!candidates.length && result.text) candidates.push({ text: result.text, start: window.start / 16000, end: window.end / 16000 });
+      CW_CHUNKS.append(segments, candidates, window);
+      progress(id, Math.min(0.99, window.coreEnd / audio.length));
+    }
   }
   progress(id, 1); return { segments, model: modelId, engine, local: true };
 }
@@ -192,10 +273,11 @@ async function synthesize(payload, allowDownloads, id) {
       const slash = path.lastIndexOf('/'), dir = path.slice(0, slash) || '/';
       m.FS_createPath('/', dir, true, true);
       try { m.FS_unlink(path); } catch (_) {}
-      m.FS_createDataFile(dir, path.slice(slash + 1), bytes, true, true);
+      m.FS_createDataFile(dir, path.slice(slash + 1), bytes, true, true, true);
     }
     if (!m.ttsOpenExplicit('/tts.gguf', 'kokoro', 1)) throw new Error('Could not load the browser TTS model');
     if (m.ttsSetVoice('/voice.gguf', '') !== 0) throw new Error('Could not load the browser voice');
+    m.FS_unlink('/tts.gguf'); m.FS_unlink('/voice.gguf');
     ttsReady = true;
   }
   if (!payload.text?.trim() || payload.text.length > 1000) throw new Error('Enter between 1 and 1000 characters');
@@ -204,21 +286,21 @@ async function synthesize(payload, allowDownloads, id) {
   return { audio, sampleRate: m.sessionOutputSampleRate() || 24000, local: true };
 }
 async function handle({ id, op, payload, engine, allowDownloads, allowExperimentalModels = false }) {
+  const started = performance.now();
+  diagnostics = { operation: op, model: payload.model || modelId, engine, peakWasmBytes: null };
+  executionPreference = payload.executionPreference || 'wasm';
   let result;
   if (op === 'models') {
-    const cache = await caches.open(CACHE);
-    const onnxCache = await caches.open('transformers-cache');
     const models = (await catalogue(engine)).filter(m => !m.experimental || allowExperimentalModels);
-    result = await Promise.all(models.map(async m => ({ ...m,
-      cached: m.url ? !!(await cache.match(m.url)) && (await Promise.all((m.companions || []).map(c => cache.match(c.url)))).every(Boolean) : !!(await onnxCache.match('https://huggingface.co/' + m.repo + '/resolve/main/onnx/encoder_model_quantized.onnx'))
-        && !!(await onnxCache.match('https://huggingface.co/' + m.repo + '/resolve/main/onnx/decoder_model_merged_quantized.onnx')) })));
+    result = await Promise.all(models.map(async m => ({ ...m, cached: await modelCached(m),
+      resumeBytes: (await Promise.all((await modelResources(m)).map(file => CW_DOWNLOADS.meta(file.url)))).reduce((sum, part) => sum + (part?.offset || 0), 0) })));
   } else if (op === 'load') result = await load(engine, payload.model, allowDownloads, id, payload.bytes, allowExperimentalModels);
   else if (op === 'import') {
     if (engine !== 'crispasr') throw new Error('Import is currently supported for CrispASR model files');
     const model = (await catalogue(engine)).find(m => m.id === payload.model);
     if (!model) throw new Error('Unknown model');
     await load(engine, payload.model, false, id, payload.bytes, allowExperimentalModels);
-    await (await caches.open(CACHE)).put(model.url, new Response(payload.bytes)); result = true;
+    await CW_DOWNLOADS.put(await resource(model.url), payload.bytes); result = true;
   } else if (op === 'transcribe') {
     const selected = (await catalogue(engine)).find(m => m.id === modelId);
     if (selected?.experimental && !allowExperimentalModels) throw new Error('This model is filtered out. Enable experimental browser models in Settings after accepting the warning.');
@@ -227,8 +309,23 @@ async function handle({ id, op, payload, engine, allowDownloads, allowExperiment
   else if (op === 'synthesize') result = await synthesize(payload, allowDownloads, id);
   else if (op === 'unload') {
     runtime?.asrClose(); await asr?.dispose(); asr = null; modelId = null; result = true;
-  } else throw new Error('Unknown browser speech operation');
-  postMessage({ id, result });
+  } else if (op === 'storage') result = await CW_DOWNLOADS.stats();
+  else if (op === 'delete') {
+    const model = (await catalogue(engine)).find(m => m.id === payload.model);
+    if (!model) throw new Error('Unknown browser model');
+    await CW_DOWNLOADS.remove(await modelResources(model)); result = true;
+  } else if (op === 'clearCache') { await CW_DOWNLOADS.clear(); result = true; }
+  else if (op === 'clearIncomplete') { await CW_DOWNLOADS.clearIncomplete(); result = true; }
+  else throw new Error('Unknown browser speech operation');
+  sampleMemory();
+  if (['load', 'transcribe', 'synthesize'].includes(op)) {
+    diagnostics.elapsedMs = performance.now() - started;
+    diagnostics.provider = provider; diagnostics.fallbackReason = fallbackReason || null;
+    if (op === 'transcribe') diagnostics.audioSeconds = payload.audio.length / 16000;
+    result = { ...result, diagnostics };
+  }
+  const transfer = result?.audio?.buffer instanceof ArrayBuffer ? [result.audio.buffer] : [];
+  postMessage({ id, result }, transfer);
 }
 let queue = Promise.resolve();
 self.onmessage = ({ data }) => {
