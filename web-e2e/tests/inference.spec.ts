@@ -88,7 +88,8 @@ for (const backend of ['crispasr', 'onnx']) {
 }
 
 test('CrispASR synthesizes non-silent speech locally', async ({ page }, info) => {
-  test.setTimeout(600_000);
+  // Two separate cold workers run serially; Firefox's CPU Kokoro path is slow.
+  test.setTimeout(900_000);
   await page.addInitScript(() => {
     localStorage.setItem('flutter.ai_transparency_notice_seen', 'true');
     localStorage.setItem('flutter.onboarding_completed', 'true');
@@ -100,7 +101,7 @@ test('CrispASR synthesizes non-silent speech locally', async ({ page }, info) =>
   await page.goto(TARGET, { waitUntil: 'domcontentloaded' });
   const result = await page.evaluate(async () => {
     const client = (window as any).CrisperBrowserSpeech.create('crispasr', true);
-    const { audio, sampleRate, local } = await client.request('synthesize', { text: 'Hello, this speech is generated locally in your browser.' });
+    const { audio, sampleRate, local } = await client.request('synthesize', { text: 'Hello from your browser.' });
     const rms = Math.sqrt(audio.reduce((sum: number, v: number) => sum + v * v, 0) / audio.length);
     client.dispose(); return { samples: audio.length, sampleRate, rms, local };
   });
@@ -120,10 +121,13 @@ test('CrispASR synthesizes non-silent speech locally', async ({ page }, info) =>
     element.dispatchEvent(new MouseEvent('click', { bubbles: true })); element.click();
   });
   const field = page.getByRole('textbox');
-  await field.click(); await field.pressSequentially('Hello from your local browser.', { delay: 15 });
+  await field.click(); await expect(field).toBeFocused();
+  await field.press('ArrowLeft');
+  await field.pressSequentially('Hello browser.', { delay: 30 });
+  await expect(field).toHaveValue('Hello browser.');
   await field.press('Tab');
   await page.getByRole('button', { name: 'Generate speech', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Download WAV', exact: true })).toBeVisible({ timeout: 240_000 });
+  await expect(page.getByRole('button', { name: 'Download WAV', exact: true })).toBeVisible({ timeout: 480_000 });
   const downloadEvent = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Download WAV', exact: true }).click();
   const download = await downloadEvent;

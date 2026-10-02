@@ -63,7 +63,9 @@ test('continuous English recording retains all six utterances across window cuts
   const wer = wordErrorRate(expected, text);
   await attachJson(info, 'continuous-english.json', { result, wer });
   timestamps(result);
-  expect(text.toLowerCase().match(/country/g)?.length).toBe(12);
+  // Retention tolerates acoustic insertions, which the WER bound also checks.
+  expect(text.toLowerCase().match(/country/g)?.length || 0).toBeGreaterThanOrEqual(12);
+  expect(text.toLowerCase().match(/fellow americans/g)?.length || 0).toBe(6);
   expect(wer).toBeLessThanOrEqual(0.15);
 });
 
