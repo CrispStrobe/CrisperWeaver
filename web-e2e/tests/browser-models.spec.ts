@@ -66,15 +66,15 @@ test('experimental browser catalogue requires explicit warning acceptance', asyn
   await page.locator('flt-semantics-placeholder').waitFor({ state: 'attached', timeout: 60_000 });
   await page.evaluate(() => (document.querySelector('flt-semantics-placeholder') as HTMLElement).click());
   const override = page.getByRole('switch', { name: /Allow experimental browser models/ });
-  await expect(override).not.toBeChecked();
+  await expect(override).toHaveAttribute('aria-checked', 'false');
   await override.click();
   await expect(page.getByRole('button', { name: 'Keep filtering', exact: true })).toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem('flutter.browser_allow_experimental_models'))).not.toBe('true');
   await page.getByRole('button', { name: 'Keep filtering', exact: true }).click();
-  await expect(override).not.toBeChecked();
+  await expect(override).toHaveAttribute('aria-checked', 'false');
   await override.click();
   await page.getByRole('button', { name: 'I understand; show models', exact: true }).click();
-  await expect(override).toBeChecked();
+  await expect(override).toHaveAttribute('aria-checked', 'true');
   await page.mouse.move(900, 500);
   await page.mouse.wheel(0, 700);
   await expect.poll(() => page.evaluate(() => Array.from(document.querySelectorAll('[aria-label]')).map(e => e.getAttribute('aria-label')).join(' ') + document.body.innerText)).toContain('Phonon-2');
@@ -82,7 +82,7 @@ test('experimental browser catalogue requires explicit warning acceptance', asyn
   await page.mouse.wheel(0, -1200);
   await expect(override).toBeVisible();
   await override.click();
-  await expect(override).not.toBeChecked();
+  await expect(override).toHaveAttribute('aria-checked', 'false');
   await expect.poll(() => page.evaluate(async () => {
     const client = (window as any).CrisperBrowserSpeech.create('crispasr', false);
     try { return (await client.request('models', {})).some((m: any) => m.id.startsWith('phonon2')); }
