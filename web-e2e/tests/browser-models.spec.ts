@@ -2,9 +2,10 @@ import { test, expect } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { TARGET } from './target';
+import { bootRuntime } from './runtime-page';
 
 test('browser model filtering rejects a saved large model before download', async ({ page }) => {
-  await page.goto(TARGET, { waitUntil: 'domcontentloaded' });
+  await bootRuntime(page);
   const requests: string[] = [];
   page.context().on('request', request => {
     if (new URL(request.url()).origin !== new URL(TARGET).origin) requests.push(request.url());
@@ -36,7 +37,7 @@ test('browser model filtering rejects a saved large model before download', asyn
 for (const [engine, model] of [['crispasr', 'moonshine-tiny-q4_k'], ['crispasr', 'stt-en-fastconformer-ctc-large-q4_k'], ['onnx', 'onnx-moonshine-tiny'], ['onnx', 'onnx-whisper-base']]) {
   test(`${engine} ${model} transcribes real speech and reuses the full cached bundle`, async ({ page }, info) => {
     test.setTimeout(600_000);
-    await page.goto(TARGET, { waitUntil: 'domcontentloaded' });
+    await bootRuntime(page);
     const fixture = Array.from(await readFile(path.join(__dirname, '../fixtures/jfk.wav')));
     const infer = async (downloads: boolean) => page.evaluate(async ({ engine, model, fixture, downloads }) => {
       const bridge = (window as any).CrisperBrowserSpeech, client = bridge.create(engine, downloads);
