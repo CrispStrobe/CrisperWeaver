@@ -1,0 +1,941 @@
+{
+  "date": "2026-10-02",
+  "native_runtime_source": "70e15c9a0",
+  "threaded_cases": {
+    "asr_cancellation_offline_reload": [
+      {
+        "loaded": {
+          "loaded": true,
+          "local": true,
+          "diagnostics": {
+            "operation": "load",
+            "model": "moonshine-tiny-q4_k",
+            "engine": "crispasr",
+            "peakWasmBytes": 390856704,
+            "cachedLoad": false,
+            "elapsedMs": 3597.689998626709,
+            "runtimeMode": "threaded",
+            "cpuThreads": 2,
+            "mailboxMode": "waitAsync",
+            "dtype": null,
+            "provider": "wasm",
+            "fallbackReason": null,
+            "observedJsHeapBytes": 10000000
+          }
+        },
+        "output": {
+          "segments": [
+            {
+              "text": "And so my fellow American asked not what your country can do for you, ask what you can do for your country.",
+              "start": 0,
+              "end": 11
+            }
+          ],
+          "model": "moonshine-tiny-q4_k",
+          "engine": "crispasr",
+          "local": true,
+          "timestampPrecision": "segment",
+          "diagnostics": {
+            "operation": "transcribe",
+            "model": "moonshine-tiny-q4_k",
+            "engine": "crispasr",
+            "peakWasmBytes": 562888704,
+            "elapsedMs": 15790.279998779297,
+            "runtimeMode": "threaded",
+            "cpuThreads": 2,
+            "mailboxMode": "waitAsync",
+            "dtype": null,
+            "provider": "wasm",
+            "fallbackReason": null,
+            "audioSeconds": 11,
+            "observedJsHeapBytes": 10000000
+          }
+        },
+        "cached": {
+          "segments": [
+            {
+              "text": "And so my fellow American asked not what your country can do for you, ask what you can do for your country.",
+              "start": 0,
+              "end": 11
+            }
+          ],
+          "model": "moonshine-tiny-q4_k",
+          "engine": "crispasr",
+          "local": true,
+          "timestampPrecision": "segment",
+          "diagnostics": {
+            "operation": "transcribe",
+            "model": "moonshine-tiny-q4_k",
+            "engine": "crispasr",
+            "peakWasmBytes": 562888704,
+            "elapsedMs": 6965.420000076294,
+            "runtimeMode": "threaded",
+            "cpuThreads": 2,
+            "mailboxMode": "waitAsync",
+            "dtype": null,
+            "provider": "wasm",
+            "fallbackReason": null,
+            "audioSeconds": 11,
+            "observedJsHeapBytes": 10000000
+          }
+        },
+        "beats": 1996,
+        "cancellation": "Browser inference cancelled",
+        "cancellationProgress": 0.1690909090909091
+      },
+      {
+        "loaded": {
+          "loaded": true,
+          "local": true,
+          "diagnostics": {
+            "operation": "load",
+            "model": "moonshine-tiny-q4_k",
+            "engine": "crispasr",
+            "peakWasmBytes": 390856704,
+            "cachedLoad": false,
+            "elapsedMs": 3897.06,
+            "runtimeMode": "threaded",
+            "cpuThreads": 2,
+            "mailboxMode": "waitAsync",
+            "dtype": null,
+            "provider": "wasm",
+            "fallbackReason": null,
+            "observedJsHeapBytes": null
+          }
+        },
+        "output": {
+          "segments": [
+            {
+              "text": "And so my fellow American asked not what your country can do for you, ask what you can do for your country.",
+              "start": 0,
+              "end": 11
+            }
+          ],
+          "model": "moonshine-tiny-q4_k",
+          "engine": "crispasr",
+          "local": true,
+          "timestampPrecision": "segment",
+          "diagnostics": {
+            "operation": "transcribe",
+            "model": "moonshine-tiny-q4_k",
+            "engine": "crispasr",
+            "peakWasmBytes": 562888704,
+            "elapsedMs": 12203.06,
+            "runtimeMode": "threaded",
+            "cpuThreads": 2,
+            "mailboxMode": "waitAsync",
+            "dtype": null,
+            "provider": "wasm",
+            "fallbackReason": null,
+            "audioSeconds": 11,
+            "observedJsHeapBytes": null
+          }
+        },
+        "cached": {
+          "segments": [
+            {
+              "text": "And so my fellow American asked not what your country can do for you, ask what you can do for your country.",
+              "start": 0,
+              "end": 11
+            }
+          ],
+          "model": "moonshine-tiny-q4_k",
+          "engine": "crispasr",
+          "local": true,
+          "timestampPrecision": "segment",
+          "diagnostics": {
+            "operation": "transcribe",
+            "model": "moonshine-tiny-q4_k",
+            "engine": "crispasr",
+            "peakWasmBytes": 562888704,
+            "elapsedMs": 10172.5,
+            "runtimeMode": "threaded",
+            "cpuThreads": 2,
+            "mailboxMode": "waitAsync",
+            "dtype": null,
+            "provider": "wasm",
+            "fallbackReason": null,
+            "audioSeconds": 11,
+            "observedJsHeapBytes": null
+          }
+        },
+        "beats": 2026,
+        "cancellation": "Browser inference cancelled",
+        "cancellationProgress": 0.1690909090909091
+      },
+      {
+        "loaded": {
+          "loaded": true,
+          "local": true,
+          "diagnostics": {
+            "operation": "load",
+            "model": "moonshine-tiny-q4_k",
+            "engine": "crispasr",
+            "peakWasmBytes": 390856704,
+            "cachedLoad": false,
+            "elapsedMs": 3729.42,
+            "runtimeMode": "threaded",
+            "cpuThreads": 2,
+            "mailboxMode": "postMessage",
+            "dtype": null,
+            "provider": "wasm",
+            "fallbackReason": null,
+            "observedJsHeapBytes": null
+          }
+        },
+        "output": {
+          "segments": [
+            {
+              "text": "And so my fellow American asked not what your country can do for you, ask what you can do for your country.",
+              "start": 0,
+              "end": 11
+            }
+          ],
+          "model": "moonshine-tiny-q4_k",
+          "engine": "crispasr",
+          "local": true,
+          "timestampPrecision": "segment",
+          "diagnostics": {
+            "operation": "transcribe",
+            "model": "moonshine-tiny-q4_k",
+            "engine": "crispasr",
+            "peakWasmBytes": 562888704,
+            "elapsedMs": 5462.96,
+            "runtimeMode": "threaded",
+            "cpuThreads": 2,
+            "mailboxMode": "postMessage",
+            "dtype": null,
+            "provider": "wasm",
+            "fallbackReason": null,
+            "audioSeconds": 11,
+            "observedJsHeapBytes": null
+          }
+        },
+        "cached": {
+          "segments": [
+            {
+              "text": "And so my fellow American asked not what your country can do for you, ask what you can do for your country.",
+              "start": 0,
+              "end": 11
+            }
+          ],
+          "model": "moonshine-tiny-q4_k",
+          "engine": "crispasr",
+          "local": true,
+          "timestampPrecision": "segment",
+          "diagnostics": {
+            "operation": "transcribe",
+            "model": "moonshine-tiny-q4_k",
+            "engine": "crispasr",
+            "peakWasmBytes": 562888704,
+            "elapsedMs": 9186.04,
+            "runtimeMode": "threaded",
+            "cpuThreads": 2,
+            "mailboxMode": "postMessage",
+            "dtype": null,
+            "provider": "wasm",
+            "fallbackReason": null,
+            "audioSeconds": 11,
+            "observedJsHeapBytes": null
+          }
+        },
+        "beats": 1089,
+        "cancellation": "Browser inference cancelled",
+        "cancellationProgress": 0.1690909090909091
+      },
+      {
+        "loaded": {
+          "loaded": true,
+          "local": true,
+          "diagnostics": {
+            "operation": "load",
+            "model": "moonshine-tiny-q4_k",
+            "engine": "crispasr",
+            "peakWasmBytes": 390856704,
+            "cachedLoad": false,
+            "elapsedMs": 3138.6550006866455,
+            "runtimeMode": "threaded",
+            "cpuThreads": 4,
+            "mailboxMode": "waitAsync",
+            "dtype": null,
+            "provider": "wasm",
+            "fallbackReason": null,
+            "observedJsHeapBytes": 10000000
+          }
+        },
+        "output": {
+          "segments": [
+            {
+              "text": "And so my fellow American asked not what your country can do for you, ask what you can do for your country.",
+              "start": 0,
+              "end": 11
+            }
+          ],
+          "model": "moonshine-tiny-q4_k",
+          "engine": "crispasr",
+          "local": true,
+          "timestampPrecision": "segment",
+          "diagnostics": {
+            "operation": "transcribe",
+            "model": "moonshine-tiny-q4_k",
+            "engine": "crispasr",
+            "peakWasmBytes": 562888704,
+            "elapsedMs": 15251.090000152588,
+            "runtimeMode": "threaded",
+            "cpuThreads": 4,
+            "mailboxMode": "waitAsync",
+            "dtype": null,
+            "provider": "wasm",
+            "fallbackReason": null,
+            "audioSeconds": 11,
+            "observedJsHeapBytes": 10000000
+          }
+        },
+        "cached": {
+          "segments": [
+            {
+              "text": "And so my fellow American asked not what your country can do for you, ask what you can do for your country.",
+              "start": 0,
+              "end": 11
+            }
+          ],
+          "model": "moonshine-tiny-q4_k",
+          "engine": "crispasr",
+          "local": true,
+          "timestampPrecision": "segment",
+          "diagnostics": {
+            "operation": "transcribe",
+            "model": "moonshine-tiny-q4_k",
+            "engine": "crispasr",
+            "peakWasmBytes": 562888704,
+            "elapsedMs": 14034.755001068115,
+            "runtimeMode": "threaded",
+            "cpuThreads": 4,
+            "mailboxMode": "waitAsync",
+            "dtype": null,
+            "provider": "wasm",
+            "fallbackReason": null,
+            "audioSeconds": 11,
+            "observedJsHeapBytes": 10000000
+          }
+        },
+        "beats": 2419,
+        "cancellation": "Browser inference cancelled",
+        "cancellationProgress": 0.1690909090909091
+      },
+      {
+        "loaded": {
+          "loaded": true,
+          "local": true,
+          "diagnostics": {
+            "operation": "load",
+            "model": "moonshine-tiny-q4_k",
+            "engine": "crispasr",
+            "peakWasmBytes": 390856704,
+            "cachedLoad": false,
+            "elapsedMs": 3770.08,
+            "runtimeMode": "threaded",
+            "cpuThreads": 4,
+            "mailboxMode": "waitAsync",
+            "dtype": null,
+            "provider": "wasm",
+            "fallbackReason": null,
+            "observedJsHeapBytes": null
+          }
+        },
+        "output": {
+          "segments": [
+            {
+              "text": "And so my fellow American asked not what your country can do for you, ask what you can do for your country.",
+              "start": 0,
+              "end": 11
+            }
+          ],
+          "model": "moonshine-tiny-q4_k",
+          "engine": "crispasr",
+          "local": true,
+          "timestampPrecision": "segment",
+          "diagnostics": {
+            "operation": "transcribe",
+            "model": "moonshine-tiny-q4_k",
+            "engine": "crispasr",
+            "peakWasmBytes": 562888704,
+            "elapsedMs": 11282.6,
+            "runtimeMode": "threaded",
+            "cpuThreads": 4,
+            "mailboxMode": "waitAsync",
+            "dtype": null,
+            "provider": "wasm",
+            "fallbackReason": null,
+            "audioSeconds": 11,
+            "observedJsHeapBytes": null
+          }
+        },
+        "cached": {
+          "segments": [
+            {
+              "text": "And so my fellow American asked not what your country can do for you, ask what you can do for your country.",
+              "start": 0,
+              "end": 11
+            }
+          ],
+          "model": "moonshine-tiny-q4_k",
+          "engine": "crispasr",
+          "local": true,
+          "timestampPrecision": "segment",
+          "diagnostics": {
+            "operation": "transcribe",
+            "model": "moonshine-tiny-q4_k",
+            "engine": "crispasr",
+            "peakWasmBytes": 562888704,
+            "elapsedMs": 12700.32,
+            "runtimeMode": "threaded",
+            "cpuThreads": 4,
+            "mailboxMode": "waitAsync",
+            "dtype": null,
+            "provider": "wasm",
+            "fallbackReason": null,
+            "audioSeconds": 11,
+            "observedJsHeapBytes": null
+          }
+        },
+        "beats": 2003,
+        "cancellation": "Browser inference cancelled",
+        "cancellationProgress": 0.1690909090909091
+      },
+      {
+        "loaded": {
+          "loaded": true,
+          "local": true,
+          "diagnostics": {
+            "operation": "load",
+            "model": "moonshine-tiny-q4_k",
+            "engine": "crispasr",
+            "peakWasmBytes": 390856704,
+            "cachedLoad": false,
+            "elapsedMs": 3393.22,
+            "runtimeMode": "threaded",
+            "cpuThreads": 4,
+            "mailboxMode": "postMessage",
+            "dtype": null,
+            "provider": "wasm",
+            "fallbackReason": null,
+            "observedJsHeapBytes": null
+          }
+        },
+        "output": {
+          "segments": [
+            {
+              "text": "And so my fellow American asked not what your country can do for you, ask what you can do for your country.",
+              "start": 0,
+              "end": 11
+            }
+          ],
+          "model": "moonshine-tiny-q4_k",
+          "engine": "crispasr",
+          "local": true,
+          "timestampPrecision": "segment",
+          "diagnostics": {
+            "operation": "transcribe",
+            "model": "moonshine-tiny-q4_k",
+            "engine": "crispasr",
+            "peakWasmBytes": 562888704,
+            "elapsedMs": 10086.34,
+            "runtimeMode": "threaded",
+            "cpuThreads": 4,
+            "mailboxMode": "postMessage",
+            "dtype": null,
+            "provider": "wasm",
+            "fallbackReason": null,
+            "audioSeconds": 11,
+            "observedJsHeapBytes": null
+          }
+        },
+        "cached": {
+          "segments": [
+            {
+              "text": "And so my fellow American asked not what your country can do for you, ask what you can do for your country.",
+              "start": 0,
+              "end": 11
+            }
+          ],
+          "model": "moonshine-tiny-q4_k",
+          "engine": "crispasr",
+          "local": true,
+          "timestampPrecision": "segment",
+          "diagnostics": {
+            "operation": "transcribe",
+            "model": "moonshine-tiny-q4_k",
+            "engine": "crispasr",
+            "peakWasmBytes": 562888704,
+            "elapsedMs": 8733,
+            "runtimeMode": "threaded",
+            "cpuThreads": 4,
+            "mailboxMode": "postMessage",
+            "dtype": null,
+            "provider": "wasm",
+            "fallbackReason": null,
+            "audioSeconds": 11,
+            "observedJsHeapBytes": null
+          }
+        },
+        "beats": 1249,
+        "cancellation": "Browser inference cancelled",
+        "cancellationProgress": 0.1690909090909091
+      },
+      {
+        "loaded": {
+          "loaded": true,
+          "local": true,
+          "diagnostics": {
+            "operation": "load",
+            "model": "moonshine-tiny-q4_k",
+            "engine": "crispasr",
+            "peakWasmBytes": 390856704,
+            "cachedLoad": false,
+            "elapsedMs": 5223.204999923706,
+            "runtimeMode": "threaded",
+            "cpuThreads": 2,
+            "mailboxMode": "postMessage",
+            "dtype": null,
+            "provider": "wasm",
+            "fallbackReason": null,
+            "observedJsHeapBytes": 10000000
+          }
+        },
+        "output": {
+          "segments": [
+            {
+              "text": "And so my fellow American asked not what your country can do for you, ask what you can do for your country.",
+              "start": 0,
+              "end": 11
+            }
+          ],
+          "model": "moonshine-tiny-q4_k",
+          "engine": "crispasr",
+          "local": true,
+          "timestampPrecision": "segment",
+          "diagnostics": {
+            "operation": "transcribe",
+            "model": "moonshine-tiny-q4_k",
+            "engine": "crispasr",
+            "peakWasmBytes": 562888704,
+            "elapsedMs": 10986.64999961853,
+            "runtimeMode": "threaded",
+            "cpuThreads": 2,
+            "mailboxMode": "postMessage",
+            "dtype": null,
+            "provider": "wasm",
+            "fallbackReason": null,
+            "audioSeconds": 11,
+            "observedJsHeapBytes": 10000000
+          }
+        },
+        "cached": {
+          "segments": [
+            {
+              "text": "And so my fellow American asked not what your country can do for you, ask what you can do for your country.",
+              "start": 0,
+              "end": 11
+            }
+          ],
+          "model": "moonshine-tiny-q4_k",
+          "engine": "crispasr",
+          "local": true,
+          "timestampPrecision": "segment",
+          "diagnostics": {
+            "operation": "transcribe",
+            "model": "moonshine-tiny-q4_k",
+            "engine": "crispasr",
+            "peakWasmBytes": 562888704,
+            "elapsedMs": 7842.889999389648,
+            "runtimeMode": "threaded",
+            "cpuThreads": 2,
+            "mailboxMode": "postMessage",
+            "dtype": null,
+            "provider": "wasm",
+            "fallbackReason": null,
+            "audioSeconds": 11,
+            "observedJsHeapBytes": 10000000
+          }
+        },
+        "beats": 1569,
+        "cancellation": "Browser inference cancelled",
+        "cancellationProgress": 0.1690909090909091
+      },
+      {
+        "loaded": {
+          "loaded": true,
+          "local": true,
+          "diagnostics": {
+            "operation": "load",
+            "model": "moonshine-tiny-q4_k",
+            "engine": "crispasr",
+            "peakWasmBytes": 390856704,
+            "cachedLoad": false,
+            "elapsedMs": 4214.42,
+            "runtimeMode": "threaded",
+            "cpuThreads": 2,
+            "mailboxMode": "postMessage",
+            "dtype": null,
+            "provider": "wasm",
+            "fallbackReason": null,
+            "observedJsHeapBytes": null
+          }
+        },
+        "output": {
+          "segments": [
+            {
+              "text": "And so my fellow American asked not what your country can do for you, ask what you can do for your country.",
+              "start": 0,
+              "end": 11
+            }
+          ],
+          "model": "moonshine-tiny-q4_k",
+          "engine": "crispasr",
+          "local": true,
+          "timestampPrecision": "segment",
+          "diagnostics": {
+            "operation": "transcribe",
+            "model": "moonshine-tiny-q4_k",
+            "engine": "crispasr",
+            "peakWasmBytes": 469041152,
+            "elapsedMs": 10072.06,
+            "runtimeMode": "threaded",
+            "cpuThreads": 2,
+            "mailboxMode": "postMessage",
+            "dtype": null,
+            "provider": "wasm",
+            "fallbackReason": null,
+            "audioSeconds": 11,
+            "observedJsHeapBytes": null
+          }
+        },
+        "cached": {
+          "segments": [
+            {
+              "text": "And so my fellow American asked not what your country can do for you, ask what you can do for your country.",
+              "start": 0,
+              "end": 11
+            }
+          ],
+          "model": "moonshine-tiny-q4_k",
+          "engine": "crispasr",
+          "local": true,
+          "timestampPrecision": "segment",
+          "diagnostics": {
+            "operation": "transcribe",
+            "model": "moonshine-tiny-q4_k",
+            "engine": "crispasr",
+            "peakWasmBytes": 562888704,
+            "elapsedMs": 11972.86,
+            "runtimeMode": "threaded",
+            "cpuThreads": 2,
+            "mailboxMode": "postMessage",
+            "dtype": null,
+            "provider": "wasm",
+            "fallbackReason": null,
+            "audioSeconds": 11,
+            "observedJsHeapBytes": null
+          }
+        },
+        "beats": 2051,
+        "cancellation": "Browser inference cancelled",
+        "cancellationProgress": 0.1690909090909091
+      },
+      {
+        "loaded": {
+          "loaded": true,
+          "local": true,
+          "diagnostics": {
+            "operation": "load",
+            "model": "moonshine-tiny-q4_k",
+            "engine": "crispasr",
+            "peakWasmBytes": 390856704,
+            "cachedLoad": false,
+            "elapsedMs": 4454.9,
+            "runtimeMode": "threaded",
+            "cpuThreads": 2,
+            "mailboxMode": "postMessage",
+            "dtype": null,
+            "provider": "wasm",
+            "fallbackReason": null,
+            "observedJsHeapBytes": null
+          }
+        },
+        "output": {
+          "segments": [
+            {
+              "text": "And so my fellow American asked not what your country can do for you, ask what you can do for your country.",
+              "start": 0,
+              "end": 11
+            }
+          ],
+          "model": "moonshine-tiny-q4_k",
+          "engine": "crispasr",
+          "local": true,
+          "timestampPrecision": "segment",
+          "diagnostics": {
+            "operation": "transcribe",
+            "model": "moonshine-tiny-q4_k",
+            "engine": "crispasr",
+            "peakWasmBytes": 562888704,
+            "elapsedMs": 13682.419999999998,
+            "runtimeMode": "threaded",
+            "cpuThreads": 2,
+            "mailboxMode": "postMessage",
+            "dtype": null,
+            "provider": "wasm",
+            "fallbackReason": null,
+            "audioSeconds": 11,
+            "observedJsHeapBytes": null
+          }
+        },
+        "cached": {
+          "segments": [
+            {
+              "text": "And so my fellow American asked not what your country can do for you, ask what you can do for your country.",
+              "start": 0,
+              "end": 11
+            }
+          ],
+          "model": "moonshine-tiny-q4_k",
+          "engine": "crispasr",
+          "local": true,
+          "timestampPrecision": "segment",
+          "diagnostics": {
+            "operation": "transcribe",
+            "model": "moonshine-tiny-q4_k",
+            "engine": "crispasr",
+            "peakWasmBytes": 562888704,
+            "elapsedMs": 11458.02,
+            "runtimeMode": "threaded",
+            "cpuThreads": 2,
+            "mailboxMode": "postMessage",
+            "dtype": null,
+            "provider": "wasm",
+            "fallbackReason": null,
+            "audioSeconds": 11,
+            "observedJsHeapBytes": null
+          }
+        },
+        "beats": 1514,
+        "cancellation": "Browser inference cancelled",
+        "cancellationProgress": 0.1690909090909091
+      }
+    ],
+    "tts_asr_roundtrips": [
+      {
+        "output": {
+          "segments": [
+            {
+              "text": "Hello, this speech is generated locally in your browser.",
+              "start": 0,
+              "end": 3.95
+            }
+          ],
+          "model": "moonshine-tiny-q4_k",
+          "engine": "crispasr",
+          "local": true,
+          "timestampPrecision": "segment",
+          "diagnostics": {
+            "operation": "transcribe",
+            "model": "moonshine-tiny-q4_k",
+            "engine": "crispasr",
+            "peakWasmBytes": 469041152,
+            "elapsedMs": 7503.0300006866455,
+            "runtimeMode": "threaded",
+            "cpuThreads": 4,
+            "mailboxMode": "waitAsync",
+            "dtype": null,
+            "provider": "wasm",
+            "fallbackReason": null,
+            "audioSeconds": 3.95,
+            "observedJsHeapBytes": 10000000
+          }
+        },
+        "ttsDiagnostics": {
+          "operation": "synthesize",
+          "engine": "crispasr",
+          "peakWasmBytes": 2848456704,
+          "elapsedMs": 71639.19000053406,
+          "runtimeMode": "threaded",
+          "cpuThreads": 4,
+          "mailboxMode": "waitAsync",
+          "dtype": null,
+          "provider": "wasm",
+          "fallbackReason": null,
+          "observedJsHeapBytes": 10000000
+        },
+        "samples": 94800,
+        "sampleRate": 24000,
+        "local": true
+      },
+      {
+        "output": {
+          "segments": [
+            {
+              "text": "Hello, this speech is generated locally in your browser.",
+              "start": 0,
+              "end": 3.95
+            }
+          ],
+          "model": "moonshine-tiny-q4_k",
+          "engine": "crispasr",
+          "local": true,
+          "timestampPrecision": "segment",
+          "diagnostics": {
+            "operation": "transcribe",
+            "model": "moonshine-tiny-q4_k",
+            "engine": "crispasr",
+            "peakWasmBytes": 469041152,
+            "elapsedMs": 5777.699999999999,
+            "runtimeMode": "threaded",
+            "cpuThreads": 4,
+            "mailboxMode": "postMessage",
+            "dtype": null,
+            "provider": "wasm",
+            "fallbackReason": null,
+            "audioSeconds": 3.95,
+            "observedJsHeapBytes": null
+          }
+        },
+        "ttsDiagnostics": {
+          "operation": "synthesize",
+          "engine": "crispasr",
+          "peakWasmBytes": 2862809088,
+          "elapsedMs": 312125.88,
+          "runtimeMode": "threaded",
+          "cpuThreads": 4,
+          "mailboxMode": "postMessage",
+          "dtype": null,
+          "provider": "wasm",
+          "fallbackReason": null,
+          "observedJsHeapBytes": null
+        },
+        "samples": 94800,
+        "sampleRate": 24000,
+        "local": true
+      },
+      {
+        "output": {
+          "segments": [
+            {
+              "text": "Hello, this speech is generated locally in your browser.",
+              "start": 0,
+              "end": 3.95
+            }
+          ],
+          "model": "moonshine-tiny-q4_k",
+          "engine": "crispasr",
+          "local": true,
+          "timestampPrecision": "segment",
+          "diagnostics": {
+            "operation": "transcribe",
+            "model": "moonshine-tiny-q4_k",
+            "engine": "crispasr",
+            "peakWasmBytes": 469041152,
+            "elapsedMs": 7244.16,
+            "runtimeMode": "threaded",
+            "cpuThreads": 4,
+            "mailboxMode": "waitAsync",
+            "dtype": null,
+            "provider": "wasm",
+            "fallbackReason": null,
+            "audioSeconds": 3.95,
+            "observedJsHeapBytes": null
+          }
+        },
+        "ttsDiagnostics": {
+          "operation": "synthesize",
+          "engine": "crispasr",
+          "peakWasmBytes": 2845966336,
+          "elapsedMs": 813415.2000000001,
+          "runtimeMode": "threaded",
+          "cpuThreads": 4,
+          "mailboxMode": "waitAsync",
+          "dtype": null,
+          "provider": "wasm",
+          "fallbackReason": null,
+          "observedJsHeapBytes": null
+        },
+        "samples": 94800,
+        "sampleRate": 24000,
+        "local": true
+      }
+    ],
+    "startup_failure_cpu_recovery": {
+      "browsers": [
+        "chromium",
+        "firefox",
+        "webkit"
+      ],
+      "passed": 3
+    }
+  },
+  "environment_failure": {
+    "initial_matrix": "14 passed, 1 Firefox TTS round-trip transport failure",
+    "cause_evidence": "Root filesystem full; server logging exceptions and NS_ERROR_NET_RESET before fresh worker initialization. Speech generation had completed.",
+    "recovery": "Firefox round trip passed unchanged after moving logs and browser temporary files to the workspace volume."
+  },
+  "webkit_before_workaround": {
+    "waitAsync": "Two passes followed by a cached native-asrOpen-dispatched stall; CPU fallback does not satisfy threaded validation.",
+    "forced_postMessage_repetitions_passed": 5,
+    "isolated_waitAsync_controls": {
+      "fixed_memory_passed": 100,
+      "grown_memory_passed": 100
+    },
+    "scope": "The observed stall concerns this application/runtime interaction; isolated controls did not establish a general waitAsync defect."
+  },
+  "production_before_cache_fix": {
+    "run": "https://github.com/CrispStrobe/CrisperWeaver/actions/runs/37032040854",
+    "webkit": "30 passed, 8 failed, 1 flaky, 2 skipped",
+    "failure": "Conditional worker revalidation returned 304 without COEP. WebKit rejected fresh workers as blocked by Cross-Origin-Embedder-Policy.",
+    "fix": "Cache-Control: no-store only on /speech/worker.js; smoke checks assert worker cache and isolation headers."
+  },
+  "live_lite_keyboard_helper": {
+    "passed": 6,
+    "browsers": [
+      "chromium",
+      "firefox",
+      "webkit"
+    ]
+  },
+  "code_sha256": {
+    "web/speech/worker.js": "f17d80b6fecab796eef0db6a9c4d7129146547d5cab84b42867090e10cc3cd65",
+    "web/speech/bridge.js": "e97f475398c120a9c3145991bf1cd597a1bb3d6cee528a009997970f76a38d0f",
+    "web/speech/engine-worker.js": "fdb31785ca7a09355d1b0d385bf3de668fb1eebfb7242b756b1125fa762d4611",
+    "vercel.json": "2f29cdfc328aaedcea6e9ab7d6e166abd02d080375aa11c8bf829ee125ce2f9a"
+  },
+  "webkit_automatic_mailbox_stress": {
+    "passed": 3,
+    "failed": 0,
+    "durations_seconds": [
+      51.6,
+      54.5,
+      54.1
+    ],
+    "checks": [
+      "actual two-thread ASR",
+      "cancel after real-window progress",
+      "downloads-disabled cached reload"
+    ],
+    "artifact_scope": "webkit-mailbox-stress-final"
+  },
+  "lightweight_controls": {
+    "validated": 18,
+    "initial_passes": 17,
+    "setup_only_failure_recovered": 1,
+    "browsers": [
+      "chromium",
+      "firefox",
+      "webkit"
+    ],
+    "checks": [
+      "bounded busy pthread pool shutdown",
+      "queued cancellation generation guard",
+      "root mailbox dispatch and peer forwarding"
+    ],
+    "negative_control": "Removing root-target normalization reproduces a dropped mailbox wakeup."
+  }
+}

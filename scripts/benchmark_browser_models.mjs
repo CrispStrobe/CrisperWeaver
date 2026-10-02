@@ -87,7 +87,7 @@ for (const entry of models) {
               const result = await client.request('transcribe', { audio, transferAudio: true });
               const transcript = result.segments.map(segment => segment.text).join(' ');
               return { loaded: loaded.diagnostics, inference: result.diagnostics, transcript, local: result.local };
-            } finally { client.dispose(); }
+            } finally { await client.dispose(); }
           }, { engine, model, fixture, cold: temperature === 'cold' });
           measurement.runs.push({ cache: temperature, ...result, baselineBrowserRssBytes: baseline, peakBrowserRssBytes: peak, baselineGpuMemory, peakGpuMemory });
           if (!result.local || !result.transcript.toLowerCase().includes('country')) throw new Error('Known local transcript check failed');

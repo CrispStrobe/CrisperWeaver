@@ -6,7 +6,11 @@ Artifact: crispasr-wasm-proxy-to-pthread-lowheap
 The threaded integration starts its compute thread outside message handlers and
 uses async model-open/transcription/synthesis bindings. The smaller SIMD single-thread runtime is the default after five-model
 decoded parity and three-warm-run comparisons. Threading stays opt-in because
-it slows some models; the original 512 MiB runtime remains for rollback. Browser worker termination cancels the complete runtime and its pool.
+it slows some models; the original 512 MiB runtime remains for rollback. The application wrapper initiates explicit pool shutdown and coordinates
+reloads. It captures the servicer pointer through the initialization import
+and preserves root mailbox wakeups on the generated postMessage path.
+Threaded WebKit selects that path automatically. The tiny worker entry
+script uses no-store on Vercel to preserve isolation across worker restarts.
 Native Dart package pins are independent.
 
 SHA256:

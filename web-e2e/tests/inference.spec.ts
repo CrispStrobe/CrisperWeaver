@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { TARGET } from './target';
+import { typeFlutterText } from './flutter-input';
 
 // Exercise the actual shipped workers, actual downloaded weights, and known
 // speech. No fake network responses or mocked inference results.
@@ -121,11 +122,7 @@ test('CrispASR synthesizes non-silent speech locally', async ({ page }, info) =>
     element.dispatchEvent(new MouseEvent('click', { bubbles: true })); element.click();
   });
   const field = page.getByRole('textbox');
-  await field.click(); await expect(field).toBeFocused();
-  await field.press('ArrowLeft');
-  await field.pressSequentially('Hello browser.', { delay: 30 });
-  await expect(field).toHaveValue('Hello browser.');
-  await field.press('Tab');
+  await typeFlutterText(field, 'Hello browser.');
   await page.getByRole('button', { name: 'Generate speech', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Download WAV', exact: true })).toBeVisible({ timeout: 480_000 });
   const downloadEvent = page.waitForEvent('download');

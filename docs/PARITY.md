@@ -12,14 +12,14 @@ and is recorded separately here rather than inferred from native parity.
 | Experimental ASR | Wider native catalogue and ONNX Whisper small require the separate warning-gated override. Phonon-2 Q4 passed Chromium CI; Q8/F16 remain unvalidated. Backend availability is checked before native-model download. |
 | Microphone | Record, decode/resample to 16 kHz, then transcribe; no live streaming. |
 | Local TTS | English Kokoro, `af_heart`, at most 1,000 characters per request. |
-| CrispASR CPU execution | SIMD single-thread default with 128 MiB initial memory; opt-in two/four-thread async compute requires browser isolation. Worker termination cancels processing. |
+| CrispASR CPU execution | SIMD single-thread default with 128 MiB initial memory; opt-in two/four-thread async compute requires browser isolation. Cancellation initiates pool shutdown and guards deferred reloads; threaded WebKit uses message mailboxes. |
 | ONNX GPU | Warning-gated fp32 weights with fresh-worker CPU recovery. Physical Tesla T4 passes Moonshine tiny and Whisper tiny English; other devices/models remain unvalidated. |
 | Timings | ASR segments; ONNX Moonshine and Whisper text-decoding fallback use chunk boundaries. No word timestamps or forced alignment. |
 | History and model cache | IndexedDB history and SHA-256-verified chunked weights. Interrupted downloads resume checkpoints; eviction/corruption permits clean retry. Fresh-worker cached inference is tested with off-origin requests blocked. Browser eviction remains possible. |
 | Diarization / voice cloning / native auxiliary tools | Not exposed by the browser speech adapter. |
 | Remote AI | Full retains optional cloud processing. Lite disables it; the experimental-model override does not change that policy. |
 
-Final compiled-artifact matrices pass without retries in Chromium, Firefox
+Earlier compiled-artifact matrices pass without retries in Chromium, Firefox
 and WebKit: Full 39 tests per browser (2 Lite-only skipped), Lite 41. Real
 threaded ASR/TTS, cache recovery and Lite endpoint policy pass in every matrix.
 The isolated Phonon-2 Q4

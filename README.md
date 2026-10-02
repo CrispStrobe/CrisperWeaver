@@ -467,6 +467,8 @@ CPU processing is the default. CrispASR uses the validated SIMD runtime with
 128 MiB initial memory, growing as needed. Its one/two/four-thread setting
 keeps one thread as default: more threads help some models and slow others.
 Parallel mode requires browser isolation and uses asynchronous compute calls.
+Cancellation initiates explicit pool shutdown and guards deferred reloads.
+Threaded WebKit uses message mailboxes for reliable cached model opening.
 **ONNX processing** in Settings/Models offers
 warning-gated GPU attempts, with local WASM recovery for unsupported adapters,
 model/operator errors and inactive processing. GPU mode downloads larger fp32

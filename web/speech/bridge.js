@@ -1,5 +1,5 @@
-// A client owns its worker: terminating it cancels blocked WASM computation
-// and rejects every outstanding operation rather than leaving promises hanging.
+// A client owns its worker and pthread pool. Cancellation rejects outstanding
+// operations immediately and coordinates bounded pool disposal before reload.
 (() => {
   class Client {
     constructor(engine, allowDownloads = true) {
@@ -11,21 +11,47 @@
       this.loadedCpuThreads = null;
       this.loadedLowHeap = null;
       this.workerFallbackReason = null;
+      this.workerThreads = 1; this.workerStage = 'worker-bootstrap';
+      this.teardown = null; this.generation = 0;
     }
     request(op, payload = {}, progress, forcedPreference, forcedThreads) {
+      if (op === 'unload') {
+        this.cancel();
+        return this.teardown ? this.teardown.then(() => true) : Promise.resolve(true);
+      }
+      if (this.teardown) {
+        const generation = this.generation;
+        return this.teardown.then(() => {
+          if (generation !== this.generation) throw new Error('Browser inference cancelled');
+          return this.request(op, payload, progress, forcedPreference, forcedThreads);
+        });
+      }
       const executionPreference = forcedPreference || localStorage.getItem('flutter.browser_execution_provider')?.replaceAll('"', '') || 'wasm';
       const requestedThreads = forcedThreads ?? Number(localStorage.getItem('flutter.browser_cpu_threads') || 1);
       const cpuThreads = this.engine === 'crispasr' && !['models', 'clearCache', 'delete', 'deleteCache', 'clearIncomplete', 'storage', 'unload'].includes(op) && crossOriginIsolated && typeof SharedArrayBuffer !== 'undefined'
         ? ([2, 4].includes(requestedThreads) ? requestedThreads : 1) : 1;
       const lowHeap = localStorage.getItem('cw.browserLowMemoryRuntime') !== 'false';
-      if (op === 'unload') { this.cancel(); return Promise.resolve(true); }
       if (['load', 'import'].includes(op) && (payload.model !== this.loadedModel || executionPreference !== this.loadedPreference || cpuThreads !== this.loadedCpuThreads || lowHeap !== this.loadedLowHeap)) this.cancel();
+      if (this.teardown) return this.request(op, payload, progress, forcedPreference, forcedThreads);
       if (!this.worker) {
         const workerUrl = new URL('speech/worker.js', document.baseURI);
         if (lowHeap) workerUrl.searchParams.set('heap', 'small');
-        if (cpuThreads > 1) { workerUrl.searchParams.set('runtime', 'threaded'); workerUrl.searchParams.set('threads', String(cpuThreads)); }
+        if (cpuThreads > 1) {
+          workerUrl.searchParams.set('runtime', 'threaded'); workerUrl.searchParams.set('threads', String(cpuThreads));
+          const mailboxOverride = localStorage.getItem('cw.browserMailboxPostMessage');
+          if (mailboxOverride === 'true' || mailboxOverride === 'false') workerUrl.searchParams.set('mailbox', mailboxOverride === 'true' ? 'message' : 'waitAsync');
+        }
         this.worker = new Worker(workerUrl);
+        this.workerThreads = cpuThreads; this.workerStage = 'worker-bootstrap';
         this.worker.onmessage = ({ data }) => {
+          if (data.runtimeStage) {
+            this.workerStage = data.runtimeStage;
+            for (const entry of this.pending.values()) {
+              if (!['load', 'import', 'synthesize'].includes(entry.op)) continue;
+              clearTimeout(entry.timer); entry.timer = setTimeout(entry.timeout, entry.timeoutMs);
+            }
+            return;
+          }
           const entry = this.pending.get(data.id);
           if (!entry) return;
           if (data.progress != null) {
@@ -83,7 +109,7 @@
           if (!entry) return;
           this.pending.delete(id);
           if (gpuInference) this.retryGpuInference(entry, 'CW_GPU_RESTART: GPU inference stalled; retrying on local CPU');
-          else this.retryCpu(entry, 'Parallel runtime stalled; worker restarted with single-thread CPU');
+          else this.retryCpu(entry, `Parallel runtime stalled during ${this.workerStage}; worker restarted with single-thread CPU`);
         };
         const watchdog = retryCpu || retrySingle || gpuInference;
         const timeoutMs = watchdog ? 120000 : 900000;
@@ -128,7 +154,29 @@
       return true;
     }
     cancel(message = 'Browser inference cancelled') {
-      this.worker?.terminate(); this.worker = null;
+      this.generation++;
+      const worker = this.worker, threads = this.workerThreads;
+      this.worker = null; this.workerThreads = 1;
+      if (worker) {
+        worker.onmessage = null; worker.onerror = null;
+        if (threads > 1) {
+          const cleanup = new Promise(resolve => {
+            let timer, finished = false;
+            const finish = info => {
+              if (finished) return;
+              finished = true;
+              clearTimeout(timer); worker.removeEventListener('message', acknowledge);
+              worker.terminate(); resolve(info);
+            };
+            const acknowledge = ({ data }) => { if (data?.cwPoolDisposed) finish(data); };
+            worker.addEventListener('message', acknowledge);
+            timer = setTimeout(() => finish({ forced: true }), 1000);
+            try { worker.postMessage({ op: 'cw-dispose-pool' }); } catch (_) { finish({ forced: true }); }
+          });
+          this.teardown = cleanup;
+          cleanup.then(() => { if (this.teardown === cleanup) this.teardown = null; });
+        } else worker.terminate();
+      }
       this.loadedModel = null;
       this.loadedPreference = null;
       this.loadedCpuThreads = null;
@@ -137,7 +185,7 @@
       for (const entry of this.pending.values()) { clearTimeout(entry.timer); entry.reject(new Error(message)); }
       this.pending.clear();
     }
-    dispose() { this.cancel(); }
+    dispose() { this.cancel(); return this.teardown || Promise.resolve(); }
   }
   async function decode(bytes) {
     const context = new AudioContext();

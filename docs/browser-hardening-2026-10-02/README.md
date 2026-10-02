@@ -67,14 +67,50 @@ insertions while the WER bound constrains them. Single-thread Kokoro is much
 slower in Firefox: the original eleven-word synthesis took about eight minutes
 on the hosted CPU runner. The UI/offline WAV check uses shorter real speech
 and a budget for two serial workers; the revised Firefox runtime/UI check
-passes in 7.7 minutes. The final Full matrix passes 39 tests per browser
-(two Lite-only tests skipped) in Chromium, Firefox and WebKit. Lite passes
-41 per browser in the same matrix. All six jobs pass without retries.
+passes in 7.7 minutes. The earlier compiled-artifact Full matrix passed 39 tests per browser
+(two Lite-only tests skipped) in Chromium, Firefox and WebKit. Lite passed
+41 per browser in the same matrix. All six jobs passed without retries.
 See [Full](https://github.com/CrispStrobe/CrisperWeaver/actions/runs/37022826125)
 and [Lite](https://github.com/CrispStrobe/CrisperWeaver/actions/runs/37022830567).
 
-Live production worker files match `main` byte-for-byte and include COOP/COEP
-headers. Full's twelve live shell checks pass across all three browsers. Lite's
+The earlier production check verified the worker files against commit
+`b724bcc` byte-for-byte, including COOP/COEP headers. Full's twelve live shell checks pass across all three browsers. Lite's
 branding and remote-endpoint controls pass three times per browser (18 checks)
 after replacing an intermittent first-keystroke setup with bounded native
 keyboard re-entry; saving still requires exact complete input and rejection.
+
+
+## Worker restart and mailbox follow-up
+
+Production testing subsequently exposed WebKit worker restarts blocked by
+COEP: Vercel conditional 304 responses for the worker entry omitted isolation
+headers. The entry now uses `Cache-Control: no-store`; model and other runtime
+assets retain their cache behavior. Deployment smoke checks assert the worker
+entry's status, cache policy and isolation headers for both flavors.
+
+The pinned Emscripten loader also discarded postMessage wakeups targeting the
+root pthread because that thread is outside its child pool. The worker adapter
+now routes root wakeups to the existing mailbox handler and preserves peer
+routing. WebKit uses this message path for threaded execution after repeated
+real-model opening stalled on its waitAsync path. Isolated waitAsync controls
+passed; this evidence does not establish a general Atomics defect. Chromium
+and Firefox retain their default waitAsync path.
+
+All 15 native runtime cases were validated across Chromium, Firefox and
+WebKit: two/four-thread and forced-message ASR with cancellation after real
+window progress and downloads-disabled reload, threaded TTS followed by ASR,
+and failed-thread-start CPU recovery. One Firefox transport failure coincided
+with a full host filesystem; the unchanged case passed after recovering disk
+space. Five forced-message WebKit repeats passed, followed by three automatic
+WebKit repeats with real-window cancellation. All 18 lightweight controls
+were validated, including one setup-only WebKit recovery. Pool shutdown
+waits for explicit child termination with a bounded fallback, and queued
+requests are guarded against subsequent cancellation. Chromium busy-worker
+termination can take several seconds; parent termination alone did not leave
+persistent running children in the controls.
+
+The extracted Flutter input helper passed six live Lite cases across the
+three browsers. Detailed runtime diagnostics, failures, recoveries and source
+hashes are retained in [worker-restart-validation.json](worker-restart-validation.json).
+The subsequent deployment suites include these worker restart, cache-header,
+mailbox and input checks for both Full and Lite.

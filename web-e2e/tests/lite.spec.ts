@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { TARGET } from './target';
+import { typeFlutterText } from './flutter-input';
 
 test.skip(process.env.CW_FLAVOR !== 'lite', 'Only the separate Lite deployment');
 
@@ -59,20 +60,7 @@ test('saved cloud settings are suppressed and remote endpoints cannot be saved',
   await expect(fields).toHaveCount(3);
   await expect(fields.nth(0)).toHaveValue('');
   const endpoint = 'https://api.openai.com/v1/chat/completions';
-  await fields.nth(0).click();
-  await expect(fields.nth(0)).toBeFocused();
-  // Flutter's asynchronous WebKit focus handoff can discard the first key.
-  // Re-enter through native keyboard events until the complete value settles;
-  // DOM fill alone does not reliably update Flutter's TextEditingController.
-  await expect(async () => {
-    await fields.nth(0).press('ControlOrMeta+A');
-    await fields.nth(0).press('Backspace');
-    await expect(fields.nth(0)).toHaveValue('', { timeout: 1_000 });
-    await fields.nth(0).pressSequentially(endpoint, { delay: 30 });
-    await expect(fields.nth(0)).toHaveValue(endpoint, { timeout: 1_000 });
-  }).toPass({ timeout: 15_000 });
-  await fields.nth(0).press('Tab');
-  await expect(fields.nth(0)).toHaveValue(endpoint);
+  await typeFlutterText(fields.nth(0), endpoint);
   await page.getByRole('button', { name: 'SAVE', exact: true }).click();
   await expect.poll(() => page.evaluate(() => document.body.innerText)).toContain('Cloud models are unavailable');
   await expect(fields.nth(0)).toHaveValue('https://api.openai.com/v1/chat/completions');

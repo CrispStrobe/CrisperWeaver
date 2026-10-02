@@ -31,7 +31,40 @@ If a learning is still live (affects current work), it's linked from [`PLAN.md`]
   the worker that services pthread requests can block thread startup or joins.
   Proxy native compute asynchronously and create JS values on the servicer.
   Reject unready/non-proxy async calls rather than running inline. Keep the
-  single-thread runtime and cancellation by worker termination.
+  single-thread runtime as a fallback.
+- **The root servicer is not a pool pthread.** The generated Emscripten handler
+  routes targeted `cmd: 4` mailbox messages only through its pool map, then
+  returns. This discards root wakeups on the postMessage mailbox path. Capture
+  the root pointer from `__emscripten_init_main_thread_js` and remove only that
+  target before the generated handler runs, allowing its mailbox case to drain
+  the root queue. Peer targets remain intact. Actual-wrapper controls pass in
+  Chromium, Firefox and WebKit; removing the rewrite reproduces lost root
+  wakeups.
+- **Mailbox policy needs real model checks.** After correcting root routing,
+  repeated WebKit cached model-open still stalled on the waitAsync path. The
+  explicit postMessage path passed five real two-thread repetitions; threaded
+  WebKit now selects it automatically, with an explicit URL mode for rollback.
+  Isolated waitAsync controls passed 100 times without memory growth and 100
+  with growth. This is evidence about the application/runtime interaction, not
+  a general waitAsync feature failure. Real two/four-thread ASR, explicit
+  postMessage ASR, threaded TTS→ASR and startup recovery pass across Chromium,
+  Firefox and WebKit: 15 cases, including an unchanged-source Firefox TTS retry
+  after local transport failures. ASR cancellation waits for a completed native
+  window before stopping the worker and then verifies offline cache reload.
+- **Production worker caching must preserve isolation.** WebKit production
+  traces showed conditional `304` responses for the root worker without the
+  required isolation headers, blocking fresh worker startup. Local `no-store`
+  serving did not reproduce this hosting failure. The [Vercel config](vercel.json)
+  now applies `Cache-Control: no-store` only to `/speech/worker.js`, preserving
+  global COOP/COEP and the separate large-runtime/model cache policies. The shell
+  asset checks require that cache policy and both isolation headers for ordinary
+  and threaded worker URLs in each flavor's production smoke suite.
+- **Cancellation acknowledgement is not immediate interruption.** Reject pending
+  requests, initiate explicit pool shutdown and bound the acknowledgement wait.
+  A generation guard must also reject deferred reloads cancelled during teardown.
+  Chromium busy JS and WASM controls stopped after roughly two seconds;
+  checking after 100 ms falsely suggested workers survived termination.
+  Parent-only termination also eventually stopped the nested busy worker.
 - **Timestamp decoding may omit speech that text decoding retains.**
   Retry empty timestamp output only for an energetic window; label its
   fallback timing as chunk-level. Real Firefox English output retained all

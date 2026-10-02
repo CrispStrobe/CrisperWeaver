@@ -39,6 +39,7 @@ const threaded = runtimeParameters.get('runtime') === 'threaded';
 const cpuThreads = threaded ? Math.max(2, Math.min(4, Number(runtimeParameters.get('threads')) || 4)) : 1;
 let runtime, runtimeReady, pipeline, transformerEnv, asr, modelId, ttsReady = false;
 let provider = 'wasm', fallbackReason = '', activeModel, executionPreference = 'wasm', diagnostics;
+const runtimeStage = stage => postMessage({ runtimeStage: stage });
 const sampleMemory = () => {
   if (diagnostics && runtime) diagnostics.peakWasmBytes = Math.max(diagnostics.peakWasmBytes || 0, runtime.HEAPU8.byteLength);
 };
@@ -90,13 +91,26 @@ async function crisp() {
   if (!runtimeReady) {
     runtimeReady = (async () => {
       const directory = threaded ? '../wasm/crispasr-threaded/' : runtimeParameters.get('heap') === 'small' ? '../wasm/crispasr-small/' : '../wasm/crispasr/';
+      runtimeStage('runtime-loader');
       importScripts(new URL(directory + 'libwhisper.js', self.location.href).href);
       const url = new URL(directory + 'libwhisper.wasm', self.location.href);
+      runtimeStage('runtime-download');
       const response = await fetch(url);
       if (!response.ok) throw new Error(`Speech runtime unavailable: HTTP ${response.status}`);
-      const compiled = await WebAssembly.compile(await response.arrayBuffer());
+      const bytes = await response.arrayBuffer();
+      runtimeStage('wasm-compile');
+      const compiled = await WebAssembly.compile(bytes);
       const options = { locateFile: file => new URL(directory + file, self.location.href).href, print: () => {}, printErr: m => console.debug(m),
         instantiateWasm(imports, receive) {
+          if (threaded) {
+            let found = false;
+            for (const namespace of Object.values(imports)) for (const [key, value] of Object.entries(namespace)) {
+              if (typeof value !== 'function' || value.name !== '__emscripten_init_main_thread_js') continue;
+              namespace[key] = (...args) => { self.CW_ROOT_PTHREAD = args[0] >>> 0; return value(...args); };
+              found = true;
+            }
+            if (!found) throw new Error('Threaded runtime lacks the servicer initialization import');
+          }
           const instance = new WebAssembly.Instance(compiled, imports);
           const memory = Object.values(instance.exports).find(value => value instanceof WebAssembly.Memory)
             || Object.values(imports).flatMap(namespace => Object.values(namespace)).find(value => value instanceof WebAssembly.Memory);
@@ -107,26 +121,33 @@ async function crisp() {
           receive(instance, compiled); return instance.exports;
         },
       };
+      runtimeStage(threaded ? 'pthread-pool-startup' : 'runtime-instance');
       runtime = await whisper_factory(options);
       if (threaded) {
+        runtimeStage('compute-thread-startup');
         const deadline = performance.now() + 15000;
         while (!runtime.browserComputeReady?.()) {
           if (performance.now() > deadline) throw new Error('Threaded compute startup timed out');
           await new Promise(resolve => setTimeout(resolve, 10));
         }
       }
+      runtimeStage('runtime-ready');
       return runtime;
     })();
   }
   return runtimeReady;
 }
 async function nativeCall(module, operation, ...args) {
+  if (operation.includes('Open')) runtimeStage('native-' + operation);
   if (!threaded) return module[operation](...args);
   const method = module[operation + 'Async'];
   if (!method) throw new Error('Threaded runtime lacks async ' + operation);
-  return new Promise((resolve, reject) => method(...args, result => {
-    if (result?.error) reject(new Error(result.error)); else resolve(result);
-  }));
+  return new Promise((resolve, reject) => {
+    method(...args, result => {
+      if (result?.error) reject(new Error(result.error)); else resolve(result);
+    });
+    if (operation.includes('Open')) runtimeStage('native-' + operation + '-dispatched');
+  });
 }
 // Start the pthread pool outside any message handler. A rejected startup is
 // reported when inference requests await it, without an unhandled rejection.
@@ -350,6 +371,7 @@ async function handle({ id, op, payload, engine, allowDownloads, allowExperiment
     diagnostics.elapsedMs = performance.now() - started;
     diagnostics.runtimeMode = engine === 'crispasr' ? (threaded ? 'threaded' : 'single') : 'onnx';
     diagnostics.cpuThreads = engine === 'crispasr' ? cpuThreads : 1;
+    diagnostics.mailboxMode = threaded ? (typeof Atomics.waitAsync === 'function' ? 'waitAsync' : 'postMessage') : null;
     diagnostics.dtype = engine === 'onnx' ? (provider === 'webgpu' ? 'fp32' : 'q8') : null;
     diagnostics.provider = provider; diagnostics.fallbackReason = fallbackReason || null;
     if (op === 'transcribe') diagnostics.audioSeconds = payload.audio.length / 16000;

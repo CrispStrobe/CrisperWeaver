@@ -7,6 +7,11 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 
 ### Browser optimizations
 
+- Fixed WebKit worker restarts by preventing browser caching of the small
+  worker entry script. Threaded WebKit uses message mailboxes; root mailbox
+  wakeups preserve peer routing. Cancellation shuts down tracked threads
+  and rejects deferred reloads cancelled during teardown.
+
 - Added opt-in two/four-thread CrispASR processing with async compute calls,
   cancellation and single-thread recovery after failed startup. CPU remains
   the default; parallel mode requires browser isolation.

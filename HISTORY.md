@@ -32,7 +32,37 @@ CrispASR async proxy-to-pthread bindings are merged upstream at `2e936f5a1`.
 All five [WASM variants](https://github.com/CrispStrobe/CrispASR/actions/runs/37004439151)
 passed. Bundled artifacts retain the exact tested `70e15c9a0` source, preserved
 under tag `cw-browser-wasm-2026-10-02`. The servicer remains available while
-compute runs asynchronously; terminating the owning worker cancels its pool.
+compute runs asynchronously. Cancellation rejects pending requests, initiates
+explicit pool shutdown and bounds the acknowledgement wait. Generation guards
+prevent deferred reloads from recreating a cancelled worker. Chromium controls
+showed busy JS/WASM interruption after roughly two seconds; parent-only
+termination also eventually stopped a nested busy worker.
+
+A subsequent wrapper correction handles root mailbox wakeups that the generated
+Emscripten handler otherwise discards on its postMessage path. The adapter
+captures the root pointer from the native initialization import, removes only
+root targets from `cmd: 4` messages and preserves peer routing. Controlled tests
+using the actual wrapper pass in Chromium, Firefox and WebKit; removing the
+rewrite reproduces the lost root wakeup. With routing corrected, repeated
+WebKit cached model-open still stalled on the waitAsync path. Explicit
+postMessage mailboxes passed five real two-thread repetitions, so threaded
+WebKit now selects that path automatically; an explicit URL mode allows
+rollback. Isolated waitAsync controls passed 100 times without memory growth
+and 100 with growth, so these findings concern the application/runtime
+interaction. The strengthened native matrix passes 15 cases across Chromium,
+Firefox and WebKit: real two/four-thread ASR, explicit postMessage ASR,
+threaded TTS→ASR and startup recovery. Cancellation now follows a completed
+native audio window and checks subsequent offline cache reload. Fourteen cases
+passed together; the Firefox TTS→ASR case passed on unchanged source after a
+full local disk disrupted HTTP server logging and fresh-worker requests.
+
+Production WebKit traces also exposed root-worker revalidation through `304`
+responses without the required isolation headers, blocking subsequent worker
+startup. The Vercel policy now disables browser caching only for the tiny
+`/speech/worker.js` entry point while retaining global COOP/COEP. Existing shell
+asset tests check ordinary and threaded URLs for `no-store` and isolation
+headers; local checks pass in all three projects. Both flavor deployments copy
+this policy, and their production smoke suites enforce these response headers.
 
 Five native models pass decoded parity against the older runtime and at least
 three warm timing repetitions. The 128 MiB SIMD runtime is now default;

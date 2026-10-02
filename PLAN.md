@@ -41,10 +41,12 @@ below are historical and are not a claim about the current complete suite.
 **Current work.** Full and Lite browser deployments run local speech inference.
 Phonon-2 Q4 passed an isolated Chromium assessment after fixing resizable
 WASM memory compatibility; it remains experimental because a constrained
-host crashed during an earlier loading attempt. The final compiled-artifact matrices pass
+host crashed during an earlier loading attempt. Earlier compiled-artifact matrices pass
 39 tests per browser for Full and 41 for Lite in Chromium, Firefox and WebKit.
 All six browser follow-ups are complete, including real Tesla T4 validation
-and deadlock-free threaded ASR/TTS. See [HISTORY.md](HISTORY.md#browser-hardening-and-threaded-local-speech-2026-10-02)
+and asynchronous threaded ASR/TTS. Follow-up validation covers WebKit
+message mailboxes, cancellation during real native work, and production
+worker cache headers; see the retained browser evidence. See [HISTORY.md](HISTORY.md#browser-hardening-and-threaded-local-speech-2026-10-02)
 and [web-e2e/README.md](web-e2e/README.md) for the exact scope and evidence.
 The signed macOS Lite CI artifact has been built; this work has not uploaded
 or submitted Lite to Apple. Storefront changes and App Review remain separate

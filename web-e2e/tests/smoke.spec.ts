@@ -171,6 +171,19 @@ test.describe('CrisperWeaver web PWA — deployed shell', () => {
       expect(res.headers()['content-type'], `${asset} should be JSON`).toContain('json');
     }
 
+    // A browser must fetch the tiny worker entry point afresh: WebKit can
+    // lose isolation headers when restarting it through a conditional 304.
+    // Large WASM/model assets retain their separate caching policies.
+    for (const suffix of ['', '?runtime=threaded&threads=2']) {
+      const worker = await request.get(`${TARGET}/speech/worker.js${suffix}`);
+      expect(worker.status()).toBe(200);
+      expect(worker.headers()['content-type']).toContain('javascript');
+      expect(worker.headers()['cache-control']).toMatch(/(?:^|,)\s*no-store\s*(?:,|$)/);
+      expect(worker.headers()['cross-origin-opener-policy']).toBe('same-origin');
+      expect(worker.headers()['cross-origin-embedder-policy']).toBe('require-corp');
+      expect(await worker.text()).toContain("importScripts('./compat.js')");
+    }
+
     const version = await (await request.get(`${TARGET}/version.json`)).json();
     expect(version.app_name).toBe('crisper_weaver');
     // Reported, not asserted against a literal: pinning the version here would

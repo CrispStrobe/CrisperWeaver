@@ -141,7 +141,7 @@ jobs:
           fi
           bash scripts/build_browser_runtime.sh
 
-      - name: Add Vercel SPA-rewrite config
+      - name: Add Vercel routing and worker cache headers
         run: cp repos/CrisperWeaver/vercel.json repos/CrisperWeaver/build/web/vercel.json
 
       - uses: actions/upload-artifact@v4

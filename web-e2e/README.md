@@ -137,7 +137,7 @@ browser allocations and is not comparable to whole-browser RSS above.
 Two/four-thread real ASR, cancellation and downloads-disabled reload pass in
 Chromium, Firefox and WebKit. All three pass four-thread Kokoro→Moonshine
 round trips. The 12 storage-recovery checks and the three fresh-worker GPU
-recovery controls pass. Final compiled-artifact matrices pass without retries
+recovery controls pass. Earlier compiled-artifact matrices pass without retries
 in all three browsers: [Full](https://github.com/CrispStrobe/CrisperWeaver/actions/runs/37022826125)
 39 tests per browser (two Lite-only skipped), [Lite](https://github.com/CrispStrobe/CrisperWeaver/actions/runs/37022830567)
 41. Build/export checks alone do not prove inference. Evidence and benchmark scope are recorded
@@ -167,7 +167,19 @@ Parallel mode requires cross-origin isolation and SharedArrayBuffer. Startup
 runs outside message handlers; model-open/ASR/TTS calls are proxied asynchronously
 to the compute thread. Failed parallel loading retries on one-thread CPU. Tests
 require actual threaded diagnostics, known speech, cancellation/reload, and a
-TTS-to-ASR round trip. Passing a single-thread fallback does not count as proof.
+TTS-to-ASR round trip. Cancellation waits for a completed window of repeated
+real speech before stopping the next native operation. Passing a single-thread
+fallback does not count as proof. Tests also force postMessage mailboxes and
+check exact root/peer routing with the actual wrapper. Threaded WebKit selects
+message mailboxes automatically; `cw.browserMailboxPostMessage` set to
+`true` forces that path, while `false` forces waitAsync for diagnostic comparison.
+
+Vercel serves `/speech/worker.js` with `Cache-Control: no-store`. Production
+WebKit rejected conditional worker responses whose 304 omitted isolation
+headers, although the initial 200 had them. Only the small worker entry
+script receives this policy; other assets retain their caching settings.
+The deployed asset check asserts this policy and COOP/COEP for both default
+and threaded worker URLs.
 
 The 128 MiB initial-heap SIMD single-thread runtime is the default after all
 five native benchmark models passed decoded parity and three warm repetitions.

@@ -5,10 +5,12 @@ import { TARGET } from './target';
 import { bootRuntime } from './runtime-page';
 import { attachJson } from './evidence';
 
-for (const threads of [2, 4]) {
-  test(`CrispASR ${threads} threads finish real ASR, retain cache and cancel cleanly`, async ({ page }, info) => {
+for (const { threads, mailbox } of [{ threads: 2, mailbox: '' }, { threads: 4, mailbox: '' }, { threads: 2, mailbox: 'message' }]) {
+  const label = mailbox ? 'CrispASR postMessage mailboxes finish real ASR, retain cache and cancel cleanly' : `CrispASR ${threads} threads finish real ASR, retain cache and cancel cleanly`;
+  test(label, async ({ page }, info) => {
     test.setTimeout(600_000);
     await bootRuntime(page);
+    if (mailbox === 'message' || process.env.CW_BROWSER_MAILBOX_CONTROL === 'message') await page.evaluate(() => localStorage.setItem('cw.browserMailboxPostMessage', 'true'));
     expect(await page.evaluate(() => crossOriginIsolated)).toBe(true);
     const fixture = Array.from(await readFile(path.join(__dirname, '../fixtures/jfk.wav')));
     const result = await page.evaluate(async ({ fixture, threads }) => {
@@ -19,27 +21,41 @@ for (const threads of [2, 4]) {
       const heartbeat = setInterval(() => beats++, 20);
       try {
         const loaded = await client.request('load', { model: 'moonshine-tiny-q4_k' });
-        const output = await client.request('transcribe', { audio: await bridge.decode(new Uint8Array(fixture)), transferAudio: true, language: 'en' });
-        const pending = client.request('transcribe', { audio: new Float32Array(16000 * 60), transferAudio: true }).then(() => '', (error: Error) => error.message);
+        const audio = await bridge.decode(new Uint8Array(fixture));
+        const repeated = new Float32Array(audio.length * 6);
+        for (let index = 0; index < 6; index++) repeated.set(audio, index * audio.length);
+        const output = await client.request('transcribe', { audio, transferAudio: true, language: 'en' });
+        let firstWindow, timer;
+        const started = new Promise(resolve => { firstWindow = resolve; });
+        let cancellationProgress = null;
+        const pending = client.request('transcribe', { audio: repeated, transferAudio: true, language: 'en' }, (value: number) => {
+          if (value > 0 && value < 1) { cancellationProgress = value; firstWindow(); }
+        }).then(() => '', (error: Error) => error.message);
+        try {
+          await Promise.race([started, new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('Native cancellation window did not finish')), 90_000); })]);
+        } finally { clearTimeout(timer); }
         client.cancel();
         const cancellation = await pending;
         await client.request('unload');
         client.allowDownloads = false;
         await client.request('load', { model: 'moonshine-tiny-q4_k' });
         const cached = await client.request('transcribe', { audio: await bridge.decode(new Uint8Array(fixture)), language: 'en' });
-        return { loaded, output, cached, beats, cancellation };
-      } finally { clearInterval(heartbeat); client.dispose(); }
+        return { loaded, output, cached, beats, cancellation, cancellationProgress };
+      } finally { clearInterval(heartbeat); await client.dispose(); }
     }, { fixture, threads });
     await attachJson(info, 'threaded-asr.json', result);
     for (const output of [result.output, result.cached]) {
       expect(output.local).toBe(true);
       expect(output.diagnostics.runtimeMode).toBe('threaded');
       expect(output.diagnostics.cpuThreads).toBe(threads);
+      if (mailbox === 'message') expect(output.diagnostics.mailboxMode).toBe('postMessage');
       expect(output.segments.map((s: any) => s.text).join(' ').toLowerCase()).toContain('country');
     }
     expect(result.loaded.diagnostics.peakWasmBytes).toBeLessThan(512 * 1024 * 1024);
     expect(result.beats).toBeGreaterThan(10);
     expect(result.cancellation).toContain('cancelled');
+    expect(result.cancellationProgress).toBeGreaterThan(0);
+    expect(result.cancellationProgress).toBeLessThan(1);
   });
 }
 
@@ -58,7 +74,7 @@ test('threaded TTS produces speech that threaded ASR recognizes', async ({ page 
       await client.request('load', { model: 'moonshine-tiny-q4_k' });
       const output = await client.request('transcribe', { audio, transferAudio: true, language: 'en' });
       return { output, ttsDiagnostics: spoken.diagnostics, samples: spoken.audio.length, sampleRate: spoken.sampleRate, local: spoken.local };
-    } finally { client.dispose(); }
+    } finally { await client.dispose(); }
   });
   expect(result.local).toBe(true);
   expect(result.samples).toBeGreaterThan(result.sampleRate);
@@ -92,7 +108,7 @@ test('threaded startup failure recovers with single-thread CPU inference', async
       const loaded = await client.request('load', { model: 'moonshine-tiny-q4_k' });
       const output = await client.request('transcribe', { audio: await bridge.decode(new Uint8Array(fixture)), language: 'en' });
       return { loaded, output };
-    } finally { client.dispose(); }
+    } finally { await client.dispose(); }
   }, fixture);
   expect(result.loaded.diagnostics.fallbackReason).toContain('Threaded startup failed');
   expect(result.output.diagnostics.runtimeMode).toBe('single');
