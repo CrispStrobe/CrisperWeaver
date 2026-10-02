@@ -1,0 +1,175 @@
+// All processing happens in this worker; network requests only retrieve models.
+importScripts('./catalog.js');
+// Emscripten uses resizable WASM memory views. Chromium's TextDecoder rejects
+// such views; copy only the bounded string slice before decoding. Keep the
+// vendored runtime unchanged so its upstream checksum remains verifiable.
+const decodeText = TextDecoder.prototype.decode;
+TextDecoder.prototype.decode = function (input, options) {
+  if (ArrayBuffer.isView(input) && input.buffer.resizable) input = new Uint8Array(input.buffer, input.byteOffset, input.byteLength).slice();
+  return decodeText.call(this, input, options);
+};
+let runtime, runtimeReady, pipeline, transformerEnv, asr, modelId, ttsReady = false;
+const CACHE = 'crisperweaver-speech-models-v1';
+const progress = (id, value) => postMessage({ id, progress: value });
+
+async function modelBytes(url, allowDownloads, id) {
+  const cache = await caches.open(CACHE);
+  const cached = await cache.match(url);
+  if (cached) return new Uint8Array(await cached.arrayBuffer());
+  if (!allowDownloads) throw new Error('Model downloads are disabled. Import a model first.');
+  const res = await fetch(url, { credentials: 'omit' });
+  if (!res.ok) throw new Error(`Model download failed: HTTP ${res.status}`);
+  const stored = res.clone();
+  const reader = res.body.getReader(), chunks = []; let length = 0;
+  const total = Number(res.headers.get('content-length'));
+  while (true) {
+    const { done, value } = await reader.read(); if (done) break;
+    chunks.push(value); length += value.length;
+    progress(id, total > 0 ? Math.min(0.85, length / total * 0.85) : 0.1);
+  }
+  const bytes = new Uint8Array(length); let offset = 0;
+  for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.length; }
+  try { await cache.put(url, stored); } catch (e) { console.warn('Model cache unavailable:', e.message); }
+  return bytes;
+}
+async function crisp() {
+  if (!runtimeReady) {
+    runtimeReady = (async () => {
+      importScripts('../wasm/crispasr/libwhisper.js');
+      const url = new URL('../wasm/crispasr/libwhisper.wasm', self.location.href);
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`Speech runtime unavailable: HTTP ${response.status}`);
+      const compiled = await WebAssembly.compile(await response.arrayBuffer());
+      const options = { print: () => {}, printErr: m => console.debug(m),
+        instantiateWasm(imports, receive) {
+          const instance = new WebAssembly.Instance(compiled, imports);
+          const memory = Object.values(instance.exports).find(value => value instanceof WebAssembly.Memory);
+          // The session JS binding accesses Module.HEAPU8, which recent
+          // Emscripten no longer exports by default. Expose a current view.
+          Object.defineProperty(options, 'HEAPU8', { get: () => new Uint8Array(memory.buffer) });
+          receive(instance); return instance.exports;
+        },
+      };
+      runtime = await whisper_factory(options); return runtime;
+    })();
+  }
+  return runtimeReady;
+}
+async function transformers() {
+  if (!pipeline) {
+    const module = await import('../vendor/transformers.web.js');
+    module.env.allowLocalModels = false;
+    module.env.useBrowserCache = true;
+    module.env.backends.onnx.wasm.wasmPaths = new URL('../vendor/ort/', self.location.href).href;
+    module.env.backends.onnx.wasm.numThreads = 1;
+    transformerEnv = module.env;
+    pipeline = module.pipeline;
+  }
+  return pipeline;
+}
+async function load(engine, selected, allowDownloads, id, bytes) {
+  const model = CW_SPEECH_MODELS[engine].find(m => m.id === selected);
+  if (!model) throw new Error('Unknown browser model: ' + selected);
+  if (modelId === selected) return true;
+  modelId = null;
+  if (engine === 'crispasr') {
+    const m = await crisp();
+    const data = bytes || await modelBytes(model.url, allowDownloads, id);
+    m.asrClose();
+    try { m.FS_unlink('/model.bin'); } catch (_) {}
+    m.FS_createDataFile('/', 'model.bin', data, true, true);
+    if (!m.asrOpen('/model.bin', 'whisper', 1)) throw new Error('CrispASR could not open this model');
+    // ASR copies weights into its context; release the MEMFS copy.
+    m.FS_unlink('/model.bin');
+  } else {
+    const factory = await transformers();
+    transformerEnv.allowLocalModels = !allowDownloads;
+    transformerEnv.allowRemoteModels = allowDownloads;
+    await asr?.dispose(); asr = null;
+    asr = await factory('automatic-speech-recognition', model.repo, {
+      device: 'wasm', dtype: 'q8', local_files_only: !allowDownloads,
+      progress_callback: data => { if (data.progress != null) progress(id, data.progress / 100 * 0.85); },
+    });
+  }
+  modelId = selected; progress(id, 1); return true;
+}
+async function transcribe(engine, audio, options, id) {
+  if (!modelId) throw new Error('Load a speech model first');
+  if (!audio.length) throw new Error('Audio is empty');
+  if (audio.length > 16000 * 1800) throw new Error('Browser transcription supports up to 30 minutes per file');
+  if (options.diarize) throw new Error('Speaker diarization is not supported by these browser models');
+  const segments = [];
+  if (engine === 'crispasr') {
+    runtime.asrSetTranslate(!!options.translate);
+    runtime.asrSetSourceLanguage(options.language || 'auto');
+    // Bounded windows prevent long recordings from retaining a large encoder graph.
+    const size = 16000 * 30;
+    for (let offset = 0; offset < audio.length; offset += size) {
+      for (const segment of runtime.asrTranscribe(audio.subarray(offset, offset + size), options.language || '')) {
+        segments.push({ text: segment.text, start: segment.t0 / 100 + offset / 16000, end: segment.t1 / 100 + offset / 16000 });
+      }
+      progress(id, Math.min(0.99, (offset + size) / audio.length));
+    }
+  } else {
+    const args = { return_timestamps: true, chunk_length_s: 30, stride_length_s: 5 };
+    if (!modelId.endsWith('.en')) {
+      if (options.language && options.language !== 'auto') args.language = options.language;
+      args.task = options.translate ? 'translate' : 'transcribe';
+    } else if (options.translate) throw new Error('Use a multilingual model for translation');
+    const result = await asr(audio, args);
+    for (const chunk of result.chunks || []) segments.push({ text: chunk.text, start: chunk.timestamp[0] || 0,
+      end: chunk.timestamp[1] ?? audio.length / 16000 });
+    if (!segments.length && result.text) segments.push({ text: result.text, start: 0, end: audio.length / 16000 });
+  }
+  progress(id, 1); return { segments, model: modelId, engine, local: true };
+}
+async function synthesize(payload, allowDownloads, id) {
+  const m = await crisp();
+  if (!ttsReady) {
+    const resources = [
+      ['/tts.gguf', 'https://huggingface.co/cstr/kokoro-82m-GGUF/resolve/main/kokoro-82m-q8_0.gguf'],
+      ['/voice.gguf', 'https://huggingface.co/cstr/kokoro-voices-GGUF/resolve/main/kokoro-voice-af_heart.gguf'],
+      ['/home/web_user/.cache/crispasr/cmudict.dict', 'https://huggingface.co/datasets/cstr/g2p-dicts/resolve/main/cmudict.dict'],
+    ];
+    for (const [path, url] of resources) {
+      const bytes = await modelBytes(url, allowDownloads, id);
+      const slash = path.lastIndexOf('/'), dir = path.slice(0, slash) || '/';
+      m.FS_createPath('/', dir, true, true);
+      try { m.FS_unlink(path); } catch (_) {}
+      m.FS_createDataFile(dir, path.slice(slash + 1), bytes, true, true);
+    }
+    if (!m.ttsOpenExplicit('/tts.gguf', 'kokoro', 1)) throw new Error('Could not load the browser TTS model');
+    if (m.ttsSetVoice('/voice.gguf', '') !== 0) throw new Error('Could not load the browser voice');
+    ttsReady = true;
+  }
+  if (!payload.text?.trim() || payload.text.length > 1000) throw new Error('Enter between 1 and 1000 characters');
+  const audio = Float32Array.from(m.ttsSynthesize(payload.text));
+  if (!audio.length) throw new Error('Synthesis returned no audio');
+  return { audio, sampleRate: m.sessionOutputSampleRate() || 24000, local: true };
+}
+async function handle({ id, op, payload, engine, allowDownloads }) {
+  let result;
+  if (op === 'models') {
+    const cache = await caches.open(CACHE);
+    const onnxCache = await caches.open('transformers-cache');
+    result = await Promise.all(CW_SPEECH_MODELS[engine].map(async m => ({ ...m,
+      cached: m.url ? !!(await cache.match(m.url)) : !!(await onnxCache.match('https://huggingface.co/' + m.repo + '/resolve/main/onnx/encoder_model_quantized.onnx'))
+        && !!(await onnxCache.match('https://huggingface.co/' + m.repo + '/resolve/main/onnx/decoder_model_merged_quantized.onnx')) })));
+  } else if (op === 'load') result = await load(engine, payload.model, allowDownloads, id, payload.bytes);
+  else if (op === 'import') {
+    if (engine !== 'crispasr') throw new Error('Import is currently supported for CrispASR model files');
+    const model = CW_SPEECH_MODELS[engine].find(m => m.id === payload.model);
+    if (!model) throw new Error('Unknown model');
+    await load(engine, payload.model, false, id, payload.bytes);
+    await (await caches.open(CACHE)).put(model.url, new Response(payload.bytes)); result = true;
+  } else if (op === 'transcribe') result = await transcribe(engine, payload.audio, payload, id);
+  else if (op === 'synthesize') result = await synthesize(payload, allowDownloads, id);
+  else if (op === 'unload') {
+    runtime?.asrClose(); await asr?.dispose(); asr = null; modelId = null; result = true;
+  } else throw new Error('Unknown browser speech operation');
+  postMessage({ id, result });
+}
+let queue = Promise.resolve();
+self.onmessage = ({ data }) => {
+  queue = queue.then(() => handle(data)).catch(error => postMessage({ id: data.id, error: error.message || String(error) }));
+};

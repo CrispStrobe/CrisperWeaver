@@ -13,9 +13,9 @@ async function semantics(page: Page) {
   await expect(page.locator('flt-semantics-host flt-semantics').first()).toBeAttached();
 }
 
-test('Lite branding, browser limitation, and no remote AI requests on boot', async ({ page, request }, info) => {
+test('Lite branding, local speech disclosure, and no remote AI requests on boot', async ({ page, request }, info) => {
   const flavor = await (await request.get(`${TARGET}/flavor.json`)).json();
-  expect(flavor).toMatchObject({ flavor: 'lite', remoteAi: false, modelDownloads: true, nativeSpeech: false });
+  expect(flavor).toMatchObject({ flavor: 'lite', remoteAi: false, modelDownloads: true, browserSpeech: true });
   const manifest = await (await request.get(`${TARGET}/manifest.json`)).json();
   expect(manifest.name).toBe('CrisperWeaver Lite');
   const outgoing: string[] = [];
@@ -31,10 +31,10 @@ test('Lite branding, browser limitation, and no remote AI requests on boot', asy
   await page.goto(TARGET, { waitUntil: 'domcontentloaded' });
   await semantics(page);
   await expect(page).toHaveTitle('CrisperWeaver Lite');
-  await expect.poll(() => page.evaluate(() => document.body.innerText)).toContain('Lite browser preview');
+  await expect.poll(() => page.evaluate(() => document.body.innerText)).toContain('locally in your browser');
   const notice = await page.evaluate(() => document.body.innerText);
-  expect(notice).toContain('mock engine');
-  expect(notice).toContain('Remote AI processing is disabled');
+  expect(notice).toContain('ONNX Runtime Web');
+  expect(notice).toContain('Remote AI services are disabled');
   await page.waitForTimeout(3_000);
   expect(outgoing).toEqual([]);
   await page.screenshot({ path: info.outputPath('lite-notice.png') });

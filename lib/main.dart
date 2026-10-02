@@ -34,6 +34,8 @@ import 'screens/logs_screen.dart';
 import 'screens/about_screen.dart';
 import 'screens/storage_screen.dart';
 import 'screens/synthesize_screen.dart';
+import 'screens/browser_synthesize_screen.dart';
+import 'screens/browser_models_screen.dart';
 import 'screens/voice_clone_wizard_screen.dart';
 import 'screens/translate_screen.dart';
 import 'screens/voice_bake_screen.dart';
@@ -383,6 +385,7 @@ Future<void> _requestPermissions() async {
 }
 
 Future<void> _initializeServices() async {
+  if (plat.isWeb) return;
   try {
     await getApplicationDocumentsDirectory();
   } catch (e) {
@@ -584,11 +587,8 @@ class _CrisperWeaverAppState extends ConsumerState<CrisperWeaverApp> {
             icon: const Icon(Icons.smart_toy_outlined, size: 32),
             title: Text(l.aiTransparencyTitle),
             content: SingleChildScrollView(
-              // The web build has no on-device engine — EngineFactory
-              // defaults it to the HF Space — so the body text's
-              // "runs on your device by default" is true of the native apps
-              // and false here. Same string, different platform, so the
-              // difference has to be stated rather than assumed.
+              // Web runs local WASM engines by default. Its notice explains
+              // model downloads and, in Full, explicitly selected cloud use.
               child: Text(BuildFlavor.isLite
                   ? (plat.isWeb
                       ? l.aiTransparencyLiteWebNote
@@ -703,6 +703,7 @@ class _CrisperWeaverAppState extends ConsumerState<CrisperWeaverApp> {
               }
             }
           }
+          if (plat.isWeb) return const BrowserModelsScreen();
           return ModelManagementScreen(initialKindFilter: kind);
         },
       ),
@@ -752,6 +753,7 @@ class _CrisperWeaverAppState extends ConsumerState<CrisperWeaverApp> {
             final r = m['refText'];
             if (r is String) refText = r;
           }
+          if (plat.isWeb) return const BrowserSynthesizeScreen();
           return SynthesizeScreen(
             initialVoiceWavPath: voiceWavPath,
             initialRefText: refText,

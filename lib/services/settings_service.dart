@@ -30,7 +30,8 @@ class SettingsService {
     _prefs.setString('preferred_engine', type.id);
   }
 
-  String get defaultModel => _prefs.getString('default_model') ?? 'base';
+  String get defaultModel =>
+      _prefs.getString('default_model') ?? (plat.isWeb ? 'tiny' : 'base');
   set defaultModel(String model) {
     Log.instance.d('settings', 'Saving defaultModel: $model');
     _prefs.setString('default_model', model);

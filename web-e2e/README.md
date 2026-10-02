@@ -1,29 +1,34 @@
-# web-e2e — smoke test for the deployed web PWA
+# Browser tests
 
-Covers the **app shell** of https://crisperweaver-web.vercel.app: bootstrap assets are
-really served (not the SPA rewrite's `index.html`), Flutter boots and CanvasKit paints a
-sized canvas, the EU AI Act transparency notice renders (read through Flutter's
-accessibility tree, since the UI is a canvas), and the boot produces no console or uncaught
-errors outside a justified allowlist in `tests/smoke.spec.ts`. It does **not** test
-inference — the web build has no on-device engine and routes ASR/TTS to the CrispASR
-HuggingFace Space.
-
-Run: `npm ci && npx playwright install --with-deps chromium && npx playwright test`
-(~1.5 min). Point it elsewhere with `BASE_URL=https://my-preview.vercel.app npx playwright
-test`. CI runs it from the `smoke` job in `.github/workflows/deploy-web.yml`, after a
-successful production deploy.
-
-For the separate Lite preview, dispatch Deploy Web from the Lite branch:
+Both web flavors run speech recognition locally with CrispASR WASM or ONNX
+Runtime Web. Speech synthesis uses the local CrispASR WASM Kokoro backend.
+Full additionally offers explicitly selected cloud processing; Lite blocks it.
 
 ```sh
-gh workflow run deploy-web.yml --ref feat/macos-lite-ci -f flavor=lite
+npm ci
+npx playwright install --with-deps chromium
+BASE_URL=https://crisperweaver-web.vercel.app CW_FLAVOR=full npx playwright test
 BASE_URL=https://crisperweaver-lite-web.vercel.app CW_FLAVOR=lite npx playwright test
 ```
 
-The workflow creates/reuses the `crisperweaver-lite-web` Vercel project with
-existing CI credentials and deploys there. It never targets the full web project.
-Lite self-hosts CanvasKit, identifies itself in its title/manifest, and displays
-an explicit browser preview notice: desktop ASR/TTS/ONNX engines are unavailable,
-so speech uses a mock engine for UI testing. Browser tests also reject external
-requests at startup except static fallback-font downloads, suppress saved cloud settings, and reject remote endpoints.
-Screenshots from successful and failed runs are retained as CI artifacts.
+The suite checks bootstrap assets, Flutter rendering, disclosures, and Lite's
+endpoint restrictions. Real inference tests use the JFK speech fixture and
+actual downloaded model weights, assert known transcript words and timestamps,
+then create a fresh worker and repeat with off-origin requests blocked. The
+upload-flow tests verify real text appears through Flutter. Local synthesis
+must return non-silent PCM. Network checks reject off-origin uploads.
+
+Dispatch either deployment from a branch containing this workflow:
+
+```sh
+gh workflow run deploy-web.yml --ref feat/macos-lite-ci -f flavor=full
+gh workflow run deploy-web.yml --ref feat/macos-lite-ci -f flavor=lite
+```
+
+Lite targets its own `crisperweaver-lite-web` Vercel project. Full targets the
+existing `crisperweaver-web` project. CI self-hosts runtime assets and retains
+screenshots, inference results, and failure traces.
+
+To test a local production bundle, first build Flutter web and run
+`scripts/build_browser_runtime.sh`, then from the repo root run
+`node web-e2e/serve.mjs build/web`. Use `BASE_URL=http://127.0.0.1:8765` for tests.

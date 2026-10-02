@@ -3384,7 +3384,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get aiTransparencyWebNote =>
-      'Hinweis zur Web-Version: Anders als die Desktop- und Mobil-Apps verfügt die Browser-Variante über keine geräteinterne Engine. Spracherkennung und Sprachsynthese laufen auf einem entfernten CrispASR-Server, das von Ihnen übermittelte Audio wird also dorthin gesendet. Text-Embeddings für die Suche werden weiterhin lokal in Ihrem Browser berechnet.';
+      'Diese Webversion führt Spracherkennung mit CrispASR WASM oder ONNX Runtime Web und Sprachsynthese mit CrispASR WASM lokal im Browser aus. Modelle werden beim ersten Gebrauch heruntergeladen und gespeichert. Texteinbettungen laufen ebenfalls lokal. Wenn Sie ausdrücklich CrispASR Cloud oder einen Remote-Sprachmodelldienst auswählen, werden Audio oder Text an diesen Dienst gesendet.';
 
   @override
   String get aiTransparencyAcknowledge => 'Verstanden';
@@ -4104,5 +4104,5 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get aiTransparencyLiteWebNote =>
-      'Dies ist die Lite-Browservorschau. Native Spracherkennung, Sprachsynthese und ONNX-Engines benötigen die Desktop-App und sind hier nicht verfügbar. Die Transkription verwendet eine simulierte Engine für UI-Tests. Texteinbettungen können lokal im Browser laufen. Remote-KI-Verarbeitung ist deaktiviert; Modelldownloads bleiben verfügbar.';
+      'CrisperWeaver Lite führt Spracherkennung mit CrispASR WASM oder ONNX Runtime Web und Sprachsynthese mit CrispASR WASM lokal im Browser aus. Modelle und Aussprachedateien werden beim ersten Gebrauch heruntergeladen und gespeichert. Audio und Text werden nicht zur Verarbeitung hochgeladen. Remote-KI-Dienste sind deaktiviert. Browsermodelle unterstützen Segmentzeitstempel; erweiterte native Funktionen bietet die Desktop-App.';
 }

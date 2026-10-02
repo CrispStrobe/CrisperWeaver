@@ -7,14 +7,16 @@ import 'transcription_engine.dart';
 import 'mock_engine.dart';
 import 'crispasr_engine.dart';
 import 'hfspace_engine.dart';
+import 'browser_speech_engine.dart';
 
 /// Available transcription engine types.
 enum EngineType {
   mock('mock', 'Mock Engine', 'Testing engine with simulated responses'),
   crispasr('crispasr', 'CrispASR (ggml)',
       'On-device ASR via the CrispASR FFI runtime'),
-  hfspace('hfspace', 'CrispASR Cloud',
-      'Cloud ASR + TTS via CrispASR HF Space');
+  onnxweb('onnxweb', 'ONNX Runtime Web (local)',
+      'On-device browser speech recognition via WASM'),
+  hfspace('hfspace', 'CrispASR Cloud', 'Cloud ASR + TTS via CrispASR HF Space');
 
   const EngineType(this.id, this.displayName, this.description);
 
@@ -27,11 +29,16 @@ enum EngineType {
 class EngineFactory {
   static final Map<EngineType, TranscriptionEngine Function()> _creators = {
     EngineType.mock: () => MockEngine(),
-    EngineType.crispasr: () => CrispASREngine(),
+    EngineType.crispasr: () =>
+        plat.isWeb ? BrowserSpeechEngine('crispasr') : CrispASREngine(),
+    EngineType.onnxweb: () => BrowserSpeechEngine('onnx'),
     EngineType.hfspace: () => HfSpaceEngine(),
   };
 
   static TranscriptionEngine create(EngineType type) {
+    if (type == EngineType.onnxweb && !plat.isWeb) {
+      throw UnsupportedError('ONNX Runtime Web is available in browsers only');
+    }
     if (type == EngineType.hfspace) BuildFlavor.requireRemoteAi();
     final creator = _creators[type];
     if (creator == null) {
@@ -40,20 +47,23 @@ class EngineFactory {
     return creator();
   }
 
-  static List<EngineType> getAvailableEngines() => BuildFlavor.isLite
-      ? (plat.isWeb
-          ? const [EngineType.mock]
-          : const [EngineType.crispasr, EngineType.mock])
-      : plat.isWeb
-          ? const [EngineType.hfspace, EngineType.mock]
-          : const [EngineType.crispasr, EngineType.hfspace, EngineType.mock];
+  static List<EngineType> getAvailableEngines() => plat.isWeb
+      ? [
+          EngineType.crispasr,
+          EngineType.onnxweb,
+          if (!BuildFlavor.isLite) EngineType.hfspace,
+          EngineType.mock
+        ]
+      : [
+          EngineType.crispasr,
+          if (!BuildFlavor.isLite) EngineType.hfspace,
+          EngineType.mock
+        ];
 
   static bool isSupported(EngineType type) =>
       getAvailableEngines().contains(type);
 
-  static EngineType getRecommendedEngine() => plat.isWeb
-      ? (BuildFlavor.isLite ? EngineType.mock : EngineType.hfspace)
-      : EngineType.crispasr;
+  static EngineType getRecommendedEngine() => EngineType.crispasr;
 }
 
 /// Engine manager for handling engine lifecycle and selection.
@@ -248,5 +258,4 @@ class EngineManagerNotifier extends Notifier<EngineManagerState> {
       );
     }
   }
-
 }

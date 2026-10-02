@@ -12,6 +12,8 @@ import '../native/crispembed_import.dart' show CrispEmbed;
 import '../engines/transcription_engine.dart';
 import 'audio_fingerprint_service.dart';
 import 'log_service.dart';
+import 'browser_speech_client.dart';
+import '../utils/platform_utils.dart' as plat;
 
 /// A single saved transcription, shown in the history screen.
 class HistoryEntry {
@@ -25,6 +27,7 @@ class HistoryEntry {
   final bool diarizationEnabled;
   final Duration processingTime;
   final List<TranscriptionSegment> segments;
+
   /// User-chosen speaker labels keyed by the diariser's original label
   /// (e.g. "Speaker 1" → "Alice"). Applied at render time so segments
   /// stay portable. Empty when no renames were made.
@@ -307,6 +310,15 @@ class HistoryService {
   /// §5.25.7 — load a single entry by id for comparison/review.
   /// Returns null if the file doesn't exist or is corrupt.
   Future<HistoryEntry?> loadEntry(String id) async {
+    if (plat.isWeb) {
+      final raw = await BrowserSpeechClient.history('get', key: id) as String?;
+      if (raw == null) return null;
+      try {
+        return HistoryEntry.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+      } catch (_) {
+        return null;
+      }
+    }
     final dir = await _ensureDir();
     final file = File(p.join(dir.path, '$id.json'));
     if (!await file.exists()) return null;
@@ -329,6 +341,13 @@ class HistoryService {
   /// resurrect deleted entries — caller should fall back to
   /// `save(...)` for that case).
   Future<void> update(HistoryEntry entry) async {
+    if (plat.isWeb) {
+      if (await BrowserSpeechClient.history('get', key: entry.id) != null) {
+        await BrowserSpeechClient.history('put',
+            key: entry.id, value: jsonEncode(entry.toJson()));
+      }
+      return;
+    }
     final dir = await _ensureDir();
     final file = File(p.join(dir.path, '${entry.id}.json'));
     if (!await file.exists()) return;
@@ -351,11 +370,11 @@ class HistoryService {
     CrispEmbed? embedder,
     Float32List? audioData,
   }) async {
-    final dir = await _ensureDir();
+    final dir = plat.isWeb ? null : await _ensureDir();
     // §5.25.11 — Compute file fingerprint if a source path is provided
     // and no explicit fingerprint was passed.
     String? fp = audioFingerprint;
-    if (fp == null && sourcePath != null) {
+    if (!plat.isWeb && fp == null && sourcePath != null) {
       try {
         fp = await AudioFingerprintService.computeFileFingerprint(sourcePath);
       } catch (e) {
@@ -386,14 +405,30 @@ class HistoryService {
       segmentEmbeddings: embeddings,
       audioEmbedding: audioEmb,
     );
-    final file = File(p.join(dir.path, '${entry.id}.json'));
-    await file.writeAsString(
-      const JsonEncoder.withIndent('  ').convert(entry.toJson()),
-    );
+    if (plat.isWeb) {
+      await BrowserSpeechClient.history('put',
+          key: entry.id, value: jsonEncode(entry.toJson()));
+    } else {
+      final file = File(p.join(dir!.path, '${entry.id}.json'));
+      await file.writeAsString(
+          const JsonEncoder.withIndent('  ').convert(entry.toJson()));
+    }
     return entry;
   }
 
   Future<List<HistoryEntry>> list() async {
+    if (plat.isWeb) {
+      final values = await BrowserSpeechClient.history('list') as List;
+      final entries = <HistoryEntry>[];
+      for (final value in values) {
+        try {
+          entries.add(HistoryEntry.fromJson(
+              jsonDecode(value as String) as Map<String, dynamic>));
+        } catch (_) {/* Ignore corrupt entries as native list() does. */}
+      }
+      entries.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return entries;
+    }
     final dir = await _ensureDir();
     final entries = <HistoryEntry>[];
     await for (final ent in dir.list()) {
@@ -412,12 +447,20 @@ class HistoryService {
   }
 
   Future<void> delete(String id) async {
+    if (plat.isWeb) {
+      await BrowserSpeechClient.history('delete', key: id);
+      return;
+    }
     final dir = await _ensureDir();
     final file = File(p.join(dir.path, '$id.json'));
     if (await file.exists()) await file.delete();
   }
 
   Future<void> clear() async {
+    if (plat.isWeb) {
+      await BrowserSpeechClient.history('clear');
+      return;
+    }
     final dir = await _ensureDir();
     if (await dir.exists()) {
       await for (final ent in dir.list()) {

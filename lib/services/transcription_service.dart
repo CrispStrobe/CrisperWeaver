@@ -5,6 +5,7 @@ import 'dart:async';
 
 import '../native/crispasr_import.dart' as crispasr;
 
+import '../engines/browser_speech_engine.dart';
 import '../engines/crispasr_engine.dart' show CrispASREngine;
 import '../engines/engine_factory.dart';
 import '../engines/hfspace_engine.dart' show HfSpaceEngine;
@@ -618,9 +619,8 @@ class TranscriptionService {
   }
 
   /// Transcribe raw audio bytes — the web path where we don't have a
-  /// filesystem path. Delegates directly to the engine (HfSpaceEngine
-  /// POSTs the bytes to the remote server). Skips local audio decoding,
-  /// diarization, and punctuation restoration (those are server-side).
+  /// filesystem path. Browser engines decode and process locally; the
+  /// explicitly selected HfSpace engine uploads to its remote service.
   Future<List<TranscriptionSegment>> transcribeBytes(
     Uint8List bytes,
     String filename, {
@@ -664,9 +664,15 @@ class TranscriptionService {
         lastResult = result;
         return result.segments;
       }
-      // Fallback: for non-HfSpace engines, we can't decode on web.
+      if (engine is BrowserSpeechEngine) {
+        final result = await engine.transcribeBytes(bytes, language: language,
+            translate: translate, diarize: diarize,
+            onSegment: onSegment, onProgress: onProgress);
+        lastResult = result;
+        return result.segments;
+      }
       throw const TranscriptionServiceException(
-          'Byte-based transcription requires the CrispASR Cloud engine.');
+          'Choose a browser speech engine or the CrispASR Cloud engine.');
     } catch (e) {
       if (e is TranscriptionServiceException) rethrow;
       throw TranscriptionServiceException('Transcription failed: $e');

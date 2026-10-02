@@ -124,8 +124,9 @@ jobs:
               --dart-define=CW_FLAVOR=lite --dart-define=CW_LITE_DOWNLOADS=true
             python3 scripts/prepare_lite_web.py
           else
-            flutter build web --release --base-href="/"
+            flutter build web --release --base-href="/" --no-web-resources-cdn
           fi
+          bash scripts/build_browser_runtime.sh
 
       - name: Add Vercel SPA-rewrite config
         run: cp repos/CrisperWeaver/vercel.json repos/CrisperWeaver/build/web/vercel.json
@@ -144,7 +145,7 @@ jobs:
       # -- Deploy to Vercel ------------------------------------------------
       - name: Deploy to Vercel (production)
         id: deploy
-        if: ((github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch' && inputs.flavor == 'lite') && env.VERCEL_TOKEN != ''
+        if: (github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch') && env.VERCEL_TOKEN != ''
         run: |
           npm install -g vercel@latest
           DEPLOYMENT_URL=$(vercel deploy repos/CrisperWeaver/build/web --prod --yes --archive=tgz --token="$VERCEL_TOKEN")
@@ -154,15 +155,14 @@ jobs:
 
   # A green deploy job only proves Vercel accepted an upload. This proves the
   # production URL actually serves a bundle that boots and paints — the one
-  # thing the web build has no other coverage for (the native GUI has the
-  # xvfb integration suite; the web PWA had nothing). Shell only: there is no
-  # on-device engine on web, so inference belongs to the HF Space, not here.
+  # deployment serves a working local inference runtime as well as the UI.
+  # Playwright runs real ASR/TTS models and checks browser cache reuse.
   smoke:
     name: Smoke-test the live deployment
     needs: build
     if: needs.build.outputs.deployed == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@v5
@@ -184,7 +184,7 @@ jobs:
       - name: Run the web smoke test
         working-directory: web-e2e
         env:
-          BASE_URL: ${{ needs.build.outputs.flavor == 'lite' && 'https://crisperweaver-lite-web.vercel.app' || needs.build.outputs.base_url }}
+          BASE_URL: ${{ needs.build.outputs.flavor == 'lite' && 'https://crisperweaver-lite-web.vercel.app' || 'https://crisperweaver-web.vercel.app' }}
           CW_FLAVOR: ${{ needs.build.outputs.flavor }}
         run: npx playwright test
 

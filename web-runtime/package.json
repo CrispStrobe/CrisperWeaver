@@ -1,0 +1,6 @@
+{
+  "name": "crisperweaver-browser-runtime",
+  "private": true,
+  "version": "1.0.0",
+  "dependencies": { "@huggingface/transformers": "3.8.1" }
+}

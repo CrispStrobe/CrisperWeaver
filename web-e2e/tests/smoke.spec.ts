@@ -1,12 +1,7 @@
 /// Smoke test for the deployed CrisperWeaver web PWA.
 ///
-/// Scope is deliberately the app *shell*, not inference: the web build has no
-/// on-device engine (`EngineFactory` routes ASR/TTS to the `cstr/CrispASR`
-/// HuggingFace Space), so exercising transcription here would test someone
-/// else's uptime. What this suite proves is that a production deploy actually
-/// serves a bundle that boots and paints — the failure mode a broken
-/// `deploy-web.yml`, a bad `--base-href`, or a missing `vercel.json` rewrite
-/// produces, and the one nothing else in CI covers.
+/// These checks cover startup, navigation and accessibility. The separate
+/// inference suite runs the shipped local speech workers with real models.
 ///
 /// Flutter web paints into a `<canvas>`, so there is no DOM text to assert on
 /// until the accessibility tree is built. Flutter only builds it on demand,
@@ -225,8 +220,8 @@ test.describe('CrisperWeaver web PWA — deployed shell', () => {
     const text = await page.evaluate(() => document.body.innerText);
     if (text.includes('AI-Powered Application')) {
       await expect(page.locator('flt-semantics[role="alertdialog"]')).toBeAttached();
-      expect(text).toContain(IS_LITE ? 'Lite browser preview' : 'the browser build has no on-device engine');
-      if (IS_LITE) expect(text).toContain('Remote AI processing is disabled');
+      expect(text).toContain('locally in your browser');
+      if (IS_LITE) expect(text).toContain('Remote AI services are disabled');
     }
 
     // Keep one always-on artefact of what the deploy actually looks like.

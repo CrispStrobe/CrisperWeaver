@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/services.dart';
 import '../constants/build_flavor.dart';
+import '../utils/platform_utils.dart' as plat;
 import '../native/crispasr_import.dart' as crispasr;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
@@ -39,10 +40,10 @@ class AudioService {
   Future<String?> startRecording({SettingsService? settingsService}) async {
     try {
       if (await _recorder.hasPermission()) {
-        final appDir = await getApplicationDocumentsDirectory();
+        final appDir = plat.isWeb ? null : await getApplicationDocumentsDirectory();
         final fileName =
             'recording_${DateTime.now().millisecondsSinceEpoch}.wav';
-        final filePath = path.join(appDir.path, fileName);
+        final filePath = appDir == null ? fileName : path.join(appDir.path, fileName);
 
         final bitRate = settingsService != null
             ? (settingsService.audioQuality * 128000).toInt()

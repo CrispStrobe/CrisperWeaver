@@ -21,6 +21,7 @@ import '../services/scan_preprocess_service.dart';
 import '../services/speaker_id_service.dart';
 import '../utils/file_picker_util.dart' show pickFilesRobust;
 import '../utils/file_utils.dart';
+import '../utils/platform_utils.dart' as plat;
 import '../l10n/generated/app_localizations.dart';
 import '../main.dart'
     show
@@ -509,19 +510,20 @@ class _TranscriptionOutputWidgetState
               //   2. Karaoke active-word highlight (during playback)
               //   3. Per-word confidence tint
               //   4. Plain SelectableText
-              if (hasSearch)
-                _buildHighlightedText(segment.text, _searchQuery)
-              else if (_karaokePlaying && _karaokeActiveSegment(segment))
-                _buildKaraokeText(segment)
-              else if (_showConfidence &&
-                  segment.words != null &&
-                  segment.words!.isNotEmpty)
-                _buildConfidenceTintedText(segment)
-              else
-                SelectableText(
-                  segment.text,
-                  style: const TextStyle(fontSize: 16),
-                ),
+              Semantics(
+                label: plat.isWeb ? segment.text : null,
+                excludeSemantics: plat.isWeb,
+                child: hasSearch
+                    ? _buildHighlightedText(segment.text, _searchQuery)
+                    : _karaokePlaying && _karaokeActiveSegment(segment)
+                        ? _buildKaraokeText(segment)
+                        : _showConfidence && segment.words?.isNotEmpty == true
+                            ? _buildConfidenceTintedText(segment)
+                            : SelectableText(
+                                segment.text,
+                                style: const TextStyle(fontSize: 16),
+                              ),
+              ),
             ],
           ),
         ),

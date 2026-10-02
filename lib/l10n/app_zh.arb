@@ -963,7 +963,7 @@
   "syntheticDisclosureNote": "此内容包含 AI 生成的合成语音。",
   "aiTransparencyTitle": "AI 驱动的应用程序",
   "aiTransparencyBody": "CrisperWeaver 使用人工智能系统进行：\n\n• 语音识别 (ASR) — 将音频转换为文本\n• 语音合成 (TTS) — 从文本生成语音音频\n• 说话人识别 — 生物特征语音匹配\n• 文档分析 (OCR) — 识别图像中的文字\n• 文本生成 — 由语言模型进行翻译、摘要和转录稿整理\n• 音频问答 — 由语言模型回答您关于录音的提问，而非转录内容\n• 说话人分离 — 区分谁在何时说话 — 以及口语语种检测\n• 音频增强 — 降噪处理\n• 音乐转写 — 将录音转换为音符 (MIDI)\n• 语义搜索 — AI 驱动的内容检索\n\n默认情况下，所有处理均在您的设备上运行，不会发送任何数据。部分功能默认关闭，启用后会使用网络：模型下载、可选的云端转录，以及可选的云端摘要或整理功能，它们会将相关文本或音频发送至您所配置的服务商。说话人档案和语音录音永远不会离开您的设备。\n\nAI 生成的音频会自动添加水印并签署机器可读的来源元数据；AI 生成的文本在复制或导出时会附带披露声明（欧盟AI法案第50条）。\n\n详情请参见关于页面及 PRIVACY.md。",
-  "aiTransparencyWebNote": "网页版说明：与桌面版和移动版不同，浏览器版本没有设备端引擎。语音识别和语音合成在远程 CrispASR 服务器上运行，因此您提交的音频会被发送至该服务器处理。用于搜索的文本嵌入仍在您的浏览器本地计算。",
+  "aiTransparencyWebNote": "此网页版通过 CrispASR WASM 或 ONNX Runtime Web 在浏览器本地识别语音，并通过 CrispASR WASM 本地合成语音。首次使用时下载并缓存模型。文本嵌入也在本地运行。如果明确选择 CrispASR Cloud 或配置远程语言模型服务，提交的音频或文本会发送给该服务。",
   "aiTransparencyAcknowledge": "我了解",
   "historySearchSemanticTooltip": "语义搜索（已激活）",
   "historySearchSubstringTooltip": "子串搜索（点击切换为语义搜索）",
@@ -1172,5 +1172,5 @@
   "settingsLocalHttpInvalid": "请使用 http://127.0.0.1 或 http://[::1] 和本地模型。不支持云端模型。",
   "aiTransparencyLiteBody": "CrisperWeaver Lite 使用本机模型处理语音、文本、文档和嵌入。本版本禁用远程转录、语音合成、翻译和云端语言模型服务。可选本地模型服务器必须运行在同一设备上；独立管理的服务器自行控制网络访问。模型文件用于本机处理。AI 生成的音频和文本带有披露和来源标记。说话人注册需要同意。详情请参阅关于页面。",
   "outputSummarizeLiteUnconfigured": "请在设置中配置本机 GGUF 模型或本地模型服务器以生成摘要。",
-  "aiTransparencyLiteWebNote": "这是 Lite 浏览器预览。原生语音识别、语音合成和 ONNX 引擎需要桌面应用，在此不可用。转录使用模拟引擎进行界面测试。文本嵌入可以在浏览器本地运行。远程 AI 处理已禁用；仍可下载模型。"
+  "aiTransparencyLiteWebNote": "CrisperWeaver Lite 通过 CrispASR WASM 或 ONNX Runtime Web 在浏览器本地识别语音，并通过 CrispASR WASM 本地合成语音。首次使用时会下载并缓存模型和发音资源。音频和文本不会上传进行处理。远程 AI 服务已禁用。浏览器模型支持片段时间戳；高级原生功能可在桌面应用使用。"
 }

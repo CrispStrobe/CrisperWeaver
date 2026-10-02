@@ -127,7 +127,7 @@ void main() {
     });
 
     test('preferredEngine survives roundtrip for every EngineType', () {
-      for (final t in EngineType.values) {
+      for (final t in EngineFactory.getAvailableEngines()) {
         svc.preferredEngine = t;
         expect(SettingsService(prefs).preferredEngine, t,
             reason: 'EngineType.$t did not round-trip');

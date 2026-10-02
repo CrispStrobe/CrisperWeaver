@@ -3253,7 +3253,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get aiTransparencyWebNote =>
-      '网页版说明：与桌面版和移动版不同，浏览器版本没有设备端引擎。语音识别和语音合成在远程 CrispASR 服务器上运行，因此您提交的音频会被发送至该服务器处理。用于搜索的文本嵌入仍在您的浏览器本地计算。';
+      '此网页版通过 CrispASR WASM 或 ONNX Runtime Web 在浏览器本地识别语音，并通过 CrispASR WASM 本地合成语音。首次使用时下载并缓存模型。文本嵌入也在本地运行。如果明确选择 CrispASR Cloud 或配置远程语言模型服务，提交的音频或文本会发送给该服务。';
 
   @override
   String get aiTransparencyAcknowledge => '我了解';
@@ -3943,5 +3943,5 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get aiTransparencyLiteWebNote =>
-      '这是 Lite 浏览器预览。原生语音识别、语音合成和 ONNX 引擎需要桌面应用，在此不可用。转录使用模拟引擎进行界面测试。文本嵌入可以在浏览器本地运行。远程 AI 处理已禁用；仍可下载模型。';
+      'CrisperWeaver Lite 通过 CrispASR WASM 或 ONNX Runtime Web 在浏览器本地识别语音，并通过 CrispASR WASM 本地合成语音。首次使用时会下载并缓存模型和发音资源。音频和文本不会上传进行处理。远程 AI 服务已禁用。浏览器模型支持片段时间戳；高级原生功能可在桌面应用使用。';
 }

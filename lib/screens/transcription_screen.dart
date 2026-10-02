@@ -1,3 +1,5 @@
+import '../engines/browser_speech_engine.dart';
+import '../services/browser_speech_client.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -334,7 +336,19 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
     if (!ok) return ok;
 
     // On web, load the cloud model list now that the engine is ready.
-    if (plat.isWeb) await _loadModels();
+    if (plat.isWeb) {
+      await _loadModels();
+      if (service.currentEngine is BrowserSpeechEngine) {
+        // Downloads are explicit: never retrieve weights during app startup.
+        if (_availableModels.isNotEmpty && !_availableModels.any((m) => m.name == _modelName)) {
+          final selected = _availableModels.first.name;
+          ref.read(transcriptionScreenProvider.notifier).setModelName(selected);
+          settings.defaultModel = selected;
+        }
+        if (mounted) ref.read(transcriptionScreenProvider.notifier).setEngineReady(ok);
+        return true;
+      }
+    }
 
     // Auto-switch to a downloaded model if the persisted default isn't
     // downloaded yet. Covers the common first-launch flow: user gets
@@ -482,7 +496,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
                     name: m.id,
                     displayName: m.name,
                     backend: m.metadata['backend'] as String? ?? m.id,
-                    isDownloaded: true, // always available server-side
+                    isDownloaded: engine is BrowserSpeechEngine ? m.isDownloaded : true,
                     sizeBytes: m.sizeBytes,
                     size: '${(m.sizeBytes / 1e6).round()} MB',
                     description: m.description,
@@ -524,7 +538,9 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
                 .transcribeStarting(model.displayName))),
       );
 
-      final success = await modelService.downloadWhisperCppModel(
+      final success = plat.isWeb
+          ? await ref.read(transcriptionServiceProvider).loadModel(model.name)
+          : await modelService.downloadWhisperCppModel(
         model.name,
         onProgress: (p) {
           // Optional: update UI with progress
@@ -2350,6 +2366,19 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
     final recordedPath = ref.read(selectedAudioPathProvider);
     final filePath = _selectedFilePath ?? recordedPath;
 
+    if (plat.isWeb && _selectedFileBytes == null) {
+      final source = filePath ?? _urlController.text.trim();
+      if (source.isNotEmpty) {
+        try {
+          final bytes = await BrowserSpeechClient.fetchBytes(source);
+          if (!mounted) return;
+          ref.read(transcriptionScreenProvider.notifier).setSelectedFileBytes(bytes);
+        } catch (e) {
+          if (mounted) _showErrorDialog(e.toString());
+          return;
+        }
+      }
+    }
     final hasWebBytes = _selectedFileBytes != null && plat.isWeb;
     if (filePath == null && !hasWebBytes && _urlController.text.isEmpty) {
       _showErrorDialog(AppLocalizations.of(context).transcribeNoSource);
@@ -2560,7 +2589,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
       );
 
       if (_selectedFileBytes != null && plat.isWeb) {
-        // Web path: send raw bytes to the cloud engine.
+        // Web engines decode locally; only the explicitly selected cloud engine uploads.
         segments = await transcriptionService.transcribeBytes(
           _selectedFileBytes!,
           _selectedFileName ?? 'audio.wav',

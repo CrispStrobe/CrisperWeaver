@@ -5587,7 +5587,7 @@ abstract class AppLocalizations {
   /// No description provided for @aiTransparencyWebNote.
   ///
   /// In en, this message translates to:
-  /// **'Note for this web version: unlike the desktop and mobile apps, the browser build has no on-device engine. Speech recognition and synthesis run on a remote CrispASR server, so the audio you submit is sent there for processing. Text embeddings for search still run locally in your browser.'**
+  /// **'This web version runs speech recognition with CrispASR WASM or ONNX Runtime Web, and speech synthesis with CrispASR WASM, locally in your browser. First use downloads and caches model weights. Text embeddings also run locally. If you explicitly select CrispASR Cloud or configure a remote language-model service, submitted audio or text is sent to that service.'**
   String get aiTransparencyWebNote;
 
   /// No description provided for @aiTransparencyAcknowledge.
@@ -6841,7 +6841,7 @@ abstract class AppLocalizations {
   /// No description provided for @aiTransparencyLiteWebNote.
   ///
   /// In en, this message translates to:
-  /// **'This is the Lite browser preview. Native speech recognition, synthesis, and ONNX engines require the desktop app and are unavailable here. Transcription uses a mock engine for UI testing. Text embeddings can run locally in the browser. Remote AI processing is disabled; model downloads remain available.'**
+  /// **'CrisperWeaver Lite runs speech recognition with CrispASR WASM or ONNX Runtime Web, and speech synthesis with CrispASR WASM, locally in your browser. Model weights and pronunciation resources are downloaded and cached on first use. Your audio and text are not uploaded for processing. Remote AI services are disabled. Browser models support segment timestamps; native advanced features are available in the desktop app.'**
   String get aiTransparencyLiteWebNote;
 }
 
