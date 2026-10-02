@@ -89,7 +89,8 @@ async function crisp() {
       const options = { locateFile: file => new URL(directory + file, self.location.href).href, print: () => {}, printErr: m => console.debug(m),
         instantiateWasm(imports, receive) {
           const instance = new WebAssembly.Instance(compiled, imports);
-          const memory = Object.values(instance.exports).find(value => value instanceof WebAssembly.Memory) || imports.env?.memory;
+          const memory = Object.values(instance.exports).find(value => value instanceof WebAssembly.Memory)
+            || Object.values(imports).flatMap(namespace => Object.values(namespace)).find(value => value instanceof WebAssembly.Memory);
           if (!memory) throw new Error('Speech runtime did not expose its memory');
           // The session JS binding accesses Module.HEAPU8, which recent
           // Emscripten no longer exports by default. Expose a current view.
