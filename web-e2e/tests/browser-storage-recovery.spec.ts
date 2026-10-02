@@ -66,7 +66,7 @@ test('evicted checkpoint restarts cleanly and evicted cache downloads again', as
     let range: string | undefined;
     await m.read(resource, true, () => {}, async (_url: string, options: any) => { range = options.headers.Range; return new Response(bytes); });
     await caches.delete(m.CACHE);
-    await m.discard(resource.url); // Simulate eviction of the canonical IDB cache too.
+    await m.remove([resource]); // Evict the canonical IDB cache too.
     let offlineError = '';
     try { await m.read(resource, false); } catch (failure) { offlineError = String(failure); }
     let fetched = 0;
