@@ -1,7 +1,8 @@
 import { test, expect } from '@playwright/test';
 import { TARGET } from './target';
+import { bootRuntime } from './runtime-page';
 async function boot(page: any) {
-  await page.goto(TARGET);
+  await bootRuntime(page);
   await page.addScriptTag({ url: `${TARGET}/speech/downloads.js` });
 }
 async function interrupt(page: any, name: string, fill: number) {

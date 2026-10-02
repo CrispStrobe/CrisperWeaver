@@ -2,11 +2,12 @@ import { test, expect } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { TARGET } from './target';
+import { bootRuntime } from './runtime-page';
 
 for (const threads of [2, 4]) {
   test(`CrispASR ${threads} threads finish real ASR, retain cache and cancel cleanly`, async ({ page }, info) => {
     test.setTimeout(600_000);
-    await page.goto(TARGET);
+    await bootRuntime(page);
     expect(await page.evaluate(() => crossOriginIsolated)).toBe(true);
     const fixture = Array.from(await readFile(path.join(__dirname, '../fixtures/jfk.wav')));
     const result = await page.evaluate(async ({ fixture, threads }) => {
@@ -43,7 +44,7 @@ for (const threads of [2, 4]) {
 
 test('threaded TTS produces speech that threaded ASR recognizes', async ({ page }, info) => {
   test.setTimeout(900_000);
-  await page.goto(TARGET);
+  await bootRuntime(page);
   const result = await page.evaluate(async () => {
     localStorage.setItem('flutter.browser_cpu_threads', '4');
     const client = (window as any).CrisperBrowserSpeech.create('crispasr', true);
@@ -71,7 +72,7 @@ test('threaded startup failure recovers with single-thread CPU inference', async
   await page.context().route('**/wasm/crispasr-threaded/libwhisper.js', route => route.fulfill({
     contentType: 'application/javascript', body: "throw new Error('Threaded startup failed for recovery control');",
   }));
-  await page.goto(TARGET);
+  await bootRuntime(page);
   const fixture = Array.from(await readFile(path.join(__dirname, '../fixtures/jfk.wav')));
   const result = await page.evaluate(async fixture => {
     localStorage.setItem('flutter.browser_cpu_threads', '4');

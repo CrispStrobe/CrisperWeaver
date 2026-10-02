@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { TARGET } from './target';
+import { bootRuntime } from './runtime-page';
 const normalize = (text: string) => text.toLowerCase().normalize('NFKD').replace(/\p{M}/gu, '').replace(/[^\p{L}\p{N}]+/gu, ' ').trim().split(/\s+/);
 function wordErrorRate(expected: string, actual: string) {
   const a = normalize(expected), b = normalize(actual);
@@ -14,7 +15,7 @@ function wordErrorRate(expected: string, actual: string) {
   return row[b.length] / a.length;
 }
 async function infer(page: any, fixture: number[], model: string, language: string, repeat: number, snr: number | null) {
-  await page.goto(TARGET);
+  await bootRuntime(page);
   return page.evaluate(async ({ fixture, model, language, repeat, snr }: any) => {
     const bridge = (window as any).CrisperBrowserSpeech, client = bridge.create('onnx', true);
     try {
