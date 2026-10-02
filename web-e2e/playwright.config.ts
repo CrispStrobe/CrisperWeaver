@@ -5,7 +5,7 @@ export default defineConfig({
   testDir: './tests',
   // Failure screenshots and the always-on shell screenshot land here.
   // Gitignored — see web-e2e/.gitignore.
-  outputDir: './artifacts',
+  outputDir: process.env.PW_ARTIFACT_SCOPE ? `./artifacts/${process.env.PW_ARTIFACT_SCOPE}` : './artifacts',
   fullyParallel: false,
   // One worker: the browser tests share a single cold boot through a
   // worker-scoped fixture, and a second worker would only re-download the
@@ -30,11 +30,11 @@ export default defineConfig({
     // CanvasKit needs real WebGL; the bundled Chromium's SwiftShader provides
     // it headlessly. `--disable-dev-shm-usage` keeps a 64 MB /dev/shm (the
     // GitHub runner default) from crashing the GPU process mid-boot.
-    launchOptions: { args: ['--disable-dev-shm-usage'] },
+
   },
 
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    { name: 'chromium', use: { ...devices['Desktop Chrome'], launchOptions: { args: ['--disable-dev-shm-usage'] } } },
     { name: 'firefox', use: { ...devices['Desktop Firefox'], launchOptions: {
       firefoxUserPrefs: { 'webgl.force-enabled': true, 'media.autoplay.default': 0 },
     } } },
