@@ -28,10 +28,11 @@ test('GPU inference failure preserves owned audio and restarts on CPU', async ({
       await client.request('load', { model: 'onnx-tiny.en' });
       const audio = new Float32Array([0.25, -0.5, 0.75]);
       const output = await client.request('transcribe', { audio, transferAudio: true });
-      return { output, attempts, workers };
+      return { output, attempts, workers, detached: audio.byteLength === 0 };
     } finally { client.dispose(); window.Worker = NativeWorker; }
   });
   expect(result.workers).toBe(2);
+  expect(result.detached).toBe(true);
   const inferences = result.attempts.filter((attempt: any) => attempt.op === 'transcribe');
   expect(inferences.map((attempt: any) => attempt.preference)).toEqual(['webgpu', 'wasm']);
   expect(inferences[0].audio).toEqual([0.25, -0.5, 0.75]);

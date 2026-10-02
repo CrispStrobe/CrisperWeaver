@@ -14,7 +14,7 @@
     request(op, payload = {}, progress, forcedPreference, forcedThreads) {
       const executionPreference = forcedPreference || localStorage.getItem('flutter.browser_execution_provider')?.replaceAll('"', '') || 'wasm';
       const requestedThreads = forcedThreads ?? Number(localStorage.getItem('flutter.browser_cpu_threads') || 1);
-      const cpuThreads = this.engine === 'crispasr' && !['models', 'clearCache', 'deleteCache', 'unload'].includes(op) && crossOriginIsolated && typeof SharedArrayBuffer !== 'undefined'
+      const cpuThreads = this.engine === 'crispasr' && !['models', 'clearCache', 'delete', 'deleteCache', 'clearIncomplete', 'storage', 'unload'].includes(op) && crossOriginIsolated && typeof SharedArrayBuffer !== 'undefined'
         ? ([2, 4].includes(requestedThreads) ? requestedThreads : 1) : 1;
       const lowHeap = localStorage.getItem('cw.browserLowMemoryRuntime') === 'true';
       if (op === 'unload') { this.cancel(); return Promise.resolve(true); }
@@ -27,7 +27,10 @@
         this.worker.onmessage = ({ data }) => {
           const entry = this.pending.get(data.id);
           if (!entry) return;
-          if (data.progress != null) { entry.progress?.(data.progress); return; }
+          if (data.progress != null) {
+            if (entry.watchdog) { clearTimeout(entry.timer); entry.timer = setTimeout(entry.timeout, 120000); }
+            entry.progress?.(data.progress); return;
+          }
           clearTimeout(entry.timer); this.pending.delete(data.id);
           if (data.error) { if (!this.retryGpuInference(entry, data.error) && !this.retryCpu(entry, data.error)) entry.reject(new Error(data.error)); }
           else {
@@ -51,10 +54,11 @@
         };
         this.worker.onerror = e => {
           const reason = e.message || 'Browser speech worker failed';
-          const entry = Array.from(this.pending.values()).find(item => item.op === 'load');
+          const entry = Array.from(this.pending.values()).find(item => item.op === 'load' || this.engine === 'onnx' && item.op === 'transcribe' && this.loadedPreference !== 'wasm');
           if (entry) {
             const key = Array.from(this.pending.entries()).find(([, value]) => value === entry)?.[0];
             this.pending.delete(key);
+            if (entry.op === 'transcribe' && this.retryGpuInference(entry, 'CW_GPU_RESTART: ' + reason)) return;
             if (this.retryCpu(entry, reason)) return;
             clearTimeout(entry.timer); entry.reject(new Error(reason));
           }
@@ -64,20 +68,24 @@
       const id = ++this.sequence;
       // Preserve one bounded audio copy only when GPU inference may need a
       // fresh-worker CPU retry; CPU requests retain the zero-copy path.
-      if (this.engine === 'onnx' && op === 'transcribe' && this.loadedPreference !== 'wasm' && payload.audio instanceof Float32Array) payload = { ...payload, audio: payload.audio.slice(), transferAudio: false };
+      const gpuInference = this.engine === 'onnx' && op === 'transcribe' && this.loadedPreference !== 'wasm' && payload.audio instanceof Float32Array;
+      const retryPayload = gpuInference ? { ...payload, audio: payload.audio.slice(), transferAudio: true } : payload;
       return new Promise((resolve, reject) => {
         // The main thread can terminate a GPU initialization that blocks its
         // worker event loop. A worker-local Promise timeout cannot do that.
         const retryCpu = this.engine === 'onnx' && op === 'load' && executionPreference !== 'wasm';
         const retrySingle = this.engine === 'crispasr' && op === 'load' && cpuThreads > 1;
-        const timer = setTimeout(() => {
-          if (!retryCpu && !retrySingle) { this.cancel('Browser inference timed out'); return; }
+        const timeout = () => {
+          if (!retryCpu && !retrySingle && !gpuInference) { this.cancel('Browser inference timed out'); return; }
           const entry = this.pending.get(id);
           if (!entry) return;
           this.pending.delete(id);
-          this.retryCpu(entry, 'Parallel runtime stalled; worker restarted with single-thread CPU');
-        }, (retryCpu || retrySingle) ? 120000 : 900000);
-        this.pending.set(id, { resolve, reject, progress, timer, op, payload, cpuThreads, lowHeap, preference: executionPreference, model: ['load', 'import'].includes(op) ? payload.model : null });
+          if (gpuInference) this.retryGpuInference(entry, 'CW_GPU_RESTART: GPU inference stalled; retrying on local CPU');
+          else this.retryCpu(entry, 'Parallel runtime stalled; worker restarted with single-thread CPU');
+        };
+        const watchdog = retryCpu || retrySingle || gpuInference;
+        const timer = setTimeout(timeout, watchdog ? 120000 : 900000);
+        this.pending.set(id, { resolve, reject, progress, timer, timeout, watchdog, op, payload: retryPayload, cpuThreads, lowHeap, preference: executionPreference, model: ['load', 'import'].includes(op) ? payload.model : null });
         const allowExperimentalModels = localStorage.getItem('flutter.browser_allow_experimental_models') === 'true';
         const transfer = [];
         if (payload.audio instanceof Float32Array) {
