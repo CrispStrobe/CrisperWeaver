@@ -105,7 +105,7 @@ All 12 quota/interruption/eviction/reload checks pass across the three browsers.
 Native analyze, tests and both desktop builds passed run 37002105924; the new
 thread settings test, analysis and both desktop builds pass run 37008726830.
 
-Three-model CPU A/B reports (three warm repetitions, decoded parity) are in
+Five-model CPU A/B reports (three warm repetitions, decoded parity) are in
 `docs/browser-hardening-2026-10-02/`: the 128 MiB SIMD variant improves Moonshine,
 FastConformer and Phonon latency. Phonon's peak process RSS barely changes;
 threading helps Phonon but hurts Moonshine. Whisper tiny/base A/B also pass decoded parity and three warm repetitions;
@@ -121,8 +121,11 @@ RSS and device-wide VRAM scope. CPU fallback is never
 counted as successful GPU validation.
 
 Whisper A/B passed run 37008639394. Final compiled-artifact validation is
-queued/running for both flavors; earlier smoke failures identified the cache
-assertion and timestamp omissions described below. Continuous English retention regressed with the wider pause
+queued/running at 84bc138 for Full (37022826125) and Lite (37022830567).
+Earlier smoke failures identified cache assertions, missing timestamp output,
+a worker test route that missed the heap query, and insufficient Firefox
+TTS fixture time. Firefox retains all six English utterances with 6.8% WER;
+retention checks allow acoustic insertions while bounding overall word error. Continuous English retention regressed with the wider pause
 search; Whisper retries energetic windows that timestamp mode omitted using text-
 only decoding and honest chunk-level timestamps. The 30-second window budget
 is preserved; shorter windows added cost without fixing the underlying issue. French/German noisy fixtures compare
@@ -152,31 +155,26 @@ Lite policy remain enforced. Deployment evidence is kept in
   checkpoints, strict range validation, cache-corruption rejection and
   cache/quota/deletion controls that preserve transcript history.
 
-Further work is measurement-driven rather than a claim that browser and
-native support are interchangeable:
+Further work follows the measured limits of this pass:
 
-1. **Measure and reduce peak memory.** Track cold/warm loading, heap growth,
-   transcription time and failures on constrained devices. Check upstream
-   graph/model-loading allocations for Phonon-2 and improve measured,
-   model-specific guidance; do not infer safety from download size.
-2. **Benchmark faster local execution.** Test WebGPU for the ONNX models,
-   with WASM fallback, quality checks and operator compatibility. This
-   does not accelerate the existing CrispASR GGUF path automatically.
-   Investigate a separate threaded CrispASR WASM build only after validating
-   worker call topology and deployment isolation; the upstream synchronous
-   pthread build previously deadlocked.
-3. **Expand long-recording coverage.** Assess the quiet overlapping windows
-   with multilingual speech, noise and real continuous recordings, checking
-   dropped/repeated words and timestamps. Preserve honest Moonshine chunk
-   timings and cancellation.
-4. **Expand compatibility coverage.** Exercise quota eviction and recovery
-   across browsers alongside the verified, resumable downloader. Expand
-   Firefox/WebKit and constrained-device coverage before promoting models
-   out of the experimental list.
+1. **Constrained-device memory.** Phonon Q4 still peaks near 2.5 GB RSS on
+   desktop Chromium. Profile upstream graph allocations and measure actual
+   low-memory/mobile devices before changing the experimental warning.
+2. **More physical GPUs and models.** Tesla T4 validates two ONNX fp32 paths;
+   test integrated AMD/Intel and Apple devices plus remaining catalogue
+   models before broadening GPU claims. Keep one CPU thread as default:
+   four-thread Moonshine is slower despite helping Whisper and Phonon.
+3. **Long real recordings.** The continuous repeated English and noisy
+   French/German fixtures catch retention errors; add varied speakers and
+   unrepeated field recordings. The small multilingual model's high WER
+   remains an acoustic-quality limitation.
+4. **Physical browser/device coverage.** Headless Chromium/Firefox/WebKit
+   exercise cache eviction and recovery; test Safari on Mac/iOS and mobile
+   browser lifecycle/quota constraints before promoting larger models.
 
-**Done when:** cold/warm and peak-memory measurements are recorded by model,
-supported paths preserve accuracy and Lite's no-remote-AI checks, and every
-new default is backed by inference on the browsers/devices it claims to fit.
+**Evidence:** model timings, decoded parity and memory scope are retained in
+[the browser report](docs/browser-hardening-2026-10-02/README.md). The separate
+model and GPU warnings remain in place.
 
 ### B1. Ship the external TestFlight beta — **the critical path**
 

@@ -56,3 +56,11 @@ Continuous English and noisy French/German recordings have separate retained-
 utterance, timestamp and WER checks. French/German small-model isolated WER is
 high (roughly 52–55% in the initial Chromium sample); retention parity against
 that baseline is not a claim of high multilingual transcription accuracy.
+
+Firefox also passes noisy French/German retention and real two/four-thread
+ASR/TTS in compiled-artifact CI. Its English fixture retained all six starts
+and scored 6.8% WER, including an inserted phrase; retention assertions allow
+insertions while the WER bound constrains them. Single-thread Kokoro is much
+slower in Firefox: the original eleven-word synthesis took about eight minutes
+on the hosted CPU runner. The UI/offline WAV check uses shorter real speech
+and a budget for two serial workers. Final Full/Lite matrices remain pending.

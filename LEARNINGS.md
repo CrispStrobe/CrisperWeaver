@@ -32,6 +32,16 @@ If a learning is still live (affects current work), it's linked from [`PLAN.md`]
   Proxy native compute asynchronously and create JS values on the servicer.
   Reject unready/non-proxy async calls rather than running inline. Keep the
   single-thread runtime and cancellation by worker termination.
+- **Timestamp decoding may omit speech that text decoding retains.**
+  Retry empty timestamp output only for an energetic window; label its
+  fallback timing as chunk-level. Real Firefox English output retained all
+  six utterances with a small acoustic insertion, so retention checks must
+  also bound word error rather than require a perfectly exact transcript.
+- **Serial inference tests need a budget for every worker.** Firefox
+  single-thread Kokoro completed an eleven-word cold synthesis in roughly
+  eight minutes on CI; a ten-minute combined runtime/UI test then expired
+  during its second worker. Shorter speech still validates real synthesis,
+  offline cache reuse and WAV marking. Threaded synthesis is a separate test.
 - **Deduplication must be limited to overlapping audio.** A fixed 24-word
   text match erased intentional repetition in a four-utterance fixture.
   Limit the matching suffix/prefix to actual context duration and keep the
