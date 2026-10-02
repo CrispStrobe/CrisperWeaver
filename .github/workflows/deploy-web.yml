@@ -24,6 +24,11 @@ on:
         type: choice
         options: [full, lite]
         default: full
+      probe_model:
+        description: Optional isolated assessment of an experimental browser model
+        type: choice
+        options: [none, phonon2-q4_k, phonon2-q8_0]
+        default: none
 
 concurrency:
   group: deploy-web-${{ inputs.flavor || 'full' }}-${{ github.ref }}
@@ -196,3 +201,34 @@ jobs:
           path: web-e2e/artifacts
           retention-days: 7
           if-no-files-found: ignore
+
+  model-probe:
+    name: Assess experimental browser model
+    needs: build
+    if: needs.build.outputs.deployed == 'true' && inputs.probe_model != '' && inputs.probe_model != 'none'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: web-e2e/package-lock.json
+      - name: Install browser tools
+        working-directory: web-e2e
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: Assess known speech locally after accepting the warning
+        env:
+          BASE_URL: ${{ needs.build.outputs.flavor == 'lite' && 'https://crisperweaver-lite-web.vercel.app' || 'https://crisperweaver-web.vercel.app' }}
+          PROBE_MODEL: ${{ inputs.probe_model }}
+        run: node scripts/probe_browser_model.mjs
+      - name: Upload assessment result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-model-probe-${{ inputs.probe_model }}
+          path: web-e2e/artifacts/model-probe
+          retention-days: 14
