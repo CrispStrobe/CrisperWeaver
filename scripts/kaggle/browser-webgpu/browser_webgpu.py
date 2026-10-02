@@ -8,8 +8,8 @@ import shutil
 import subprocess
 import sys
 
-VERSION = 'browser-webgpu-v1'
-CW_REF = 'e0ce006bfda9dccf59cc94b72849ead0b112dfbd'
+VERSION = 'browser-webgpu-v2-fp32'
+CW_REF = '18eb9407b1c8fd4f49939327b633af1525e14022'
 WORK = Path('/kaggle/working')
 SCRATCH = Path('/tmp/cw-webgpu')
 SCRATCH.mkdir(parents=True, exist_ok=True)
