@@ -8,7 +8,7 @@
     for (let coreStart = 0; coreStart < audio.length;) {
       let coreEnd = Math.min(audio.length, coreStart + limit - 2 * overlap);
       if (coreEnd < audio.length) {
-        const first = Math.max(coreStart + RATE * 4, coreEnd - RATE * 5);
+        const first = Math.max(coreStart + RATE * 4, coreEnd - RATE * 10);
         // Prefer at least 200 ms of silence near the end, not a single
         // low-energy sample in the middle of a spoken word.
         const step = 320; let run = 0, best = 0, boundary = coreEnd;

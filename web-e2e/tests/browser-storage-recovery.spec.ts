@@ -23,12 +23,16 @@ test('checkpoint survives reload and quota failure, then resumes without duplica
   const result = await page.evaluate(async () => {
     const m = (window as any).CW_DOWNLOADS, resource = JSON.parse(sessionStorage.getItem('recovery-resource')!);
     const saved = (await m.meta(resource.url)).offset;
-    const estimate = navigator.storage.estimate.bind(navigator.storage);
-    Object.defineProperty(navigator.storage, 'estimate', { configurable: true, value: async () => ({ quota: 1, usage: 0 }) });
+    const originalStorage = navigator.storage;
+    const storage = originalStorage || {} as StorageManager;
+    const estimate = storage.estimate?.bind(storage);
+    if (!originalStorage) Object.defineProperty(navigator, 'storage', { configurable: true, value: storage });
+    Object.defineProperty(storage, 'estimate', { configurable: true, value: async () => ({ quota: 1, usage: 0 }) });
     let error = '', requests = 0;
     try { await m.read(resource, true, () => {}, () => { requests++; throw new Error('Unexpected fetch'); }); }
     catch (failure) { error = String(failure); }
-    Object.defineProperty(navigator.storage, 'estimate', { configurable: true, value: estimate });
+    if (originalStorage) Object.defineProperty(storage, 'estimate', { configurable: true, value: estimate });
+    else delete (navigator as any).storage;
     const retained = (await m.meta(resource.url)).offset;
     let range = '';
     const bytes = await m.read(resource, true, () => {}, async (_url: string, options: any) => {

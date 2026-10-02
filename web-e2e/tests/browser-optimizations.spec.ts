@@ -149,10 +149,15 @@ test('quiet overlapping windows cover the recording and deduplicate boundary con
     const audio = new Float32Array(16000 * 65).fill(0.1);
     audio.fill(0, 16000 * 25, 16000 * 26);
     const windows = chunks.plan(audio);
+    const distantPause = new Float32Array(16000 * 65).fill(0.1);
+    distantPause.fill(0, 16000 * 18, 16000 * 22);
+    const distantWindows = chunks.plan(distantPause);
     const output: any[] = [{ text: 'ask what your country can do', start: 0, end: 25.5 }];
     chunks.append(output, [{ text: 'your country can do for you', start: 25, end: 30 }], { coreStart: 25.5 * 16000, coreEnd: 40 * 16000 });
-    return { windows, output, length: audio.length };
+    return { windows, distantWindows, output, length: audio.length };
   });
+  expect(result.distantWindows[0].coreEnd / 16000).toBeGreaterThan(18);
+  expect(result.distantWindows[0].coreEnd / 16000).toBeLessThan(22);
   expect(result.windows[0].coreEnd / 16000).toBeGreaterThan(25);
   expect(result.windows[0].coreEnd / 16000).toBeLessThan(26);
   expect(result.windows.at(-1)?.coreEnd).toBe(result.length);
