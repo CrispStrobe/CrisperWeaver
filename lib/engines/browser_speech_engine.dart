@@ -149,7 +149,7 @@ class BrowserSpeechEngine implements TranscriptionEngine {
             'diarize': enableSpeakerDiarization,
           },
           onProgress: onProgress) as Map;
-      final segments = (result['segments'] as List).map((dynamic item) {
+      var segments = (result['segments'] as List).map((dynamic item) {
         final m = item as Map;
         return TranscriptionSegment.fromModelText(
             rawText: m['text'] as String,
@@ -157,6 +157,8 @@ class BrowserSpeechEngine implements TranscriptionEngine {
             endTime: (m['end'] as num).toDouble() + startOffsetSec,
             metadata: {'local': true, 'engine': engineId});
       }).toList();
+      segments = GeneratedKind.stamp(
+          segments, GeneratedKind.forRequest(translate: translate));
       for (final segment in segments) {
         onSegment?.call(segment);
       }
