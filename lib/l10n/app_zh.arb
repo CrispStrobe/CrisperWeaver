@@ -1171,5 +1171,6 @@
   "outputCleanupLlmModeLocalServerHelp": "通过本机模型服务器运行 {model}。",
   "settingsLocalHttpInvalid": "请使用 http://127.0.0.1 或 http://[::1] 和本地模型。不支持云端模型。",
   "aiTransparencyLiteBody": "CrisperWeaver Lite 使用本机模型处理语音、文本、文档和嵌入。本版本禁用远程转录、语音合成、翻译和云端语言模型服务。可选本地模型服务器必须运行在同一设备上；独立管理的服务器自行控制网络访问。模型文件用于本机处理。AI 生成的音频和文本带有披露和来源标记。说话人注册需要同意。详情请参阅关于页面。",
-  "outputSummarizeLiteUnconfigured": "请在设置中配置本机 GGUF 模型或本地模型服务器以生成摘要。"
+  "outputSummarizeLiteUnconfigured": "请在设置中配置本机 GGUF 模型或本地模型服务器以生成摘要。",
+  "aiTransparencyLiteWebNote": "这是 Lite 浏览器预览。原生语音识别、语音合成和 ONNX 引擎需要桌面应用，在此不可用。转录使用模拟引擎进行界面测试。文本嵌入可以在浏览器本地运行。远程 AI 处理已禁用；仍可下载模型。"
 }

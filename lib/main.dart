@@ -590,7 +590,9 @@ class _CrisperWeaverAppState extends ConsumerState<CrisperWeaverApp> {
               // and false here. Same string, different platform, so the
               // difference has to be stated rather than assumed.
               child: Text(BuildFlavor.isLite
-                  ? l.aiTransparencyLiteBody
+                  ? (plat.isWeb
+                      ? l.aiTransparencyLiteWebNote
+                      : l.aiTransparencyLiteBody)
                   : plat.isWeb
                       ? '${l.aiTransparencyBody}\n\n${l.aiTransparencyWebNote}'
                       : l.aiTransparencyBody),

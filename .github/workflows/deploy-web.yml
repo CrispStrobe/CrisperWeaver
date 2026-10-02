@@ -18,6 +18,16 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      flavor:
+        description: Web flavor (Lite deploys to its own Vercel project)
+        type: choice
+        options: [full, lite]
+        default: full
+
+concurrency:
+  group: deploy-web-${{ inputs.flavor || 'full' }}-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -29,6 +39,8 @@ jobs:
     # failing red against a URL this run never touched.
     outputs:
       deployed: ${{ steps.deploy.outputs.deployed }}
+      base_url: ${{ steps.deploy.outputs.base_url }}
+      flavor: ${{ inputs.flavor || 'full' }}
 
     env:
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
@@ -106,25 +118,39 @@ jobs:
 
       - name: Build web (release, dart2js)
         working-directory: repos/CrisperWeaver
-        run: flutter build web --release --base-href="/"
+        run: |
+          if [[ "${{ inputs.flavor }}" == "lite" ]]; then
+            flutter build web --release --base-href="/" --no-web-resources-cdn \
+              --dart-define=CW_FLAVOR=lite --dart-define=CW_LITE_DOWNLOADS=true
+            python3 scripts/prepare_lite_web.py
+          else
+            flutter build web --release --base-href="/"
+          fi
 
       - name: Add Vercel SPA-rewrite config
         run: cp repos/CrisperWeaver/vercel.json repos/CrisperWeaver/build/web/vercel.json
 
       - uses: actions/upload-artifact@v4
         with:
-          name: crisperweaver-web
+          name: crisperweaver-web-${{ inputs.flavor || 'full' }}
           path: repos/CrisperWeaver/build/web
           retention-days: 14
+
+      - name: Select separate Lite Vercel project
+        if: github.event_name == 'workflow_dispatch' && inputs.flavor == 'lite'
+        working-directory: repos/CrisperWeaver
+        run: python3 scripts/prepare_lite_vercel.py
 
       # -- Deploy to Vercel ------------------------------------------------
       - name: Deploy to Vercel (production)
         id: deploy
-        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' && env.VERCEL_TOKEN != ''
+        if: ((github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch' && inputs.flavor == 'lite') && env.VERCEL_TOKEN != ''
         run: |
           npm install -g vercel@latest
-          vercel deploy repos/CrisperWeaver/build/web --prod --yes --archive=tgz --token="$VERCEL_TOKEN"
+          DEPLOYMENT_URL=$(vercel deploy repos/CrisperWeaver/build/web --prod --yes --archive=tgz --token="$VERCEL_TOKEN")
+          echo "base_url=$DEPLOYMENT_URL" >> "$GITHUB_OUTPUT"
           echo "deployed=true" >> "$GITHUB_OUTPUT"
+          echo "Deployment: $DEPLOYMENT_URL (flavor: ${{ inputs.flavor || 'full' }})" >> "$GITHUB_STEP_SUMMARY"
 
   # A green deploy job only proves Vercel accepted an upload. This proves the
   # production URL actually serves a bundle that boots and paints — the one
@@ -158,14 +184,15 @@ jobs:
       - name: Run the web smoke test
         working-directory: web-e2e
         env:
-          BASE_URL: https://crisperweaver-web.vercel.app
+          BASE_URL: ${{ needs.build.outputs.flavor == 'lite' && 'https://crisperweaver-lite-web.vercel.app' || needs.build.outputs.base_url }}
+          CW_FLAVOR: ${{ needs.build.outputs.flavor }}
         run: npx playwright test
 
-      - name: Upload failure artefacts
-        if: failure()
+      - name: Upload browser screenshots and traces
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: web-smoke-artifacts
+          name: web-smoke-artifacts-${{ needs.build.outputs.flavor }}
           path: web-e2e/artifacts
           retention-days: 7
           if-no-files-found: ignore

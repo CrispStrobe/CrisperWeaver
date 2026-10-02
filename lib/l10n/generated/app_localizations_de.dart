@@ -4101,4 +4101,8 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get outputSummarizeLiteUnconfigured =>
       'Für Zusammenfassungen ein GGUF-Modell auf dem Gerät oder einen lokalen Modellserver in den Einstellungen konfigurieren.';
+
+  @override
+  String get aiTransparencyLiteWebNote =>
+      'Dies ist die Lite-Browservorschau. Native Spracherkennung, Sprachsynthese und ONNX-Engines benötigen die Desktop-App und sind hier nicht verfügbar. Die Transkription verwendet eine simulierte Engine für UI-Tests. Texteinbettungen können lokal im Browser laufen. Remote-KI-Verarbeitung ist deaktiviert; Modelldownloads bleiben verfügbar.';
 }

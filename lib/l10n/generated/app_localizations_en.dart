@@ -4075,4 +4075,8 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get outputSummarizeLiteUnconfigured =>
       'Configure an on-device GGUF model or a local model server in Settings to generate summaries.';
+
+  @override
+  String get aiTransparencyLiteWebNote =>
+      'This is the Lite browser preview. Native speech recognition, synthesis, and ONNX engines require the desktop app and are unavailable here. Transcription uses a mock engine for UI testing. Text embeddings can run locally in the browser. Remote AI processing is disabled; model downloads remain available.';
 }

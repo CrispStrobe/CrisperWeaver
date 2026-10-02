@@ -19,6 +19,7 @@
 
 import { test as base, expect, type Page } from '@playwright/test';
 import { TARGET } from './target';
+const IS_LITE = process.env.CW_FLAVOR === 'lite';
 
 /// Console/uncaught-error messages we tolerate, each with the reason it is not
 /// a regression. Anything not matched here fails the run.
@@ -184,7 +185,7 @@ test.describe('CrisperWeaver web PWA — deployed shell', () => {
 
   test('boots Flutter and paints the CanvasKit surface', async ({ app }) => {
     expect(app.status).toBe(200);
-    await expect(app.page).toHaveTitle('CrisperWeaver');
+    await expect(app.page).toHaveTitle(IS_LITE ? 'CrisperWeaver Lite' : 'CrisperWeaver');
     // The fixture already waited for a sized canvas; re-assert so this test
     // fails for its own reason rather than only through fixture teardown.
     await waitForFlutterBoot(app.page);
@@ -224,7 +225,8 @@ test.describe('CrisperWeaver web PWA — deployed shell', () => {
     const text = await page.evaluate(() => document.body.innerText);
     if (text.includes('AI-Powered Application')) {
       await expect(page.locator('flt-semantics[role="alertdialog"]')).toBeAttached();
-      expect(text).toContain('the browser build has no on-device engine');
+      expect(text).toContain(IS_LITE ? 'Lite browser preview' : 'the browser build has no on-device engine');
+      if (IS_LITE) expect(text).toContain('Remote AI processing is disabled');
     }
 
     // Keep one always-on artefact of what the deploy actually looks like.
@@ -238,7 +240,7 @@ test.describe('CrisperWeaver web PWA — deployed shell', () => {
     const uncaught = await app.page.evaluate(() => window.__smokeUncaught ?? []);
 
     const unexpected = [...app.errors.console, ...uncaught].filter(
-      (m) => !CONSOLE_ERROR_ALLOWLIST.some(({ pattern }) => pattern.test(m)),
+      (m) => !CONSOLE_ERROR_ALLOWLIST.filter(({ pattern }) => !IS_LITE || !pattern.source.includes('huggingface')).some(({ pattern }) => pattern.test(m)),
     );
     // Spell out what *is* tolerated, so a failing run tells whoever reads the
     // log whether the new error belongs on the list or is a real regression.

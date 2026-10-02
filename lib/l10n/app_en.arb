@@ -2612,5 +2612,6 @@
   "settingsLocalHttpInvalid": "Use http://127.0.0.1 or http://[::1] and a local model. Cloud models are unavailable.",
   "aiTransparencyLiteBody": "CrisperWeaver Lite processes speech, text, documents, and embeddings using models on your device. Remote transcription, synthesis, translation, and cloud language-model services are disabled in this build. Optional local model servers must run on the same device; separately managed servers control their own network access. Model files are used for on-device processing. AI-generated audio and text carry disclosure and provenance markings. Speaker enrollment requires consent. See About for details.",
   "@outputCleanupLlmModeLocalServerHelp": {"placeholders": {"model": {"type": "String"}}},
-  "outputSummarizeLiteUnconfigured": "Configure an on-device GGUF model or a local model server in Settings to generate summaries."
+  "outputSummarizeLiteUnconfigured": "Configure an on-device GGUF model or a local model server in Settings to generate summaries.",
+  "aiTransparencyLiteWebNote": "This is the Lite browser preview. Native speech recognition, synthesis, and ONNX engines require the desktop app and are unavailable here. Transcription uses a mock engine for UI testing. Text embeddings can run locally in the browser. Remote AI processing is disabled; model downloads remain available."
 }

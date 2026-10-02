@@ -6837,6 +6837,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Configure an on-device GGUF model or a local model server in Settings to generate summaries.'**
   String get outputSummarizeLiteUnconfigured;
+
+  /// No description provided for @aiTransparencyLiteWebNote.
+  ///
+  /// In en, this message translates to:
+  /// **'This is the Lite browser preview. Native speech recognition, synthesis, and ONNX engines require the desktop app and are unavailable here. Transcription uses a mock engine for UI testing. Text embeddings can run locally in the browser. Remote AI processing is disabled; model downloads remain available.'**
+  String get aiTransparencyLiteWebNote;
 }
 
 class _AppLocalizationsDelegate

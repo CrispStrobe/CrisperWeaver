@@ -3940,4 +3940,8 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get outputSummarizeLiteUnconfigured =>
       '请在设置中配置本机 GGUF 模型或本地模型服务器以生成摘要。';
+
+  @override
+  String get aiTransparencyLiteWebNote =>
+      '这是 Lite 浏览器预览。原生语音识别、语音合成和 ONNX 引擎需要桌面应用，在此不可用。转录使用模拟引擎进行界面测试。文本嵌入可以在浏览器本地运行。远程 AI 处理已禁用；仍可下载模型。';
 }
