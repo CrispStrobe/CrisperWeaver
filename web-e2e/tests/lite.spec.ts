@@ -58,7 +58,9 @@ test('saved cloud settings are suppressed and remote endpoints cannot be saved',
   const fields = page.getByRole('textbox');
   await expect(fields).toHaveCount(3);
   await expect(fields.nth(0)).toHaveValue('');
-  await fields.nth(0).fill('https://api.openai.com/v1/chat/completions');
+  await fields.nth(0).click();
+  await fields.nth(0).pressSequentially('https://api.openai.com/v1/chat/completions', { delay: 15 });
+  await fields.nth(0).press('Tab');
   await page.getByRole('button', { name: 'SAVE', exact: true }).click();
   await expect.poll(() => page.evaluate(() => document.body.innerText)).toContain('Cloud models are unavailable');
   await expect(fields.nth(0)).toHaveValue('https://api.openai.com/v1/chat/completions');

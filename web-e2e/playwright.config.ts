@@ -25,6 +25,8 @@ export default defineConfig({
     // own context and navigates to TARGET directly, so screenshots there are
     // taken explicitly rather than by the built-in `screenshot` option.
     baseURL: TARGET,
+    screenshot: 'only-on-failure',
+    trace: 'retain-on-failure',
     // CanvasKit needs real WebGL; the bundled Chromium's SwiftShader provides
     // it headlessly. `--disable-dev-shm-usage` keeps a 64 MB /dev/shm (the
     // GitHub runner default) from crashing the GPU process mid-boot.
