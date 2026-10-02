@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { TARGET } from './target';
 import { bootRuntime } from './runtime-page';
+import { attachJson } from './evidence';
 
 for (const threads of [2, 4]) {
   test(`CrispASR ${threads} threads finish real ASR, retain cache and cancel cleanly`, async ({ page }, info) => {
@@ -38,7 +39,7 @@ for (const threads of [2, 4]) {
     expect(result.loaded.diagnostics.peakWasmBytes).toBeLessThan(512 * 1024 * 1024);
     expect(result.beats).toBeGreaterThan(10);
     expect(result.cancellation).toContain('cancelled');
-    await info.attach('threaded-asr.json', { body: Buffer.from(JSON.stringify(result)), contentType: 'application/json' });
+    await attachJson(info, 'threaded-asr.json', result);
   });
 }
 
@@ -56,15 +57,17 @@ test('threaded TTS produces speech that threaded ASR recognizes', async ({ page 
       const audio = (await context.startRendering()).getChannelData(0).slice();
       await client.request('load', { model: 'moonshine-tiny-q4_k' });
       const output = await client.request('transcribe', { audio, transferAudio: true, language: 'en' });
-      return { output, samples: spoken.audio.length, sampleRate: spoken.sampleRate, local: spoken.local };
+      return { output, ttsDiagnostics: spoken.diagnostics, samples: spoken.audio.length, sampleRate: spoken.sampleRate, local: spoken.local };
     } finally { client.dispose(); }
   });
   expect(result.local).toBe(true);
   expect(result.samples).toBeGreaterThan(result.sampleRate);
+  expect(result.ttsDiagnostics.runtimeMode).toBe('threaded');
+  expect(result.ttsDiagnostics.cpuThreads).toBe(4);
   expect(result.output.diagnostics.runtimeMode).toBe('threaded');
   const text = result.output.segments.map((s: any) => s.text).join(' ').toLowerCase();
   expect(text).toContain('speech'); expect(text).toContain('browser');
-  await info.attach('threaded-roundtrip.json', { body: Buffer.from(JSON.stringify(result)), contentType: 'application/json' });
+  await attachJson(info, 'threaded-roundtrip.json', result);
 });
 
 test('threaded startup failure recovers with single-thread CPU inference', async ({ page }) => {

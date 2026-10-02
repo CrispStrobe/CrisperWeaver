@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { TARGET } from './target';
 import { bootRuntime } from './runtime-page';
+import { attachJson } from './evidence';
 const normalize = (text: string) => text.toLowerCase().normalize('NFKD').replace(/\p{M}/gu, '').replace(/[^\p{L}\p{N}]+/gu, ' ').trim().split(/\s+/);
 function wordErrorRate(expected: string, actual: string) {
   const a = normalize(expected), b = normalize(actual);
@@ -60,7 +61,7 @@ test('continuous English recording retains all six utterances across window cuts
   const text = result.segments.map((s: any) => s.text).join(' ');
   const expected = Array(6).fill('And so my fellow Americans ask not what your country can do for you ask what you can do for your country').join(' ');
   const wer = wordErrorRate(expected, text);
-  await info.attach('continuous-english.json', { body: Buffer.from(JSON.stringify({ result, wer })), contentType: 'application/json' });
+  await attachJson(info, 'continuous-english.json', { result, wer });
   timestamps(result);
   expect(text.toLowerCase().match(/country/g)?.length).toBe(12);
   expect(wer).toBeLessThanOrEqual(0.15);
@@ -79,7 +80,7 @@ for (const language of ['fr', 'de']) {
     const baselineText = result.baseline.segments.map((s: any) => s.text).join(' ');
     const baselineWer = wordErrorRate(entry.expected, baselineText);
     console.log(`${language}: isolated noisy WER=${baselineWer}, long WER=${wer}, text=${text}`);
-    await info.attach(`continuous-${language}.json`, { body: Buffer.from(JSON.stringify({ result, wer, baselineWer, snrDb: 20, source: entry.source })), contentType: 'application/json' });
+    await attachJson(info, `continuous-${language}.json`, { result, wer, baselineWer, snrDb: 20, source: entry.source });
     timestamps(result);
     expect(result.duration).toBeGreaterThan(30);
     expect(wer).toBeLessThanOrEqual(baselineWer + 0.1);
