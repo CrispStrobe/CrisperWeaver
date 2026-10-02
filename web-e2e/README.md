@@ -130,3 +130,61 @@ recorded that reason. No hardware GPU acceleration was validated here.
 also passed through verified chunk storage: 12.14 s load, 31.10 s inference,
 43.29 s total and 896 MB observed WASM allocation. The latter excludes other
 browser allocations and is not comparable to whole-browser RSS above.
+
+
+## Browser hardening validation (in progress)
+
+The Chromium two-thread ASR/cancellation/cached-reload check passed locally
+using the actual proxy runtime (45 s, 2026-10-02). Other checks below are still
+pending; successful build/export checks alone do not prove inference.
+
+The browser matrix now includes Chromium, Firefox and WebKit for both flavors.
+To validate a compiled artifact on isolated runners before changing production:
+
+```sh
+gh workflow run deploy-web.yml --ref feat/browser-hardening -f flavor=full -f validate_only=true -f benchmark_models=true
+gh workflow run deploy-web.yml --ref feat/browser-hardening -f flavor=lite -f validate_only=true
+```
+
+Recording checks use continuous repeated English speech and real French/German
+FLEURS recordings with deterministic 20 dB background noise. They measure word
+error rate, missing/extra words, and monotonic bounded timestamps. Synthetic
+noise and repetition are deliberate stress fixtures; these are not a claim of
+accuracy on arbitrary real-world recordings. See fixtures/README.md for licenses.
+
+Storage checks cover committed checkpoints after reload, insufficient quota,
+failed writes, evicted parts/cache, and verified streaming cache invalidation.
+ONNX downloads verify/persist using a 4 MiB staging buffer without allocating a
+second full-model destination. A loader may still allocate full weight buffers.
+
+CrispASR CPU settings offer one, two or four threads. One remains the default.
+Parallel mode requires cross-origin isolation and SharedArrayBuffer. Startup
+runs outside message handlers; model-open/ASR/TTS calls are proxied asynchronously
+to the compute thread. Failed parallel loading retries on one-thread CPU. Tests
+require actual threaded diagnostics, known speech, cancellation/reload, and a
+TTS-to-ASR round trip. Passing a single-thread fallback does not count as proof.
+
+The original 512 MiB runtime remains available. The new 128 MiB initial-heap
+single-thread runtime is an A/B candidate (`cw.browserLowMemoryRuntime=true`),
+not yet the default. Both grow as needed. Benchmarks compare all three modes,
+report cold load plus median of at least three warm inferences, decoded parity,
+WASM allocated bytes and sampled browser RSS. Phonon Q4 runs in its own CI job.
+
+### Physical GPU evidence
+
+`browser-hardware-gpu.yml` targets an existing GPU runner selected by JSON
+labels. It rejects software adapters and CPU fallback, checks the real decoded
+transcript against CPU, and records adapter identity and three warm runs. This
+host has a virtual display adapter and no render device; no physical GPU run
+has been recorded yet. A runner label/access method is still needed.
+
+```sh
+gh workflow run browser-hardware-gpu.yml --ref main \
+  -f runner_labels='["self-hosted","browser-gpu"]' \
+  -f base_url=https://crisperweaver-lite-web.vercel.app
+```
+
+For local driver setup the benchmark accepts `BENCHMARK_BROWSER_ARGS` as a
+JSON string array and `BENCHMARK_HEADED=1` (use Xvfb if required on Linux).
+Optional NVIDIA device-wide memory samples include other processes; missing
+VRAM counters stay null. Apple unified GPU memory is not inferred from RSS.

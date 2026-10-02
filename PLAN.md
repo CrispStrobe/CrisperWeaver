@@ -96,6 +96,12 @@ heap and model-loading memory with A/B proof, physical-GPU benchmark harness,
 and deadlock-free proxy-to-pthread ASR/TTS integration. Preserve the existing
 single-thread path and Lite policy throughout. Physical GPU access requested;
 local adapter is virtual and must not count as hardware proof.
+Checkpoint: upstream WASM run 36999311622 passed all five variants. Real
+Chromium two-thread ASR/cancel/cached-reload test passed; remaining runtime,
+continuous-recording, cross-browser and benchmark checks are still in flight.
+Native analyze/tests passed on macOS and Linux in run 37002105924; desktop
+builds remain in progress. Full validation 37002105956 and Lite validation
+37002105989 serve compiled artifacts on isolated CI without production deploys.
 
 ### B0. Browser optimization follow-up
 

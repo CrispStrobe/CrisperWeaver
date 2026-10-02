@@ -7,6 +7,17 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 
 ### Browser optimizations
 
+- Added opt-in two/four-thread CrispASR processing with async compute calls,
+  cancellation and single-thread recovery after failed startup. CPU remains
+  the default; parallel mode requires browser isolation.
+- Streamed ONNX download verification through a bounded staging buffer,
+  reducing full-model copies; quota/reload/eviction recovery now retains
+  committed progress and clears invalid verified streams.
+- Added Chromium/Firefox/WebKit CI checks for both flavors, continuous
+  multilingual recordings with noise, and isolated pre-deployment validation.
+  Smaller initial-heap runtimes and Phonon thread/memory comparisons remain
+  gated pending correctness and performance results.
+
 - Added cache/quota controls, individual model deletion and incomplete
   download cleanup; transcript history is preserved.
 - Added cold/warm benchmarks with actual provider/fallback reporting,
