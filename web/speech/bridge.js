@@ -8,13 +8,22 @@
       this.pending = new Map(); this.sequence = 0; this.worker = null;
       this.loadedModel = null;
       this.loadedPreference = null;
+      this.loadedCpuThreads = null;
+      this.loadedLowHeap = null;
     }
-    request(op, payload = {}, progress, forcedPreference) {
+    request(op, payload = {}, progress, forcedPreference, forcedThreads) {
       const executionPreference = forcedPreference || localStorage.getItem('flutter.browser_execution_provider')?.replaceAll('"', '') || 'wasm';
+      const requestedThreads = forcedThreads ?? Number(localStorage.getItem('flutter.browser_cpu_threads') || 1);
+      const cpuThreads = this.engine === 'crispasr' && crossOriginIsolated && typeof SharedArrayBuffer !== 'undefined'
+        ? ([2, 4].includes(requestedThreads) ? requestedThreads : 1) : 1;
+      const lowHeap = localStorage.getItem('cw.browserLowMemoryRuntime') === 'true';
       if (op === 'unload') { this.cancel(); return Promise.resolve(true); }
-      if (['load', 'import'].includes(op) && (payload.model !== this.loadedModel || executionPreference !== this.loadedPreference)) this.cancel();
+      if (['load', 'import'].includes(op) && (payload.model !== this.loadedModel || executionPreference !== this.loadedPreference || cpuThreads !== this.loadedCpuThreads || lowHeap !== this.loadedLowHeap)) this.cancel();
       if (!this.worker) {
-        this.worker = new Worker(new URL('speech/worker.js', document.baseURI));
+        const workerUrl = new URL('speech/worker.js', document.baseURI);
+        if (lowHeap) workerUrl.searchParams.set('heap', 'small');
+        if (cpuThreads > 1) { workerUrl.searchParams.set('runtime', 'threaded'); workerUrl.searchParams.set('threads', String(cpuThreads)); }
+        this.worker = new Worker(workerUrl);
         this.worker.onmessage = ({ data }) => {
           const entry = this.pending.get(data.id);
           if (!entry) return;
@@ -22,7 +31,7 @@
           clearTimeout(entry.timer); this.pending.delete(data.id);
           if (data.error) entry.reject(new Error(data.error));
           else {
-            if (entry.model) { this.loadedModel = entry.model; this.loadedPreference = entry.preference; }
+            if (entry.model) { this.loadedModel = entry.model; this.loadedPreference = entry.preference; this.loadedCpuThreads = entry.cpuThreads; this.loadedLowHeap = entry.lowHeap; }
             if (data.result?.diagnostics) {
               const measurement = data.result.diagnostics;
               measurement.observedJsHeapBytes = performance.memory?.usedJSHeapSize ?? null;
@@ -47,18 +56,19 @@
         // The main thread can terminate a GPU initialization that blocks its
         // worker event loop. A worker-local Promise timeout cannot do that.
         const retryCpu = this.engine === 'onnx' && op === 'load' && executionPreference !== 'wasm';
+        const retrySingle = this.engine === 'crispasr' && op === 'load' && cpuThreads > 1;
         const timer = setTimeout(() => {
-          if (!retryCpu) { this.cancel('Browser inference timed out'); return; }
+          if (!retryCpu && !retrySingle) { this.cancel('Browser inference timed out'); return; }
           const entry = this.pending.get(id);
           if (!entry) return;
           this.pending.delete(id);
-          this.cancel('GPU initialization stalled; restarting on local CPU');
-          this.request(op, payload, progress, 'wasm').then(result => {
-            if (result?.diagnostics) result.diagnostics.fallbackReason = 'GPU initialization stalled; worker restarted on local CPU';
+          this.cancel('Parallel runtime stalled; restarting with single-thread CPU');
+          this.request(op, payload, progress, 'wasm', 1).then(result => {
+            if (result?.diagnostics) result.diagnostics.fallbackReason = 'Parallel runtime stalled; worker restarted with single-thread CPU';
             entry.resolve(result);
           }, entry.reject);
-        }, retryCpu ? 120000 : 900000);
-        this.pending.set(id, { resolve, reject, progress, timer, op, preference: executionPreference, model: ['load', 'import'].includes(op) ? payload.model : null });
+        }, (retryCpu || retrySingle) ? 120000 : 900000);
+        this.pending.set(id, { resolve, reject, progress, timer, op, cpuThreads, lowHeap, preference: executionPreference, model: ['load', 'import'].includes(op) ? payload.model : null });
         const allowExperimentalModels = localStorage.getItem('flutter.browser_allow_experimental_models') === 'true';
         const transfer = [];
         if (payload.audio instanceof Float32Array) {
@@ -76,6 +86,8 @@
       this.worker?.terminate(); this.worker = null;
       this.loadedModel = null;
       this.loadedPreference = null;
+      this.loadedCpuThreads = null;
+      this.loadedLowHeap = null;
       for (const entry of this.pending.values()) { clearTimeout(entry.timer); entry.reject(new Error(message)); }
       this.pending.clear();
     }

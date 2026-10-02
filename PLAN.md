@@ -86,6 +86,17 @@ question is **"has anyone walked this path on a real build?"** — see §B6.
 
 Ordered. Each item states what "done" means, so it can be picked up cold.
 
+### NOW — browser hardening (2026-10-02)
+
+Active worktree `/mnt/volume1/cw-browser-hardening`, branch
+`feat/browser-hardening`; upstream binding work in `/mnt/volume1/cw-asr-threads`.
+Implement all six follow-ups: Firefox/WebKit inference coverage, continuous
+multilingual/noisy recording fixtures, quota/eviction/reload recovery, reduced
+heap and model-loading memory with A/B proof, physical-GPU benchmark harness,
+and deadlock-free proxy-to-pthread ASR/TTS integration. Preserve the existing
+single-thread path and Lite policy throughout. Physical GPU access requested;
+local adapter is virtual and must not count as hardware proof.
+
 ### B0. Browser optimization follow-up
 
 The first iteration of all four items below is implemented in the browser

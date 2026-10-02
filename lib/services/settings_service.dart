@@ -639,6 +639,22 @@ class SettingsService {
     await _prefs.setBool('browser_allow_experimental_models', value);
   }
 
+  int get browserCpuThreads {
+    final value = _prefs.getInt('browser_cpu_threads') ?? 1;
+    return [1, 2, 4].contains(value) ? value : 1;
+  }
+
+  Future<void> setBrowserCpuThreads(int value) async {
+    if (![1, 2, 4].contains(value)) {
+      throw ArgumentError.value(
+        value,
+        'value',
+        'Supported browser thread counts are 1, 2 and 4',
+      );
+    }
+    await _prefs.setInt('browser_cpu_threads', value);
+  }
+
   String get browserExecutionProvider =>
       _prefs.getString('browser_execution_provider') ?? 'wasm';
   bool get browserGpuWarningAccepted =>

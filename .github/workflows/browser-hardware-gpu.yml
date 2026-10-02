@@ -1,0 +1,42 @@
+name: Validate browser hardware GPU
+
+on:
+  workflow_dispatch:
+    inputs:
+      runner_labels:
+        description: JSON labels for an existing GPU-equipped runner
+        type: string
+        default: '["self-hosted","browser-gpu"]'
+      base_url:
+        description: Full or Lite deployment to assess
+        type: string
+        default: https://crisperweaver-lite-web.vercel.app
+
+jobs:
+  hardware:
+    runs-on: ${{ fromJSON(inputs.runner_labels) }}
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install browser harness
+        working-directory: web-e2e
+        run: |
+          npm ci
+          npx playwright install chromium
+      - name: Require actual GPU inference and decoded CPU parity
+        env:
+          BASE_URL: ${{ inputs.base_url }}
+          REQUIRE_HARDWARE_GPU: '1'
+          BENCHMARK_MODELS: onnx:onnx-moonshine-tiny,onnx:onnx-tiny.en
+          BENCHMARK_PROVIDERS: wasm,webgpu
+          BENCHMARK_REPETITIONS: '3'
+        run: node scripts/benchmark_browser_models.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hardware-gpu-evidence
+          path: web-e2e/artifacts/model-benchmark
+          retention-days: 30

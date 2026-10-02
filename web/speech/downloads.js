@@ -12,16 +12,31 @@
       request.onupgradeneeded = () => {
         request.result.createObjectStore('meta'); request.result.createObjectStore('parts');
       };
-      request.onsuccess = () => resolve(request.result);
+      request.onsuccess = () => {
+        const connection = request.result;
+        connection.onversionchange = () => { connection.close(); database = null; };
+        connection.onclose = () => { database = null; };
+        resolve(connection);
+      };
       request.onerror = () => reject(request.error);
     });
   }
   async function transaction(stores, mode, action) {
     const connection = await db();
     return new Promise((resolve, reject) => {
-      const tx = connection.transaction(stores, mode), request = action(tx);
+      const tx = connection.transaction(stores, mode);
+      let request;
+      try { request = action(tx); }
+      catch (error) {
+        tx.abort();
+        reject(error?.name === 'QuotaExceededError'
+          ? new Error('Browser storage is full. Saved download progress was retained; delete cached models or incomplete downloads and retry.') : error);
+        return;
+      }
       tx.oncomplete = () => resolve(request?.result);
-      tx.onerror = tx.onabort = () => reject(tx.error || new Error('Model storage transaction failed'));
+      tx.onerror = tx.onabort = () => reject(tx.error?.name === 'QuotaExceededError'
+        ? new Error('Browser storage is full. Saved download progress was retained; delete cached models or incomplete downloads and retry.')
+        : tx.error || new Error('Model storage transaction failed'));
     });
   }
   const meta = url => transaction(['meta'], 'readonly', tx => tx.objectStore('meta').get(url));
@@ -31,11 +46,26 @@
       tx.objectStore('meta').delete(url); tx.objectStore('parts').delete(range(url));
     });
   }
-  async function checkpoint(resource, bytes, from, end) {
+  async function checkpointPart(resource, part, from, end) {
     await transaction(['meta', 'parts'], 'readwrite', tx => {
-      tx.objectStore('parts').put(bytes.slice(from, end), [resource.url, Math.floor(from / PART)]);
+      tx.objectStore('parts').put(part, [resource.url, Math.floor(from / PART)]);
       tx.objectStore('meta').put({ url: resource.url, sha256: resource.sha256, size: resource.size, offset: end }, resource.url);
     });
+  }
+  const checkpoint = (resource, bytes, from, end) => checkpointPart(resource, bytes.slice(from, end), from, end);
+  async function consume(resource, response, wantBytes) {
+    const digest = await hash(), bytes = wantBytes ? new Uint8Array(resource.size) : null;
+    let offset = 0;
+    const reader = response.body.getReader();
+    try {
+      while (true) {
+        const { done, value } = await reader.read(); if (done) break;
+        if (offset + value.length > resource.size) throw new Error('Cached model size mismatch');
+        bytes?.set(value, offset); digest.update(value); offset += value.length;
+      }
+      if (offset !== resource.size || hex(digest.digest()) !== resource.sha256) throw new Error('Cached model checksum mismatch');
+      return bytes;
+    } catch (error) { await reader.cancel().catch(() => {}); throw error; }
   }
   function checkpointResponse(resource) {
     let index = 0, position = 0;
@@ -71,16 +101,28 @@
     const response = await cached(resource);
     if (!response) return undefined;
     const digest = await hash(); let length = 0;
-    return new Response(response.body.pipeThrough(new TransformStream({
-      transform(chunk, controller) { length += chunk.length; digest.update(chunk); controller.enqueue(chunk); },
-      async flush() {
-        if (length !== resource.size || hex(digest.digest()) !== resource.sha256) {
+    const reader = response.body.getReader();
+    const stream = new ReadableStream({
+      async pull(controller) {
+        try {
+          const { done, value } = await reader.read();
+          if (done) {
+            if (length !== resource.size || hex(digest.digest()) !== resource.sha256) throw new Error('Cached model checksum mismatch');
+            controller.close(); return;
+          }
+          length += value.length;
+          if (length > resource.size) throw new Error('Cached model size mismatch');
+          digest.update(value); controller.enqueue(value);
+        } catch (error) {
+          await reader.cancel().catch(() => {});
           await (await caches.open(CACHE)).delete(resource.url);
           await discard(resource.url);
-          throw new Error('Cached model checksum mismatch; corrupt cache was removed.');
+          controller.error(new Error(String(error) + '; corrupt cache was removed.'));
         }
       },
-    })), { headers: response.headers });
+      cancel(reason) { return reader.cancel(reason); },
+    }, { highWaterMark: 0 });
+    return new Response(stream, { headers: response.headers });
   }
   async function put(resource, bytes) {
     await verify(resource, bytes);
@@ -93,12 +135,11 @@
       'content-length': String(bytes.length), 'x-cw-sha256': resource.sha256,
     } }));
   }
-  async function readLocked(resource, downloads, progress = () => {}, networkFetch = fetch) {
+  async function readLocked(resource, downloads, progress = () => {}, networkFetch = fetch, wantBytes = true) {
     const existing = await cached(resource);
     if (existing) {
       try {
-        const bytes = new Uint8Array(await existing.arrayBuffer());
-        await verify(resource, bytes); return bytes;
+        return await consume(resource, existing, wantBytes);
       }
       catch (error) {
         await (await caches.open(CACHE)).delete(resource.url);
@@ -110,19 +151,22 @@
     }
     if (!downloads) throw new Error('Model downloads are disabled. Download or import this model first.');
     if (!Number.isSafeInteger(resource.size) || resource.size <= 0 || !/^[a-f0-9]{64}$/.test(resource.sha256)) throw new Error('Model has no valid size/checksum lock');
-    const storage = await navigator.storage?.estimate?.();
-    const storageCopies = resource.size >= CHUNK_CACHE_THRESHOLD ? 1 : 2;
-    if (storage?.quota && storage.quota - storage.usage < resource.size * storageCopies) throw new Error('Not enough browser storage for a resumable download and verified cache. Delete cached models or incomplete downloads first.');
     let saved = await meta(resource.url);
     if (saved && (saved.sha256 !== resource.sha256 || saved.size !== resource.size || saved.offset > resource.size)) { await discard(resource.url); saved = null; }
     let offset = saved?.offset || 0;
-    const bytes = new Uint8Array(resource.size);
+    const storage = await navigator.storage?.estimate?.();
+    const needed = resource.size - offset + (resource.size < CHUNK_CACHE_THRESHOLD ? resource.size : 0);
+    if (storage?.quota && storage.quota - storage.usage < needed) throw new Error('Not enough browser storage for a resumable download and verified cache. Delete cached models or incomplete downloads first.');
+    const bytes = wantBytes ? new Uint8Array(resource.size) : null;
     let digest = await hash();
     for (let index = 0, position = 0; position < offset; index++) {
       const part = await transaction(['parts'], 'readonly', tx => tx.objectStore('parts').get([resource.url, index]));
-      if (!part || part.length !== Math.min(PART, offset - position)) { await discard(resource.url); throw new Error('Incomplete download checkpoint is corrupt; retry the download.'); }
-      bytes.set(part, position); digest.update(part); position += part.length;
+      if (!part || part.length !== Math.min(PART, offset - position)) {
+        await discard(resource.url); offset = 0; digest = await hash(); break;
+      }
+      bytes?.set(part, position); digest.update(part); position += part.length;
     }
+    let staging = new Uint8Array(PART), staged = 0;
     let checkpointStart = offset;
     progress(offset / resource.size);
     if (offset < resource.size) {
@@ -140,9 +184,15 @@
         while (true) {
           const { done, value } = await reader.read(); if (done) break;
           if (offset + value.length > resource.size) throw new Error('Model response exceeds its locked size');
-          bytes.set(value, offset); digest.update(value); offset += value.length;
-          while (offset - checkpointStart >= PART) {
-            await checkpoint(resource, bytes, checkpointStart, checkpointStart + PART); checkpointStart += PART;
+          bytes?.set(value, offset); digest.update(value);
+          for (let position = 0; position < value.length;) {
+            const count = Math.min(PART - staged, value.length - position);
+            staging.set(value.subarray(position, position + count), staged);
+            staged += count; position += count; offset += count;
+            if (staged === PART) {
+              await checkpointPart(resource, staging, checkpointStart, offset);
+              checkpointStart = offset; staged = 0;
+            }
           }
           progress(offset / resource.size);
         }
@@ -151,7 +201,7 @@
         throw error;
       }
       if (offset !== resource.size) throw new Error('Model download was interrupted; retry to resume saved progress.');
-      if (checkpointStart < offset) await checkpoint(resource, bytes, checkpointStart, offset);
+      if (checkpointStart < offset) await checkpointPart(resource, staging.slice(0, staged), checkpointStart, offset);
     }
     if (hex(digest.digest()) !== resource.sha256) { await discard(resource.url); throw new Error('Model checksum mismatch; incomplete download was removed.'); }
     // Large response promotion can fail in Chromium's blob/cache machinery.
@@ -189,7 +239,7 @@
     await transaction(['meta', 'parts'], 'readwrite', tx => { tx.objectStore('meta').clear(); tx.objectStore('parts').clear(); });
     for (const name of [CACHE, 'crisperweaver-speech-models-v1', 'transformers-cache']) await caches.delete(name);
   }
-  globalThis.CW_DOWNLOADS = { read, cached, verifiedResponse, verify, put,
+  globalThis.CW_DOWNLOADS = { read, ensure: (resource, downloads, progress, networkFetch) => read(resource, downloads, progress, networkFetch, false), cached, verifiedResponse, verify, put,
     remove: resources => guarded('cw.model-storage', 'exclusive', () => remove(resources)), stats,
     clear: () => guarded('cw.model-storage', 'exclusive', clear),
     clearIncomplete: () => guarded('cw.model-storage', 'exclusive', clearIncomplete), meta, CACHE };

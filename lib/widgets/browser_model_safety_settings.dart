@@ -48,6 +48,29 @@ class _BrowserModelSafetySettingsState
           widget.onChanged?.call();
         },
       ),
+      const Text('CrispASR CPU processing'),
+      DropdownButton<int>(
+        value: settings.browserCpuThreads,
+        isExpanded: true,
+        items: const [
+          DropdownMenuItem(value: 1, child: Text('One thread (default)')),
+          DropdownMenuItem(value: 2, child: Text('Two threads')),
+          DropdownMenuItem(value: 4, child: Text('Four threads')),
+        ],
+        onChanged: (value) async {
+          if (value == null) return;
+          await settings.setBrowserCpuThreads(value);
+          if (!mounted) return;
+          setState(() {});
+          widget.onChanged?.call();
+        },
+      ),
+      const Padding(
+        padding: EdgeInsets.symmetric(vertical: 8),
+        child: Text(
+          'Applies on the next model load. Parallel processing requires browser isolation; otherwise one thread is used. More threads can use more memory and are not always faster.',
+        ),
+      ),
       const Text('ONNX processing'),
       DropdownButton<String>(
         value: settings.browserExecutionProvider,

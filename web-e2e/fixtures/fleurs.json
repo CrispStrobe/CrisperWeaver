@@ -1,0 +1,22 @@
+[
+  {
+    "language": "fr",
+    "file": "fleurs-fr_fr.wav",
+    "source": "https://huggingface.co/datasets/google/fleurs-r/resolve/c621c0b7b569dcebcd50273a187a35d1a1fc895f/data/fr_fr/audio/test.tar.gz",
+    "archiveMember": "test/13040218266669131237.wav",
+    "sourceRevision": "c621c0b7b569dcebcd50273a187a35d1a1fc895f",
+    "id": "1977",
+    "expected": "les meutes sont composées d'un à trois mâles adultes apparentés ainsi que d'une trentaine de femelles et de lionceaux",
+    "sha256": "4ebcdbeea336da3dbbdb1f0100be97ac247c3ea8c958b19b20eda126ef173297"
+  },
+  {
+    "language": "de",
+    "file": "fleurs-de_de.wav",
+    "source": "https://huggingface.co/datasets/google/fleurs-r/resolve/c621c0b7b569dcebcd50273a187a35d1a1fc895f/data/de_de/audio/test.tar.gz",
+    "archiveMember": "test/8160745505942577895.wav",
+    "sourceRevision": "c621c0b7b569dcebcd50273a187a35d1a1fc895f",
+    "id": "1971",
+    "expected": "starke winde hagel übermäßige niederschläge und waldbrände sind formen und auswirkungen von unwetter ebenso wie gewitter tornados wasserhosen und wirbelstürme",
+    "sha256": "325539d0fd6a733a67ed96f01076fed4744425e6f9b11d66c01079980f17cbe0"
+  }
+]

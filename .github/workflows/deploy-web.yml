@@ -19,6 +19,10 @@ on:
     branches: [main]
   workflow_dispatch:
     inputs:
+      validate_only:
+        description: Test both runtime and app on isolated CI without deploying
+        type: boolean
+        default: false
       flavor:
         description: Web flavor (Lite deploys to its own Vercel project)
         type: choice
@@ -47,7 +51,7 @@ jobs:
     # skipped on PRs and on forks without the Vercel secrets — rather than
     # failing red against a URL this run never touched.
     outputs:
-      deployed: ${{ steps.deploy.outputs.deployed }}
+      deployed: ${{ steps.deploy.outputs.deployed || steps.validate.outcome == 'success' }}
       base_url: ${{ steps.deploy.outputs.base_url }}
       flavor: ${{ inputs.flavor || 'full' }}
 
@@ -154,13 +158,18 @@ jobs:
       # -- Deploy to Vercel ------------------------------------------------
       - name: Deploy to Vercel (production)
         id: deploy
-        if: (github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch') && env.VERCEL_TOKEN != ''
+        if: inputs.validate_only != true && (github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch') && env.VERCEL_TOKEN != ''
         run: |
           npm install -g vercel@latest
           DEPLOYMENT_URL=$(vercel deploy repos/CrisperWeaver/build/web --prod --yes --archive=tgz --token="$VERCEL_TOKEN")
           echo "base_url=$DEPLOYMENT_URL" >> "$GITHUB_OUTPUT"
           echo "deployed=true" >> "$GITHUB_OUTPUT"
           echo "Deployment: $DEPLOYMENT_URL (flavor: ${{ inputs.flavor || 'full' }})" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Enable isolated artifact validation
+        if: inputs.validate_only == true
+        id: validate
+        run: echo "Validating the compiled artifact without deployment" >> "$GITHUB_STEP_SUMMARY"
 
   # A green deploy job only proves Vercel accepted an upload. This proves the
   # production URL actually serves a bundle that boots and paints — the one
@@ -171,7 +180,11 @@ jobs:
     needs: build
     if: needs.build.outputs.deployed == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
 
     steps:
       - uses: actions/checkout@v5
@@ -188,20 +201,30 @@ jobs:
 
       - name: Install Playwright Chromium
         working-directory: web-e2e
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install --with-deps ${{ matrix.browser }}
+
+      - name: Download compiled app for isolated validation
+        if: inputs.validate_only == true
+        uses: actions/download-artifact@v4
+        with:
+          name: crisperweaver-web-${{ inputs.flavor || 'full' }}
+          path: build/web
+      - name: Serve app with browser isolation
+        if: inputs.validate_only == true
+        run: python3 scripts/serve_browser_test.py --app build/web --port 8766 > /tmp/browser-server.log 2>&1 &
 
       - name: Run the web smoke test
         working-directory: web-e2e
         env:
-          BASE_URL: ${{ needs.build.outputs.flavor == 'lite' && 'https://crisperweaver-lite-web.vercel.app' || 'https://crisperweaver-web.vercel.app' }}
+          BASE_URL: ${{ inputs.validate_only && 'http://127.0.0.1:8766' || needs.build.outputs.flavor == 'lite' && 'https://crisperweaver-lite-web.vercel.app' || 'https://crisperweaver-web.vercel.app' }}
           CW_FLAVOR: ${{ needs.build.outputs.flavor }}
-        run: npx playwright test
+        run: npx playwright test --project=${{ matrix.browser }}
 
       - name: Upload browser screenshots and traces
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: web-smoke-artifacts-${{ needs.build.outputs.flavor }}
+          name: web-smoke-artifacts-${{ needs.build.outputs.flavor }}-${{ matrix.browser }}
           path: web-e2e/artifacts
           retention-days: 7
           if-no-files-found: ignore
@@ -224,9 +247,19 @@ jobs:
         run: |
           npm ci
           npx playwright install --with-deps chromium
+      - name: Download compiled app for isolated validation
+        if: inputs.validate_only == true
+        uses: actions/download-artifact@v4
+        with:
+          name: crisperweaver-web-${{ inputs.flavor || 'full' }}
+          path: build/web
+      - name: Serve app with browser isolation
+        if: inputs.validate_only == true
+        run: python3 scripts/serve_browser_test.py --app build/web --port 8766 > /tmp/browser-server.log 2>&1 &
+
       - name: Assess known speech locally after accepting the warning
         env:
-          BASE_URL: ${{ needs.build.outputs.flavor == 'lite' && 'https://crisperweaver-lite-web.vercel.app' || 'https://crisperweaver-web.vercel.app' }}
+          BASE_URL: ${{ inputs.validate_only && 'http://127.0.0.1:8766' || needs.build.outputs.flavor == 'lite' && 'https://crisperweaver-lite-web.vercel.app' || 'https://crisperweaver-web.vercel.app' }}
           PROBE_MODEL: ${{ inputs.probe_model }}
         run: node scripts/probe_browser_model.mjs
       - name: Upload assessment result
@@ -242,7 +275,7 @@ jobs:
     needs: build
     if: needs.build.outputs.deployed == 'true' && inputs.benchmark_models == true
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v4
@@ -255,9 +288,19 @@ jobs:
         run: |
           npm ci
           npx playwright install --with-deps chromium
+      - name: Download compiled app for isolated validation
+        if: inputs.validate_only == true
+        uses: actions/download-artifact@v4
+        with:
+          name: crisperweaver-web-${{ inputs.flavor || 'full' }}
+          path: build/web
+      - name: Serve app with browser isolation
+        if: inputs.validate_only == true
+        run: python3 scripts/serve_browser_test.py --app build/web --port 8766 > /tmp/browser-server.log 2>&1 &
+
       - name: Measure cold/warm inference and memory
         env:
-          BASE_URL: ${{ needs.build.outputs.flavor == 'lite' && 'https://crisperweaver-lite-web.vercel.app' || 'https://crisperweaver-web.vercel.app' }}
+          BASE_URL: ${{ inputs.validate_only && 'http://127.0.0.1:8766' || needs.build.outputs.flavor == 'lite' && 'https://crisperweaver-lite-web.vercel.app' || 'https://crisperweaver-web.vercel.app' }}
         run: node scripts/benchmark_browser_models.mjs
       - name: Upload local benchmark results
         if: always()
