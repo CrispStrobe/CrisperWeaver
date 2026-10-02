@@ -105,6 +105,7 @@ test('missing verified chunk invalidates streaming cache and allows a clean retr
     const m = (window as any).CW_DOWNLOADS, bytes = new Uint8Array(4 * 1024 * 1024 + 13).fill(31);
     const sha256 = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), x => x.toString(16).padStart(2, '0')).join('');
     const resource = { url: `${location.origin}/missing-verified.bin`, size: bytes.length, sha256 };
+    await m.meta(resource.url); // Initialize the downloader's stores first.
     const connection: IDBDatabase = await new Promise(resolve => {
       const request = indexedDB.open('crisperweaver-model-downloads-v1'); request.onsuccess = () => resolve(request.result);
     });
