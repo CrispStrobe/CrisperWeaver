@@ -4,11 +4,12 @@ import { TARGET } from './target';
 // These checks exercise shipped workers. Flutter rendering and uploads are
 // covered separately, keeping runtime checks independent of UI allocation.
 export async function bootRuntime(page: Page) {
-  const url = `${TARGET}/cw-browser-runtime-tests.html`;
-  await page.route(url, route => route.fulfill({
-    contentType: 'text/html',
-    headers: { 'Cross-Origin-Opener-Policy': 'same-origin', 'Cross-Origin-Embedder-Policy': 'require-corp' },
-    body: '<!doctype html><html><head><script src="/speech/bridge.js"></script></head><body>Local speech runtime check</body></html>',
-  }));
-  await page.goto(url);
+  // Use a real same-origin response so WebKit applies the server's isolation
+  // headers. Route-fulfilled synthetic HTML can lose isolation on later pages.
+  await page.goto(`${TARGET}/speech/bridge.js`);
+  await page.evaluate(() => {
+    const base = document.createElement('base'); base.href = location.origin + '/';
+    document.head.appendChild(base);
+  });
+  await page.addScriptTag({ url: `${TARGET}/speech/bridge.js` });
 }

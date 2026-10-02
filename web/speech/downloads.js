@@ -2,7 +2,6 @@
 // this downloader. IndexedDB checkpoints survive worker termination/restarts.
 (() => {
   const CACHE = 'crisperweaver-speech-models-v2', PART = 4 * 1024 * 1024;
-  const CHUNK_CACHE_THRESHOLD = 64 * 1024 * 1024;
   let database, hashing;
   const hash = async () => (hashing ||= import('../vendor/sha256.js')).then(m => m.sha256.create());
   const hex = bytes => Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
@@ -126,14 +125,8 @@
   }
   async function put(resource, bytes) {
     await verify(resource, bytes);
-    if (resource.size >= CHUNK_CACHE_THRESHOLD) {
-      for (let from = 0; from < bytes.length; from += PART) await checkpoint(resource, bytes, from, Math.min(from + PART, bytes.length));
-      await markVerified(resource);
-      return;
-    }
-    await (await caches.open(CACHE)).put(resource.url, new Response(bytes, { headers: {
-      'content-length': String(bytes.length), 'x-cw-sha256': resource.sha256,
-    } }));
+    for (let from = 0; from < bytes.length; from += PART) await checkpoint(resource, bytes, from, Math.min(from + PART, bytes.length));
+    await markVerified(resource);
   }
   async function readLocked(resource, downloads, progress = () => {}, networkFetch = fetch, wantBytes = true) {
     const existing = await cached(resource);
@@ -155,7 +148,7 @@
     if (saved && (saved.sha256 !== resource.sha256 || saved.size !== resource.size || saved.offset > resource.size)) { await discard(resource.url); saved = null; }
     let offset = saved?.offset || 0;
     const storage = await navigator.storage?.estimate?.();
-    const needed = resource.size - offset + (resource.size < CHUNK_CACHE_THRESHOLD ? resource.size : 0);
+    const needed = resource.size - offset;
     if (storage?.quota && storage.quota - storage.usage < needed) throw new Error('Not enough browser storage for a resumable download and verified cache. Delete cached models or incomplete downloads first.');
     const bytes = wantBytes ? new Uint8Array(resource.size) : null;
     let digest = await hash();
@@ -204,17 +197,11 @@
       if (checkpointStart < offset) await checkpointPart(resource, staging.slice(0, staged), checkpointStart, offset);
     }
     if (hex(digest.digest()) !== resource.sha256) { await discard(resource.url); throw new Error('Model checksum mismatch; incomplete download was removed.'); }
-    // Large response promotion can fail in Chromium's blob/cache machinery.
-    // Keep its already verified chunks as the persistent cache instead: one
-    // stored copy, no giant Blob, and the same hash checks on subsequent reads.
-    if (resource.size >= CHUNK_CACHE_THRESHOLD) {
-      await markVerified(resource);
-      return bytes;
-    }
-    // Stream checkpointed parts into CacheStorage instead of cloning another
-    // complete large buffer during promotion to the verified cache.
-    await (await caches.open(CACHE)).put(resource.url, checkpointResponse(resource));
-    await discard(resource.url);
+    // IndexedDB is the canonical verified cache for every size. WebKit loses
+    // dedicated-worker CacheStorage contents after worker termination, whereas
+    // committed IDB chunks survive. This also removes response-promotion copies.
+    // Existing CacheStorage entries remain readable until removed/migrated.
+    await markVerified(resource);
     return bytes;
   }
   const guarded = (name, mode, action) => navigator.locks
