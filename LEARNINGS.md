@@ -66,6 +66,13 @@ If a learning is still live (affects current work), it's linked from [`PLAN.md`]
   actual backend to `asrOpen`, reject absent backends before download, and
   include tokenizer companions in caching/readiness. A native catalogue
   entry alone does not establish browser compatibility.
+- **Flutter WebKit text input needs a settled native editing connection.**
+  A semantics click can drop the first typed character; an arrow-key primer
+  passed initially but remained intermittent against production. Re-enter
+  using native select-all/backspace/typing within a bounded retry, assert the
+  complete value before saving, and verify it again after rejection. DOM fill
+  can change HTML without updating Flutter's controller. The stronger Lite
+  control passes three times per browser against the deployed app.
 - **Test the shipped UI and real inference separately from metadata.**
   The browser override is separate from general beta settings and requires
   acknowledgement. Load/import/transcription recheck it. Production tests

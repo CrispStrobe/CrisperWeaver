@@ -72,3 +72,9 @@ passes in 7.7 minutes. The final Full matrix passes 39 tests per browser
 41 per browser in the same matrix. All six jobs pass without retries.
 See [Full](https://github.com/CrispStrobe/CrisperWeaver/actions/runs/37022826125)
 and [Lite](https://github.com/CrispStrobe/CrisperWeaver/actions/runs/37022830567).
+
+Live production worker files match `main` byte-for-byte and include COOP/COEP
+headers. Full's twelve live shell checks pass across all three browsers. Lite's
+branding and remote-endpoint controls pass three times per browser (18 checks)
+after replacing an intermittent first-keystroke setup with bounded native
+keyboard re-entry; saving still requires exact complete input and rejection.

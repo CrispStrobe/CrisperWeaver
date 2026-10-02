@@ -61,12 +61,18 @@ test('saved cloud settings are suppressed and remote endpoints cannot be saved',
   const endpoint = 'https://api.openai.com/v1/chat/completions';
   await fields.nth(0).click();
   await expect(fields.nth(0)).toBeFocused();
-  // Flutter activates its native text editor asynchronously after a semantics
-  // click. A harmless cursor key completes that handoff before text input.
-  await fields.nth(0).press('ArrowLeft');
-  await fields.nth(0).pressSequentially(endpoint, { delay: 30 });
-  await expect(fields.nth(0)).toHaveValue(endpoint);
+  // Flutter's asynchronous WebKit focus handoff can discard the first key.
+  // Re-enter through native keyboard events until the complete value settles;
+  // DOM fill alone does not reliably update Flutter's TextEditingController.
+  await expect(async () => {
+    await fields.nth(0).press('ControlOrMeta+A');
+    await fields.nth(0).press('Backspace');
+    await expect(fields.nth(0)).toHaveValue('', { timeout: 1_000 });
+    await fields.nth(0).pressSequentially(endpoint, { delay: 30 });
+    await expect(fields.nth(0)).toHaveValue(endpoint, { timeout: 1_000 });
+  }).toPass({ timeout: 15_000 });
   await fields.nth(0).press('Tab');
+  await expect(fields.nth(0)).toHaveValue(endpoint);
   await page.getByRole('button', { name: 'SAVE', exact: true }).click();
   await expect.poll(() => page.evaluate(() => document.body.innerText)).toContain('Cloud models are unavailable');
   await expect(fields.nth(0)).toHaveValue('https://api.openai.com/v1/chat/completions');
