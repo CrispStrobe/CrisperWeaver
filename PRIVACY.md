@@ -54,8 +54,8 @@ for the site's origin. Browser storage clearing or eviction can remove it.
 
 When you download speech recognition, text-to-speech, or embedding
 models, the app fetches model files (including GGUF and ONNX) from HuggingFace
-(huggingface.co). These downloads are standard HTTPS requests. No
-personal data is sent — only the model URL is accessed. Downloaded
+(huggingface.co). These downloads are standard HTTPS requests. Audio,
+text and transcripts are not sent as part of a model download. Downloaded
 models are cached locally on your device.
 
 Browser speech runtimes are served with the app by its hosting provider;

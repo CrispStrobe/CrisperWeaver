@@ -89,7 +89,7 @@ Ordered. Each item states what "done" means, so it can be picked up cold.
 ### B0. Browser optimization follow-up
 
 The first iteration of all four items below is implemented in the browser
-runtime, with production CI validation in progress. The model warning and
+runtime and validated in production CI. The model warning and
 Lite policy remain enforced. Deployment evidence is kept in
 [web-e2e/README.md](web-e2e/README.md).
 

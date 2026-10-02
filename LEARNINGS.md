@@ -8,6 +8,23 @@ If a learning is still live (affects current work), it's linked from [`PLAN.md`]
 
 ## Browser WASM and model feasibility (2026-10-02)
 
+- **Verified large downloads need a storage path that avoids giant blobs.**
+  Chromium rejected CacheStorage promotion of the 402 MB Phonon-2 Q4 model
+  with `Unexpected internal error`. Retain verified 4 MB IndexedDB parts for
+  resources of 64 MB or more; mark them verified only after the complete
+  size/hash check, reverify on reads, and exclude them from incomplete cleanup.
+  Smaller resources can still stream into CacheStorage. This also avoids a
+  second persistent copy of large weights.
+- **A WebGPU adapter is not evidence of usable inference.** Both ONNX
+  Moonshine Tiny and Whisper Tiny English crashed Chromium's SwiftShader
+  renderer on an isolated runner, while their WASM paths produced correct
+  speech. Detect software adapters and retain WASM, recording the reason.
+  Keep physical GPU attempts independently warning-gated; these results do
+  not measure hardware GPU performance.
+- **Deduplication must be limited to overlapping audio.** A fixed 24-word
+  text match erased intentional repetition in a four-utterance fixture.
+  Limit the matching suffix/prefix to actual context duration and keep the
+  repeated-speech regression alongside silence-boundary tests.
 - **Resizable WASM views are not accepted by every web API.** Chromium
   rejected Emscripten memory slices in both TextDecoder and
   `crypto.getRandomValues`. Copy only the bounded slice into a fixed buffer;

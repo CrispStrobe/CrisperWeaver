@@ -108,3 +108,25 @@ chunks as their persistent cache, avoiding Chromium's large-response cache
 promotion failure and a second stored copy. Smaller files stream into
 CacheStorage and temporarily need space for both copies.
 Web Locks serialize a model's downloads and protect cleanup where supported.
+
+### Recorded measurements (2026-10-02)
+
+[Isolated Chromium benchmark](https://github.com/CrispStrobe/CrisperWeaver/actions/runs/36994514268/job/110798664233)
+on `af53082`: all 12 cold/warm runs returned the expected local speech with
+no off-origin uploads. These are single observations for an 11-second fixture,
+not device guarantees or a before/after speed comparison. Peak RSS below is
+the largest sampled whole-browser process-tree value across the two runs.
+
+| Model / runtime | Cold load | Warm load | Inference cold / warm | Peak browser RSS |
+|---|---:|---:|---:|---:|
+| Moonshine Tiny Q4 / CrispASR | 2.90 s | 0.46 s | 2.62 / 2.34 s | 1.17 GB |
+| FastConformer Q4 / CrispASR | 3.81 s | 1.05 s | 8.86 / 8.88 s | 1.58 GB |
+| Moonshine Tiny / ONNX WASM | 4.62 s | 3.20 s | 0.94 / 0.89 s | 1.45 GB |
+| Whisper Tiny English / ONNX WASM | 3.54 s | 2.46 s | 2.34 / 2.29 s | 1.56 GB |
+
+The four requested-WebGPU runs used WASM after detecting SwiftShader and
+recorded that reason. No hardware GPU acceleration was validated here.
+[Phonon-2 Q4 assessment](https://github.com/CrispStrobe/CrisperWeaver/actions/runs/36994514268/job/110798664231)
+also passed through verified chunk storage: 12.14 s load, 31.10 s inference,
+43.29 s total and 896 MB observed WASM allocation. The latter excludes other
+browser allocations and is not comparable to whole-browser RSS above.

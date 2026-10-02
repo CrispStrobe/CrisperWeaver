@@ -11,6 +11,38 @@ pending.
 
 ---
 
+## Browser runtime optimizations (2026-10-02)
+
+Implemented the first iteration of all four PLAN B0 priorities for Full and
+Lite: reduced buffer copies and MEMFS staging retention, worker termination
+on model unload/switch, warning-gated ONNX GPU attempts with WASM recovery,
+quiet overlapping chunks with bounded deduplication, and verified resumable
+model storage with cache/quota/deletion controls. Transcript history survives
+model cleanup; Lite still disables remote AI processing.
+
+All resources now have checked-in immutable revision, size and SHA-256
+locks. Large verified downloads remain in 4 MB IndexedDB parts, avoiding a
+Chromium CacheStorage promotion failure for Phonon-2 and a second persistent
+copy. Software GPU adapters retain WASM after SwiftShader crashed both tested
+ONNX models. GPU selection does not override the separate model warning.
+
+[Benchmarks and Phonon-2 Q4 assessment](https://github.com/CrispStrobe/CrisperWeaver/actions/runs/36994514268)
+passed: all 12 cold/warm benchmark runs produced expected local speech with
+no off-origin uploads. Phonon-2 used 896 MB observed WASM allocation and
+transcribed an 11-second fixture locally. Scope, timings and sampled browser
+RSS are recorded in [web-e2e/README.md](web-e2e/README.md); these observations
+do not establish safety on constrained devices or physical GPU performance.
+
+Native analysis and suites passed on Linux (1,667 tests) and macOS (1,666)
+in [CI](https://github.com/CrispStrobe/CrisperWeaver/actions/runs/36993314428).
+Both desktop builds passed in the same run.
+Production Playwright suites passed for
+[Full (24 passed, two Lite-only skipped)](https://github.com/CrispStrobe/CrisperWeaver/actions/runs/36994517461)
+and [Lite (26 passed)](https://github.com/CrispStrobe/CrisperWeaver/actions/runs/36994514268),
+including real inference and upload/output flows, cache integrity and
+resumption, GPU recovery, repeated-speech boundaries, warning acceptance,
+history-preserving deletion and Lite's remote endpoint restrictions.
+
 ## Lite and local browser speech (2026-10-02)
 
 Added a compile-time Lite flavor with remote AI disabled, optional downloads,

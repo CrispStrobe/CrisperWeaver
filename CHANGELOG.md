@@ -12,10 +12,13 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 - Added cold/warm benchmarks with actual provider/fallback reporting,
   WASM allocation measurements and sampled Chromium process-tree RSS.
 - Added warning-gated ONNX WebGPU attempts, including local CPU recovery;
-  CPU remains the default. Tab/driver crashes still require reopening.
+  CPU remains the default. Detected software GPU adapters retain CPU
+  processing. Tab/driver crashes still require reopening.
 - Pinned models and companions to immutable Hub revisions and SHA-256 locks.
   Download checkpoints survive cancellation and resume with validated HTTP
   ranges; corrupt responses/cache entries cannot reach inference.
+- Large verified models retain chunk storage directly, avoiding a second
+  persistent copy and Chromium's large-response cache promotion failure.
 - Model unload/switch terminates the worker to release grown heaps. Owned
   audio and synthesized PCM use transfer lists, and MEMFS staging files are
   released after model/voice parsing.
