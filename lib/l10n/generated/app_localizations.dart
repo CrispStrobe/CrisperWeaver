@@ -6777,6 +6777,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Music transcription failed: {error}'**
   String musicFailed(String error);
+
+  /// No description provided for @settingsLocalHttpLlm.
+  ///
+  /// In en, this message translates to:
+  /// **'Local model server (Ollama)'**
+  String get settingsLocalHttpLlm;
+
+  /// No description provided for @settingsLocalHttpLlmOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Off — configure a model server on this device'**
+  String get settingsLocalHttpLlmOff;
+
+  /// No description provided for @settingsLocalHttpLlmHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Optional. Use a model server on this device at 127.0.0.1 or ::1. Remote hosts and redirects are blocked. For Ollama, disable cloud features with OLLAMA_NO_CLOUD=1 and restart the server before use. A separately managed local server controls its own network access.'**
+  String get settingsLocalHttpLlmHelp;
+
+  /// No description provided for @settingsLocalHttpKeyOptional.
+  ///
+  /// In en, this message translates to:
+  /// **'Optional for local servers'**
+  String get settingsLocalHttpKeyOptional;
+
+  /// No description provided for @settingsLocalHttpServer.
+  ///
+  /// In en, this message translates to:
+  /// **'Local HTTP server'**
+  String get settingsLocalHttpServer;
+
+  /// No description provided for @outputCleanupLlmModeLocalServer.
+  ///
+  /// In en, this message translates to:
+  /// **'Local server'**
+  String get outputCleanupLlmModeLocalServer;
+
+  /// No description provided for @outputCleanupLlmModeLocalServerHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Run {model} through a model server on this device.'**
+  String outputCleanupLlmModeLocalServerHelp(String model);
+
+  /// No description provided for @settingsLocalHttpInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Use http://127.0.0.1 or http://[::1] and a local model. Cloud models are unavailable.'**
+  String get settingsLocalHttpInvalid;
+
+  /// No description provided for @aiTransparencyLiteBody.
+  ///
+  /// In en, this message translates to:
+  /// **'CrisperWeaver Lite processes speech, text, documents, and embeddings using models on your device. Remote transcription, synthesis, translation, and cloud language-model services are disabled in this build. Optional local model servers must run on the same device; separately managed servers control their own network access. Model files are used for on-device processing. AI-generated audio and text carry disclosure and provenance markings. Speaker enrollment requires consent. See About for details.'**
+  String get aiTransparencyLiteBody;
+
+  /// No description provided for @outputSummarizeLiteUnconfigured.
+  ///
+  /// In en, this message translates to:
+  /// **'Configure an on-device GGUF model or a local model server in Settings to generate summaries.'**
+  String get outputSummarizeLiteUnconfigured;
 }
 
 class _AppLocalizationsDelegate

@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../constants/build_flavor.dart';
 import '../services/model_service.dart';
 import '../utils/platform_utils.dart' as plat;
 import 'transcription_engine.dart';
@@ -31,6 +32,7 @@ class EngineFactory {
   };
 
   static TranscriptionEngine create(EngineType type) {
+    if (type == EngineType.hfspace) BuildFlavor.requireRemoteAi();
     final creator = _creators[type];
     if (creator == null) {
       throw UnsupportedError('Engine type $type is not implemented');
@@ -38,15 +40,20 @@ class EngineFactory {
     return creator();
   }
 
-  static List<EngineType> getAvailableEngines() => plat.isWeb
-      ? const [EngineType.hfspace, EngineType.mock]
-      : const [EngineType.crispasr, EngineType.hfspace, EngineType.mock];
+  static List<EngineType> getAvailableEngines() => BuildFlavor.isLite
+      ? (plat.isWeb
+          ? const [EngineType.mock]
+          : const [EngineType.crispasr, EngineType.mock])
+      : plat.isWeb
+          ? const [EngineType.hfspace, EngineType.mock]
+          : const [EngineType.crispasr, EngineType.hfspace, EngineType.mock];
 
   static bool isSupported(EngineType type) =>
       getAvailableEngines().contains(type);
 
-  static EngineType getRecommendedEngine() =>
-      plat.isWeb ? EngineType.hfspace : EngineType.crispasr;
+  static EngineType getRecommendedEngine() => plat.isWeb
+      ? (BuildFlavor.isLite ? EngineType.mock : EngineType.hfspace)
+      : EngineType.crispasr;
 }
 
 /// Engine manager for handling engine lifecycle and selection.

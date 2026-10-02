@@ -7,6 +7,7 @@ import 'package:audio_session/audio_session.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'constants/build_flavor.dart';
 import 'utils/platform_utils.dart' as plat;
 import 'l10n/generated/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -588,9 +589,11 @@ class _CrisperWeaverAppState extends ConsumerState<CrisperWeaverApp> {
               // "runs on your device by default" is true of the native apps
               // and false here. Same string, different platform, so the
               // difference has to be stated rather than assumed.
-              child: Text(plat.isWeb
-                  ? '${l.aiTransparencyBody}\n\n${l.aiTransparencyWebNote}'
-                  : l.aiTransparencyBody),
+              child: Text(BuildFlavor.isLite
+                  ? l.aiTransparencyLiteBody
+                  : plat.isWeb
+                      ? '${l.aiTransparencyBody}\n\n${l.aiTransparencyWebNote}'
+                      : l.aiTransparencyBody),
             ),
             actions: [
               FilledButton(
@@ -826,7 +829,7 @@ class _CrisperWeaverAppState extends ConsumerState<CrisperWeaverApp> {
             'supported=${AppLocalizations.supportedLocales}');
 
     return MaterialApp.router(
-      title: 'CrisperWeaver',
+      title: BuildFlavor.appName,
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,

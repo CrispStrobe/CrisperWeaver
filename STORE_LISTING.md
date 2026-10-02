@@ -152,3 +152,52 @@ https://github.com/CrispStrobe/CrisperWeaver/issues
 
 ## Privacy Policy URL
 https://github.com/CrispStrobe/CrisperWeaver/blob/main/PRIVACY.md
+
+## Lite Mac App Store listing
+
+Use this copy only for `com.crispstrobe.crisperweaver.lite`. Screenshots must
+come from a Lite build and show its actual settings and available engines.
+
+**App name:** CrisperWeaver Lite
+
+**Subtitle:** Local Transcription & TTS
+
+**Promotional text:** Transcribe audio, generate speech, search transcripts,
+and tidy meeting notes using models on your Mac. Local processing with no
+cloud inference services.
+
+**Description:**
+
+CrisperWeaver Lite is an audio transcription and speech synthesis workspace
+with on-device AI processing. Use local speech recognition, speech synthesis,
+document recognition, transcript search, cleanup, translation and summaries.
+
+- Transcribe recordings and microphone audio on your Mac
+- Generate speech with locally installed voice models
+- Search and organize transcripts with on-device embeddings
+- Export transcripts as TXT, SRT, VTT and JSON
+- Clean transcripts and summarize meetings using a local language model
+- Recognize text in documents with locally installed models
+- Integrate with a model server running on the same Mac
+
+Cloud transcription, cloud speech synthesis, remote translation and external
+language-model endpoints are unavailable in Lite. Local model servers must
+be configured for local inference; their network access is managed separately.
+No account, analytics or tracking. Model downloads retrieve weights for
+on-device processing. Models can also be supplied from a local folder.
+
+For an import-only build, replace the last two sentences with: “Models are
+supplied from a local folder. In-app model downloads are disabled.”
+
+**Review Notes draft — confirm against the submitted artifact:**
+
+This is the Lite app with bundle ID com.crispstrobe.crisperweaver.lite. Remote
+AI processing is disabled at build time. Cloud ASR, TTS and translation cannot
+be selected or instantiated. HTTP language-model requests are restricted to
+literal loopback addresses on the same Mac, without redirects or proxies.
+Previously saved remote endpoints cannot bypass these restrictions. Local
+model server settings require a server configured for on-device inference.
+The built-in model runtimes perform inference on-device. This listing and its
+screenshots contain no references to the providers identified in the prior
+review. Please advise whether further restrictions on local synthesis or
+local generative models are required for China mainland distribution.

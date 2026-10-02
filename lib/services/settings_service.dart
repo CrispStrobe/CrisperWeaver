@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../constants/build_flavor.dart';
 import '../utils/platform_utils.dart' as plat;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../engines/engine_factory.dart';
@@ -19,7 +20,7 @@ class SettingsService {
   EngineType get preferredEngine {
     final id = _prefs.getString('preferred_engine');
     return EngineType.values.firstWhere(
-      (e) => e.id == id,
+      (e) => e.id == id && EngineFactory.isSupported(e),
       orElse: () => EngineFactory.getRecommendedEngine(),
     );
   }
@@ -337,7 +338,15 @@ class SettingsService {
   /// endpoint to nudge users into a known-good shape; can be
   /// pointed at any other compatible server (Anthropic via
   /// proxy, local llama-server, OpenRouter, Groq, etc.).
-  String get cloudLlmApiUrl => _prefs.getString('cloud_llm_api_url') ?? '';
+  String get cloudLlmApiUrl {
+    final url = _prefs.getString('cloud_llm_api_url') ?? '';
+    return BuildFlavor.allowsAiEndpoint(url) ? url : '';
+  }
+
+  bool get httpLlmConfigured =>
+      cloudLlmApiUrl.isNotEmpty &&
+      BuildFlavor.allowsHttpModel(cloudLlmModel) &&
+      (BuildFlavor.isLite || cloudLlmApiKey.isNotEmpty);
   set cloudLlmApiUrl(String url) {
     Log.instance
         .d('settings', 'Saving cloudLlmApiUrl: ${url.isEmpty ? "EMPTY" : url}');
@@ -372,7 +381,8 @@ class SettingsService {
   /// catalog (e.g. "claude-3-5-haiku-20241022" via proxy,
   /// "llama-3.1-8b-instruct" on local llama-server, …).
   String get cloudLlmModel =>
-      _prefs.getString('cloud_llm_model') ?? 'gpt-4o-mini';
+      _prefs.getString('cloud_llm_model') ??
+      (BuildFlavor.isLite ? 'llama3.2' : 'gpt-4o-mini');
   set cloudLlmModel(String model) {
     Log.instance.d('settings', 'Saving cloudLlmModel: $model');
     _prefs.setString('cloud_llm_model', model);

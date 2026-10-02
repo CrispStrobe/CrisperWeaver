@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/services.dart';
+import '../constants/build_flavor.dart';
 import '../native/crispasr_import.dart' as crispasr;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
@@ -254,6 +255,10 @@ class AudioService {
     void Function(double progress)? onProgress,
   }) async {
     try {
+      if (!BuildFlavor.allowModelDownloads) {
+        throw const AudioDownloadException(
+            'URL downloads are disabled in this Lite build. Open a local file.');
+      }
       final response = await http.get(Uri.parse(url));
 
       if (response.statusCode != 200) {

@@ -1,11 +1,21 @@
 # Privacy Policy — CrisperWeaver
 
 **Effective date:** 2026-07-10
-**Last updated:** 2026-08-02
+**Last updated:** 2026-10-02
 
 CrisperWeaver is an offline-first audio transcription and speech
 synthesis app. This policy explains what data the app accesses, how
 it is used, and your rights.
+
+**CrisperWeaver Lite:** Remote AI processing is disabled in the Lite build.
+The cloud features described below apply to the full app. Lite retains model
+downloads for on-device processing and can connect to an optional model
+server on the same device using a literal loopback address. It does not send
+AI requests to external hosts or follow redirects from local model servers.
+A separately managed local server controls its own network access; configure
+it for local inference before use. The built-in model runtimes process data
+within the app. Import-only Lite builds additionally disable model and audio
+URL downloads.
 
 ---
 

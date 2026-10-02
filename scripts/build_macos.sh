@@ -29,6 +29,14 @@
 
 set -euo pipefail
 
+CW_FLAVOR="${CW_FLAVOR:-full}"
+case "$CW_FLAVOR" in
+  full|lite) ;;
+  *) echo "error: CW_FLAVOR must be full or lite" >&2; exit 2 ;;
+esac
+FLAVOR_DEFINES=("--dart-define=CW_FLAVOR=$CW_FLAVOR"
+  "--dart-define=CW_LITE_DOWNLOADS=${CW_LITE_DOWNLOADS:-true}")
+
 CONFIG="${1:-debug}"
 case "$CONFIG" in
   debug|Debug) FLUTTER_FLAG=--debug; CMAKE_BUILD_TYPE=Release ;;
@@ -307,8 +315,10 @@ echo "==> Xcode module cache: $MODULE_CACHE_DIR"
 # not in valid state", skips pod install, and produces no .app at all.
 # Harmless on CI, where neither var is set.
 unset GEM_PATH GEM_HOME
+# Invalidate any previous packaging stamp before replacing the executable.
+rm -f "$REPO_ROOT/build/macos/Build/Products/Release/.cw-flavor"
 set +e
-flutter build macos $FLUTTER_FLAG $NC_DEFINE 2>&1 \
+flutter build macos $FLUTTER_FLAG $NC_DEFINE "${FLAVOR_DEFINES[@]}" 2>&1 \
   | grep -vE "(Run script build phase|Metal\.xctoolchain)"
 FLUTTER_STATUS=${PIPESTATUS[0]}
 set -e
@@ -327,6 +337,13 @@ if [[ ! -d "$APP" ]]; then
   exit 5
 fi
 
+if [[ "$CW_FLAVOR" == "lite" ]]; then
+  /usr/libexec/PlistBuddy -c 'Set :CFBundleIdentifier com.crispstrobe.crisperweaver.lite' "$APP/Contents/Info.plist"
+  /usr/libexec/PlistBuddy -c 'Set :CFBundleName CrisperWeaver Lite' "$APP/Contents/Info.plist"
+  /usr/libexec/PlistBuddy -c 'Delete :CFBundleDisplayName' "$APP/Contents/Info.plist" 2>/dev/null || true
+  /usr/libexec/PlistBuddy -c 'Add :CFBundleDisplayName string CrisperWeaver Lite' "$APP/Contents/Info.plist"
+fi
+
 # ---------------------------------------------------------------------------
 # Step 4: bundle dylibs
 # ---------------------------------------------------------------------------
@@ -340,5 +357,6 @@ CRISPASR_DIR="$CRISPASR_DIR" CRISPASR_BUILD_SUBDIR="$CRISPASR_BUILD_SUBDIR" \
   "$REPO_ROOT/scripts/bundle_macos_dylibs.sh" "$APP"
 
 echo
-echo "==> done: $APP"
+printf '%s\n' "$CW_FLAVOR" > "$(dirname "$APP")/.cw-flavor"
+echo "==> done ($CW_FLAVOR): $APP"
 echo "    Open it with:  open '$APP'"

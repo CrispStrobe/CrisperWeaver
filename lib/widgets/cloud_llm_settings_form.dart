@@ -20,6 +20,7 @@
 
 import 'package:flutter/material.dart';
 
+import '../constants/build_flavor.dart';
 import '../l10n/generated/app_localizations.dart';
 
 class CloudLlmSettingsForm extends StatefulWidget {
@@ -51,6 +52,7 @@ class CloudLlmSettingsForm extends StatefulWidget {
 }
 
 class CloudLlmSettingsFormState extends State<CloudLlmSettingsForm> {
+  String? _error;
   late final TextEditingController _urlCtl;
   late final TextEditingController _keyCtl;
   late final TextEditingController _modelCtl;
@@ -74,13 +76,24 @@ class CloudLlmSettingsFormState extends State<CloudLlmSettingsForm> {
   /// Commit the current form values via [widget.onCommit]. Does
   /// NOT pop — the caller decides whether this Save also closes
   /// the dialog / pops the screen.
-  void save() {
+  bool save() {
     final m = _modelCtl.text.trim();
+    final url = _urlCtl.text.trim();
+    if (BuildFlavor.isLite &&
+        url.isNotEmpty &&
+        (!BuildFlavor.allowsAiEndpoint(url) ||
+            !BuildFlavor.allowsHttpModel(m))) {
+      setState(
+          () => _error = AppLocalizations.of(context).settingsLocalHttpInvalid);
+      return false;
+    }
+    setState(() => _error = null);
     widget.onCommit(
       _urlCtl.text.trim(),
       _keyCtl.text.trim(),
-      m.isEmpty ? 'gpt-4o-mini' : m,
+      m.isEmpty ? (BuildFlavor.isLite ? 'llama3.2' : 'gpt-4o-mini') : m,
     );
+    return true;
   }
 
   /// Wipe the fields back to defaults and notify the parent via
@@ -88,7 +101,7 @@ class CloudLlmSettingsFormState extends State<CloudLlmSettingsForm> {
   void clear() {
     _urlCtl.text = '';
     _keyCtl.text = '';
-    _modelCtl.text = 'gpt-4o-mini';
+    _modelCtl.text = BuildFlavor.isLite ? 'llama3.2' : 'gpt-4o-mini';
     widget.onCleared();
   }
 
@@ -99,15 +112,20 @@ class CloudLlmSettingsFormState extends State<CloudLlmSettingsForm> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(l.settingsCloudLlmHelp,
-            style: TextStyle(
-                fontSize: 12, color: Colors.grey.shade700)),
+        Text(
+            BuildFlavor.isLite
+                ? l.settingsLocalHttpLlmHelp
+                : l.settingsCloudLlmHelp,
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
         const SizedBox(height: 12),
         TextField(
           controller: _urlCtl,
           decoration: InputDecoration(
             labelText: l.settingsCloudLlmUrl,
-            hintText: 'https://api.openai.com/v1/chat/completions',
+            errorText: _error,
+            hintText: BuildFlavor.isLite
+                ? 'http://127.0.0.1:11434/v1/chat/completions'
+                : 'https://api.openai.com/v1/chat/completions',
             border: const OutlineInputBorder(),
             isDense: true,
           ),
@@ -118,7 +136,8 @@ class CloudLlmSettingsFormState extends State<CloudLlmSettingsForm> {
           obscureText: true,
           decoration: InputDecoration(
             labelText: l.settingsCloudLlmKey,
-            hintText: 'sk-…',
+            hintText:
+                BuildFlavor.isLite ? l.settingsLocalHttpKeyOptional : 'sk-…',
             border: const OutlineInputBorder(),
             isDense: true,
           ),
@@ -128,7 +147,7 @@ class CloudLlmSettingsFormState extends State<CloudLlmSettingsForm> {
           controller: _modelCtl,
           decoration: InputDecoration(
             labelText: l.settingsCloudLlmModel,
-            hintText: 'gpt-4o-mini',
+            hintText: BuildFlavor.isLite ? 'llama3.2' : 'gpt-4o-mini',
             border: const OutlineInputBorder(),
             isDense: true,
           ),

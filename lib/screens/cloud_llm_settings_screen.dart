@@ -20,6 +20,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../constants/build_flavor.dart';
 import '../l10n/generated/app_localizations.dart';
 import '../services/settings_service.dart';
 import '../widgets/cloud_llm_settings_form.dart';
@@ -43,7 +44,9 @@ class _CloudLlmSettingsScreenState
     final settings = ref.read(settingsServiceProvider);
     return Scaffold(
       appBar: AppBar(
-        title: Text(l.settingsCloudLlmCleanup),
+        title: Text(BuildFlavor.isLite
+            ? l.settingsLocalHttpLlm
+            : l.settingsCloudLlmCleanup),
         actions: [
           TextButton(
             onPressed: () {
@@ -55,7 +58,7 @@ class _CloudLlmSettingsScreenState
           ),
           TextButton(
             onPressed: () {
-              _formKey.currentState?.save();
+              if (_formKey.currentState?.save() != true) return;
               Navigator.of(context).pop(true);
             },
             child: Text(l.save.toUpperCase(),
@@ -78,7 +81,8 @@ class _CloudLlmSettingsScreenState
           onCleared: () {
             settings.cloudLlmApiUrl = '';
             settings.cloudLlmApiKey = '';
-            settings.cloudLlmModel = 'gpt-4o-mini';
+            settings.cloudLlmModel =
+                BuildFlavor.isLite ? 'llama3.2' : 'gpt-4o-mini';
           },
         ),
       ),

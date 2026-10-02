@@ -29,7 +29,9 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 
-import 'cloud_llm_cleanup_service.dart' show CloudLlmConfig, CloudLlmHttpException, CloudLlmDisabledException;
+import 'ai_http_client.dart';
+import 'cloud_llm_cleanup_service.dart'
+    show CloudLlmConfig, CloudLlmHttpException, CloudLlmDisabledException;
 import 'local_llm_backend.dart';
 import 'local_llm_cleanup_service.dart'
     show LocalLlmConfig, LocalLlmDisabledException;
@@ -75,7 +77,7 @@ class TranscriptSummarizeService {
   TranscriptSummarizeService({
     http.Client? client,
     LocalLlmBackend? localBackend,
-  })  : _client = client ?? http.Client(),
+  })  : _client = AiHttpClient(client: client),
         _injectedLocalBackend = localBackend;
 
   final http.Client _client;
@@ -162,7 +164,7 @@ class TranscriptSummarizeService {
   }) async {
     if (!config.enabled) {
       throw const CloudLlmDisabledException(
-          'apiUrl or apiKey is empty');
+          'HTTP LLM endpoint is unavailable or incomplete');
     }
     if (transcript.trim().isEmpty || kinds.isEmpty) {
       return const SummaryResult();
@@ -184,7 +186,8 @@ class TranscriptSummarizeService {
           Uri.parse(config.apiUrl),
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer ${config.apiKey}',
+            if (config.apiKey.isNotEmpty)
+              'Authorization': 'Bearer ${config.apiKey}',
           },
           body: body,
         )

@@ -2451,5 +2451,15 @@
   "musicResult": "{notes} Noten bis {seconds} s, transkribiert in {elapsed} s",
   "musicInstruments": "Instrumente: {names}",
   "musicSavedTo": "Gespeichert unter {path}",
-  "musicFailed": "Musiktranskription fehlgeschlagen: {error}"
+  "musicFailed": "Musiktranskription fehlgeschlagen: {error}",
+  "settingsLocalHttpLlm": "Lokaler Modellserver (Ollama)",
+  "settingsLocalHttpLlmOff": "Aus — Modellserver auf diesem Gerät konfigurieren",
+  "settingsLocalHttpLlmHelp": "Optional. Verwenden Sie einen Modellserver auf diesem Gerät unter 127.0.0.1 oder ::1. Externe Hosts und Weiterleitungen sind gesperrt. Bei Ollama Cloud-Funktionen mit OLLAMA_NO_CLOUD=1 deaktivieren und den Server vor der Nutzung neu starten. Ein separat verwalteter lokaler Server kontrolliert seinen eigenen Netzwerkzugriff.",
+  "settingsLocalHttpKeyOptional": "Für lokale Server optional",
+  "settingsLocalHttpServer": "Lokaler HTTP-Server",
+  "outputCleanupLlmModeLocalServer": "Lokaler Server",
+  "outputCleanupLlmModeLocalServerHelp": "{model} über einen Modellserver auf diesem Gerät ausführen.",
+  "settingsLocalHttpInvalid": "http://127.0.0.1 oder http://[::1] und ein lokales Modell verwenden. Cloud-Modelle sind nicht verfügbar.",
+  "aiTransparencyLiteBody": "CrisperWeaver Lite verarbeitet Sprache, Text, Dokumente und Embeddings mit Modellen auf Ihrem Gerät. Externe Transkription, Synthese, Übersetzung und Cloud-Sprachmodelle sind in diesem Build deaktiviert. Optionale lokale Modellserver müssen auf demselben Gerät laufen; separat verwaltete Server kontrollieren ihren eigenen Netzwerkzugriff. Modelldateien werden für die lokale Verarbeitung verwendet. KI-generierte Sprache und Texte tragen Kennzeichnungen und Herkunftsinformationen. Sprecherregistrierung erfordert Zustimmung. Details unter Über.",
+  "outputSummarizeLiteUnconfigured": "Für Zusammenfassungen ein GGUF-Modell auf dem Gerät oder einen lokalen Modellserver in den Einstellungen konfigurieren."
 }

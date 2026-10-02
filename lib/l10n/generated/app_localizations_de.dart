@@ -4064,4 +4064,41 @@ class AppLocalizationsDe extends AppLocalizations {
   String musicFailed(String error) {
     return 'Musiktranskription fehlgeschlagen: $error';
   }
+
+  @override
+  String get settingsLocalHttpLlm => 'Lokaler Modellserver (Ollama)';
+
+  @override
+  String get settingsLocalHttpLlmOff =>
+      'Aus — Modellserver auf diesem Gerät konfigurieren';
+
+  @override
+  String get settingsLocalHttpLlmHelp =>
+      'Optional. Verwenden Sie einen Modellserver auf diesem Gerät unter 127.0.0.1 oder ::1. Externe Hosts und Weiterleitungen sind gesperrt. Bei Ollama Cloud-Funktionen mit OLLAMA_NO_CLOUD=1 deaktivieren und den Server vor der Nutzung neu starten. Ein separat verwalteter lokaler Server kontrolliert seinen eigenen Netzwerkzugriff.';
+
+  @override
+  String get settingsLocalHttpKeyOptional => 'Für lokale Server optional';
+
+  @override
+  String get settingsLocalHttpServer => 'Lokaler HTTP-Server';
+
+  @override
+  String get outputCleanupLlmModeLocalServer => 'Lokaler Server';
+
+  @override
+  String outputCleanupLlmModeLocalServerHelp(String model) {
+    return '$model über einen Modellserver auf diesem Gerät ausführen.';
+  }
+
+  @override
+  String get settingsLocalHttpInvalid =>
+      'http://127.0.0.1 oder http://[::1] und ein lokales Modell verwenden. Cloud-Modelle sind nicht verfügbar.';
+
+  @override
+  String get aiTransparencyLiteBody =>
+      'CrisperWeaver Lite verarbeitet Sprache, Text, Dokumente und Embeddings mit Modellen auf Ihrem Gerät. Externe Transkription, Synthese, Übersetzung und Cloud-Sprachmodelle sind in diesem Build deaktiviert. Optionale lokale Modellserver müssen auf demselben Gerät laufen; separat verwaltete Server kontrollieren ihren eigenen Netzwerkzugriff. Modelldateien werden für die lokale Verarbeitung verwendet. KI-generierte Sprache und Texte tragen Kennzeichnungen und Herkunftsinformationen. Sprecherregistrierung erfordert Zustimmung. Details unter Über.';
+
+  @override
+  String get outputSummarizeLiteUnconfigured =>
+      'Für Zusammenfassungen ein GGUF-Modell auf dem Gerät oder einen lokalen Modellserver in den Einstellungen konfigurieren.';
 }

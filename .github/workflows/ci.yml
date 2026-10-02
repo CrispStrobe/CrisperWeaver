@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [main, master]
   workflow_dispatch:
+    inputs:
+      build_lite:
+        description: 'Build a signed macOS Lite package only (no Apple upload or review submission)'
+        type: boolean
+        default: false
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -43,6 +48,7 @@ env:
 
 jobs:
   analyze-and-test:
+    if: inputs.build_lite != true
     name: Analyze + test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
@@ -214,6 +220,7 @@ jobs:
           retention-days: 14
 
   build-macos:
+    if: inputs.build_lite != true
     name: Build macOS (.app)
     runs-on: macos-latest
     needs: analyze-and-test
@@ -302,6 +309,7 @@ jobs:
           retention-days: 14
 
   build-linux:
+    if: inputs.build_lite != true
     name: Build Linux desktop
     runs-on: ubuntu-latest
     needs: analyze-and-test
@@ -414,3 +422,157 @@ jobs:
           path: repos/CrisperWeaver/build/linux/x64/debug/bundle
           if-no-files-found: error
           retention-days: 14
+
+  build-macos-lite:
+    name: Build signed macOS Lite (.pkg)
+    if: github.event_name == 'workflow_dispatch' && inputs.build_lite == true
+    runs-on: macos-latest
+    timeout-minutes: 120
+    permissions:
+      contents: read
+    steps:
+      - name: Check out CrisperWeaver
+        uses: actions/checkout@v5
+        with:
+          path: repos/CrisperWeaver
+
+      - name: Check out sibling CrispASR
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ env.CRISPASR_REPO }}
+          ref: ${{ env.CRISPASR_REF }}
+          path: repos/CrispASR
+          submodules: recursive
+
+      - name: Check out sibling CrispEmbed
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ env.CRISPEMBED_REPO }}
+          ref: ${{ env.CRISPEMBED_REF }}
+          path: repos/CrispEmbed
+          submodules: recursive
+
+      - name: Check out sibling glint
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ env.GLINT_REPO }}
+          ref: ${{ env.GLINT_REF }}
+          path: repos/glint
+          submodules: recursive
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Test Lite policy
+        working-directory: repos/CrisperWeaver
+        run: |
+          flutter pub get
+          flutter test --dart-define=CW_FLAVOR=lite test/lite_flavor_test.dart
+
+      - name: Prepare signing tools
+        run: |
+          python3 -m venv "$RUNNER_TEMP/lite-signing-venv"
+          "$RUNNER_TEMP/lite-signing-venv/bin/pip" install --quiet cryptography
+          "$RUNNER_TEMP/lite-signing-venv/bin/python" -m unittest discover \
+            -s "$GITHUB_WORKSPACE/repos/CrisperWeaver/test" -p 'test_prepare_macos_lite_profile.py'
+
+      - name: Install existing signing credentials
+        env:
+          MAC_DIST_P12: ${{ secrets.MAC_DIST_P12 }}
+          MAC_DIST_P12_PASSWORD: ${{ secrets.MAC_DIST_P12_PASSWORD }}
+          MAC_PROFILE_BASE64: ${{ secrets.MAC_PROFILE_BASE64 }}
+          APPSTORE_API_KEY_P8: ${{ secrets.APPSTORE_API_KEY_P8 }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import base64, os
+          from pathlib import Path
+          root = Path(os.environ['RUNNER_TEMP'])
+          for name in ('MAC_DIST_P12', 'MAC_DIST_P12_PASSWORD', 'MAC_PROFILE_BASE64', 'APPSTORE_API_KEY_P8'):
+              if not os.environ.get(name):
+                  raise SystemExit(f'Required existing repo secret is missing: {name}')
+          key = os.environ['APPSTORE_API_KEY_P8'].strip().encode()
+          if not key.startswith(b'-----BEGIN PRIVATE KEY-----'):
+              key = base64.b64decode(key)
+          files = {
+              'cw-mac-distribution.p12': base64.b64decode(os.environ['MAC_DIST_P12']),
+              'cw-source.provisionprofile': base64.b64decode(os.environ['MAC_PROFILE_BASE64']),
+              'AuthKey_9RMU3C7422.p8': key,
+          }
+          for name, data in files.items():
+              with os.fdopen(os.open(root / name, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600), 'wb') as file:
+                  file.write(data)
+          PY
+          KEYCHAIN="$RUNNER_TEMP/mac-appstore.keychain-db"
+          security create-keychain -p ci "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p ci "$KEYCHAIN"
+          security import "$RUNNER_TEMP/cw-mac-distribution.p12" -k "$KEYCHAIN" \
+            -P "$MAC_DIST_P12_PASSWORD" -A -t cert -f pkcs12
+          security set-key-partition-list -S apple-tool:,apple:,codesign:,productsign: \
+            -s -k ci "$KEYCHAIN" >/dev/null
+          EXISTING_KEYCHAINS=()
+          while IFS= read -r item; do
+            item="${item#*\"}"
+            item="${item%\"*}"
+            if [[ -n "$item" ]]; then EXISTING_KEYCHAINS+=("$item"); fi
+          done < <(security list-keychains -d user)
+          security list-keychains -d user -s "$KEYCHAIN" "${EXISTING_KEYCHAINS[@]}"
+          security find-identity -v -p codesigning "$KEYCHAIN"
+
+      - name: Prepare Lite profile using existing certificates
+        working-directory: repos/CrisperWeaver
+        run: |
+          "$RUNNER_TEMP/lite-signing-venv/bin/python" scripts/prepare_macos_lite_profile.py \
+            --key "$RUNNER_TEMP/AuthKey_9RMU3C7422.p8" \
+            --source-profile "$RUNNER_TEMP/cw-source.provisionprofile" \
+            --keychain "$RUNNER_TEMP/mac-appstore.keychain-db" \
+            --output "$RUNNER_TEMP/CrisperWeaver_Lite.provisionprofile"
+
+      - name: Build, sign and verify Lite package
+        working-directory: repos/CrisperWeaver
+        env:
+          MAC_PROFILE: ${{ runner.temp }}/CrisperWeaver_Lite.provisionprofile
+          SIGN_KEYCHAIN: ${{ runner.temp }}/mac-appstore.keychain-db
+          JOBS: '2'
+          CW_LITE_DOWNLOADS: 'true'
+        # Package only: no App Store Connect upload, validation, or review submission.
+        run: bash scripts/build_macos_appstore.sh --lite --package-only
+
+      - name: Check installer signature and checksum
+        working-directory: repos/CrisperWeaver
+        run: |
+          pkgutil --check-signature crisper_weaver-lite-macos-appstore.pkg
+          shasum -a 256 crisper_weaver-lite-macos-appstore.pkg \
+            > crisper_weaver-lite-macos-appstore.pkg.sha256
+          {
+            echo '## CrisperWeaver Lite'
+            echo
+            echo "Built source commit: $GITHUB_SHA"
+            echo 'Bundle ID: com.crispstrobe.crisperweaver.lite'
+            echo 'Signed app and installer verified. No build uploaded to Apple or submitted for review.'
+            echo
+            cat crisper_weaver-lite-macos-appstore.pkg.sha256
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload signed Lite package
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: crisperweaver-lite-macos-${{ github.sha }}
+          path: |
+            repos/CrisperWeaver/crisper_weaver-lite-macos-appstore.pkg
+            repos/CrisperWeaver/crisper_weaver-lite-macos-appstore.pkg.sha256
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Remove temporary signing credentials
+        if: always()
+        run: |
+          rm -f "$RUNNER_TEMP/cw-mac-distribution.p12" "$RUNNER_TEMP/cw-source.provisionprofile" \
+            "$RUNNER_TEMP/AuthKey_9RMU3C7422.p8" "$RUNNER_TEMP/CrisperWeaver_Lite.provisionprofile"
+          security delete-keychain "$RUNNER_TEMP/mac-appstore.keychain-db" || true

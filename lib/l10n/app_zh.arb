@@ -1161,5 +1161,15 @@
   "musicResult": "{notes} 个音符，至 {seconds} 秒，用时 {elapsed} 秒",
   "musicInstruments": "乐器：{names}",
   "musicSavedTo": "已保存至 {path}",
-  "musicFailed": "音乐转写失败：{error}"
+  "musicFailed": "音乐转写失败：{error}",
+  "settingsLocalHttpLlm": "本地模型服务器（Ollama）",
+  "settingsLocalHttpLlmOff": "关闭 — 配置本机模型服务器",
+  "settingsLocalHttpLlmHelp": "可选。使用本机 127.0.0.1 或 ::1 上的模型服务器。禁止远程主机和重定向。使用 Ollama 前，请设置 OLLAMA_NO_CLOUD=1 禁用云功能并重启服务器。独立管理的本地服务器自行控制其网络访问。",
+  "settingsLocalHttpKeyOptional": "本地服务器可不填",
+  "settingsLocalHttpServer": "本地 HTTP 服务器",
+  "outputCleanupLlmModeLocalServer": "本地服务器",
+  "outputCleanupLlmModeLocalServerHelp": "通过本机模型服务器运行 {model}。",
+  "settingsLocalHttpInvalid": "请使用 http://127.0.0.1 或 http://[::1] 和本地模型。不支持云端模型。",
+  "aiTransparencyLiteBody": "CrisperWeaver Lite 使用本机模型处理语音、文本、文档和嵌入。本版本禁用远程转录、语音合成、翻译和云端语言模型服务。可选本地模型服务器必须运行在同一设备上；独立管理的服务器自行控制网络访问。模型文件用于本机处理。AI 生成的音频和文本带有披露和来源标记。说话人注册需要同意。详情请参阅关于页面。",
+  "outputSummarizeLiteUnconfigured": "请在设置中配置本机 GGUF 模型或本地模型服务器以生成摘要。"
 }

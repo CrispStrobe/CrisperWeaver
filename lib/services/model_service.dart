@@ -7,6 +7,7 @@ import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 import 'package:crypto/crypto.dart';
+import '../constants/build_flavor.dart';
 import '../native/crispasr_import.dart' as crispasr;
 import '../native/crispasr_detect_import.dart' as crispasr_detect;
 
@@ -41,6 +42,15 @@ class ModelService {
   }
 
   void _configureDio() {
+    if (!BuildFlavor.allowModelDownloads) {
+      _dio.interceptors.add(InterceptorsWrapper(onRequest: (options, handler) {
+        handler.reject(DioException(
+          requestOptions: options,
+          error: UnsupportedError(
+              'Model downloads are disabled in this Lite build. Import models from disk.'),
+        ));
+      }));
+    }
     _dio.options = BaseOptions(
       connectTimeout: const Duration(seconds: 30),
       receiveTimeout: const Duration(minutes: 30),

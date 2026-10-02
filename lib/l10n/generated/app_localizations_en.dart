@@ -4038,4 +4038,41 @@ class AppLocalizationsEn extends AppLocalizations {
   String musicFailed(String error) {
     return 'Music transcription failed: $error';
   }
+
+  @override
+  String get settingsLocalHttpLlm => 'Local model server (Ollama)';
+
+  @override
+  String get settingsLocalHttpLlmOff =>
+      'Off — configure a model server on this device';
+
+  @override
+  String get settingsLocalHttpLlmHelp =>
+      'Optional. Use a model server on this device at 127.0.0.1 or ::1. Remote hosts and redirects are blocked. For Ollama, disable cloud features with OLLAMA_NO_CLOUD=1 and restart the server before use. A separately managed local server controls its own network access.';
+
+  @override
+  String get settingsLocalHttpKeyOptional => 'Optional for local servers';
+
+  @override
+  String get settingsLocalHttpServer => 'Local HTTP server';
+
+  @override
+  String get outputCleanupLlmModeLocalServer => 'Local server';
+
+  @override
+  String outputCleanupLlmModeLocalServerHelp(String model) {
+    return 'Run $model through a model server on this device.';
+  }
+
+  @override
+  String get settingsLocalHttpInvalid =>
+      'Use http://127.0.0.1 or http://[::1] and a local model. Cloud models are unavailable.';
+
+  @override
+  String get aiTransparencyLiteBody =>
+      'CrisperWeaver Lite processes speech, text, documents, and embeddings using models on your device. Remote transcription, synthesis, translation, and cloud language-model services are disabled in this build. Optional local model servers must run on the same device; separately managed servers control their own network access. Model files are used for on-device processing. AI-generated audio and text carry disclosure and provenance markings. Speaker enrollment requires consent. See About for details.';
+
+  @override
+  String get outputSummarizeLiteUnconfigured =>
+      'Configure an on-device GGUF model or a local model server in Settings to generate summaries.';
 }

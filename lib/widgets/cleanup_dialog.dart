@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
+import '../constants/build_flavor.dart';
 import '../engines/transcription_engine.dart';
 import '../l10n/generated/app_localizations.dart';
 import '../services/settings_service.dart';
@@ -136,8 +137,7 @@ class _CleanupDialogState extends ConsumerState<CleanupDialog> {
               const SizedBox(height: 8),
               Builder(builder: (_) {
                 final settings = ref.read(settingsServiceProvider);
-                final hasCloud = settings.cloudLlmApiUrl.isNotEmpty &&
-                    settings.cloudLlmApiKey.isNotEmpty;
+                final hasCloud = settings.httpLlmConfigured;
                 final hasLocal = settings.localLlmModelPath.isNotEmpty;
                 // Disabled modes can't be picked; if the current
                 // selection points at one, drop back to Off so
@@ -154,9 +154,12 @@ class _CleanupDialogState extends ConsumerState<CleanupDialog> {
                     break;
                   case LlmCleanupMode.cloud:
                     subtitle = hasCloud
-                        ? l.outputCleanupLlmModeCloudHelp(
-                            settings.cloudLlmModel)
-                        : l.outputCleanupLlmModeCloudUnconfigured;
+                        ? (BuildFlavor.isLite
+                            ? l.outputCleanupLlmModeLocalServerHelp(
+                                settings.cloudLlmModel)
+                            : l.outputCleanupLlmModeCloudHelp(
+                                settings.cloudLlmModel))
+                        : (BuildFlavor.isLite ? l.settingsLocalHttpLlmOff : l.outputCleanupLlmModeCloudUnconfigured);
                     break;
                   case LlmCleanupMode.local:
                     subtitle = hasLocal
@@ -185,7 +188,9 @@ class _CleanupDialogState extends ConsumerState<CleanupDialog> {
                           AdaptiveSegment(
                               value: LlmCleanupMode.cloud,
                               enabled: hasCloud,
-                              label: l.outputCleanupLlmModeCloud),
+                              label: BuildFlavor.isLite
+                                  ? l.outputCleanupLlmModeLocalServer
+                                  : l.outputCleanupLlmModeCloud),
                           AdaptiveSegment(
                               value: LlmCleanupMode.local,
                               enabled: hasLocal,

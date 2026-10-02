@@ -1,3 +1,4 @@
+import '../constants/build_flavor.dart';
 import '../native/crispasr_import.dart' as crispasr;
 import '../utils/platform_utils.dart' as plat;
 import 'package:dio/dio.dart';
@@ -483,6 +484,7 @@ class _WebTranslateScreenState extends ConsumerState<_WebTranslateScreen> {
     Log.instance.i('translate-web', 'start', fields: {'text_len': text.length});
     setState(() => _busy = true);
     try {
+      BuildFlavor.requireRemoteAi();
       final baseUrl = ref.read(settingsServiceProvider).hfSpaceUrl;
       final dio = Dio(BaseOptions(
         connectTimeout: const Duration(seconds: 30),

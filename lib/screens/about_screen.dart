@@ -6,6 +6,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../constants/build_flavor.dart';
 import '../build_info.dart';
 import '../l10n/generated/app_localizations.dart';
 import '../main.dart' show modelServiceProvider;
@@ -69,7 +70,7 @@ class AboutScreen extends ConsumerWidget {
           _SectionCard(
             icon: Icons.privacy_tip_outlined,
             label: l.aboutPrivacy,
-            child: Text(l.aboutPrivacyText),
+            child: Text(BuildFlavor.isLite ? l.aiTransparencyLiteBody : l.aboutPrivacyText),
           ),
           _SectionCard(
             icon: Icons.memory_outlined,
@@ -128,7 +129,7 @@ class AboutScreen extends ConsumerWidget {
               if (!context.mounted) return;
               showLicensePage(
                 context: context,
-                applicationName: 'CrisperWeaver',
+                applicationName: BuildFlavor.appName,
                 applicationVersion: '${info.version}+${info.buildNumber}',
                 applicationLegalese:
                     '© ${DateTime.now().year} Christian Ströbele — AGPL-3.0',
@@ -231,7 +232,7 @@ class _AppHeader extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('CrisperWeaver',
+                      Text(BuildFlavor.appName,
                           style: Theme.of(context).textTheme.headlineSmall),
                       const SizedBox(height: 4),
                       Text(AppLocalizations.of(context).aboutVersion(v),

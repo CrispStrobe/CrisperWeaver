@@ -421,6 +421,76 @@ Every file the app synthesises is watermarked, C2PA-signed and metadata-tagged a
 
 **Received audio you believe impersonates someone?** [Report it here](https://github.com/CrispStrobe/CrisperWeaver/issues/new?labels=abuse-report&template=abuse-report.md). That address is embedded in the provenance manifest of every generated file, so it travels with the audio.
 
+## Lite build
+
+Lite is a compile-time variant (`CW_FLAVOR=lite`). It keeps the on-device
+CrispASR, CrispEmbed and native model runtimes, including local GGUF cleanup
+and summaries. Remote ASR, TTS and translation are disabled. HTTP language
+models are restricted to literal loopback addresses (`127.0.0.1` or `::1`),
+with redirects and system proxies disabled. Saved cloud settings cannot
+override these restrictions.
+
+On a Mac, build the local app with:
+
+```sh
+CW_FLAVOR=lite scripts/build_macos.sh release
+```
+
+Model downloads remain available by default and retrieve weights for local
+processing. For an import-only build, use
+`CW_LITE_DOWNLOADS=false CW_FLAVOR=lite scripts/build_macos.sh release`.
+This also disables audio URL downloads and online model catalogue probes.
+Select a model folder in Settings, or select a GGUF in the local LLM settings.
+It is not an operating-system firewall: separately managed programs, including
+local model servers, control their own network access.
+
+For Ollama, configure `http://127.0.0.1:11434/v1/chat/completions`, use a local
+model such as `llama3.2`, and leave the API key empty. Before use, disable
+Ollama's cloud features with `OLLAMA_NO_CLOUD=1` and restart Ollama, as described
+in the [Ollama FAQ](https://github.com/ollama/ollama/blob/main/docs/faq.mdx#how-do-i-disable-ollama-cloud-features).
+Lite rejects model IDs with a `cloud` tag, but that is not proof that an
+arbitrary local server or model alias performs inference locally. Use the
+built-in GGUF path when processing must remain entirely within the app.
+
+The Mac App Store package has a separate identity,
+`com.crispstrobe.crisperweaver.lite`, and therefore needs its own App Store
+Connect record and provisioning profile:
+
+```sh
+MAC_PROFILE=/path/to/Lite.provisionprofile scripts/build_macos_appstore.sh --lite
+# Add LITE_APPSTORE_APP_ID=<numeric app ID> and --upload to upload explicitly.
+```
+
+The output is `crisper_weaver-lite-macos-appstore.pkg`. Use the Lite listing
+in `STORE_LISTING.md`; the full listing describes features this build excludes.
+The same package can be built from Linux through GitHub's macOS runner:
+
+```sh
+gh workflow run ci.yml --ref <branch-with-lite-code> -f build_lite=true
+```
+
+This dispatch runs only the Lite package job. It tests the Lite policy,
+imports the existing repo's Distribution and Installer identities, registers
+the Lite bundle ID if needed, and creates or reuses a `MAC_APP_STORE` profile
+matching the actual imported signing certificate. It never creates or revokes
+certificates. The signed installer and SHA-256 checksum are retained as a
+workflow artifact for seven days. The CI job uses `--lite --package-only`, so
+it neither validates nor uploads to Apple and does not submit for review.
+An App Store Connect app record is not needed to produce this signed artifact.
+
+A separate Lite app does not change the original app's availability. To use
+this split for China mainland, exclude that storefront from the full app and
+submit Lite separately. This build does not establish regulatory approval for
+local synthesis, voice cloning, or local generative models.
+
+Verify the policy under each build configuration:
+
+```sh
+flutter test test/lite_flavor_test.dart
+flutter test --dart-define=CW_FLAVOR=lite test/lite_flavor_test.dart
+flutter test --dart-define=CW_FLAVOR=lite --dart-define=CW_LITE_DOWNLOADS=false test/lite_flavor_test.dart
+```
+
 ## License & author
 
 CrisperWeaver is **GNU AGPL-3.0-or-later**. See [`LICENSE`](LICENSE) for full text and the in-app *About* screen for the auto-aggregated third-party license list (`showLicensePage`).

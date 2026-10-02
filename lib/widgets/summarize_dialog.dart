@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
+import '../constants/build_flavor.dart';
 import '../engines/transcription_engine.dart';
 import '../l10n/generated/app_localizations.dart';
 import '../services/cloud_llm_cleanup_service.dart';
@@ -47,8 +48,7 @@ class _SummarizeDialogState extends ConsumerState<SummarizeDialog> {
   void initState() {
     super.initState();
     final s = ref.read(settingsServiceProvider);
-    final hasCloud =
-        s.cloudLlmApiUrl.isNotEmpty && s.cloudLlmApiKey.isNotEmpty;
+    final hasCloud = s.httpLlmConfigured;
     final hasLocal = s.localLlmModelPath.isNotEmpty;
     // Honour the user's persisted preference when its path is
     // configured; otherwise fall through to whichever path IS
@@ -143,8 +143,7 @@ class _SummarizeDialogState extends ConsumerState<SummarizeDialog> {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
     final settings = ref.read(settingsServiceProvider);
-    final hasCloud = settings.cloudLlmApiUrl.isNotEmpty &&
-        settings.cloudLlmApiKey.isNotEmpty;
+    final hasCloud = settings.httpLlmConfigured;
     final hasLocal = settings.localLlmModelPath.isNotEmpty;
     final hasAny = hasCloud || hasLocal;
     final activeModel = _mode == LlmCleanupMode.local
@@ -162,9 +161,12 @@ class _SummarizeDialogState extends ConsumerState<SummarizeDialog> {
               Container(
                 padding: const EdgeInsets.all(12),
                 color: Colors.orange.shade50,
-                child: Text(l.outputSummarizeUnconfigured,
-                    style: TextStyle(
-                        fontSize: 12, color: Colors.orange.shade900)),
+                child: Text(
+                    BuildFlavor.isLite
+                        ? l.outputSummarizeLiteUnconfigured
+                        : l.outputSummarizeUnconfigured,
+                    style:
+                        TextStyle(fontSize: 12, color: Colors.orange.shade900)),
               )
             else
               Text(
@@ -180,7 +182,9 @@ class _SummarizeDialogState extends ConsumerState<SummarizeDialog> {
                     AdaptiveSegment(
                       value: LlmCleanupMode.cloud,
                       enabled: hasCloud && !_running,
-                      label: l.outputCleanupLlmModeCloud,
+                      label: BuildFlavor.isLite
+                          ? l.outputCleanupLlmModeLocalServer
+                          : l.outputCleanupLlmModeCloud,
                     ),
                     AdaptiveSegment(
                       value: LlmCleanupMode.local,

@@ -25,6 +25,7 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 
+import '../constants/build_flavor.dart';
 import '../constants/app_constants.dart';
 import 'log_service.dart';
 import 'spread_spectrum_watermark.dart';
@@ -49,10 +50,13 @@ const hfSpaceTtsBackends = <HfSpaceTtsBackend>[
 class HfSpaceTtsService {
   HfSpaceTtsService({required String baseUrl, Dio? dio})
       : _baseUrl = baseUrl.replaceAll(RegExp(r'/+$'), ''),
-        _dio = dio ?? Dio(BaseOptions(
-    connectTimeout: const Duration(seconds: 30),
-    receiveTimeout: const Duration(seconds: 300),
-  ));
+        _dio = dio ??
+            Dio(BaseOptions(
+              connectTimeout: const Duration(seconds: 30),
+              receiveTimeout: const Duration(seconds: 300),
+            )) {
+    BuildFlavor.requireRemoteAi();
+  }
 
   final String _baseUrl;
   final Dio _dio;

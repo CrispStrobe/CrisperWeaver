@@ -8,6 +8,7 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 
+import '../constants/build_flavor.dart';
 import '../services/log_service.dart';
 import '../services/model_service.dart';
 import '../services/transcription_service.dart' show AdvancedTranscribeOptions;
@@ -68,10 +69,13 @@ class HfSpaceEngine implements TranscriptionEngine {
   HfSpaceEngine({String? baseUrl, Dio? dio, HfSpaceApiMode apiMode = HfSpaceApiMode.openai})
       : _baseUrl = baseUrl ?? 'https://cstr-crispasr.hf.space',
         _apiMode = apiMode,
-        _dio = dio ?? Dio(BaseOptions(
-    connectTimeout: const Duration(seconds: 30),
-    receiveTimeout: const Duration(seconds: 900),
-  ));
+        _dio = dio ??
+            Dio(BaseOptions(
+              connectTimeout: const Duration(seconds: 30),
+              receiveTimeout: const Duration(seconds: 900),
+            )) {
+    BuildFlavor.requireRemoteAi();
+  }
 
   String _baseUrl;
   HfSpaceApiMode _apiMode;

@@ -22,7 +22,7 @@ VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$INFO"
 BUILD=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$INFO")
 BUNDLE_ID=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$INFO")
 MIN_OS=$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' "$INFO")
-[[ "$BUNDLE_ID" == "com.crispstrobe.crisperweaver" ]] || {
+[[ "$BUNDLE_ID" == "${CW_EXPECTED_BUNDLE_ID:-com.crispstrobe.crisperweaver}" ]] || {
   echo "error: unexpected bundle id: $BUNDLE_ID" >&2
   exit 1
 }

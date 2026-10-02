@@ -11,6 +11,7 @@ import 'package:permission_handler/permission_handler.dart';
 
 import 'package:path/path.dart' as p;
 
+import '../constants/build_flavor.dart';
 import '../build_info.dart';
 import '../engines/engine_factory.dart';
 import '../l10n/generated/app_localizations.dart';
@@ -548,7 +549,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final running = server.isRunning;
     final l = AppLocalizations.of(context);
     return _buildSettingsSection(
-      title: l.settingsServerSection,
+      title: BuildFlavor.isLite
+          ? l.settingsLocalHttpServer
+          : l.settingsServerSection,
       icon: Icons.cloud,
       children: [
         SwitchListTile(
@@ -841,11 +844,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
         // §5.1.6 v2 — BYOK cloud-LLM cleanup settings.
         ListTile(
-          title: Text(AppLocalizations.of(context).settingsCloudLlmCleanup),
-          subtitle: Text(
-              settings.cloudLlmApiUrl.isEmpty || settings.cloudLlmApiKey.isEmpty
-                  ? AppLocalizations.of(context).settingsCloudLlmCleanupOff
-                  : '${settings.cloudLlmModel} · ${settings.cloudLlmApiUrl}'),
+          title: Text(BuildFlavor.isLite
+              ? AppLocalizations.of(context).settingsLocalHttpLlm
+              : AppLocalizations.of(context).settingsCloudLlmCleanup),
+          subtitle: Text(!settings.httpLlmConfigured
+              ? (BuildFlavor.isLite
+                  ? AppLocalizations.of(context).settingsLocalHttpLlmOff
+                  : AppLocalizations.of(context).settingsCloudLlmCleanupOff)
+              : '${settings.cloudLlmModel} · ${settings.cloudLlmApiUrl}'),
           trailing: const Icon(Icons.cloud_outlined),
           onTap: () async {
             // Phone → push the sub-screen; wide → keep the
@@ -1025,7 +1031,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       context: context,
       builder: (ctx) {
         return AlertDialog(
-          title: Text(l.settingsCloudLlmCleanup),
+          title: Text(BuildFlavor.isLite
+              ? l.settingsLocalHttpLlm
+              : l.settingsCloudLlmCleanup),
           content: SizedBox(
             width: responsiveDialogWidth(ctx, designed: 520),
             child: CloudLlmSettingsForm(
@@ -1041,7 +1049,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               onCleared: () {
                 settings.cloudLlmApiUrl = '';
                 settings.cloudLlmApiKey = '';
-                settings.cloudLlmModel = 'gpt-4o-mini';
+                settings.cloudLlmModel =
+                    BuildFlavor.isLite ? 'llama3.2' : 'gpt-4o-mini';
               },
             ),
           ),
@@ -1057,8 +1066,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 child: Text(l.settingsCloudLlmClear)),
             FilledButton(
                 onPressed: () {
-                  formKey.currentState?.save();
-                  Navigator.of(ctx).pop();
+                  if (formKey.currentState?.save() == true) {
+                    Navigator.of(ctx).pop();
+                  }
                 },
                 child: Text(l.save)),
           ],

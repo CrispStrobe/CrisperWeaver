@@ -27,6 +27,8 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 
+import '../constants/build_flavor.dart';
+import 'ai_http_client.dart';
 import 'log_service.dart';
 
 class CloudLlmDisabledException implements Exception {
@@ -74,14 +76,18 @@ class CloudLlmConfig {
   final int maxOutputTokens;
   final double temperature;
 
-  bool get enabled => apiUrl.isNotEmpty && apiKey.isNotEmpty;
+  bool get enabled =>
+      apiUrl.isNotEmpty &&
+      BuildFlavor.allowsAiEndpoint(apiUrl) &&
+      BuildFlavor.allowsHttpModel(model) &&
+      (apiKey.isNotEmpty || BuildFlavor.isLite);
 }
 
 class CloudLlmCleanupService {
   /// Test seam — pass a mock client; production calls fall
   /// through to a fresh `http.Client()` per pass.
   CloudLlmCleanupService({http.Client? client})
-      : _client = client ?? http.Client();
+      : _client = AiHttpClient(client: client);
 
   final http.Client _client;
 
@@ -114,7 +120,7 @@ class CloudLlmCleanupService {
   }) async {
     if (!config.enabled) {
       throw const CloudLlmDisabledException(
-          'apiUrl or apiKey is empty');
+          'HTTP LLM endpoint is unavailable or incomplete');
     }
     if (text.trim().isEmpty) return text;
     final messages = <Map<String, dynamic>>[
@@ -135,7 +141,8 @@ class CloudLlmCleanupService {
           uri,
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer ${config.apiKey}',
+            if (config.apiKey.isNotEmpty)
+              'Authorization': 'Bearer ${config.apiKey}',
           },
           body: body,
         )
