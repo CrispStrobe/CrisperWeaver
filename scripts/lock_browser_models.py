@@ -62,7 +62,7 @@ def lock(group):
         file = entry['rfilename']
         if wanted is not None and file not in wanted:
             continue
-        if wanted is None and not (file.endswith('.json') or file.endswith('.txt') or file.endswith('.model') or file.endswith('.tiktoken') or file.endswith('.onnx') and 'quantized' in file):
+        if wanted is None and not (file.endswith('.json') or file.endswith('.txt') or file.endswith('.model') or file.endswith('.tiktoken') or file.endswith('.onnx') and ('quantized' in file or file in ('onnx/encoder_model.onnx', 'onnx/decoder_model_merged.onnx'))):
             continue
         url = f'https://huggingface.co/{dataset}{repo}/resolve/{sha}/{file}'
         lfs = entry.get('lfs') or {}

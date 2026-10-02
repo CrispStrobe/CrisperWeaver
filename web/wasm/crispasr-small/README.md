@@ -1,6 +1,6 @@
 CrispASR single-thread WASM, initial memory 128 MiB (grows as needed).
-Source: ed2fdda49 (feat/cw-browser-threads)
-CI: https://github.com/CrispStrobe/CrispASR/actions/runs/36999311622
+Source: 70e15c9a0 (feat/cw-browser-threads)
+CI: https://github.com/CrispStrobe/CrispASR/actions/runs/37004439151
 Artifact: crispasr-wasm-single-thread-lowheap
 
 The threaded integration starts its compute thread outside message handlers and

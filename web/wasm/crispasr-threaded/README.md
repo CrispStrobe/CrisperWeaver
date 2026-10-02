@@ -1,6 +1,6 @@
 CrispASR proxy-to-pthread WASM, initial memory 128 MiB (grows as needed).
-Source: ed2fdda49 (feat/cw-browser-threads)
-CI: https://github.com/CrispStrobe/CrispASR/actions/runs/36999311622
+Source: 70e15c9a0 (feat/cw-browser-threads)
+CI: https://github.com/CrispStrobe/CrispASR/actions/runs/37004439151
 Artifact: crispasr-wasm-proxy-to-pthread-lowheap
 
 The threaded integration starts its compute thread outside message handlers and
@@ -10,7 +10,7 @@ passes. Browser worker termination cancels the complete runtime and its pool.
 Native Dart package pins are independent.
 
 SHA256:
-11849c6cec1a6c4a9de1f1ea383bc3dd97fbf035095e67476182da4d50c63994  libwhisper.js
-554aaae0a99f597c732c0b2755a602f58445a6f98ce3b0094137cc80eb4fb011  libwhisper.wasm
+71810d57aa03826eb3740b9f4a7030e80d19954ca05efe1fae2d344e67ee2cbc  libwhisper.js
+6fd2cc60dd6e4dafde37c49a082ce65be04fd0c45a8d80fd94f9bba542cb6a72  libwhisper.wasm
 
 License: MIT; see LICENSE and upstream dependency notices.

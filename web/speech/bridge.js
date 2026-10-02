@@ -29,7 +29,7 @@
           if (!entry) return;
           if (data.progress != null) { entry.progress?.(data.progress); return; }
           clearTimeout(entry.timer); this.pending.delete(data.id);
-          if (data.error) { if (!this.retryCpu(entry, data.error)) entry.reject(new Error(data.error)); }
+          if (data.error) { if (!this.retryGpuInference(entry, data.error) && !this.retryCpu(entry, data.error)) entry.reject(new Error(data.error)); }
           else {
             if (entry.model) { this.loadedModel = entry.model; this.loadedPreference = entry.preference; this.loadedCpuThreads = entry.cpuThreads; this.loadedLowHeap = entry.lowHeap; }
             if (data.result?.diagnostics) {
@@ -62,6 +62,9 @@
         };
       }
       const id = ++this.sequence;
+      // Preserve one bounded audio copy only when GPU inference may need a
+      // fresh-worker CPU retry; CPU requests retain the zero-copy path.
+      if (this.engine === 'onnx' && op === 'transcribe' && this.loadedPreference !== 'wasm' && payload.audio instanceof Float32Array) payload = { ...payload, audio: payload.audio.slice(), transferAudio: false };
       return new Promise((resolve, reject) => {
         // The main thread can terminate a GPU initialization that blocks its
         // worker event loop. A worker-local Promise timeout cannot do that.
@@ -87,6 +90,19 @@
         }
         this.worker.postMessage({ id, op, payload: { ...payload, executionPreference }, engine: this.engine, allowDownloads: this.allowDownloads, allowExperimentalModels }, transfer);
       });
+    }
+    retryGpuInference(entry, reason) {
+      if (entry.op !== 'transcribe' || !reason.startsWith('CW_GPU_RESTART: ') || !this.loadedModel) return false;
+      const model = this.loadedModel;
+      clearTimeout(entry.timer);
+      this.cancel('Restarting failed GPU inference on local CPU');
+      this.request('load', { model }, entry.progress, 'wasm', 1).then(() =>
+        this.request('transcribe', entry.payload, entry.progress, 'wasm', 1)
+      ).then(result => {
+        if (result?.diagnostics) result.diagnostics.fallbackReason = reason.slice(16);
+        entry.resolve(result);
+      }, entry.reject);
+      return true;
     }
     retryCpu(entry, reason) {
       if (entry.op !== 'load' || !(this.engine === 'onnx' && entry.preference !== 'wasm' || this.engine === 'crispasr' && entry.cpuThreads > 1)) return false;

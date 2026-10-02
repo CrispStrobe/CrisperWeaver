@@ -71,10 +71,10 @@ async function modelResources(model) {
   if (model.url) return Promise.all([model.url, ...(model.companions || []).map(c => c.url)].map(resource));
   return Object.values(locks[model.repo].files);
 }
-async function modelCached(model) {
+async function modelCached(model, device = 'wasm') {
   const files = await modelResources(model);
   // Optional ONNX configuration files do not determine model readiness.
-  const required = model.url ? files : files.filter(file => /onnx\/(encoder_model_quantized|decoder_model_merged_quantized)\.onnx$/.test(file.url));
+  const required = model.url ? files : files.filter(file => (device === 'webgpu' ? /onnx\/(encoder_model|decoder_model_merged)\.onnx$/ : /onnx\/(encoder_model_quantized|decoder_model_merged_quantized)\.onnx$/).test(file.url));
   return required.length > 0 && (await Promise.all(required.map(file => CW_DOWNLOADS.cached(file)))).every(Boolean);
 }
 async function crisp() {
@@ -189,6 +189,7 @@ async function load(engine, selected, allowDownloads, id, bytes, allowExperiment
         if (!adapter) throw new Error('WebGPU is unavailable on this device');
         const adapterDescription = `${adapter.info?.architecture || ''} ${adapter.info?.description || ''}`;
         if (/swiftshader|software/i.test(adapterDescription)) throw new Error('Software WebGPU adapter is unreliable for speech models; using local CPU processing');
+        diagnostics.cachedLoad = await modelCached(model, 'webgpu');
         asr = await gpuDeadline(onnxSession(model, 'webgpu', allowDownloads, id), 90000, 'WebGPU model initialization'); provider = 'webgpu';
       } catch (error) { fallbackReason = String(error.message || error).slice(0, 400); }
     }
@@ -198,7 +199,7 @@ async function load(engine, selected, allowDownloads, id, bytes, allowExperiment
 }
 async function onnxSession(model, device, allowDownloads, id) {
   return pipeline('automatic-speech-recognition', model.repo, {
-    device, dtype: 'q8', revision: model.revision, local_files_only: !allowDownloads,
+    device, dtype: device === 'webgpu' ? 'fp32' : 'q8', revision: model.revision, local_files_only: !allowDownloads,
     progress_callback: data => { if (data.progress != null) progress(id, data.progress / 100 * 0.85); },
   });
 }
@@ -215,14 +216,9 @@ async function inferOnnx(audio, args, id) {
   try { return provider === 'webgpu' ? await gpuDeadline(asr(audio, args), 60000, 'WebGPU inference') : await asr(audio, args); }
   catch (error) {
     if (provider !== 'webgpu') throw error;
-    // Some GPU operator/shape failures only appear at the first run. Reuse
-    // verified cached weights and retry this same window locally on WASM.
-    fallbackReason = String(error.message || error).slice(0, 400);
-    await gpuDeadline(asr.dispose(), 3000, 'WebGPU cleanup').catch(() => {}); asr = null;
-    transformerEnv.allowRemoteModels = false;
-    transformerEnv.allowLocalModels = true;
-    asr = await onnxSession(activeModel, 'wasm', false, id); provider = 'wasm';
-    return asr(audio, args);
+    // A failed GPU session can poison ORT's WASM state. The main bridge
+    // retains GPU-request audio and retries in a fresh CPU worker.
+    throw new Error('CW_GPU_RESTART: ' + String(error.message || error).slice(0, 400));
   }
 }
 async function transcribe(engine, audio, options, id) {
@@ -333,6 +329,7 @@ async function handle({ id, op, payload, engine, allowDownloads, allowExperiment
     diagnostics.elapsedMs = performance.now() - started;
     diagnostics.runtimeMode = engine === 'crispasr' ? (threaded ? 'threaded' : 'single') : 'onnx';
     diagnostics.cpuThreads = engine === 'crispasr' ? cpuThreads : 1;
+    diagnostics.dtype = engine === 'onnx' ? (provider === 'webgpu' ? 'fp32' : 'q8') : null;
     diagnostics.provider = provider; diagnostics.fallbackReason = fallbackReason || null;
     if (op === 'transcribe') diagnostics.audioSeconds = payload.audio.length / 16000;
     result = { ...result, diagnostics };

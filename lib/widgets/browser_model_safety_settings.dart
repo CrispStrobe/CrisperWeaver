@@ -89,7 +89,7 @@ class _BrowserModelSafetySettingsState
                 builder: (context) => AlertDialog(
                       title: const Text('GPU processing may crash or fail'),
                       content: const Text(
-                          'Browser GPU support depends on the model and graphics driver. It may use extra memory, freeze or crash this tab, or fail to run. Save your work first. Recoverable GPU errors fall back to local CPU processing; a crashed tab cannot recover automatically. This does not enable remote AI.'),
+                          'Browser GPU support depends on the model and graphics driver. GPU processing downloads larger, unquantized model weights. It may use extra memory, freeze or crash this tab, or fail to run. Save your work first. Recoverable GPU errors fall back to local CPU processing; a crashed tab cannot recover automatically. This does not enable remote AI.'),
                       actions: [
                         TextButton(
                             onPressed: () => Navigator.pop(context, false),

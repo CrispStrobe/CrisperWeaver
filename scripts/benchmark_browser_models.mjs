@@ -86,13 +86,13 @@ for (const entry of models) {
               const audio = await bridge.decode(new Uint8Array(fixture));
               const result = await client.request('transcribe', { audio, transferAudio: true });
               const transcript = result.segments.map(segment => segment.text).join(' ');
-              if (!result.local || !transcript.toLowerCase().includes('country')) throw new Error('Known local transcript check failed');
-              return { loaded: loaded.diagnostics, inference: result.diagnostics, transcript };
+              return { loaded: loaded.diagnostics, inference: result.diagnostics, transcript, local: result.local };
             } finally { client.dispose(); }
           }, { engine, model, fixture, cold: temperature === 'cold' });
+          measurement.runs.push({ cache: temperature, ...result, baselineBrowserRssBytes: baseline, peakBrowserRssBytes: peak, baselineGpuMemory, peakGpuMemory });
+          if (!result.local || !result.transcript.toLowerCase().includes('country')) throw new Error('Known local transcript check failed');
           if (hardware && preference === 'webgpu' && result.inference.provider !== 'webgpu') throw new Error('Hardware GPU inference fell back to CPU: ' + result.inference.fallbackReason);
           if (cpuThreads > 1 && result.inference.runtimeMode !== 'threaded') throw new Error('Requested threaded inference used the single-thread fallback');
-          measurement.runs.push({ cache: temperature, ...result, baselineBrowserRssBytes: baseline, peakBrowserRssBytes: peak, baselineGpuMemory, peakGpuMemory });
           if (uploads.length) throw new Error('Unexpected off-origin upload during local inference');
         } finally { clearInterval(timer); }
       }

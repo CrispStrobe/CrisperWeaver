@@ -30,6 +30,7 @@ for (const threads of [2, 4]) {
         return { loaded, output, cached, beats, cancellation };
       } finally { clearInterval(heartbeat); client.dispose(); }
     }, { fixture, threads });
+    await attachJson(info, 'threaded-asr.json', result);
     for (const output of [result.output, result.cached]) {
       expect(output.local).toBe(true);
       expect(output.diagnostics.runtimeMode).toBe('threaded');
@@ -39,7 +40,6 @@ for (const threads of [2, 4]) {
     expect(result.loaded.diagnostics.peakWasmBytes).toBeLessThan(512 * 1024 * 1024);
     expect(result.beats).toBeGreaterThan(10);
     expect(result.cancellation).toContain('cancelled');
-    await attachJson(info, 'threaded-asr.json', result);
   });
 }
 
