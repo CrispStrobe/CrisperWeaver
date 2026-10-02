@@ -16,8 +16,9 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 - Added Chromium/Firefox/WebKit CI checks for both flavors, continuous
   multilingual recordings with noise, and isolated pre-deployment validation.
   Real threaded ASR/TTS and recovery pass in all three browsers. Recorded
-  three-run comparisons validate Moonshine/FastConformer/Phonon output parity;
-  Whisper comparisons still gate a default runtime change.
+  three-run comparisons validate Whisper tiny/base, Moonshine, FastConformer
+  and Phonon output parity. Their faster SIMD runtime is now the default,
+  starting at 128 MiB and growing as required.
 
 - Added cache/quota controls, individual model deletion and incomplete
   download cleanup; transcript history is preserved.
@@ -38,8 +39,10 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 - Model unload/switch terminates the worker to release grown heaps. Owned
   audio and synthesized PCM use transfer lists, and MEMFS staging files are
   released after model/voice parsing.
-- Long recordings use quiet boundaries and short context overlaps with
-  bounded deduplication so intentional repeated speech is retained.
+- Long recordings use quiet boundaries and bounded overlap deduplication.
+  Whisper retries energetic windows omitted by timestamp mode using text
+  decoding, with honest window-level timing for those fallback segments.
+  Progress resets inactivity timeouts so long recordings can finish.
 - Memory labels now use observed allocation instead of an unmeasured
   multiplier; unobserved browser/GPU memory is explicitly excluded.
 

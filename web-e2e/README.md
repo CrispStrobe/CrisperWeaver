@@ -167,9 +167,10 @@ to the compute thread. Failed parallel loading retries on one-thread CPU. Tests
 require actual threaded diagnostics, known speech, cancellation/reload, and a
 TTS-to-ASR round trip. Passing a single-thread fallback does not count as proof.
 
-The original 512 MiB runtime remains available. The new 128 MiB initial-heap
-single-thread runtime is an A/B candidate (`cw.browserLowMemoryRuntime=true`),
-not yet the default. Both grow as needed. Benchmarks compare all three modes,
+The 128 MiB initial-heap SIMD single-thread runtime is the default after all
+five native benchmark models passed decoded parity and three warm repetitions.
+The original 512 MiB runtime remains available for rollback/comparison
+(`cw.browserLowMemoryRuntime=false`). Both grow as needed. Benchmarks compare all three modes,
 report cold load plus median of at least three warm inferences, decoded parity,
 WASM allocated bytes and sampled browser RSS. Phonon Q4 runs in its own CI job.
 

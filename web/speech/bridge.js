@@ -16,7 +16,7 @@
       const requestedThreads = forcedThreads ?? Number(localStorage.getItem('flutter.browser_cpu_threads') || 1);
       const cpuThreads = this.engine === 'crispasr' && !['models', 'clearCache', 'delete', 'deleteCache', 'clearIncomplete', 'storage', 'unload'].includes(op) && crossOriginIsolated && typeof SharedArrayBuffer !== 'undefined'
         ? ([2, 4].includes(requestedThreads) ? requestedThreads : 1) : 1;
-      const lowHeap = localStorage.getItem('cw.browserLowMemoryRuntime') === 'true';
+      const lowHeap = localStorage.getItem('cw.browserLowMemoryRuntime') !== 'false';
       if (op === 'unload') { this.cancel(); return Promise.resolve(true); }
       if (['load', 'import'].includes(op) && (payload.model !== this.loadedModel || executionPreference !== this.loadedPreference || cpuThreads !== this.loadedCpuThreads || lowHeap !== this.loadedLowHeap)) this.cancel();
       if (!this.worker) {
@@ -28,7 +28,7 @@
           const entry = this.pending.get(data.id);
           if (!entry) return;
           if (data.progress != null) {
-            if (entry.watchdog) { clearTimeout(entry.timer); entry.timer = setTimeout(entry.timeout, 120000); }
+            clearTimeout(entry.timer); entry.timer = setTimeout(entry.timeout, entry.timeoutMs);
             entry.progress?.(data.progress); return;
           }
           clearTimeout(entry.timer); this.pending.delete(data.id);
@@ -84,8 +84,9 @@
           else this.retryCpu(entry, 'Parallel runtime stalled; worker restarted with single-thread CPU');
         };
         const watchdog = retryCpu || retrySingle || gpuInference;
-        const timer = setTimeout(timeout, watchdog ? 120000 : 900000);
-        this.pending.set(id, { resolve, reject, progress, timer, timeout, watchdog, op, payload: retryPayload, cpuThreads, lowHeap, preference: executionPreference, model: ['load', 'import'].includes(op) ? payload.model : null });
+        const timeoutMs = watchdog ? 120000 : 900000;
+        const timer = setTimeout(timeout, timeoutMs);
+        this.pending.set(id, { resolve, reject, progress, timer, timeout, timeoutMs, op, payload: retryPayload, cpuThreads, lowHeap, preference: executionPreference, model: ['load', 'import'].includes(op) ? payload.model : null });
         const allowExperimentalModels = localStorage.getItem('flutter.browser_allow_experimental_models') === 'true';
         const transfer = [];
         if (payload.audio instanceof Float32Array) {

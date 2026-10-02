@@ -2,9 +2,10 @@ import { test, expect } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { TARGET } from './target';
+import { bootRuntime } from './runtime-page';
 
 test('interrupted model download resumes a verified checkpoint and handles ignored ranges', async ({ page }) => {
-  await page.goto(TARGET);
+  await bootRuntime(page);
   await page.addScriptTag({ url: `${TARGET}/speech/downloads.js` });
   const result = await page.evaluate(async () => {
     const manager = (window as any).CW_DOWNLOADS, part = 4 * 1024 * 1024;
@@ -27,7 +28,7 @@ test('interrupted model download resumes a verified checkpoint and handles ignor
           headers: { 'content-range': `bytes ${part}-${bytes.length - 1}/${bytes.length}` } });
       });
       await manager.read(resource, false, () => {}, () => { throw new Error('Unexpected network access'); });
-      return { saved: checkpoint.offset, range, length: restored.length, last: restored.at(-1), cleared: !await manager.meta(resource.url) };
+      return { saved: checkpoint.offset, range, length: restored.length, last: restored.at(-1), verified: (await manager.meta(resource.url))?.verified === true };
     };
     return { normal: await run(false), ignored: await run(true), expected: bytes.length, last: bytes.at(-1) };
   });
@@ -36,12 +37,12 @@ test('interrupted model download resumes a verified checkpoint and handles ignor
     expect(value.range).toBe('bytes=4194304-');
     expect(value.length).toBe(result.expected);
     expect(value.last).toBe(result.last);
-    expect(value.cleared).toBe(true);
+    expect(value.verified).toBe(true);
   }
 });
 
 test('bad ranges retain progress and corrupted downloads/cache never reach inference', async ({ page }) => {
-  await page.goto(TARGET);
+  await bootRuntime(page);
   await page.addScriptTag({ url: `${TARGET}/speech/downloads.js` });
   const result = await page.evaluate(async () => {
     const manager = (window as any).CW_DOWNLOADS, size = 4 * 1024 * 1024;
@@ -77,7 +78,7 @@ test('bad ranges retain progress and corrupted downloads/cache never reach infer
 
 test('large verified chunk caches survive incomplete cleanup and reject corruption', async ({ page }) => {
   test.setTimeout(180_000);
-  await page.goto(TARGET);
+  await bootRuntime(page);
   await page.addScriptTag({ url: `${TARGET}/speech/downloads.js` });
   const result = await page.evaluate(async () => {
     const manager = (window as any).CW_DOWNLOADS;
@@ -114,7 +115,7 @@ test('large verified chunk caches survive incomplete cleanup and reject corrupti
 
 test('worker unload releases inference state and owned audio is transferred', async ({ page }) => {
   test.setTimeout(600_000);
-  await page.goto(TARGET);
+  await bootRuntime(page);
   const fixture = Array.from(await readFile(path.join(__dirname, '../fixtures/jfk.wav')));
   const result = await page.evaluate(async (fixture) => {
     const bridge = (window as any).CrisperBrowserSpeech, client = bridge.create('crispasr', true);
@@ -142,7 +143,7 @@ test('worker unload releases inference state and owned audio is transferred', as
 });
 
 test('quiet overlapping windows cover the recording and deduplicate boundary context', async ({ page }) => {
-  await page.goto(TARGET);
+  await bootRuntime(page);
   await page.addScriptTag({ url: `${TARGET}/speech/chunks.js` });
   const result = await page.evaluate(() => {
     const chunks = (window as any).CW_CHUNKS;
@@ -170,7 +171,7 @@ test('quiet overlapping windows cover the recording and deduplicate boundary con
 
 test('long Moonshine recording preserves repeated speech across quiet boundaries', async ({ page }, info) => {
   test.setTimeout(600_000);
-  await page.goto(TARGET);
+  await bootRuntime(page);
   const fixture = Array.from(await readFile(path.join(__dirname, '../fixtures/jfk.wav')));
   const result = await page.evaluate(async fixture => {
     const bridge = (window as any).CrisperBrowserSpeech, client = bridge.create('crispasr', true);
@@ -199,7 +200,7 @@ test('a GPU adapter failure falls back to verified local WASM inference', async 
     const response = await route.fetch();
     await route.fulfill({ response, body: `Object.defineProperty(navigator, 'gpu', { value: { requestAdapter: async () => { throw new Error('Test adapter failure'); } } });\n` + await response.text() });
   });
-  await page.goto(TARGET);
+  await bootRuntime(page);
   const fixture = Array.from(await readFile(path.join(__dirname, '../fixtures/jfk.wav')));
   const result = await page.evaluate(async fixture => {
     localStorage.setItem('flutter.browser_execution_provider', 'webgpu');
@@ -218,7 +219,7 @@ test('a GPU adapter failure falls back to verified local WASM inference', async 
 
 test('a real model download resumes from a checkpoint against the pinned host', async ({ page }) => {
   test.setTimeout(600_000);
-  await page.goto(TARGET);
+  await bootRuntime(page);
   await page.addScriptTag({ url: `${TARGET}/speech/downloads.js` });
   const result = await page.evaluate(async () => {
     const lock = await (await fetch(new URL('speech/model-lock.json', document.baseURI))).json();

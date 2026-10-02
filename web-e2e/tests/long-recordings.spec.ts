@@ -83,7 +83,9 @@ for (const language of ['fr', 'de']) {
     await attachJson(info, `continuous-${language}.json`, { result, wer, baselineWer, snrDb: 20, source: entry.source });
     timestamps(result);
     expect(result.duration).toBeGreaterThan(30);
-    expect(wer).toBeLessThanOrEqual(baselineWer + 0.1);
+    // Allow one word of discreteness in the long reference, alongside the
+    // ten-percentage-point tolerance against this model's noisy clip baseline.
+    expect(wer).toBeLessThanOrEqual(baselineWer + 0.1 + 1 / normalize(expected).length);
     expect(wer).toBeLessThanOrEqual(0.6);
     // Count a recognizable marker per source utterance. This failed for the
     // former five-second boundary search (six of eight German starts survived).

@@ -108,8 +108,9 @@ thread settings test is being checked in a fresh native run.
 Three-model CPU A/B reports (three warm repetitions, decoded parity) are in
 `docs/browser-hardening-2026-10-02/`: the 128 MiB SIMD variant improves Moonshine,
 FastConformer and Phonon latency. Phonon's peak process RSS barely changes;
-threading helps Phonon but hurts Moonshine. Keep one thread and the original
-single-thread runtime as defaults until Whisper A/B coverage passes.
+threading helps Phonon but hurts Moonshine. Whisper tiny/base A/B also pass decoded parity and three warm repetitions;
+SIMD single-thread is now the default, with the original runtime available
+through `cw.browserLowMemoryRuntime=false`. One CPU thread remains default.
 
 Physical Tesla T4 WebGPU v1 exposed wrong output with q8 Moonshine and an
 alignment failure with q8 Whisper. The worker now requests fp32 GPU weights
@@ -121,7 +122,9 @@ counted as successful GPU validation.
 
 Fresh compiled-artifact validation: Full 37008639394 (including Whisper A/B),
 Lite 37008642912. Continuous English retention regressed with the wider pause
-search; nearby pauses now take precedence. French/German noisy fixtures compare
+search; Whisper retries energetic windows that timestamp mode omitted using text-
+only decoding and honest chunk-level timestamps. The 30-second window budget
+is preserved; shorter windows added cost without fixing the underlying issue. French/German noisy fixtures compare
 long-audio WER against the same model's isolated clip and count retained
 utterances; these small-model fixtures have substantial absolute acoustic
 errors and are not evidence of high multilingual accuracy.

@@ -259,7 +259,7 @@ async function transcribe(engine, audio, options, id) {
       if (options.language && options.language !== 'auto') args.language = options.language;
       args.task = options.translate ? 'translate' : 'transcribe';
     } else if (options.translate) throw new Error('Use a multilingual model for translation');
-    for (const window of CW_CHUNKS.plan(audio, 15)) {
+    for (const window of CW_CHUNKS.plan(audio)) {
       const input = audio.subarray(window.start, window.end);
       let result = await inferOnnx(input, args, id);
       if (!result.text?.trim() && input.reduce((sum, value) => sum + value * value, 0) / input.length > 0.0001) {

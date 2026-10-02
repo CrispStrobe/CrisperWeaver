@@ -1,27 +1,32 @@
 # Browser hardening evidence — 2026-10-02
 
 These reports use real models and audio. The standard and Phonon reports came
-from GitHub Actions run [37003549562](https://github.com/CrispStrobe/CrisperWeaver/actions/runs/37003549562).
+from GitHub Actions run [37008639394](https://github.com/CrispStrobe/CrisperWeaver/actions/runs/37008639394).
 Each mode has a cold load and three independently loaded warm runs.
 
 | Model | Old single-thread median | 128 MiB SIMD median | Four-thread SIMD median |
 | --- | ---: | ---: | ---: |
-| Moonshine Q4 | 1,912 ms | 1,263 ms | 3,272 ms |
-| FastConformer Q4 | 7,405 ms | 3,722 ms | 4,763 ms |
-| Phonon Q4 | 37,185 ms | 16,090 ms | 10,093 ms |
+| Whisper tiny English | 20,002 ms | 7,940 ms | 3,362 ms |
+| Whisper base | 49,481 ms | 17,995 ms | 7,786 ms |
+| Moonshine Q4 | 1,872 ms | 1,267 ms | 3,099 ms |
+| FastConformer Q4 | 7,269 ms | 3,806 ms | 4,450 ms |
+| Phonon Q4 | 31,409 ms | 12,204 ms | 8,303 ms |
 
 All decoded transcripts match their same-model old CPU baseline. The newer
 variants enable WASM SIMD as well as reducing initial memory, so the timing
 improvement must not be attributed to the heap setting alone. Four threads
 are useful for Phonon and slower for Moonshine; the application keeps one
-thread by default. Whisper comparisons are running before any default runtime
-change.
+thread by default. All five native models pass decoded parity and three-warm-
+run timing comparisons; the smaller initial-heap SIMD runtime is now the
+default. Set `cw.browserLowMemoryRuntime=false` to compare the older runtime.
 
 Memory figures sample the sum of Chromium process-tree RSS, including the
 browser baseline and shared pages counted per process. They are neither live
 model allocations nor GPU memory. Phonon peaks near 2.5 GB in every mode;
 its smaller initial WASM allocation does not deliver a meaningful peak RSS
-reduction. These measurements do not guarantee that a constrained browser or
+reduction. Whisper tiny also grows beyond its initial allocation and its
+process RSS is slightly higher with the smaller heap; the runtime change is
+primarily a latency improvement for that model. These measurements do not guarantee that a constrained browser or
 mobile device can run Phonon.
 
 The ONNX GPU requests in these hosted CPU-runner reports fell back to WASM.

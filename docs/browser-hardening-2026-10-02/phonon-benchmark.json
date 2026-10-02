@@ -1,6 +1,6 @@
 {
   "target": "http://127.0.0.1:8766",
-  "created": "2026-10-02T12:04:29.864Z",
+  "created": "2026-10-02T12:48:35.393Z",
   "platform": "linux",
   "memoryScope": "Sampled sum of Chromium process-tree RSS, including browser baseline and shared pages counted per process; not live tensor memory or device VRAM.",
   "results": [
@@ -19,29 +19,32 @@
             "engine": "crispasr",
             "peakWasmBytes": 536870912,
             "cachedLoad": false,
-            "elapsedMs": 8576.01999999999,
+            "elapsedMs": 8119.6900000000605,
             "runtimeMode": "single",
             "cpuThreads": 1,
+            "dtype": null,
             "provider": "wasm",
             "fallbackReason": null,
-            "observedJsHeapBytes": 44700000
+            "observedJsHeapBytes": 47400000
           },
           "inference": {
             "operation": "transcribe",
             "model": "phonon2-q4_k",
             "engine": "crispasr",
             "peakWasmBytes": 896204800,
-            "elapsedMs": 38225.10500000001,
+            "elapsedMs": 31541.60499999998,
             "runtimeMode": "single",
             "cpuThreads": 1,
+            "dtype": null,
             "provider": "wasm",
             "fallbackReason": null,
             "audioSeconds": 11,
-            "observedJsHeapBytes": 44700000
+            "observedJsHeapBytes": 47400000
           },
           "transcript": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
-          "baselineBrowserRssBytes": 744550400,
-          "peakBrowserRssBytes": 2498953216,
+          "local": true,
+          "baselineBrowserRssBytes": 760537088,
+          "peakBrowserRssBytes": 2501865472,
           "baselineGpuMemory": null
         },
         {
@@ -52,29 +55,32 @@
             "engine": "crispasr",
             "peakWasmBytes": 536870912,
             "cachedLoad": true,
-            "elapsedMs": 4255.545000000013,
+            "elapsedMs": 3614.859999999986,
             "runtimeMode": "single",
             "cpuThreads": 1,
+            "dtype": null,
             "provider": "wasm",
             "fallbackReason": null,
-            "observedJsHeapBytes": 44700000
+            "observedJsHeapBytes": 47400000
           },
           "inference": {
             "operation": "transcribe",
             "model": "phonon2-q4_k",
             "engine": "crispasr",
             "peakWasmBytes": 896204800,
-            "elapsedMs": 37268.100000000006,
+            "elapsedMs": 31405.44000000006,
             "runtimeMode": "single",
             "cpuThreads": 1,
+            "dtype": null,
             "provider": "wasm",
             "fallbackReason": null,
             "audioSeconds": 11,
-            "observedJsHeapBytes": 44700000
+            "observedJsHeapBytes": 47400000
           },
           "transcript": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
-          "baselineBrowserRssBytes": 1189310464,
-          "peakBrowserRssBytes": 2605051904,
+          "local": true,
+          "baselineBrowserRssBytes": 1205096448,
+          "peakBrowserRssBytes": 2546683904,
           "baselineGpuMemory": null
         },
         {
@@ -85,29 +91,32 @@
             "engine": "crispasr",
             "peakWasmBytes": 536870912,
             "cachedLoad": true,
-            "elapsedMs": 4282.780000000028,
+            "elapsedMs": 3608.4049999999115,
             "runtimeMode": "single",
             "cpuThreads": 1,
+            "dtype": null,
             "provider": "wasm",
             "fallbackReason": null,
-            "observedJsHeapBytes": 44700000
+            "observedJsHeapBytes": 47400000
           },
           "inference": {
             "operation": "transcribe",
             "model": "phonon2-q4_k",
             "engine": "crispasr",
             "peakWasmBytes": 896204800,
-            "elapsedMs": 37185.244999999995,
+            "elapsedMs": 31492.04999999993,
             "runtimeMode": "single",
             "cpuThreads": 1,
+            "dtype": null,
             "provider": "wasm",
             "fallbackReason": null,
             "audioSeconds": 11,
-            "observedJsHeapBytes": 44700000
+            "observedJsHeapBytes": 47400000
           },
           "transcript": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
-          "baselineBrowserRssBytes": 1199738880,
-          "peakBrowserRssBytes": 2582929408,
+          "local": true,
+          "baselineBrowserRssBytes": 1213714432,
+          "peakBrowserRssBytes": 2540273664,
           "baselineGpuMemory": null
         },
         {
@@ -118,29 +127,32 @@
             "engine": "crispasr",
             "peakWasmBytes": 536870912,
             "cachedLoad": true,
-            "elapsedMs": 4262.265000000014,
+            "elapsedMs": 3576.350000000093,
             "runtimeMode": "single",
             "cpuThreads": 1,
+            "dtype": null,
             "provider": "wasm",
             "fallbackReason": null,
-            "observedJsHeapBytes": 44700000
+            "observedJsHeapBytes": 47400000
           },
           "inference": {
             "operation": "transcribe",
             "model": "phonon2-q4_k",
             "engine": "crispasr",
             "peakWasmBytes": 896204800,
-            "elapsedMs": 36957.375,
+            "elapsedMs": 31408.584999999963,
             "runtimeMode": "single",
             "cpuThreads": 1,
+            "dtype": null,
             "provider": "wasm",
             "fallbackReason": null,
             "audioSeconds": 11,
-            "observedJsHeapBytes": 44700000
+            "observedJsHeapBytes": 47400000
           },
           "transcript": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
-          "baselineBrowserRssBytes": 1195896832,
-          "peakBrowserRssBytes": 2593366016,
+          "local": true,
+          "baselineBrowserRssBytes": 1211666432,
+          "peakBrowserRssBytes": 2568818688,
           "baselineGpuMemory": null
         }
       ],
@@ -149,7 +161,7 @@
         "vendor": "google",
         "architecture": "swiftshader"
       },
-      "medianWarmInferenceMs": 37185.244999999995
+      "medianWarmInferenceMs": 31408.584999999963
     },
     {
       "engine": "crispasr",
@@ -166,9 +178,10 @@
             "engine": "crispasr",
             "peakWasmBytes": 509476864,
             "cachedLoad": false,
-            "elapsedMs": 9288.309999999998,
+            "elapsedMs": 12320.380000000121,
             "runtimeMode": "single",
             "cpuThreads": 1,
+            "dtype": null,
             "provider": "wasm",
             "fallbackReason": null,
             "observedJsHeapBytes": 53500000
@@ -178,17 +191,19 @@
             "model": "phonon2-q4_k",
             "engine": "crispasr",
             "peakWasmBytes": 886702080,
-            "elapsedMs": 16190.445000000007,
+            "elapsedMs": 12354.465000000084,
             "runtimeMode": "single",
             "cpuThreads": 1,
+            "dtype": null,
             "provider": "wasm",
             "fallbackReason": null,
             "audioSeconds": 11,
             "observedJsHeapBytes": 53500000
           },
           "transcript": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
-          "baselineBrowserRssBytes": 747024384,
-          "peakBrowserRssBytes": 2499432448,
+          "local": true,
+          "baselineBrowserRssBytes": 750739456,
+          "peakBrowserRssBytes": 2504048640,
           "baselineGpuMemory": null
         },
         {
@@ -199,9 +214,10 @@
             "engine": "crispasr",
             "peakWasmBytes": 509476864,
             "cachedLoad": true,
-            "elapsedMs": 4264.959999999963,
+            "elapsedMs": 3628.7899999998044,
             "runtimeMode": "single",
             "cpuThreads": 1,
+            "dtype": null,
             "provider": "wasm",
             "fallbackReason": null,
             "observedJsHeapBytes": 53500000
@@ -211,17 +227,19 @@
             "model": "phonon2-q4_k",
             "engine": "crispasr",
             "peakWasmBytes": 886702080,
-            "elapsedMs": 16089.829999999958,
+            "elapsedMs": 12121.694999999832,
             "runtimeMode": "single",
             "cpuThreads": 1,
+            "dtype": null,
             "provider": "wasm",
             "fallbackReason": null,
             "audioSeconds": 11,
             "observedJsHeapBytes": 53500000
           },
           "transcript": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
-          "baselineBrowserRssBytes": 1223938048,
-          "peakBrowserRssBytes": 2467467264,
+          "local": true,
+          "baselineBrowserRssBytes": 1230995456,
+          "peakBrowserRssBytes": 2404302848,
           "baselineGpuMemory": null
         },
         {
@@ -232,9 +250,10 @@
             "engine": "crispasr",
             "peakWasmBytes": 509476864,
             "cachedLoad": true,
-            "elapsedMs": 4248.354999999981,
+            "elapsedMs": 3626.7099999999627,
             "runtimeMode": "single",
             "cpuThreads": 1,
+            "dtype": null,
             "provider": "wasm",
             "fallbackReason": null,
             "observedJsHeapBytes": 53500000
@@ -244,17 +263,19 @@
             "model": "phonon2-q4_k",
             "engine": "crispasr",
             "peakWasmBytes": 886702080,
-            "elapsedMs": 16196.784999999974,
+            "elapsedMs": 12204.27500000014,
             "runtimeMode": "single",
             "cpuThreads": 1,
+            "dtype": null,
             "provider": "wasm",
             "fallbackReason": null,
             "audioSeconds": 11,
             "observedJsHeapBytes": 53500000
           },
           "transcript": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
-          "baselineBrowserRssBytes": 1193877504,
-          "peakBrowserRssBytes": 2468929536,
+          "local": true,
+          "baselineBrowserRssBytes": 1204019200,
+          "peakBrowserRssBytes": 2490253312,
           "baselineGpuMemory": null
         },
         {
@@ -265,9 +286,10 @@
             "engine": "crispasr",
             "peakWasmBytes": 509476864,
             "cachedLoad": true,
-            "elapsedMs": 4238.474999999977,
+            "elapsedMs": 3612.9150000000373,
             "runtimeMode": "single",
             "cpuThreads": 1,
+            "dtype": null,
             "provider": "wasm",
             "fallbackReason": null,
             "observedJsHeapBytes": 53500000
@@ -277,17 +299,19 @@
             "model": "phonon2-q4_k",
             "engine": "crispasr",
             "peakWasmBytes": 886702080,
-            "elapsedMs": 15984.125,
+            "elapsedMs": 12517.439999999944,
             "runtimeMode": "single",
             "cpuThreads": 1,
+            "dtype": null,
             "provider": "wasm",
             "fallbackReason": null,
             "audioSeconds": 11,
             "observedJsHeapBytes": 53500000
           },
           "transcript": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
-          "baselineBrowserRssBytes": 1199964160,
-          "peakBrowserRssBytes": 2465284096,
+          "local": true,
+          "baselineBrowserRssBytes": 1210466304,
+          "peakBrowserRssBytes": 2481917952,
           "baselineGpuMemory": null
         }
       ],
@@ -296,7 +320,7 @@
         "vendor": "google",
         "architecture": "swiftshader"
       },
-      "medianWarmInferenceMs": 16089.829999999958,
+      "medianWarmInferenceMs": 12204.27500000014,
       "transcriptParity": true
     },
     {
@@ -314,29 +338,32 @@
             "engine": "crispasr",
             "peakWasmBytes": 529661952,
             "cachedLoad": false,
-            "elapsedMs": 9674.214999999967,
+            "elapsedMs": 10555.560000000056,
             "runtimeMode": "threaded",
             "cpuThreads": 4,
+            "dtype": null,
             "provider": "wasm",
             "fallbackReason": null,
-            "observedJsHeapBytes": 44700000
+            "observedJsHeapBytes": 42100000
           },
           "inference": {
             "operation": "transcribe",
             "model": "phonon2-q4_k",
             "engine": "crispasr",
-            "peakWasmBytes": 1014038528,
-            "elapsedMs": 10163.295000000042,
+            "peakWasmBytes": 1014693888,
+            "elapsedMs": 8772.964999999851,
             "runtimeMode": "threaded",
             "cpuThreads": 4,
+            "dtype": null,
             "provider": "wasm",
             "fallbackReason": null,
             "audioSeconds": 11,
-            "observedJsHeapBytes": 44700000
+            "observedJsHeapBytes": 42100000
           },
           "transcript": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
-          "baselineBrowserRssBytes": 748523520,
-          "peakBrowserRssBytes": 2529767424,
+          "local": true,
+          "baselineBrowserRssBytes": 754913280,
+          "peakBrowserRssBytes": 2508824576,
           "baselineGpuMemory": null
         },
         {
@@ -347,29 +374,32 @@
             "engine": "crispasr",
             "peakWasmBytes": 529661952,
             "cachedLoad": true,
-            "elapsedMs": 4477.054999999993,
+            "elapsedMs": 3784.034999999916,
             "runtimeMode": "threaded",
             "cpuThreads": 4,
+            "dtype": null,
             "provider": "wasm",
             "fallbackReason": null,
-            "observedJsHeapBytes": 44700000
+            "observedJsHeapBytes": 42100000
           },
           "inference": {
             "operation": "transcribe",
             "model": "phonon2-q4_k",
             "engine": "crispasr",
-            "peakWasmBytes": 915341312,
-            "elapsedMs": 10092.619999999995,
+            "peakWasmBytes": 903348224,
+            "elapsedMs": 8302.844999999972,
             "runtimeMode": "threaded",
             "cpuThreads": 4,
+            "dtype": null,
             "provider": "wasm",
             "fallbackReason": null,
             "audioSeconds": 11,
-            "observedJsHeapBytes": 44700000
+            "observedJsHeapBytes": 42100000
           },
           "transcript": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
-          "baselineBrowserRssBytes": 1229389824,
-          "peakBrowserRssBytes": 2502643712,
+          "local": true,
+          "baselineBrowserRssBytes": 1646485504,
+          "peakBrowserRssBytes": 2470928384,
           "baselineGpuMemory": null
         },
         {
@@ -380,29 +410,32 @@
             "engine": "crispasr",
             "peakWasmBytes": 529661952,
             "cachedLoad": true,
-            "elapsedMs": 4463.714999999967,
+            "elapsedMs": 3751.4850000001024,
             "runtimeMode": "threaded",
             "cpuThreads": 4,
+            "dtype": null,
             "provider": "wasm",
             "fallbackReason": null,
-            "observedJsHeapBytes": 44700000
+            "observedJsHeapBytes": 42100000
           },
           "inference": {
             "operation": "transcribe",
             "model": "phonon2-q4_k",
             "engine": "crispasr",
             "peakWasmBytes": 903348224,
-            "elapsedMs": 9883.820000000007,
+            "elapsedMs": 8139.764999999898,
             "runtimeMode": "threaded",
             "cpuThreads": 4,
+            "dtype": null,
             "provider": "wasm",
             "fallbackReason": null,
             "audioSeconds": 11,
-            "observedJsHeapBytes": 44700000
+            "observedJsHeapBytes": 42100000
           },
           "transcript": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
-          "baselineBrowserRssBytes": 1205653504,
-          "peakBrowserRssBytes": 2505625600,
+          "local": true,
+          "baselineBrowserRssBytes": 1210482688,
+          "peakBrowserRssBytes": 2499457024,
           "baselineGpuMemory": null
         },
         {
@@ -413,29 +446,32 @@
             "engine": "crispasr",
             "peakWasmBytes": 529661952,
             "cachedLoad": true,
-            "elapsedMs": 4507.300000000047,
+            "elapsedMs": 3861.7649999998976,
             "runtimeMode": "threaded",
             "cpuThreads": 4,
+            "dtype": null,
             "provider": "wasm",
             "fallbackReason": null,
-            "observedJsHeapBytes": 44700000
+            "observedJsHeapBytes": 42100000
           },
           "inference": {
             "operation": "transcribe",
             "model": "phonon2-q4_k",
             "engine": "crispasr",
-            "peakWasmBytes": 903348224,
-            "elapsedMs": 10221.92499999993,
+            "peakWasmBytes": 1014693888,
+            "elapsedMs": 8378.280000000028,
             "runtimeMode": "threaded",
             "cpuThreads": 4,
+            "dtype": null,
             "provider": "wasm",
             "fallbackReason": null,
             "audioSeconds": 11,
-            "observedJsHeapBytes": 44700000
+            "observedJsHeapBytes": 42100000
           },
           "transcript": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
-          "baselineBrowserRssBytes": 1219309568,
-          "peakBrowserRssBytes": 2475147264,
+          "local": true,
+          "baselineBrowserRssBytes": 1609691136,
+          "peakBrowserRssBytes": 2459189248,
           "baselineGpuMemory": null
         }
       ],
@@ -444,7 +480,7 @@
         "vendor": "google",
         "architecture": "swiftshader"
       },
-      "medianWarmInferenceMs": 10092.619999999995,
+      "medianWarmInferenceMs": 8302.844999999972,
       "transcriptParity": true
     }
   ],
