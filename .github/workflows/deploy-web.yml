@@ -180,7 +180,7 @@ jobs:
     needs: build
     if: needs.build.outputs.deployed == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
