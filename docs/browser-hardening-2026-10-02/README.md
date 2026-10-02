@@ -1,7 +1,10 @@
 # Browser hardening evidence — 2026-10-02
 
 These reports use real models and audio. The standard and Phonon reports came
-from GitHub Actions run [37008639394](https://github.com/CrispStrobe/CrisperWeaver/actions/runs/37008639394).
+from the successful [standard](https://github.com/CrispStrobe/CrisperWeaver/actions/runs/37008639394/job/110843438808)
+and [Phonon](https://github.com/CrispStrobe/CrisperWeaver/actions/runs/37008639394/job/110843438825)
+benchmark jobs in run 37008639394. That run's older smoke suite failed; its
+benchmark jobs passed independently.
 Each mode has a cold load and three independently loaded warm runs.
 
 | Model | Old single-thread median | 128 MiB SIMD median | Four-thread SIMD median |
@@ -41,8 +44,8 @@ physical-GPU validation. Warm medians: Moonshine CPU q8 1,758 ms versus GPU
 fp32 2,046 ms; Whisper tiny English CPU q8 4,428 ms versus GPU fp32 1,925 ms.
 Precision differs between providers; this measures each supported execution
 path, not equivalent-precision kernel speed. The GPU remains optional: one
-NVIDIA driver/model pair does not validate all devices or every catalogue
-model. GPU memory samples are device-wide and may include other processes.
+NVIDIA device family and two models do not validate all devices or every
+catalogue model. GPU memory samples are device-wide and may include other processes.
 
 Runtime regression coverage passes two/four-thread ASR, downloads-disabled
 worker reload and cancellation in Chromium, Firefox and WebKit. All three
@@ -63,4 +66,9 @@ and scored 6.8% WER, including an inserted phrase; retention assertions allow
 insertions while the WER bound constrains them. Single-thread Kokoro is much
 slower in Firefox: the original eleven-word synthesis took about eight minutes
 on the hosted CPU runner. The UI/offline WAV check uses shorter real speech
-and a budget for two serial workers. Final Full/Lite matrices remain pending.
+and a budget for two serial workers; the revised Firefox runtime/UI check
+passes in 7.7 minutes. The final Full matrix passes 39 tests per browser
+(two Lite-only tests skipped) in Chromium, Firefox and WebKit. Lite passes
+41 per browser in the same matrix. All six jobs pass without retries.
+See [Full](https://github.com/CrispStrobe/CrisperWeaver/actions/runs/37022826125)
+and [Lite](https://github.com/CrispStrobe/CrisperWeaver/actions/runs/37022830567).

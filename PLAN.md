@@ -41,8 +41,10 @@ below are historical and are not a claim about the current complete suite.
 **Current work.** Full and Lite browser deployments run local speech inference.
 Phonon-2 Q4 passed an isolated Chromium assessment after fixing resizable
 WASM memory compatibility; it remains experimental because a constrained
-host crashed during an earlier loading attempt. Default production suites
-passed 15 tests for Full and 17 for Lite. See [HISTORY.md](HISTORY.md#lite-and-local-browser-speech-2026-10-02)
+host crashed during an earlier loading attempt. The final compiled-artifact matrices pass
+39 tests per browser for Full and 41 for Lite in Chromium, Firefox and WebKit.
+All six browser follow-ups are complete, including real Tesla T4 validation
+and deadlock-free threaded ASR/TTS. See [HISTORY.md](HISTORY.md#browser-hardening-and-threaded-local-speech-2026-10-02)
 and [web-e2e/README.md](web-e2e/README.md) for the exact scope and evidence.
 The signed macOS Lite CI artifact has been built; this work has not uploaded
 or submitted Lite to Apple. Storefront changes and App Review remain separate
@@ -85,53 +87,6 @@ question is **"has anyone walked this path on a real build?"** — see §B6.
 ## B. What to do next
 
 Ordered. Each item states what "done" means, so it can be picked up cold.
-
-### NOW — browser hardening (2026-10-02)
-
-Active worktree `/mnt/volume1/cw-browser-hardening`, branch
-`feat/browser-hardening`; upstream binding work in `/mnt/volume1/cw-asr-threads`.
-Implement all six follow-ups: Firefox/WebKit inference coverage, continuous
-multilingual/noisy recording fixtures, quota/eviction/reload recovery, reduced
-heap and model-loading memory with A/B proof, physical-GPU benchmark harness,
-and deadlock-free proxy-to-pthread ASR/TTS integration. Preserve the existing
-single-thread path and Lite policy throughout.
-
-Checkpoint: WASM CI 37004439151 passed all five variants at 70e15c9a0;
-the two 128 MiB browser artifacts are pinned here. Real two- and four-thread
-ASR, offline reload and cancellation pass in Chromium, Firefox and WebKit.
-All three also pass threaded TTS→ASR. Native bindings merged to CrispASR main
-at 2e936f5a1; browser artifacts retain their tested immutable 70e15c9a0 pin.
-All 12 quota/interruption/eviction/reload checks pass across the three browsers.
-Native analyze, tests and both desktop builds passed run 37002105924; the new
-thread settings test, analysis and both desktop builds pass run 37008726830.
-
-Five-model CPU A/B reports (three warm repetitions, decoded parity) are in
-`docs/browser-hardening-2026-10-02/`: the 128 MiB SIMD variant improves Moonshine,
-FastConformer and Phonon latency. Phonon's peak process RSS barely changes;
-threading helps Phonon but hurts Moonshine. Whisper tiny/base A/B also pass decoded parity and three warm repetitions;
-SIMD single-thread is now the default, with the original runtime available
-through `cw.browserLowMemoryRuntime=false`. One CPU thread remains default.
-
-Physical Tesla T4 WebGPU v1 exposed wrong output with q8 Moonshine and an
-alignment failure with q8 Whisper. The worker now requests fp32 GPU weights
-and retries operator failures in a fresh CPU worker. Kaggle v2 passes
-on physical Tesla T4: both models use WebGPU, complete three warm repetitions
-and match decoded CPU transcripts. Reports include actual provider, precision,
-RSS and device-wide VRAM scope. CPU fallback is never
-counted as successful GPU validation.
-
-Whisper A/B passed run 37008639394. Final compiled-artifact validation is
-queued/running at 84bc138 for Full (37022826125) and Lite (37022830567).
-Earlier smoke failures identified cache assertions, missing timestamp output,
-a worker test route that missed the heap query, and insufficient Firefox
-TTS fixture time. Firefox retains all six English utterances with 6.8% WER;
-retention checks allow acoustic insertions while bounding overall word error. Continuous English retention regressed with the wider pause
-search; Whisper retries energetic windows that timestamp mode omitted using text-
-only decoding and honest chunk-level timestamps. The 30-second window budget
-is preserved; shorter windows added cost without fixing the underlying issue. French/German noisy fixtures compare
-long-audio WER against the same model's isolated clip and count retained
-utterances; these small-model fixtures have substantial absolute acoustic
-errors and are not evidence of high multilingual accuracy.
 
 ### B0. Browser optimization follow-up
 

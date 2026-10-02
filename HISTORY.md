@@ -11,6 +11,54 @@ pending.
 
 ---
 
+## Browser hardening and threaded local speech (2026-10-02)
+
+Completed all six browser follow-ups for Full and Lite: Firefox/WebKit real
+inference and UI coverage, continuous multilingual/noisy recording checks,
+quota/eviction/interruption/reload recovery, measured loading-memory/runtime
+improvements, physical GPU validation, and asynchronous threaded ASR/TTS.
+
+Final compiled-artifact matrices pass without retries in Chromium, Firefox
+and WebKit: [Full](https://github.com/CrispStrobe/CrisperWeaver/actions/runs/37022826125)
+passes 39 tests per browser (two Lite-only skipped), and
+[Lite](https://github.com/CrispStrobe/CrisperWeaver/actions/runs/37022830567)
+passes 41. Coverage includes real two/four-thread ASR, threaded Kokoro→ASR,
+worker cancellation and CPU recovery, offline inference/WAV output, cache
+integrity, retained utterances and bounded timestamps. Lite rejects remote
+AI endpoints and permits model downloads. Firefox's shorter real runtime/UI
+synthesis fixture passes within its serial-worker budget.
+
+CrispASR async proxy-to-pthread bindings are merged upstream at `2e936f5a1`.
+All five [WASM variants](https://github.com/CrispStrobe/CrispASR/actions/runs/37004439151)
+passed. Bundled artifacts retain the exact tested `70e15c9a0` source, preserved
+under tag `cw-browser-wasm-2026-10-02`. The servicer remains available while
+compute runs asynchronously; terminating the owning worker cancels its pool.
+
+Five native models pass decoded parity against the older runtime and at least
+three warm timing repetitions. The 128 MiB SIMD runtime is now default;
+one CPU thread remains default because threading slows Moonshine. The older
+512 MiB runtime remains available for rollback. ONNX download verification
+uses bounded staging; verified weights of every size use IndexedDB chunks.
+Phonon still peaks near 2.5 GB process RSS and remains experimental.
+
+Physical Kaggle Tesla T4 runs exposed incorrect q8 GPU output/alignment.
+GPU processing now uses fp32 weights and fresh-worker CPU recovery. Moonshine
+tiny and Whisper tiny English complete actual GPU inference, three warm runs
+and decoded CPU parity. Their supported CPU q8 and GPU fp32 paths use different
+precision; one device family does not establish general GPU compatibility.
+CPU remains default and GPU remains warning-gated.
+
+Continuous English retains all six utterances; Firefox's 6.8% WER includes an
+acoustic insertion. Noisy French/German fixtures compare long-audio retention
+against isolated-clip accuracy, which remains weak for these small models.
+Whisper retries energetic windows omitted by timestamp decoding and reports
+honest chunk timing for those fallback windows.
+
+[Native CI](https://github.com/CrispStrobe/CrisperWeaver/actions/runs/37008726830)
+passes analysis, tests and both macOS/Linux desktop builds. Reports, timings,
+memory scope and remaining device limitations are retained in
+[the evidence directory](docs/browser-hardening-2026-10-02/README.md).
+
 ## Browser runtime optimizations (2026-10-02)
 
 Implemented the first iteration of all four PLAN B0 priorities for Full and

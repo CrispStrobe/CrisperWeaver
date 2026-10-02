@@ -132,21 +132,23 @@ also passed through verified chunk storage: 12.14 s load, 31.10 s inference,
 browser allocations and is not comparable to whole-browser RSS above.
 
 
-## Browser hardening validation (in progress)
+## Browser hardening validation (2026-10-02)
 
 Two/four-thread real ASR, cancellation and downloads-disabled reload pass in
 Chromium, Firefox and WebKit. All three pass four-thread Kokoro→Moonshine
 round trips. The 12 storage-recovery checks and the three fresh-worker GPU
-recovery controls pass. Compiled Full/Lite CI is still running; build/export
-checks alone do not prove inference. Evidence and benchmark scope are recorded
+recovery controls pass. Final compiled-artifact matrices pass without retries
+in all three browsers: [Full](https://github.com/CrispStrobe/CrisperWeaver/actions/runs/37022826125)
+39 tests per browser (two Lite-only skipped), [Lite](https://github.com/CrispStrobe/CrisperWeaver/actions/runs/37022830567)
+41. Build/export checks alone do not prove inference. Evidence and benchmark scope are recorded
 in [the report](../docs/browser-hardening-2026-10-02/README.md).
 
 The browser matrix now includes Chromium, Firefox and WebKit for both flavors.
 To validate a compiled artifact on isolated runners before changing production:
 
 ```sh
-gh workflow run deploy-web.yml --ref feat/browser-hardening -f flavor=full -f validate_only=true -f benchmark_models=true
-gh workflow run deploy-web.yml --ref feat/browser-hardening -f flavor=lite -f validate_only=true
+gh workflow run deploy-web.yml --ref main -f flavor=full -f validate_only=true -f benchmark_models=true
+gh workflow run deploy-web.yml --ref main -f flavor=lite -f validate_only=true
 ```
 
 Recording checks use continuous repeated English speech and real French/German

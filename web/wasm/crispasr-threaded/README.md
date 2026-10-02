@@ -1,12 +1,12 @@
 CrispASR proxy-to-pthread WASM, initial memory 128 MiB (grows as needed).
-Source: 70e15c9a0 (feat/cw-browser-threads)
+Source: 70e15c9a0 (tag cw-browser-wasm-2026-10-02)
 CI: https://github.com/CrispStrobe/CrispASR/actions/runs/37004439151
 Artifact: crispasr-wasm-proxy-to-pthread-lowheap
 
 The threaded integration starts its compute thread outside message handlers and
-uses async model-open/transcription/synthesis bindings. Keep the original
-single-thread runtime as the default until correctness/performance comparison
-passes. Browser worker termination cancels the complete runtime and its pool.
+uses async model-open/transcription/synthesis bindings. The smaller SIMD single-thread runtime is the default after five-model
+decoded parity and three-warm-run comparisons. Threading stays opt-in because
+it slows some models; the original 512 MiB runtime remains for rollback. Browser worker termination cancels the complete runtime and its pool.
 Native Dart package pins are independent.
 
 SHA256:
