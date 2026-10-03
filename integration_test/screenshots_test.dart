@@ -16,6 +16,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
 
+import 'package:crisper_weaver/constants/build_flavor.dart';
+import 'package:crisper_weaver/engines/engine_factory.dart';
 import 'package:crisper_weaver/main.dart' as app;
 import 'package:crisper_weaver/services/ios_helpers.dart';
 import 'package:flutter/material.dart';
@@ -27,6 +29,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+const _flavor = String.fromEnvironment('SHOT_FLAVOR', defaultValue: 'full');
 const _device = String.fromEnvironment('SHOT_DEVICE', defaultValue: 'iphone');
 const _locale = String.fromEnvironment('SHOT_LOCALE', defaultValue: 'en');
 const _prefix = String.fromEnvironment('SHOT_PREFIX', defaultValue: 'shot');
@@ -98,6 +101,18 @@ void main() {
   }
 
   testWidgets('capture store screenshots', (tester) async {
+    expect(_flavor, isIn(['full', 'lite']));
+    expect(BuildFlavor.name, _flavor,
+        reason: 'Screenshot flavor must match the compiled product.');
+    if (BuildFlavor.isLite) {
+      expect(BuildFlavor.appName, 'CrisperWeaver Lite');
+      expect(EngineFactory.getAvailableEngines(),
+          isNot(contains(EngineType.hfspace)));
+      expect(() => EngineFactory.create(EngineType.hfspace),
+          throwsUnsupportedError);
+      expect(BuildFlavor.allowModelDownloads, isTrue);
+    }
+    debugPrint('Seeded UI capture for ${BuildFlavor.appName}; no inference.');
     final t = _target;
     tester.view.physicalSize = t.logical * t.ratio;
     tester.view.devicePixelRatio = t.ratio;
@@ -134,9 +149,9 @@ void main() {
       await tester.enterText(
         field.first,
         _de
-            ? 'Willkommen bei CrisperWeaver. Alles läuft direkt auf deinem '
+            ? 'Willkommen bei ${BuildFlavor.appName}. Alles läuft direkt auf deinem '
                 'Gerät – privat, schnell und ohne Cloud.'
-            : 'Welcome to CrisperWeaver. Everything runs right on your '
+            : 'Welcome to ${BuildFlavor.appName}. Everything runs right on your '
                 'device — private, fast, and without the cloud.',
       );
       FocusManager.instance.primaryFocus?.unfocus();

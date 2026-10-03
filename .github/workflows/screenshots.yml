@@ -2,11 +2,20 @@ name: App Store Screenshots
 
 # Seeded store screenshots (integration_test/screenshots_test.dart) at exact
 # App Store sizes: iPhone 6.9" 1320x2868, iPad 13" 2064x2752, Mac 2880x1800.
-# Uploaded as one artifact per locale.
+# Uploaded as one artifact per flavor. Seeded UI examples; no inference proof.
 
 on:
   workflow_dispatch:
     inputs:
+      flavor:
+        description: 'Product flavor to capture'
+        type: choice
+        options: [full, lite]
+        default: full
+      mac_only:
+        description: 'Capture macOS only; skip iOS builds and simulators'
+        type: boolean
+        default: false
       locales:
         description: 'Space-separated app languages to capture'
         type: string
@@ -67,6 +76,7 @@ jobs:
       # simulator build fails without it (the Sep 12 runs). Same scripts as
       # the release IPA, which build a simulator slice alongside the device one.
       - name: Build crispasr.xcframework
+        if: ${{ !inputs.mac_only }}
         working-directory: repos/CrisperWeaver
         env:
           CRISPASR_DIR: ${{ github.workspace }}/repos/CrispASR
@@ -75,12 +85,14 @@ jobs:
         run: bash scripts/build_ios_xcframework.sh
 
       - name: Wire crispasr.xcframework
+        if: ${{ !inputs.mac_only }}
         working-directory: repos/CrisperWeaver
         run: |
           gem install xcodeproj --no-document
           ruby scripts/wire_ios_xcframework.rb
 
       - name: Build + wire glint.xcframework
+        if: ${{ !inputs.mac_only }}
         working-directory: repos/CrisperWeaver
         env:
           GLINT_DIR: ${{ github.workspace }}/repos/glint
@@ -95,7 +107,19 @@ jobs:
           flutter config --no-enable-swift-package-manager
           flutter pub get
 
+      - name: Build native macOS dependencies and debug app
+        if: ${{ inputs.macos || inputs.mac_only }}
+        working-directory: repos/CrisperWeaver
+        env:
+          CRISPASR_DIR: ${{ github.workspace }}/repos/CrispASR
+          CRISPEMBED_DIR: ${{ github.workspace }}/repos/CrispEmbed
+          GLINT_DIR: ${{ github.workspace }}/repos/glint
+          CW_FLAVOR: ${{ inputs.flavor }}
+          CW_LITE_DOWNLOADS: "true"
+        run: bash scripts/build_macos.sh debug
+
       - name: Boot simulators
+        if: ${{ !inputs.mac_only }}
         run: |
           set -euo pipefail
           pick() {
@@ -122,6 +146,8 @@ jobs:
         env:
           LOCALES: ${{ inputs.locales }}
           WITH_MACOS: ${{ inputs.macos }}
+          MAC_ONLY: ${{ inputs.mac_only }}
+          CW_FLAVOR: ${{ inputs.flavor }}
         run: |
           # Not -e (GitHub's default): one failed capture must not stop the rest.
           set +e -u
@@ -139,7 +165,9 @@ jobs:
           capture() { # device-id shot-device locale
             flutter test integration_test/screenshots_test.dart -d "$1" \
               --dart-define=SHOT_DEVICE="$2" --dart-define=SHOT_LOCALE="$3" \
-              --dart-define=SHOT_PREFIX="$2_$3" --dart-define=SHOT_HOST_DIR="$OUT" &
+              --dart-define=CW_FLAVOR="$CW_FLAVOR" --dart-define=CW_LITE_DOWNLOADS=true \
+              --dart-define=SHOT_FLAVOR="$CW_FLAVOR" \
+              --dart-define=SHOT_PREFIX="${CW_FLAVOR}_${2}_${3}" --dart-define=SHOT_HOST_DIR="$OUT" &
             local pid=$!
             ( sleep 900; echo "::warning::$2 $3 timed out"; touch /tmp/cw-timeout; kill -TERM $pid ) &
             local dog=$!
@@ -152,11 +180,13 @@ jobs:
             fi
           }
           for loc in $LOCALES; do
-            capture "$IPHONE_UDID" iphone "$loc"
-            collect ~/Library/Developer/CoreSimulator/Devices
-            capture "$IPAD_UDID" ipad "$loc"
-            collect ~/Library/Developer/CoreSimulator/Devices
-            if [ "$WITH_MACOS" = "true" ]; then
+            if [ "$MAC_ONLY" != "true" ]; then
+              capture "$IPHONE_UDID" iphone "$loc"
+              collect ~/Library/Developer/CoreSimulator/Devices
+              capture "$IPAD_UDID" ipad "$loc"
+              collect ~/Library/Developer/CoreSimulator/Devices
+            fi
+            if [ "$WITH_MACOS" = "true" ] || [ "$MAC_ONLY" = "true" ]; then
               capture macos mac "$loc"
               collect ~/Library/Containers "${TMPDIR:-/tmp}"
             fi
@@ -167,10 +197,25 @@ jobs:
           done
           exit $failed
 
+      - name: Describe screenshot evidence
+        if: always()
+        env:
+          CW_FLAVOR: ${{ inputs.flavor }}
+          LOCALES: ${{ inputs.locales }}
+          MAC_ONLY: ${{ inputs.mac_only }}
+        run: |
+          {
+            echo "## Store screenshots: $CW_FLAVOR"
+            echo "Locales: $LOCALES. macOS only: $MAC_ONLY."
+            echo "These are seeded UI examples, with example transcript history and sparse placeholder model files."
+            echo "No speech inference is run during capture; these images do not validate model accuracy or inference capability."
+            echo "Artifact: app-store-screenshots-$CW_FLAVOR. Filenames include flavor, device and locale."
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Upload screenshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: app-store-screenshots
+          name: app-store-screenshots-${{ inputs.flavor }}
           path: screenshots/*.png
           if-no-files-found: error
