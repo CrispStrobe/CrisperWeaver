@@ -937,5 +937,31 @@
       "root mailbox dispatch and peer forwarding"
     ],
     "negative_control": "Removing root-target normalization reproduces a dropped mailbox wakeup."
+  },
+  "production_after_cache_fix": {
+    "source_commit": "c30ae2638c7608451418c0600878aa15e45f3842",
+    "full": {
+      "run_id": 37048167419,
+      "passed_per_browser": 42,
+      "lite_only_skips_per_browser": 2
+    },
+    "lite": {
+      "run_id": 37048174888,
+      "passed_per_browser": 44
+    },
+    "browsers": [
+      "chromium",
+      "firefox",
+      "webkit"
+    ],
+    "all_jobs_success": true,
+    "retries": 0,
+    "live_worker_files_match_source": true,
+    "ordinary_worker_headers": {
+      "Cache-Control": "no-store",
+      "Cross-Origin-Opener-Policy": "same-origin",
+      "Cross-Origin-Embedder-Policy": "require-corp"
+    },
+    "conditional_response_limitation": "Forced conditional 304 responses still omit isolation headers; no-store avoids that browser revalidation path."
   }
 }

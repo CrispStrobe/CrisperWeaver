@@ -99,24 +99,30 @@ transcription,speech-to-text,offline,whisper,tts,voice,audio,dictation,ASR,capti
 ## App Privacy questionnaire (App Store Connect) / Data safety (Play)
 
 Answer these from the PRIVACY section above, not from "it's an offline
-app". The developer collects nothing, but two opt-in features transmit
-data to third parties, and both consoles ask about transmission rather
-than about who ends up holding it.
+app". There is no developer backend; optional cloud features and model
+downloads still communicate with third parties. Off-device transmission is
+distinct from Apple's retention-based definition of collection. Check the
+actual provider practices when completing each store's form.
 
 - **Data collected by the developer:** None. There is no backend, no
   account system and no analytics SDK.
-- **Data transmitted off-device:** Only via the two opt-in features.
-  Cloud transcription transmits **audio** to a HuggingFace Space; cloud
+- **AI data transmitted off-device in Full:** Cloud transcription transmits
+  **audio** to a HuggingFace Space; cloud
   cleanup/summarisation transmits **transcript text** to a user-supplied
   endpoint. Neither is enabled by default, and neither routes through
   infrastructure this project operates.
 - **Tracking:** None. `NSPrivacyTracking` is false and there are no
   tracking domains.
 - **Third-party SDKs:** None that collect data. Model downloads are
-  plain HTTPS GETs to HuggingFace with no personal data attached.
+  plain HTTPS GETs to HuggingFace without audio or transcripts. Download
+  hosts receive connection metadata; native authenticated model requests
+  also include an optional user-configured access token.
 
-If either opt-in feature is ever made reachable by default, both console
-answers and the PRIVACY section have to be revisited in the same change.
+Lite disables the cloud-processing routes above. Its model downloads still
+expose connection information and optional authentication. See the
+[Lite handoff](docs/appstore-2026-10-03/README.md#lite-privacy-form-evidence)
+and [Apple's collection definition](https://developer.apple.com/app-store/app-privacy-details/).
+Revisit privacy answers whenever network behavior or provider retention changes.
 
 ## Screenshots Required
 
@@ -161,6 +167,8 @@ come from a Lite build and show its actual settings and available engines.
 **App name:** CrisperWeaver Lite
 
 **Subtitle:** Local Transcription & TTS
+
+**Keywords:** transcription,dictation,voice,audio,offline,local,speech,notes,translation,search
 
 **Promotional text:** Transcribe audio, generate speech, search transcripts,
 and tidy meeting notes using models on your Mac. Local processing with no

@@ -1,7 +1,7 @@
 # Privacy Policy — CrisperWeaver
 
 **Effective date:** 2026-07-10
-**Last updated:** 2026-10-02
+**Last updated:** 2026-10-03
 
 CrisperWeaver is an offline-first audio transcription and speech
 synthesis app. This policy explains what data the app accesses, how
@@ -56,7 +56,11 @@ When you download speech recognition, text-to-speech, or embedding
 models, the app fetches model files (including GGUF and ONNX) from HuggingFace
 (huggingface.co). These downloads are standard HTTPS requests. Audio,
 text and transcripts are not sent as part of a model download. Downloaded
-models are cached locally on your device.
+models are cached locally on your device. Download hosts receive normal
+connection information, including your IP address. If you configure an
+optional HuggingFace access token, native model discovery and downloads
+send it as an authentication header. No access token is required for public
+model downloads.
 
 Browser speech runtimes are served with the app by its hosting provider;
 model and tokenizer downloads use HuggingFace/CDN HTTPS requests. These
@@ -99,8 +103,9 @@ Flutter's default template and will be removed.
 ### 3.1 HuggingFace (huggingface.co)
 
 Model downloads are fetched from HuggingFace's CDN. HuggingFace's
-own privacy policy applies to their servers. CrisperWeaver sends no
-personal data — only standard HTTPS GET requests for model files.
+own privacy policy applies to their servers. Model requests do not include
+your audio or transcripts. They include normal connection information and,
+when configured, your optional access token for authenticated downloads.
 
 ### 3.2 Optional Cloud Transcription
 

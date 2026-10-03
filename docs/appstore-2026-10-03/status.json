@@ -1,0 +1,173 @@
+{
+  "inspected_at": "2026-10-03T05:35:31.854914+00:00",
+  "read_only": true,
+  "full": {
+    "app_id": "6789600762",
+    "macos_versions": [
+      {
+        "id": "88c309eb-298b-4461-9684-df893a004c6a",
+        "version": "1.0",
+        "state": "REJECTED"
+      }
+    ],
+    "attached_build": {
+      "id": "bf13233c-f250-4f3b-96a9-002cfc5b8b7f",
+      "build_number": "85",
+      "processing_state": "VALID"
+    },
+    "territories": {
+      "USA": {
+        "available": true,
+        "releaseDate": "2026-09-23",
+        "preOrderEnabled": false,
+        "preOrderPublishDate": null,
+        "contentStatuses": [
+          "AVAILABLE"
+        ]
+      },
+      "CHN": {
+        "available": false,
+        "releaseDate": "2026-09-23",
+        "preOrderEnabled": false,
+        "preOrderPublishDate": null,
+        "contentStatuses": [
+          "CANNOT_SELL"
+        ]
+      },
+      "DEU": {
+        "available": true,
+        "releaseDate": "2026-09-23",
+        "preOrderEnabled": false,
+        "preOrderPublishDate": null,
+        "contentStatuses": [
+          "AVAILABLE"
+        ]
+      },
+      "HKG": {
+        "available": true,
+        "releaseDate": "2026-09-23",
+        "preOrderEnabled": false,
+        "preOrderPublishDate": null,
+        "contentStatuses": [
+          "AVAILABLE"
+        ]
+      }
+    },
+    "existing_review_notes_sha256": "cecbb458148c0f340d6b747f3bb3245f2d26f1418965a2a18495b797176ad170",
+    "review_notes_need_correction": "Existing notes claim fully offline; Full supports opt-in remote services.",
+    "ios_versions": [
+      {
+        "id": "0f33ec45-d20f-4f4e-98cc-cd80481c64c1",
+        "version": "0.9.5",
+        "state": "READY_FOR_SALE"
+      }
+    ]
+  },
+  "lite": {
+    "bundle_id": "com.crispstrobe.crisperweaver.lite",
+    "bundle_registered": true,
+    "app_record_exists": false,
+    "signed_package": {
+      "source_commit": "c30ae2638c7608451418c0600878aa15e45f3842",
+      "run_id": 37100259898,
+      "conclusion": "success",
+      "marketing_version": "0.13.1",
+      "build_number": "89",
+      "mach_o_files_verified": 15,
+      "startup_smoke_passed": true,
+      "app_and_installer_signatures_verified": true,
+      "sha256": "ba15149106726c260b370eb157c6dcfc638b62ea162eb1266d07f424f4f1317e",
+      "downloaded_sidecar_matches": true,
+      "apple_upload": false,
+      "apple_upload_service_validation": false,
+      "review_submission": false
+    },
+    "native_screenshots": {
+      "source_commit": "adcd49c",
+      "run_id": 37100584737,
+      "conclusion": "success",
+      "flavor_assertions_passed": true,
+      "seeded_history_and_placeholder_weights": true,
+      "inference_performed": false,
+      "visually_reviewed": true,
+      "visible_openai_or_chatgpt_references": false,
+      "files": [
+        {
+          "name": "lite_mac_en_01_transcript.png",
+          "width": 2880,
+          "height": 1800,
+          "sha256": "78db3785d51ea51c9d0c165523b2a46cb3faae70616b2a49302fc9288c181901"
+        },
+        {
+          "name": "lite_mac_en_02_history.png",
+          "width": 2880,
+          "height": 1800,
+          "sha256": "8b98640ac7f55067901d919f62a809da683411ccf0705b2799e7e275de4096e9"
+        },
+        {
+          "name": "lite_mac_en_03_transcribe.png",
+          "width": 2880,
+          "height": 1800,
+          "sha256": "f55893d5a0e563e66403f49ba090d12d0dc08728e376707a5b75a55e6d68ecf9"
+        },
+        {
+          "name": "lite_mac_en_04_synthesize.png",
+          "width": 2880,
+          "height": 1800,
+          "sha256": "e7a7be54c05550f81c22138ce58f257f7f7aa062fd472721aec267bddf0762e1"
+        },
+        {
+          "name": "lite_mac_en_05_models.png",
+          "width": 2880,
+          "height": 1800,
+          "sha256": "562f5e58202cdc131814498f0d6e2d438aa25d9a0d65bc130d788006f3e5b316"
+        },
+        {
+          "name": "lite_mac_en_06_music.png",
+          "width": 2880,
+          "height": 1800,
+          "sha256": "d35e28bb8b3ed15a067903c2e3915ea0fc5808444d01bba6b8074f094614f006"
+        },
+        {
+          "name": "lite_mac_en_07_translate.png",
+          "width": 2880,
+          "height": 1800,
+          "sha256": "2e91dff37e9f10e4acd052ab4102da9b082a25ef6efefb7c4a4a563e7d8de33d"
+        },
+        {
+          "name": "lite_mac_en_08_settings.png",
+          "width": 2880,
+          "height": 1800,
+          "sha256": "c96db83a54fecc976ba2fe2b0db31544eb2b7de59c01259b3262c21554baaa8f"
+        }
+      ],
+      "recommended_primary_indices": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        8
+      ],
+      "presentation_notes": [
+        "Home header uses CrisperWeaver without the Lite suffix.",
+        "Translation sample mentions phone on Mac; omit this optional image from primary store captures."
+      ]
+    }
+  },
+  "production_validation": {
+    "source_commit": "c30ae2638c7608451418c0600878aa15e45f3842",
+    "full_run": 37048167419,
+    "full_passed_per_browser": 42,
+    "full_lite_only_skips_per_browser": 2,
+    "lite_run": 37048174888,
+    "lite_passed_per_browser": 44,
+    "native_run": 37048167412,
+    "browsers": [
+      "chromium",
+      "firefox",
+      "webkit"
+    ],
+    "all_success": true
+  }
+}

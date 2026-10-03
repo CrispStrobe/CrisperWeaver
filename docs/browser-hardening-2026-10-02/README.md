@@ -114,3 +114,13 @@ three browsers. Detailed runtime diagnostics, failures, recoveries and source
 hashes are retained in [worker-restart-validation.json](worker-restart-validation.json).
 The subsequent deployment suites include these worker restart, cache-header,
 mailbox and input checks for both Full and Lite.
+
+
+The follow-up passed on both live deployments at `c30ae26`, without retries:
+[Full](https://github.com/CrispStrobe/CrisperWeaver/actions/runs/37048167419)
+passes 42 tests per browser with two Lite-only skips, and
+[Lite](https://github.com/CrispStrobe/CrisperWeaver/actions/runs/37048174888)
+passes 44 per browser in Chromium, Firefox and WebKit. Live worker files
+match source and ordinary worker responses include no-store and COOP/COEP.
+Forced conditional 304 responses still omit isolation headers; the cache
+policy avoids that path rather than repairing the CDN's 304 response.

@@ -44,17 +44,19 @@ WASM memory compatibility; it remains experimental because a constrained
 host crashed during an earlier loading attempt. Earlier compiled-artifact matrices pass
 39 tests per browser for Full and 41 for Lite in Chromium, Firefox and WebKit.
 All six browser follow-ups are complete, including real Tesla T4 validation
-and asynchronous threaded ASR/TTS. Follow-up validation covers WebKit
+and asynchronous threaded ASR/TTS. Current production CI passes 42 Full tests (two Lite-only skips) and 44 Lite
+tests per browser without retries at `c30ae26`. Follow-up validation covers WebKit
 message mailboxes, cancellation during real native work, and production
 worker cache headers; see the retained browser evidence. See [HISTORY.md](HISTORY.md#browser-hardening-and-threaded-local-speech-2026-10-02)
 and [web-e2e/README.md](web-e2e/README.md) for the exact scope and evidence.
 The signed macOS Lite CI artifact has been built; this work has not uploaded
-or submitted Lite to Apple. Storefront changes and App Review remain separate
-store tasks.
+or submitted Lite to Apple. A read-only 2026-10-03 inspection found China mainland
+unavailable for Full, macOS 1.0 still rejected, and no separate Lite app record.
+The concrete store handoff is in [docs/appstore-2026-10-03/README.md](docs/appstore-2026-10-03/README.md).
 
 | Track | State |
 |---|---|
-| iOS App Store | Building and uploading. First valid build was 75 / v0.9.5. Signing is **manual**, not `flutter build ipa` — see the auto-memory note on iOS signing before touching it. |
+| iOS App Store | Read-only Apple inspection on 2026-10-03 reports 0.9.5 `READY_FOR_SALE`. First valid build was 75. Signing is **manual**, not `flutter build ipa` — see the auto-memory note on iOS signing before touching it. |
 | macOS App Store | Review message dated 2026-10-01 rejected Full 1.0 (85) for China mainland remote-AI references/functionality. Signed Lite package-only CI succeeded; storefront changes and a separate Lite submission remain pending. Sandboxed target = `AppStore.entitlements`. |
 | TestFlight | Builds are uploading and processing. No evidence in the repo that **external** Beta App Review has been submitted — confirm in App Store Connect before assuming either way. |
 | Google Play | Not started. |

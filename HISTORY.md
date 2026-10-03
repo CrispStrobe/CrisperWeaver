@@ -11,6 +11,32 @@ pending.
 
 ---
 
+## Production validation and App Store handoff (2026-10-03)
+
+Source `c30ae26` passes production validation without retries:
+[Full](https://github.com/CrispStrobe/CrisperWeaver/actions/runs/37048167419),
+42 tests per browser with two Lite-only skips;
+[Lite](https://github.com/CrispStrobe/CrisperWeaver/actions/runs/37048174888),
+44 per browser. Chromium, Firefox and WebKit all pass. Live worker files match
+source, and ordinary worker responses include no-store and COOP/COEP headers.
+Forced conditional 304 responses still omit isolation headers; the no-store
+policy avoids that restart path. Linux/macOS tests and desktop builds also
+pass [native CI](https://github.com/CrispStrobe/CrisperWeaver/actions/runs/37048167412).
+No local browser tests ran after the user's stop instruction.
+
+Read-only Apple inspection found Full's macOS 1.0 rejected with valid build 85,
+China mainland unavailable, and the Lite bundle registered without an app
+record. Prepared a store handoff and draft Full review reply in
+[docs/appstore-2026-10-03](docs/appstore-2026-10-03/README.md).
+The fresh [signed Lite package](https://github.com/CrispStrobe/CrisperWeaver/actions/runs/37100259898)
+passes version/build, native startup and app/installer signature checks.
+The [native Lite screenshot run](https://github.com/CrispStrobe/CrisperWeaver/actions/runs/37100584737)
+passes eight 2880 × 1800 captures with compiled-flavor and remote-engine guards.
+They use seeded UI examples and do not perform inference. Model download
+metadata and optional authentication are now described accurately in the
+privacy and store documents. No local browser tests were restarted.
+No Apple metadata, availability, review messages or submissions were changed.
+
 ## Browser hardening and threaded local speech (2026-10-02)
 
 Completed all six browser follow-ups for Full and Lite: Firefox/WebKit real
