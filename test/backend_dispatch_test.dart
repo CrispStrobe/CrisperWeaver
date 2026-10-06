@@ -243,12 +243,18 @@ void main() {
       // kind:asr only so it appears as a downloadable model (there is no
       // dedicated aligner ModelKind). Permanent exemption, not a deferred
       // TODO like the rest of this set.
+      // llm-translate (Hy-MT2, Index-Translate) is a translation chat LLM:
+      // LiveTranslatorWorker / TextTranslationService open it through the
+      // chat ABI (CrispasrChatSession), never crispasr_session_open — the
+      // same split upstream makes, where these rows are registry names but
+      // "NOT backends". Permanent exemption, like canary-ctc-aligner.
       const pending = {
         'piper',
         'f5-tts',
         'lfm2-audio',
         'mini-omni2',
         'canary-ctc-aligner',
+        'llm-translate',
       };
 
       final catalogueBackends = <String>{
