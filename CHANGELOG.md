@@ -5,6 +5,64 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 
 ## [Unreleased]
 
+### Live captions & translation
+
+- New **Live captions & translation** screen (caption icon in the main
+  toolbar): transcribes a talk, discussion or conference as it happens and
+  translates every sentence, fullscreen, in large type, with one colour per
+  language. All local.
+- **Translation paths per spoken language**: e.g. German → English,
+  English → German, French → German *and* English; any other language →
+  a default. Presets for common rooms.
+- **Spoken-language detection** per utterance from the audio (ECAPA /
+  FireRed / Silero LID), per sentence from the text (CLD3 / fastText /
+  GlotLID), from the recogniser (Whisper), or one fixed language.
+- Port of CrispASR's `--live-translate` sentence-commit policy (#493): a
+  sentence is shown and translated once the recogniser has moved past it,
+  is never revised afterwards, and only the text not yet committed is
+  re-decoded; the sentence in progress is shown dimmed with a draft
+  translation.
+- Stacked or column layout, per-language visibility, 16–120 pt text,
+  dark/light board, keyboard control (F, + / −, L, S, Esc), real native
+  fullscreen on macOS / Linux / Windows and immersive mode on mobile, and
+  the display is kept awake while live.
+- Audio from the microphone, system audio (Zoom, YouTube, …), or a
+  recording replayed in real time to rehearse a setup.
+- Translators: M2M-100, MADLAD-400, and the translation LLMs
+  **Hy-MT2 1.8B** and **Index-Translate 2B** (new catalogue entries; also
+  usable on the Translate screen, in a worker isolate).
+- **Index-Echo** as a recogniser: Chinese speech translated directly into
+  English, Japanese or Spanish, per utterance; other targets go through the
+  translator. Needs a GPU to keep up.
+- Every session is saved to **History** on stop — one segment per sentence,
+  labelled with its language, translations underneath — with a link in the
+  confirmation.
+- Stop commits the sentence on screen; model loading has no deadline (Stop
+  cancels it) and a failed worker is reported at once; a failed audio input
+  is shown on the board.
+
+### Fixes
+
+- **Linux system audio captured nothing**: `parec` was pointed at
+  `@DEFAULT_SINK@.monitor`, which PulseAudio rejects. It now records
+  `@DEFAULT_MONITOR@`, and a capture tool that exits with an error is
+  reported instead of yielding silence. Affects the transcription screen's
+  "System audio" input too.
+
+### CrispASR d5dabb81 (after 0.8.41)
+
+- Built against CrispASR main after 0.8.41 (live translate #493, ggml
+  v0.26.0 sync, Nemotron streaming and language-tag fixes, Qwen3.5 NextN
+  loading for Index-Translate); pinned in every workflow. New catalogue
+  entries: **Phonon-2** (English, q8_0 / q4_k), **Index-Echo 2B** (with its
+  decoder and VAD companions), and the **MioTTS tokenizer** companion.
+
+### CI
+
+- New `build-windows` job compiles the Windows runner on every push (its
+  fullscreen / always-on-top channel was otherwise first built by a tag).
+- The GUI integration suite covers the live-captions setup flow.
+
 ### Browser optimizations
 
 - Fixed WebKit worker restarts by preventing browser caching of the small

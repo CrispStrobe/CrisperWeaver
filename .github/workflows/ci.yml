@@ -423,6 +423,68 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  # The Windows runner carries native code of its own (flutter_window.cpp:
+  # the `crisperweaver/window_overlay` channel — fullscreen for the live
+  # captions board, always-on-top for the subtitle overlay). Before this job
+  # it was first compiled by a release tag. The engine is not needed to
+  # compile the runner: the crispasr package is pure Dart and resolves
+  # libcrispasr at run time, and crispembed only warns without its DLL.
+  build-windows:
+    if: inputs.build_lite != true
+    name: Build Windows desktop (runner, no engine)
+    runs-on: windows-latest
+    needs: analyze-and-test
+    steps:
+      - name: Check out CrisperWeaver
+        uses: actions/checkout@v5
+        with:
+          path: repos/CrisperWeaver
+
+      - name: Check out sibling CrispASR (Dart FFI package)
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ env.CRISPASR_REPO }}
+          ref: ${{ env.CRISPASR_REF }}
+          path: repos/CrispASR
+
+      - name: Check out sibling CrispEmbed (Dart FFI package)
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ env.CRISPEMBED_REPO }}
+          ref: ${{ env.CRISPEMBED_REF }}
+          path: repos/CrispEmbed
+
+      - name: Check out sibling glint (Dart FFI package)
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ env.GLINT_REPO }}
+          ref: ${{ env.GLINT_REF }}
+          path: repos/glint
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Enable Windows desktop + pub get
+        working-directory: repos/CrisperWeaver
+        shell: pwsh
+        run: |
+          flutter config --enable-windows-desktop
+          flutter pub get
+
+      - name: Generate build info (git hash + timestamp)
+        working-directory: repos/CrisperWeaver
+        shell: bash
+        run: bash scripts/gen_build_info.sh
+
+      - name: Build Windows (debug)
+        working-directory: repos/CrisperWeaver
+        shell: pwsh
+        run: flutter build windows --debug
+
   build-macos-lite:
     name: Build signed macOS Lite (.pkg)
     if: github.event_name == 'workflow_dispatch' && inputs.build_lite == true

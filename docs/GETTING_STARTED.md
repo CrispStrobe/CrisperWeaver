@@ -130,7 +130,36 @@ assistant downloads one if you chose *Create speech*; otherwise get
 
 ![Synthesize](getting-started/synthesize.png)
 
-## 7. If something goes wrong
+## 7. Live captions and translation
+
+For a talk, a meeting or a conference: press the **caption icon** (CC) in
+the toolbar. On the setup page:
+
+- **Spoken language** — *Detect automatically*, or one fixed language.
+- **Translation paths** — for each language that will be spoken, the
+  languages to show it in. *German → English*, *English → German*,
+  *French → German and English*: each sentence is shown in the language
+  it was spoken in and translated along its path. A language with no
+  target is only transcribed. Presets fill in common rooms.
+- **Models** — a recogniser (*Parakeet TDT 0.6B v3* covers 25 European
+  languages), a translator (*M2M-100 418M* is fast; *Hy-MT2 1.8B* and
+  *Index-Translate 2B* translate better but need a fast computer), and for
+  automatic detection a language-ID model (*ECAPA-TDNN* from the audio, or
+  *CLD3* from the text). All are under **Models**.
+- **Audio input** — the microphone, the computer's own sound (*System
+  audio*, e.g. a video call), or *Replay a recording* to rehearse.
+
+Press **Start**. Every language has its own colour and a badge with its
+name; finished sentences scroll up, the sentence still being spoken is
+shown dimmed with a draft translation. Keys: **F** fullscreen, **+ / −**
+text size, **L** stacked or side-by-side columns, **S** show or hide the
+spoken-language line, **Esc** leave fullscreen, then stop. The toolbar
+fades away while you are live and comes back when you move the mouse or
+tap. When you stop, the session is saved to **History**.
+
+![Live captions in columns, fullscreen](getting-started/live_captions.png)
+
+## 8. If something goes wrong
 
 ![Settings](getting-started/settings.png)
 
