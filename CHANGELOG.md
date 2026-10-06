@@ -5,6 +5,8 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 
 ## [Unreleased]
 
+## [0.14.0] — 2026-10-06
+
 ### Live captions & translation
 
 - New **Live captions & translation** screen (caption icon in the main

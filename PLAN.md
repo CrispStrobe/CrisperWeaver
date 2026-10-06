@@ -35,7 +35,7 @@ Archived to HISTORY.md: §0, §8–§18.
 
 ## A. Current state
 
-**Version:** 0.13.1+89, with Lite and local browser speech work in Unreleased.
+**Version:** 0.14.0+90 (live captions + translation, CrispASR d5dabb81; also ships the Lite and local browser speech work).
 Current browser validation is dated 2026-10-02; the native health figures
 below are historical and are not a claim about the current complete suite.
 
