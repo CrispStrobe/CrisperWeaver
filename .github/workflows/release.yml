@@ -52,11 +52,13 @@ env:
   # backends or add them to its documented `engineOnly` set, then commit
   # the bump on its own so a regression bisects cleanly.
   CRISPASR_REPO: CrispStrobe/CrispASR
-  # Pinned to CrispASR main after v0.8.36 (52ae1d79). On top of v0.8.36 it adds
-  # the Nemotron-3-Diarization Sortformer backend and its Dart
-  # `DiarizeMethod.sortformer`, strict grammar mode, the Parakeet ultra/redux
-  # models, Raon-Speech-9B and the core beam-decode fixes.
-  CRISPASR_REF: 52ae1d79217a3684eaab7b3969d4fcef086a342f
+  # Pinned to CrispASR main after v0.8.41 (d5dabb81). On top of v0.8.41 it adds
+  # live transcribe + translate (#493: the sentence-commit policy the app's
+  # live-captions screen ports), the ggml v0.26.0 sync, Nemotron streaming
+  # fixes, Qwen3.5 NextN-block loading (Index-Translate) and registry rows for
+  # the hy-mt2 / index-translate translation LLMs. The Dart API is unchanged
+  # since 0.8.37.
+  CRISPASR_REF: d5dabb81c1afac388680b6de0a55ef1bf76a356f
   CRISPEMBED_REPO: CrispStrobe/CrispEmbed
   CRISPEMBED_REF: 40e7b7dd00bb6b1505c9e6ac74bef0c97efef337
   GLINT_REPO: CrispStrobe/glint
