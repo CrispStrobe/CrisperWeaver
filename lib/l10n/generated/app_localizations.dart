@@ -6843,6 +6843,360 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'CrisperWeaver Lite runs speech recognition with CrispASR WASM or ONNX Runtime Web, and speech synthesis with CrispASR WASM, locally in your browser. Model weights and pronunciation resources are downloaded and cached on first use. Your audio and text are not uploaded for processing. Remote AI services are disabled. Browser models support segment timestamps; native advanced features are available in the desktop app.'**
   String get aiTransparencyLiteWebNote;
+
+  /// No description provided for @menuLiveCaptions.
+  ///
+  /// In en, this message translates to:
+  /// **'Live captions & translation'**
+  String get menuLiveCaptions;
+
+  /// No description provided for @liveTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Live captions & translation'**
+  String get liveTitle;
+
+  /// No description provided for @liveIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Transcribe a talk or discussion as it happens and translate every sentence — fullscreen, in large type, one colour per language. Everything runs on this device.'**
+  String get liveIntro;
+
+  /// No description provided for @liveStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Start'**
+  String get liveStart;
+
+  /// No description provided for @liveStop.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop'**
+  String get liveStop;
+
+  /// No description provided for @liveSpokenLanguage.
+  ///
+  /// In en, this message translates to:
+  /// **'Spoken language'**
+  String get liveSpokenLanguage;
+
+  /// No description provided for @liveDetectAuto.
+  ///
+  /// In en, this message translates to:
+  /// **'Detect automatically'**
+  String get liveDetectAuto;
+
+  /// No description provided for @liveFixedLanguage.
+  ///
+  /// In en, this message translates to:
+  /// **'One fixed language'**
+  String get liveFixedLanguage;
+
+  /// No description provided for @liveRoutesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Translation paths'**
+  String get liveRoutesTitle;
+
+  /// No description provided for @liveRoutesHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'For each spoken language, choose the languages it is translated into. A language without targets is only transcribed.'**
+  String get liveRoutesHelp;
+
+  /// No description provided for @liveAddSpokenLanguage.
+  ///
+  /// In en, this message translates to:
+  /// **'Add spoken language'**
+  String get liveAddSpokenLanguage;
+
+  /// No description provided for @liveOtherLanguages.
+  ///
+  /// In en, this message translates to:
+  /// **'Any other language'**
+  String get liveOtherLanguages;
+
+  /// No description provided for @liveTranscribeOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'transcribe only'**
+  String get liveTranscribeOnly;
+
+  /// No description provided for @liveAddTarget.
+  ///
+  /// In en, this message translates to:
+  /// **'Add target language'**
+  String get liveAddTarget;
+
+  /// No description provided for @livePresets.
+  ///
+  /// In en, this message translates to:
+  /// **'Presets'**
+  String get livePresets;
+
+  /// No description provided for @liveModelsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Models'**
+  String get liveModelsTitle;
+
+  /// No description provided for @liveRecognizer.
+  ///
+  /// In en, this message translates to:
+  /// **'Speech recognition'**
+  String get liveRecognizer;
+
+  /// No description provided for @liveTranslator.
+  ///
+  /// In en, this message translates to:
+  /// **'Translator'**
+  String get liveTranslator;
+
+  /// No description provided for @liveNoTranslator.
+  ///
+  /// In en, this message translates to:
+  /// **'None — transcribe only'**
+  String get liveNoTranslator;
+
+  /// No description provided for @liveAppDefaultModel.
+  ///
+  /// In en, this message translates to:
+  /// **'App default ({model})'**
+  String liveAppDefaultModel(String model);
+
+  /// No description provided for @liveLanguageDetection.
+  ///
+  /// In en, this message translates to:
+  /// **'Language detection'**
+  String get liveLanguageDetection;
+
+  /// No description provided for @liveLidAuto.
+  ///
+  /// In en, this message translates to:
+  /// **'Best available'**
+  String get liveLidAuto;
+
+  /// No description provided for @liveLidAudio.
+  ///
+  /// In en, this message translates to:
+  /// **'From the audio (LID model)'**
+  String get liveLidAudio;
+
+  /// No description provided for @liveLidText.
+  ///
+  /// In en, this message translates to:
+  /// **'From the transcript text'**
+  String get liveLidText;
+
+  /// No description provided for @liveLidRecognizer.
+  ///
+  /// In en, this message translates to:
+  /// **'As reported by the recogniser'**
+  String get liveLidRecognizer;
+
+  /// No description provided for @liveLidHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio detection decides before transcribing and works with every recogniser. Text detection needs a multilingual recogniser such as Parakeet v3, but is nearly free.'**
+  String get liveLidHelp;
+
+  /// No description provided for @liveNoModelsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Recommended downloads: Parakeet TDT 0.6B v3 (25 European languages) for recognition, M2M-100 418M or Hy-MT2 1.8B for translation, ECAPA-TDNN or CLD3 for language detection.'**
+  String get liveNoModelsHint;
+
+  /// No description provided for @liveOpenModels.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Models'**
+  String get liveOpenModels;
+
+  /// No description provided for @liveAudioTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio input'**
+  String get liveAudioTitle;
+
+  /// No description provided for @liveMicrophone.
+  ///
+  /// In en, this message translates to:
+  /// **'Microphone'**
+  String get liveMicrophone;
+
+  /// No description provided for @liveSystemAudio.
+  ///
+  /// In en, this message translates to:
+  /// **'System audio'**
+  String get liveSystemAudio;
+
+  /// No description provided for @liveReplayFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Replay a recording'**
+  String get liveReplayFile;
+
+  /// No description provided for @liveReplayHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Plays an audio file in real time as if it were live — for rehearsing a setup.'**
+  String get liveReplayHelp;
+
+  /// No description provided for @liveDisplayTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Display'**
+  String get liveDisplayTitle;
+
+  /// No description provided for @liveFontSize.
+  ///
+  /// In en, this message translates to:
+  /// **'Text size'**
+  String get liveFontSize;
+
+  /// No description provided for @liveLayoutStacked.
+  ///
+  /// In en, this message translates to:
+  /// **'Stacked'**
+  String get liveLayoutStacked;
+
+  /// No description provided for @liveLayoutColumns.
+  ///
+  /// In en, this message translates to:
+  /// **'Columns'**
+  String get liveLayoutColumns;
+
+  /// No description provided for @liveShowSource.
+  ///
+  /// In en, this message translates to:
+  /// **'Show the spoken-language transcript'**
+  String get liveShowSource;
+
+  /// No description provided for @liveShowDrafts.
+  ///
+  /// In en, this message translates to:
+  /// **'Show the sentence in progress'**
+  String get liveShowDrafts;
+
+  /// No description provided for @liveDarkBackground.
+  ///
+  /// In en, this message translates to:
+  /// **'Dark background'**
+  String get liveDarkBackground;
+
+  /// No description provided for @liveWaiting.
+  ///
+  /// In en, this message translates to:
+  /// **'Listening…'**
+  String get liveWaiting;
+
+  /// No description provided for @liveLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading models…'**
+  String get liveLoading;
+
+  /// No description provided for @liveFullscreen.
+  ///
+  /// In en, this message translates to:
+  /// **'Fullscreen (F)'**
+  String get liveFullscreen;
+
+  /// No description provided for @liveCopyTranscript.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy transcript'**
+  String get liveCopyTranscript;
+
+  /// No description provided for @liveCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Transcript copied'**
+  String get liveCopied;
+
+  /// No description provided for @liveClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear the screen'**
+  String get liveClear;
+
+  /// No description provided for @liveSmaller.
+  ///
+  /// In en, this message translates to:
+  /// **'Smaller text (−)'**
+  String get liveSmaller;
+
+  /// No description provided for @liveLarger.
+  ///
+  /// In en, this message translates to:
+  /// **'Larger text (+)'**
+  String get liveLarger;
+
+  /// No description provided for @liveToggleLayout.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch layout (L)'**
+  String get liveToggleLayout;
+
+  /// No description provided for @liveSetup.
+  ///
+  /// In en, this message translates to:
+  /// **'Setup'**
+  String get liveSetup;
+
+  /// No description provided for @liveBehind.
+  ///
+  /// In en, this message translates to:
+  /// **'{seconds} s behind'**
+  String liveBehind(String seconds);
+
+  /// No description provided for @liveKeyboardHint.
+  ///
+  /// In en, this message translates to:
+  /// **'F fullscreen · + − text size · L layout · S source · Esc stop'**
+  String get liveKeyboardHint;
+
+  /// No description provided for @liveNotOnWeb.
+  ///
+  /// In en, this message translates to:
+  /// **'Live translation runs in the desktop and mobile apps.'**
+  String get liveNotOnWeb;
+
+  /// No description provided for @liveVisibleLanguages.
+  ///
+  /// In en, this message translates to:
+  /// **'Languages on screen'**
+  String get liveVisibleLanguages;
+
+  /// No description provided for @livePauseMs.
+  ///
+  /// In en, this message translates to:
+  /// **'Pause that ends a sentence block: {ms} ms'**
+  String livePauseMs(int ms);
+
+  /// No description provided for @liveTargetsFor.
+  ///
+  /// In en, this message translates to:
+  /// **'Translate {lang} into'**
+  String liveTargetsFor(String lang);
+
+  /// No description provided for @liveRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get liveRemove;
+
+  /// No description provided for @liveSavedToHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'Session saved to History'**
+  String get liveSavedToHistory;
+
+  /// No description provided for @liveOpenInHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'Open'**
+  String get liveOpenInHistory;
 }
 
 class _AppLocalizationsDelegate

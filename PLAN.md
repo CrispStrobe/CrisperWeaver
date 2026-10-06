@@ -18,6 +18,7 @@ archived to HISTORY.md under its original number.
 - [A. Current state](#a-current-state)
 - [B. What to do next](#b-what-to-do-next)
 - [C. How to work in this repo](#c-how-to-work-in-this-repo)
+- [D. Live captions + translation](#d-live-captions--translation)
 
 **Reference (stable numbering — cited from code)**
 1. [Engine status](#1-engine-status)
@@ -37,6 +38,10 @@ Archived to HISTORY.md: §0, §8–§18.
 **Version:** 0.13.1+89, with Lite and local browser speech work in Unreleased.
 Current browser validation is dated 2026-10-02; the native health figures
 below are historical and are not a claim about the current complete suite.
+
+**Newest (2026-10-06).** Live captions + translation for talks and
+conferences, built against CrispASR 0.8.41 — see [§D](#d-live-captions--translation)
+for what is verified and what is not.
 
 **Current work.** Full and Lite browser deployments run local speech inference.
 Phonon-2 Q4 passed an isolated Chromium assessment after fixing resizable
@@ -268,6 +273,86 @@ targets.
   sections.** A Flutter macOS target lists its sources explicitly, so an
   unregistered file compiles to nothing and its channel is simply absent at
   runtime — with no build error.
+
+---
+
+## D. Live captions + translation
+
+Started 2026-10-06 on top of CrispASR 0.8.41 (`--live-translate`, #493). A
+fullscreen caption board for talks, discussions and conferences: speech is
+transcribed, each sentence is routed by its spoken language and translated,
+every language has its own colour.
+
+**Where the code is.**
+
+| Piece | File |
+|---|---|
+| Sentence-commit policy (port of `crispasr_live_translate.h`) + `SentenceAssembler` (forced clause splits are held, not translated cold) | `lib/services/live_translate/sentence_committer.dart` |
+| Recogniser isolate: incremental VAD timeline, utterances, audio / text / recogniser LID, decode-from, pressure; speech-translation recognisers (Index-Echo) decoded per utterance | `lib/services/live_translate/live_asr_worker.dart` |
+| Translator isolate: m2m100 / MADLAD (greedy) or translation chat LLM (Hy-MT2, Index-Translate prompts verbatim from `crispasr_run.cpp`) | `lib/services/live_translate/live_translator_worker.dart` |
+| Routing table, display options, colours, autonyms | `lib/services/live_translate/live_translate_config.dart` |
+| Orchestration, translation queue (committed first, newest draft only, drafts off above 500 ms/sentence), save to History on stop | `lib/services/live_translate/live_translate_controller.dart` |
+| Setup page + caption board | `lib/screens/live_translate_screen.dart` (route `/live`) |
+| Native fullscreen | `crisperweaver/window_overlay` `setFullScreen` in `macos/Runner/MainFlutterWindow.swift`, `linux/runner/my_application.cc`, `windows/runner/flutter_window.cpp`; `lib/utils/window_fullscreen.dart` |
+
+**Engine pin.** CrispASR `d5dabb81` (main after v0.8.41, incl. #493 and the
+`hy-mt2` / `index-translate` registry rows) in all five workflows. Dart API
+unchanged since 0.8.37; `backend_dispatch_test` passes against it (Phonon-2
+catalogued under its own `phonon2` dispatch name; `llm-translate` exempt —
+chat ABI, not a session backend).
+
+**Verified (2026-10-06, this VPS, CPU only, load 4–30).** Live suites:
+`test/live_translate/*_live_test.dart`, armed by `tools/run_live_tests.sh`;
+the talk fixture is `tools/make_live_talk_fixture.sh`.
+
+| What | How | Result |
+|---|---|---|
+| Commit policy | 16 upstream cases ported 1:1 + assembler + word-time cases (`sentence_committer_test.dart`) | pass |
+| Config, routing, prompts, board | `live_translate_config_test.dart`, `live_translate_screen_test.dart`; CI GUI flow `integration_test/gui_flow_test.dart` (§D case: toolbar → setup → preset persisted → start without recogniser explained) | pass (GUI flow runs in CI) |
+| Audio LID (ECAPA-107) | 29.5 s German-then-English talk, Parakeet v3 q4_k, real-time replay | both languages per utterance (p ≥ 0.95), de→en and en→de, all sentences translated |
+| Text LID (CLD3) | same | per sentence — also labels the English disclaimer inside the German utterance as English |
+| Recogniser-reported (Whisper tiny) | same | de and en labelled and routed (after two fixes, below) |
+| Translators | M2M-100 418M q4_k; Hy-MT2 1.8B Q4_K_M; Index-Translate 2B Q4_K_M | 0.6–1.9 s / 5–8 s / 4–7 s per sentence here; quality rises in that order |
+| Index-Echo 2B q8 | session on `paraformer_zh.wav`; live worker path `index_echo_live_test.dart` | correct zh transcript + English per cue; ~44× slower than real time on this CPU |
+| Microphone | Linux release build, private PulseAudio null sink as the default source, talk played into it | `parecord` captures, sentences commit and translate on the board |
+| System audio | `system_audio_live_test.dart` against the same server | 32.7 s captured, transcript complete |
+| Fullscreen, layouts, stop | Linux build under Xvfb + openbox | `_NET_WM_STATE_FULLSCREEN` on F, restored on Esc; columns on L; stop saves the session to History with a snackbar link |
+
+**Bugs the verification found and fixed** (each would have shipped otherwise):
+
+- Linux system audio never captured anything — `parec --device=@DEFAULT_SINK@.monitor`
+  is not a valid device; now `@DEFAULT_MONITOR@`, and a capture tool that
+  dies surfaces as an error instead of a silent stream. Also fixes the
+  transcription screen's system-audio mode.
+- Whisper without a language hint transcribes as English — German speech came
+  out translated. Live mode now passes `auto` until the language is decided,
+  and recogniser/text reports label sentence by sentence instead of locking
+  the utterance to its first report.
+- Stop re-decoded the open audio and, on a busy machine, ran out of time and
+  dropped it; stop now commits the hypothesis already on screen.
+- A fixed 3-minute model-load deadline failed starts on a swapping machine;
+  loading now waits (Stop cancels it), and a worker that dies fails at once.
+- Sentences committed in one step all got that step's time; units now carry
+  their last word's timestamp (History segments use it).
+
+**Not verified — do not claim.**
+
+- Latency on real hardware. This VPS ran Parakeet at ~0.5–0.75× real time
+  under load; upstream measured ~30 ms per audio second on an M1. The loop
+  degrades gracefully when behind, but "keeps up live" is only shown upstream.
+- macOS and Windows native code (fullscreen channel, wakelock plugin): built by
+  CI (`build-macos`, and the new `build-windows` job), not run. Android/iOS
+  immersive mode and wakelock: release builds only, not run on a device.
+- Index-Echo at live speed (needs a GPU).
+
+**Open, in the order they would help.**
+
+1. Measure sentence → translation latency on an Apple Silicon Mac and a CUDA
+   box; record it next to upstream's numbers in its `docs/streaming.md`.
+2. Nemotron's incremental session as a recogniser once upstream makes its
+   encoder fast enough (upstream: not yet).
+3. Optional second-screen output (board on the projector, setup on the
+   laptop).
 
 ---
 

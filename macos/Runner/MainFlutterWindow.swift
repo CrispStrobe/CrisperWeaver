@@ -84,6 +84,24 @@ private func registerWindowOverlayChannel(
                            message: "Expected double", details: nil))
       }
 
+    // Live captions (§D): a real fullscreen Space, not just a maximised
+    // window, so a projector shows captions edge to edge.
+    case "setFullScreen":
+      if let wanted = call.arguments as? Bool {
+        DispatchQueue.main.async {
+          if window.styleMask.contains(.fullScreen) != wanted {
+            window.toggleFullScreen(nil)
+          }
+        }
+        result(nil)
+      } else {
+        result(FlutterError(code: "INVALID_ARG",
+                           message: "Expected bool", details: nil))
+      }
+
+    case "isFullScreen":
+      result(window.styleMask.contains(.fullScreen))
+
     default:
       result(FlutterMethodNotImplemented)
     }

@@ -37,6 +37,7 @@ CrisperWeaver is a cross-platform Flutter app for fully-offline audio transcript
 - **Pick the language-detection method** — Whisper-encoder LID (reuses an existing model) or Silero 95-langs (faster + smaller).
 - **See live performance numbers** — real-time factor, words per second, wall-clock.
 - **Get word-level timestamps** and language auto-detection (via Whisper).
+- **Live captions & translation for talks and conferences** — fullscreen caption board, one colour per language, large adjustable type. Define translation paths per spoken language (German → English, English → German, French → German *and* English, …); the spoken language is detected per utterance (audio LID) or per sentence (text LID). Sentences are committed once the recogniser has moved past them and translated exactly once (a port of CrispASR's `--live-translate`), with a dimmed draft for the sentence in progress. Mic, system audio, or a recording replayed in real time; translators M2M-100, MADLAD, Hy-MT2 or Index-Translate, or Index-Echo translating Chinese speech directly. Each session lands in History.
 - **Stream transcription** from long-running mic input — partial transcripts appear in the output card while you talk (10 s sliding window / 3 s step).
 - **Watch long files transcribe in real time** — chunked Whisper splits >60 s files into 30 s windows and streams segments through as each finishes, instead of waiting until the end.
 - **Export** to `.txt`, `.srt`, `.vtt`, `.json`, `.csv`, `.lrc` (lyrics), or `.wts` (Whisper Text Segments debug) through the system share sheet.

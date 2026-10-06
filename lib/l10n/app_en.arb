@@ -2611,7 +2611,100 @@
   "outputCleanupLlmModeLocalServerHelp": "Run {model} through a model server on this device.",
   "settingsLocalHttpInvalid": "Use http://127.0.0.1 or http://[::1] and a local model. Cloud models are unavailable.",
   "aiTransparencyLiteBody": "CrisperWeaver Lite processes speech, text, documents, and embeddings using models on your device. Remote transcription, synthesis, translation, and cloud language-model services are disabled in this build. Optional local model servers must run on the same device; separately managed servers control their own network access. Model files are used for on-device processing. AI-generated audio and text carry disclosure and provenance markings. Speaker enrollment requires consent. See About for details.",
-  "@outputCleanupLlmModeLocalServerHelp": {"placeholders": {"model": {"type": "String"}}},
+  "@outputCleanupLlmModeLocalServerHelp": {
+    "placeholders": {
+      "model": {
+        "type": "String"
+      }
+    }
+  },
   "outputSummarizeLiteUnconfigured": "Configure an on-device GGUF model or a local model server in Settings to generate summaries.",
-  "aiTransparencyLiteWebNote": "CrisperWeaver Lite runs speech recognition with CrispASR WASM or ONNX Runtime Web, and speech synthesis with CrispASR WASM, locally in your browser. Model weights and pronunciation resources are downloaded and cached on first use. Your audio and text are not uploaded for processing. Remote AI services are disabled. Browser models support segment timestamps; native advanced features are available in the desktop app."
+  "aiTransparencyLiteWebNote": "CrisperWeaver Lite runs speech recognition with CrispASR WASM or ONNX Runtime Web, and speech synthesis with CrispASR WASM, locally in your browser. Model weights and pronunciation resources are downloaded and cached on first use. Your audio and text are not uploaded for processing. Remote AI services are disabled. Browser models support segment timestamps; native advanced features are available in the desktop app.",
+  "menuLiveCaptions": "Live captions & translation",
+  "liveTitle": "Live captions & translation",
+  "liveIntro": "Transcribe a talk or discussion as it happens and translate every sentence — fullscreen, in large type, one colour per language. Everything runs on this device.",
+  "liveStart": "Start",
+  "liveStop": "Stop",
+  "liveSpokenLanguage": "Spoken language",
+  "liveDetectAuto": "Detect automatically",
+  "liveFixedLanguage": "One fixed language",
+  "liveRoutesTitle": "Translation paths",
+  "liveRoutesHelp": "For each spoken language, choose the languages it is translated into. A language without targets is only transcribed.",
+  "liveAddSpokenLanguage": "Add spoken language",
+  "liveOtherLanguages": "Any other language",
+  "liveTranscribeOnly": "transcribe only",
+  "liveAddTarget": "Add target language",
+  "livePresets": "Presets",
+  "liveModelsTitle": "Models",
+  "liveRecognizer": "Speech recognition",
+  "liveTranslator": "Translator",
+  "liveNoTranslator": "None — transcribe only",
+  "liveAppDefaultModel": "App default ({model})",
+  "@liveAppDefaultModel": {
+    "placeholders": {
+      "model": {
+        "type": "String"
+      }
+    }
+  },
+  "liveLanguageDetection": "Language detection",
+  "liveLidAuto": "Best available",
+  "liveLidAudio": "From the audio (LID model)",
+  "liveLidText": "From the transcript text",
+  "liveLidRecognizer": "As reported by the recogniser",
+  "liveLidHelp": "Audio detection decides before transcribing and works with every recogniser. Text detection needs a multilingual recogniser such as Parakeet v3, but is nearly free.",
+  "liveNoModelsHint": "Recommended downloads: Parakeet TDT 0.6B v3 (25 European languages) for recognition, M2M-100 418M or Hy-MT2 1.8B for translation, ECAPA-TDNN or CLD3 for language detection.",
+  "liveOpenModels": "Open Models",
+  "liveAudioTitle": "Audio input",
+  "liveMicrophone": "Microphone",
+  "liveSystemAudio": "System audio",
+  "liveReplayFile": "Replay a recording",
+  "liveReplayHelp": "Plays an audio file in real time as if it were live — for rehearsing a setup.",
+  "liveDisplayTitle": "Display",
+  "liveFontSize": "Text size",
+  "liveLayoutStacked": "Stacked",
+  "liveLayoutColumns": "Columns",
+  "liveShowSource": "Show the spoken-language transcript",
+  "liveShowDrafts": "Show the sentence in progress",
+  "liveDarkBackground": "Dark background",
+  "liveWaiting": "Listening…",
+  "liveLoading": "Loading models…",
+  "liveFullscreen": "Fullscreen (F)",
+  "liveCopyTranscript": "Copy transcript",
+  "liveCopied": "Transcript copied",
+  "liveClear": "Clear the screen",
+  "liveSmaller": "Smaller text (−)",
+  "liveLarger": "Larger text (+)",
+  "liveToggleLayout": "Switch layout (L)",
+  "liveSetup": "Setup",
+  "liveBehind": "{seconds} s behind",
+  "@liveBehind": {
+    "placeholders": {
+      "seconds": {
+        "type": "String"
+      }
+    }
+  },
+  "liveKeyboardHint": "F fullscreen · + − text size · L layout · S source · Esc stop",
+  "liveNotOnWeb": "Live translation runs in the desktop and mobile apps.",
+  "liveVisibleLanguages": "Languages on screen",
+  "livePauseMs": "Pause that ends a sentence block: {ms} ms",
+  "@livePauseMs": {
+    "placeholders": {
+      "ms": {
+        "type": "int"
+      }
+    }
+  },
+  "liveTargetsFor": "Translate {lang} into",
+  "@liveTargetsFor": {
+    "placeholders": {
+      "lang": {
+        "type": "String"
+      }
+    }
+  },
+  "liveRemove": "Remove",
+  "liveSavedToHistory": "Session saved to History",
+  "liveOpenInHistory": "Open"
 }

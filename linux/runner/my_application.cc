@@ -1,6 +1,7 @@
 #include "my_application.h"
 
 #include <flutter_linux/flutter_linux.h>
+#include <string.h>
 #ifdef GDK_WINDOWING_X11
 #include <gdk/gdkx.h>
 #endif
@@ -13,6 +14,44 @@ struct _MyApplication {
 };
 
 G_DEFINE_TYPE(MyApplication, my_application, GTK_TYPE_APPLICATION)
+
+// "crisperweaver/window_overlay" — the window controls the subtitle overlay
+// and the live-captions screen (§D) ask for. macOS implements the same
+// channel in MainFlutterWindow.swift, Windows in flutter_window.cpp.
+static void window_overlay_cb(FlMethodChannel* channel,
+                              FlMethodCall* method_call, gpointer user_data) {
+  GtkWindow* window = GTK_WINDOW(user_data);
+  const gchar* method = fl_method_call_get_name(method_call);
+  FlValue* args = fl_method_call_get_args(method_call);
+  g_autoptr(FlMethodResponse) response = nullptr;
+  if (strcmp(method, "setFullScreen") == 0 &&
+      fl_value_get_type(args) == FL_VALUE_TYPE_BOOL) {
+    if (fl_value_get_bool(args)) {
+      gtk_window_fullscreen(window);
+    } else {
+      gtk_window_unfullscreen(window);
+    }
+    response = FL_METHOD_RESPONSE(fl_method_success_response_new(nullptr));
+  } else if (strcmp(method, "isFullScreen") == 0) {
+    GdkWindow* gdk = gtk_widget_get_window(GTK_WIDGET(window));
+    const gboolean full =
+        gdk != nullptr &&
+        (gdk_window_get_state(gdk) & GDK_WINDOW_STATE_FULLSCREEN) != 0;
+    g_autoptr(FlValue) v = fl_value_new_bool(full);
+    response = FL_METHOD_RESPONSE(fl_method_success_response_new(v));
+  } else if (strcmp(method, "setAlwaysOnTop") == 0 &&
+             fl_value_get_type(args) == FL_VALUE_TYPE_BOOL) {
+    gtk_window_set_keep_above(window, fl_value_get_bool(args));
+    response = FL_METHOD_RESPONSE(fl_method_success_response_new(nullptr));
+  } else if (strcmp(method, "setWindowOpacity") == 0 &&
+             fl_value_get_type(args) == FL_VALUE_TYPE_FLOAT) {
+    gtk_widget_set_opacity(GTK_WIDGET(window), fl_value_get_float(args));
+    response = FL_METHOD_RESPONSE(fl_method_success_response_new(nullptr));
+  } else {
+    response = FL_METHOD_RESPONSE(fl_method_not_implemented_response_new());
+  }
+  fl_method_call_respond(method_call, response, nullptr);
+}
 
 // Called when first Flutter frame received.
 static void first_frame_cb(MyApplication* self, FlView* view) {
@@ -74,6 +113,19 @@ static void my_application_activate(GApplication* application) {
   gtk_widget_realize(GTK_WIDGET(view));
 
   fl_register_plugins(FL_PLUGIN_REGISTRY(view));
+
+  g_autoptr(FlPluginRegistrar) registrar =
+      fl_plugin_registry_get_registrar_for_plugin(FL_PLUGIN_REGISTRY(view),
+                                                  "CrisperWeaverWindow");
+  g_autoptr(FlStandardMethodCodec) codec = fl_standard_method_codec_new();
+  FlMethodChannel* overlay = fl_method_channel_new(
+      fl_plugin_registrar_get_messenger(registrar),
+      "crisperweaver/window_overlay", FL_METHOD_CODEC(codec));
+  fl_method_channel_set_method_call_handler(overlay, window_overlay_cb, window,
+                                            nullptr);
+  // Lives as long as the window.
+  g_object_set_data_full(G_OBJECT(window), "window-overlay-channel", overlay,
+                         g_object_unref);
 
   gtk_widget_grab_focus(GTK_WIDGET(view));
 }

@@ -40,6 +40,7 @@ import 'screens/voice_clone_wizard_screen.dart';
 import 'screens/translate_screen.dart';
 import 'screens/voice_bake_screen.dart';
 import 'screens/edit_audio_screen.dart';
+import 'screens/live_translate_screen.dart';
 import 'screens/subtitle_overlay_screen.dart';
 import 'screens/music_transcription_screen.dart';
 import 'screens/transcript_compare_screen.dart';
@@ -781,6 +782,11 @@ class _CrisperWeaverAppState extends ConsumerState<CrisperWeaverApp> {
         path: '/voice-bake',
         name: 'voice-bake',
         builder: (context, state) => const VoiceBakeScreen(),
+      ),
+      GoRoute(
+        path: '/live',
+        name: 'live',
+        builder: (context, state) => const LiveTranslateScreen(),
       ),
       GoRoute(
         path: '/subtitle-overlay',

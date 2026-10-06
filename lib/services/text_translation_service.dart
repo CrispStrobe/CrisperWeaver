@@ -1,10 +1,13 @@
+import 'dart:async';
 import 'dart:io';
+import 'dart:isolate';
 
 import '../native/crispasr_import.dart' as crispasr;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
 import '../main.dart' show modelServiceProvider;
+import 'live_translate/live_translator_worker.dart';
 import 'log_service.dart';
 import 'model_service.dart';
 
@@ -59,6 +62,15 @@ class TextTranslationService {
         'Translation model "$modelName" is not downloaded yet. '
         'Open Models → Translate to fetch it first.',
       );
+    }
+
+    // Translation chat LLMs (Hy-MT2, Index-Translate) are not session
+    // translators; they run in the live translator's worker isolate, which
+    // also keeps a multi-second generation off the UI isolate.
+    if (modelService.lookupDefinition(modelName)?.backend ==
+        chatTranslateBackend) {
+      if (text.trim().isEmpty) return '';
+      return _chatTranslate(modelPath, text, srcLang, tgtLang);
     }
 
     if (_session == null || _loadedPath != modelPath) {
@@ -119,10 +131,92 @@ class TextTranslationService {
     }
   }
 
+  // --- translation chat LLM via LiveTranslatorWorker -------------------
+
+  String? _chatPath;
+  SendPort? _chatPort;
+  ReceivePort? _chatEvents;
+  final Map<int, Completer<String>> _chatPending = {};
+  int _chatSeq = 0;
+
+  Future<String> _chatTranslate(
+      String modelPath, String text, String src, String tgt) async {
+    if (_chatPort == null || _chatPath != modelPath) {
+      _closeChat();
+      final events = ReceivePort();
+      final ready = Completer<void>();
+      events.listen((msg) {
+        if (msg is SendPort) {
+          _chatPort = msg;
+        } else if (msg is Map) {
+          switch (msg['type']) {
+            case 'ready':
+              if (!ready.isCompleted) ready.complete();
+            case 'error':
+              if (!ready.isCompleted) {
+                ready.completeError(
+                    TextTranslationException('${msg['message']}'));
+              }
+            case 'translation':
+              _chatPending.remove(msg['key'])?.complete(msg['text'] as String);
+            case 'failed':
+              _chatPending
+                  .remove(msg['key'])
+                  ?.completeError(TextTranslationException('${msg['message']}'));
+          }
+        }
+      });
+      _chatEvents = events;
+      await Isolate.spawn(
+        liveTranslatorWorkerEntry,
+        LiveTranslatorArgs(
+          readyPort: events.sendPort,
+          modelPath: modelPath,
+          backend: chatTranslateBackend,
+        ),
+        debugName: 'translate-llm',
+      );
+      try {
+        await ready.future;
+      } catch (_) {
+        _closeChat();
+        rethrow;
+      }
+      _chatPath = modelPath;
+      Log.instance.i('translate', 'translation LLM loaded',
+          fields: {'model': p.basename(modelPath)});
+    }
+    final key = _chatSeq++;
+    final c = Completer<String>();
+    _chatPending[key] = c;
+    _chatPort!.send({
+      'type': 'translate',
+      'key': key,
+      'text': text,
+      'src': src,
+      'tgt': tgt,
+    });
+    return c.future;
+  }
+
+  void _closeChat() {
+    _chatPort?.send({'type': 'stop'});
+    // The worker closes its model on 'stop' and then exits on its own.
+    _chatEvents?.close();
+    for (final c in _chatPending.values) {
+      c.completeError(const TextTranslationException('Translator closed'));
+    }
+    _chatPending.clear();
+    _chatPort = null;
+    _chatEvents = null;
+    _chatPath = null;
+  }
+
   void dispose() {
     _session?.close();
     _session = null;
     _loadedPath = null;
+    _closeChat();
   }
 
   /// Languages M2M-100 supports as ISO 639-1 codes. Used by the

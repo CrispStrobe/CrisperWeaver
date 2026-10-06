@@ -4105,4 +4105,196 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get aiTransparencyLiteWebNote =>
       'CrisperWeaver Lite führt Spracherkennung mit CrispASR WASM oder ONNX Runtime Web und Sprachsynthese mit CrispASR WASM lokal im Browser aus. Modelle und Aussprachedateien werden beim ersten Gebrauch heruntergeladen und gespeichert. Audio und Text werden nicht zur Verarbeitung hochgeladen. Remote-KI-Dienste sind deaktiviert. Browsermodelle unterstützen Segmentzeitstempel; erweiterte native Funktionen bietet die Desktop-App.';
+
+  @override
+  String get menuLiveCaptions => 'Live-Untertitel & Übersetzung';
+
+  @override
+  String get liveTitle => 'Live-Untertitel & Übersetzung';
+
+  @override
+  String get liveIntro =>
+      'Transkribiert einen Vortrag oder eine Diskussion in Echtzeit und übersetzt jeden Satz — im Vollbild, in großer Schrift, eine Farbe pro Sprache. Alles läuft auf diesem Gerät.';
+
+  @override
+  String get liveStart => 'Starten';
+
+  @override
+  String get liveStop => 'Stopp';
+
+  @override
+  String get liveSpokenLanguage => 'Gesprochene Sprache';
+
+  @override
+  String get liveDetectAuto => 'Automatisch erkennen';
+
+  @override
+  String get liveFixedLanguage => 'Eine feste Sprache';
+
+  @override
+  String get liveRoutesTitle => 'Übersetzungswege';
+
+  @override
+  String get liveRoutesHelp =>
+      'Wählen Sie für jede gesprochene Sprache, in welche Sprachen übersetzt wird. Eine Sprache ohne Ziel wird nur transkribiert.';
+
+  @override
+  String get liveAddSpokenLanguage => 'Gesprochene Sprache hinzufügen';
+
+  @override
+  String get liveOtherLanguages => 'Jede andere Sprache';
+
+  @override
+  String get liveTranscribeOnly => 'nur transkribieren';
+
+  @override
+  String get liveAddTarget => 'Zielsprache hinzufügen';
+
+  @override
+  String get livePresets => 'Vorlagen';
+
+  @override
+  String get liveModelsTitle => 'Modelle';
+
+  @override
+  String get liveRecognizer => 'Spracherkennung';
+
+  @override
+  String get liveTranslator => 'Übersetzer';
+
+  @override
+  String get liveNoTranslator => 'Keiner — nur transkribieren';
+
+  @override
+  String liveAppDefaultModel(String model) {
+    return 'App-Standard ($model)';
+  }
+
+  @override
+  String get liveLanguageDetection => 'Spracherkennung (Sprache)';
+
+  @override
+  String get liveLidAuto => 'Bestes verfügbares Verfahren';
+
+  @override
+  String get liveLidAudio => 'Aus dem Audio (LID-Modell)';
+
+  @override
+  String get liveLidText => 'Aus dem Transkripttext';
+
+  @override
+  String get liveLidRecognizer => 'Wie vom Erkenner gemeldet';
+
+  @override
+  String get liveLidHelp =>
+      'Die Audio-Erkennung entscheidet vor dem Transkribieren und funktioniert mit jedem Erkenner. Die Text-Erkennung braucht einen mehrsprachigen Erkenner wie Parakeet v3, kostet aber fast nichts.';
+
+  @override
+  String get liveNoModelsHint =>
+      'Empfohlene Downloads: Parakeet TDT 0.6B v3 (25 europäische Sprachen) für die Erkennung, M2M-100 418M oder Hy-MT2 1.8B für die Übersetzung, ECAPA-TDNN oder CLD3 für die Spracherkennung.';
+
+  @override
+  String get liveOpenModels => 'Modelle öffnen';
+
+  @override
+  String get liveAudioTitle => 'Audioeingang';
+
+  @override
+  String get liveMicrophone => 'Mikrofon';
+
+  @override
+  String get liveSystemAudio => 'Systemaudio';
+
+  @override
+  String get liveReplayFile => 'Aufnahme abspielen';
+
+  @override
+  String get liveReplayHelp =>
+      'Spielt eine Audiodatei in Echtzeit ab, als wäre sie live — zum Proben einer Einrichtung.';
+
+  @override
+  String get liveDisplayTitle => 'Anzeige';
+
+  @override
+  String get liveFontSize => 'Schriftgröße';
+
+  @override
+  String get liveLayoutStacked => 'Untereinander';
+
+  @override
+  String get liveLayoutColumns => 'Spalten';
+
+  @override
+  String get liveShowSource => 'Transkript der gesprochenen Sprache zeigen';
+
+  @override
+  String get liveShowDrafts => 'Den laufenden Satz zeigen';
+
+  @override
+  String get liveDarkBackground => 'Dunkler Hintergrund';
+
+  @override
+  String get liveWaiting => 'Hört zu…';
+
+  @override
+  String get liveLoading => 'Modelle werden geladen…';
+
+  @override
+  String get liveFullscreen => 'Vollbild (F)';
+
+  @override
+  String get liveCopyTranscript => 'Transkript kopieren';
+
+  @override
+  String get liveCopied => 'Transkript kopiert';
+
+  @override
+  String get liveClear => 'Bildschirm leeren';
+
+  @override
+  String get liveSmaller => 'Kleinere Schrift (−)';
+
+  @override
+  String get liveLarger => 'Größere Schrift (+)';
+
+  @override
+  String get liveToggleLayout => 'Layout wechseln (L)';
+
+  @override
+  String get liveSetup => 'Einrichtung';
+
+  @override
+  String liveBehind(String seconds) {
+    return '$seconds s Verzug';
+  }
+
+  @override
+  String get liveKeyboardHint =>
+      'F Vollbild · + − Schriftgröße · L Layout · S Quelltext · Esc Stopp';
+
+  @override
+  String get liveNotOnWeb =>
+      'Live-Übersetzung läuft in den Desktop- und Mobil-Apps.';
+
+  @override
+  String get liveVisibleLanguages => 'Sprachen auf dem Bildschirm';
+
+  @override
+  String livePauseMs(int ms) {
+    return 'Pause, die einen Satzblock beendet: $ms ms';
+  }
+
+  @override
+  String liveTargetsFor(String lang) {
+    return '$lang übersetzen in';
+  }
+
+  @override
+  String get liveRemove => 'Entfernen';
+
+  @override
+  String get liveSavedToHistory => 'Sitzung im Verlauf gespeichert';
+
+  @override
+  String get liveOpenInHistory => 'Öffnen';
 }

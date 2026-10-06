@@ -82,6 +82,7 @@ class SystemAudioCaptureService {
   // controller's Float32List sink. Kept null on macOS (which
   // uses the native MethodChannel path instead).
   Process? _subprocess;
+  bool _stopRequested = false;
   StreamSubscription<List<int>>? _subprocessStdoutSub;
   // Quick probe of which subprocess tool we'll use, set by the
   // first isSupported() call so the start() path doesn't have to
@@ -253,8 +254,12 @@ class SystemAudioCaptureService {
       executable: parec,
       arguments: [
         // Default sink's monitor source — captures whatever's
-        // currently playing through the system mixer.
-        '--device=@DEFAULT_SINK@.monitor',
+        // currently playing through the system mixer. `@DEFAULT_MONITOR@`
+        // is the special name for it (PulseAudio and pipewire-pulse);
+        // `@DEFAULT_SINK@.monitor`, used before, is not a valid device —
+        // parec exits at once with "Stream error: Invalid argument", so
+        // Linux system audio captured nothing at all.
+        '--device=@DEFAULT_MONITOR@',
         '--rate=16000',
         '--channels=1',
         '--format=float32le',
@@ -354,20 +359,31 @@ class SystemAudioCaptureService {
     );
 
     // Drain stderr to the log so a misconfigured subprocess
-    // doesn't hang on a full pipe.
+    // doesn't hang on a full pipe; keep the last line for the error below.
+    String? lastStderr;
     proc.stderr
         .transform(utf8.decoder)
         .transform(const LineSplitter())
         .listen((line) {
       if (line.trim().isEmpty) return;
+      lastStderr = line.trim();
       Log.instance.d('sysaudio', '$label stderr: $line');
     });
 
-    // When the subprocess exits, close the stream.
+    // When the subprocess exits, close the stream. An exit nobody asked
+    // for is an error the caller must see — a capture that silently ends
+    // empty looks like a silent room.
+    _stopRequested = false;
     proc.exitCode.then((code) {
       Log.instance.i('sysaudio', '$label exited',
           fields: {'code': code});
-      if (!controller.isClosed) controller.close();
+      if (controller.isClosed) return;
+      if (code != 0 && !_stopRequested) {
+        controller.addError(SystemAudioUnsupportedException(
+            '$label exited with code $code'
+            '${lastStderr == null ? '' : ': $lastStderr'}'));
+      }
+      controller.close();
     });
 
     Log.instance.i('sysaudio', 'capture started ($label)',
@@ -378,6 +394,7 @@ class SystemAudioCaptureService {
   /// Stop the capture cleanly. Idempotent — safe to call when no
   /// capture is active.
   Future<void> stop() async {
+    _stopRequested = true;
     await _activeSub?.cancel();
     _activeSub = null;
     await _subprocessStdoutSub?.cancel();

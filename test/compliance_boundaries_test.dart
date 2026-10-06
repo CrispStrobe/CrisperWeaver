@@ -119,6 +119,10 @@ void main() {
         'lib/main.dart': 1,
         // Transcript copy/share both route through withDisclosure.
         'lib/screens/transcript_workspace_screen.dart': 2,
+        // Live captions "Copy transcript": LiveTranslateController
+        // .transcriptText attaches AiTextDisclosure.forTranslation whenever
+        // the session holds a machine translation (§D).
+        'lib/screens/live_translate_screen.dart': 1,
       },
       'content exit(s)',
       'A content exit hands text or a file to the OS. If it can carry\n'
@@ -158,6 +162,9 @@ void main() {
         // factory and stamps generated translation provenance afterward.
         'lib/engines/browser_speech_engine.dart': 1,
         'lib/services/transcription_worker.dart': 1,
+        // Live captions saved to History (§D); the recogniser worker also
+        // strips at its own native call, which builds no segment.
+        'lib/services/live_translate/live_translate_controller.dart': 1,
         // The factory itself.
         'lib/engines/transcription_engine.dart': 1,
       },

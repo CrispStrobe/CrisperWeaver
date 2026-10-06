@@ -670,6 +670,26 @@ class SettingsService {
     }
     await _prefs.setString('browser_execution_provider', value);
   }
+
+  // --- Live transcribe + translate (§D) ---
+
+  /// The live-translate setup (routes, models, display) as a JSON object,
+  /// or null when the user has never saved one. Parsed by
+  /// `LiveTranslateConfig.fromJson`; kept opaque here so the schema lives
+  /// next to the feature.
+  Map<String, Object?>? get liveTranslateConfig {
+    final raw = _prefs.getString('live_translate_config_v1');
+    if (raw == null) return null;
+    try {
+      final v = jsonDecode(raw);
+      return v is Map<String, Object?> ? v : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> setLiveTranslateConfig(Map<String, Object?> json) =>
+      _prefs.setString('live_translate_config_v1', jsonEncode(json));
 }
 
 /// Provider for the SettingsService.

@@ -1483,6 +1483,83 @@ abstract final class ModelCatalog {
       quantization: 'q4_k',
       backend: 'parakeet',
     ),
+    // Phonon-2 (CrispASR 0.8.40): English recogniser on the Parakeet TDT
+    // engine, with its own `phonon2` dispatch name in the engine (GGUF
+    // metadata would also open it as `parakeet`). Q8_0 is upstream's
+    // recommended export; Q4_K drifts more.
+    'phonon2-q8_0': ModelDefinition(
+      name: 'phonon2-q8_0',
+      displayName: 'Phonon-2 (q8_0)',
+      fileName: 'phonon2-q8_0.gguf',
+      url:
+          'https://huggingface.co/cstr/phonon2-GGUF/resolve/main/phonon2-q8_0.gguf',
+      sizeBytes: 674 * 1000 * 1000,
+      checksum: '',
+      description: 'English ASR on the Parakeet TDT engine — ~674 MB',
+      quantization: 'q8_0',
+      backend: 'phonon2',
+      languages: langsEn,
+      license: 'CC-BY-4.0',
+    ),
+    'phonon2-q4_k': ModelDefinition(
+      name: 'phonon2-q4_k',
+      displayName: 'Phonon-2 (q4_k)',
+      fileName: 'phonon2-q4_k.gguf',
+      url:
+          'https://huggingface.co/cstr/phonon2-GGUF/resolve/main/phonon2-q4_k.gguf',
+      sizeBytes: 402 * 1000 * 1000,
+      checksum: '',
+      description:
+          'English ASR on the Parakeet TDT engine — smaller, less exact than q8_0 — ~402 MB',
+      quantization: 'q4_k',
+      backend: 'phonon2',
+      languages: langsEn,
+      license: 'CC-BY-4.0',
+    ),
+    // Index-Echo 2B (CrispASR 0.8.41): Chinese speech → English / Japanese /
+    // Spanish text. The tower opens with the matching decoder beside it, and
+    // a sibling Silero v6.2 file enables the released speech-window recipe.
+    'index-echo-2b-q8_0': ModelDefinition(
+      name: 'index-echo-2b-q8_0',
+      displayName: 'Index-Echo 2B (q8_0) — speech translation',
+      fileName: 'index-echo-2b-q8_0.gguf',
+      url:
+          'https://huggingface.co/cstr/index-echo-2b-GGUF/resolve/main/index-echo-2b-q8_0.gguf',
+      sizeBytes: 670 * 1024 * 1024,
+      checksum: '',
+      description:
+          'Chinese speech translated directly to English, Japanese or Spanish '
+          '(set the target language). Downloads its 1.9 GB decoder too — ~2.6 GB total',
+      quantization: 'q8_0',
+      backend: 'index-echo',
+      languages: langsZh,
+      companions: ['index-echo-2b-decoder-q8_0', 'index-echo-silero-v6.2'],
+    ),
+    'index-echo-2b-decoder-q8_0': ModelDefinition(
+      name: 'index-echo-2b-decoder-q8_0',
+      displayName: 'Index-Echo 2B decoder (q8_0)',
+      fileName: 'index-echo-2b-decoder-q8_0.gguf',
+      url:
+          'https://huggingface.co/cstr/index-echo-2b-GGUF/resolve/main/index-echo-2b-decoder-q8_0.gguf',
+      sizeBytes: 1930 * 1024 * 1024,
+      checksum: '',
+      description: 'Decoder for Index-Echo 2B q8_0 — required companion',
+      quantization: 'q8_0',
+      backend: 'index-echo',
+      kind: ModelKind.codec,
+    ),
+    'index-echo-silero-v6.2': ModelDefinition(
+      name: 'index-echo-silero-v6.2',
+      displayName: 'Silero VAD v6.2 (Index-Echo sidecar)',
+      fileName: 'ggml-silero-v6.2.0.bin',
+      url:
+          'https://huggingface.co/ggml-org/whisper-vad/resolve/9ffd54a1e1ee413ddf265af9913beaf518d1639b/ggml-silero-v6.2.0.bin',
+      sizeBytes: 885 * 1024,
+      checksum: '',
+      description: 'Speech-window VAD Index-Echo reads from beside its model — companion',
+      backend: 'index-echo',
+      kind: ModelKind.codec,
+    ),
     // moondream's parakeet-ultra / parakeet-redux (CrispASR 0.8.37, #454;
     // CrisperWeaver #38): parakeet-tdt-0.6b-v3 architecture, 25 EU
     // languages, on the parakeet runtime unchanged. CrispASR verified the
@@ -2186,7 +2263,26 @@ abstract final class ModelCatalog {
       quantization: 'q4_k',
       backend: 'miotts',
       kind: ModelKind.tts,
+      companions: ['miotts-tokenizer'],
       languages: langsJaEn,
+    ),
+    // MioTTS reads its BPE vocabulary from a `tokenizer.json` beside the
+    // model (miotts.cpp: auto-load from the model's directory — the GGUF
+    // does not embed it). Generic name, but no other backend reads a
+    // sibling tokenizer.json (checked against CrispASR d5dabb81), so the
+    // shared models dir is safe — the layout CrispASR's own registry
+    // auto-download produces too.
+    'miotts-tokenizer': ModelDefinition(
+      name: 'miotts-tokenizer',
+      displayName: 'MioTTS tokenizer',
+      fileName: 'tokenizer.json',
+      url:
+          'https://huggingface.co/cstr/miotts-0.6b-GGUF/resolve/main/tokenizer.json',
+      sizeBytes: 14 * 1024 * 1024,
+      checksum: '',
+      description: 'BPE tokenizer for MioTTS — required companion',
+      backend: 'miotts',
+      kind: ModelKind.codec,
     ),
     'miotts-0.6b-q8_0': ModelDefinition(
       name: 'miotts-0.6b-q8_0',
@@ -2201,6 +2297,7 @@ abstract final class ModelCatalog {
       quantization: 'q8_0',
       backend: 'miotts',
       kind: ModelKind.tts,
+      companions: ['miotts-tokenizer'],
       languages: langsJaEn,
     ),
     // MOSS-TTS-Local v1.5 — Qwen3-4B backbone; the codec is a separate
@@ -3460,6 +3557,45 @@ abstract final class ModelCatalog {
       quantization: 'q4_k',
       backend: 'm2m100',
       kind: ModelKind.translate,
+    ),
+    // §D — translation chat LLMs for live translation. Not CrispASR
+    // translate backends: they run through the chat ABI with the
+    // instruction each was trained on (crispasr_run.cpp `--translate-backend
+    // llm`; LiveTranslatorWorker mirrors its two prompt presets). The
+    // `llm-translate` backend id routes them there.
+    'hy-mt2-1.8b-q4_k_m': ModelDefinition(
+      name: 'hy-mt2-1.8b-q4_k_m',
+      displayName: 'Hy-MT2 1.8B (Q4_K_M) — live translation',
+      fileName: 'Hy-MT2-1.8B-Q4_K_M.gguf',
+      url:
+          'https://huggingface.co/tencent/Hy-MT2-1.8B-GGUF/resolve/main/Hy-MT2-1.8B-Q4_K_M.gguf',
+      sizeBytes: 1133 * 1000 * 1000,
+      checksum: '',
+      description:
+          'Tencent Hy-MT2 translation LLM, 33 languages — clearly better than '
+          'M2M-100 and fast enough to translate live, sentence by sentence '
+          '(0.4–0.9 s per sentence on an M1). Apache-2.0 — ~1.1 GB',
+      quantization: 'q4_k_m',
+      backend: 'llm-translate',
+      kind: ModelKind.translate,
+      languages: langsAll,
+    ),
+    'index-translate-2b-q4_k_m': ModelDefinition(
+      name: 'index-translate-2b-q4_k_m',
+      displayName: 'Index-Translate 2B (Q4_K_M)',
+      fileName: 'Index-Translate-2B.Q4_K_M.gguf',
+      url:
+          'https://huggingface.co/IndexTeam/Index-Translate-2B-GGUF/resolve/main/Index-Translate-2B.Q4_K_M.gguf',
+      sizeBytes: 1312 * 1000 * 1000,
+      checksum: '',
+      description:
+          'IndexTeam translation LLM, 150 languages — the best translations '
+          'CrispASR measured for live use, slower than Hy-MT2. Needs '
+          'CrispASR 0.8.41+. Apache-2.0 — ~1.3 GB',
+      quantization: 'q4_k_m',
+      backend: 'llm-translate',
+      kind: ModelKind.translate,
+      languages: langsAll,
     ),
     // M2M-100 1.2B is not currently published — `cstr/m2m100-1.2b-GGUF`
     // returns 401. Use m2m100-418m-q4_k as the smaller default; revisit
@@ -6261,6 +6397,7 @@ abstract final class ModelCatalog {
       displayPrefix: 'MioTTS 0.6B',
       description: 'Qwen3 + MioCodec-v2 FSQ TTS — Japanese/English, 44.1 kHz',
       kind: ModelKind.tts,
+      defaultCompanions: ['miotts-tokenizer'],
       defaultLanguages: langsJaEn,
     ),
     // MOSS-TTS-Local v1.5 — Qwen3-4B backbone + 1-layer RQ-Transformer
