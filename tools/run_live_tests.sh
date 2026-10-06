@@ -239,6 +239,18 @@ export_var CRISPASR_TEST_KOKORO_VOICE "$KOKORO_DIR/kokoro-voice-af_heart.gguf" \
 export_var CRISPASR_TEST_CHATTERBOX_MODEL "$MODELS_DIR/chatterbox-t3-q4_k.gguf"
 export_var CRISPASR_TEST_CHATTERBOX_S3GEN "$MODELS_DIR/chatterbox-s3gen-q4_k.gguf"
 
+# ---- live captions + translation (§D) ---------------------------------------
+# The talk fixture is built by tools/make_live_talk_fixture.sh.
+export_var CRISPASR_TEST_LIVE_WAV "$MODELS_DIR/talk_de_en.wav"
+export_var CRISPASR_TEST_LIVE_ASR_MODEL "$MODELS_DIR/parakeet-tdt-0.6b-v3-q4_k.gguf"
+export_var CRISPASR_TEST_LIVE_TR_MODEL "$MODELS_DIR/m2m100-418m-q4_k.gguf"
+export_var CRISPASR_TEST_LIVE_LID_MODEL \
+  "$MODELS_DIR/ecapa-lid-107-q8_0.gguf" "$MODELS_DIR/ecapa-lid-107.gguf"
+export_var CRISPASR_TEST_LIVE_VAD_MODEL "$ROOT/assets/vad/silero-v6.2.0-ggml.bin"
+export_var CRISPASR_TEST_ZH_WAV /mnt/volume1/CrispASR/samples/paraformer_zh.wav
+# system_audio_live_test.dart additionally needs CRISPASR_TEST_PULSE=1 and a
+# reachable PulseAudio server (see its header).
+
 # ---- heavyweights: only with RUN_HEAVY=1 ----------------------------------
 if [ "${RUN_HEAVY:-0}" = "1" ]; then
   export_var CRISPASR_TEST_MADLAD_MODEL     "$MODELS_DIR/madlad400-3b-mt-q4_k.gguf"
@@ -246,6 +258,8 @@ if [ "${RUN_HEAVY:-0}" = "1" ]; then
   export_var CRISPASR_TEST_VOXCPM2_MODEL    "$MODELS_DIR/voxcpm2-q4_k.gguf"
   export_var CRISPASR_TEST_VIBEVOICE_MODEL  "$MODELS_DIR/vibevoice-1.5b-q4_k.gguf"
   export_var CRISPASR_TEST_VIBEVOICE_VOICE  "$MODELS_DIR/vibevoice-voice-en-Emma_woman.gguf"
+  # Index-Echo needs its decoder (1.9 GB) and Silero beside the tower.
+  export_var CRISPASR_TEST_INDEX_ECHO_MODEL "$MODELS_DIR/index-echo-2b-q8_0.gguf"
 fi
 
 # ---------------------------------------------------------------------------
@@ -276,6 +290,9 @@ SLOW_SUITES=(
   test/canary_ctc_aligner_live_test.dart
   # translation
   test/translation_live_test.dart
+  # live captions + translation (§D)
+  test/live_translate/live_pipeline_live_test.dart
+  test/live_translate/system_audio_live_test.dart
   test/verification_matrix_live_test.dart
   # TTS and the roundtrips that consume it
   test/tts_issue_fixes_live_test.dart
@@ -290,7 +307,10 @@ SLOW_SUITES=(
 )
 
 # Suites whose weights are all over the ceiling. Never in the default run.
-HEAVY_SUITES=()
+HEAVY_SUITES=(
+  # ~40x slower than real time on a CPU
+  test/live_translate/index_echo_live_test.dart
+)
 
 if [ "${RUN_HEAVY:-0}" = "1" ] && [ ${#HEAVY_SUITES[@]} -gt 0 ]; then
   SLOW_SUITES+=("${HEAVY_SUITES[@]}")

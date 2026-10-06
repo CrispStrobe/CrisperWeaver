@@ -645,6 +645,9 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
         case 'subtitle-overlay':
           context.push('/subtitle-overlay');
           return;
+        case 'live':
+          context.push('/live');
+          return;
         case 'music':
           context.push('/music');
           return;
@@ -667,6 +670,9 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
             _appBarMenuItem(
                 'synthesize', Icons.record_voice_over, l.menuSynthesize),
             _appBarMenuItem('translate', Icons.translate, l.menuTranslate),
+            if (!plat.isWeb && phone)
+              _appBarMenuItem(
+                  'live', Icons.closed_caption, l.menuLiveCaptions),
             if (advancedSurface) ...[
               _appBarMenuItem(
                   'presets', Icons.bookmarks_outlined, l.presetsTooltip),
@@ -704,6 +710,14 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
         tooltip: l.menuModels,
         onPressed: _openModels,
       ),
+      // §D — live captions + translation: a headline feature, so it sits
+      // with the primary actions rather than in the overflow menu.
+      if (!plat.isWeb)
+        IconButton(
+          icon: const Icon(Icons.closed_caption),
+          tooltip: l.menuLiveCaptions,
+          onPressed: () => context.push('/live'),
+        ),
       IconButton(
         icon: const Icon(Icons.settings),
         tooltip: l.menuSettings,

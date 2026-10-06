@@ -3944,4 +3944,191 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get aiTransparencyLiteWebNote =>
       'CrisperWeaver Lite 通过 CrispASR WASM 或 ONNX Runtime Web 在浏览器本地识别语音，并通过 CrispASR WASM 本地合成语音。首次使用时会下载并缓存模型和发音资源。音频和文本不会上传进行处理。远程 AI 服务已禁用。浏览器模型支持片段时间戳；高级原生功能可在桌面应用使用。';
+
+  @override
+  String get menuLiveCaptions => '实时字幕与翻译';
+
+  @override
+  String get liveTitle => '实时字幕与翻译';
+
+  @override
+  String get liveIntro => '实时转写演讲或讨论并翻译每一句——全屏、大字号、每种语言一种颜色。全部在本设备上运行。';
+
+  @override
+  String get liveStart => '开始';
+
+  @override
+  String get liveStop => '停止';
+
+  @override
+  String get liveSpokenLanguage => '说话语言';
+
+  @override
+  String get liveDetectAuto => '自动检测';
+
+  @override
+  String get liveFixedLanguage => '固定一种语言';
+
+  @override
+  String get liveRoutesTitle => '翻译路径';
+
+  @override
+  String get liveRoutesHelp => '为每种说话语言选择要翻译成的语言。没有目标的语言只转写。';
+
+  @override
+  String get liveAddSpokenLanguage => '添加说话语言';
+
+  @override
+  String get liveOtherLanguages => '其他任何语言';
+
+  @override
+  String get liveTranscribeOnly => '仅转写';
+
+  @override
+  String get liveAddTarget => '添加目标语言';
+
+  @override
+  String get livePresets => '预设';
+
+  @override
+  String get liveModelsTitle => '模型';
+
+  @override
+  String get liveRecognizer => '语音识别';
+
+  @override
+  String get liveTranslator => '翻译器';
+
+  @override
+  String get liveNoTranslator => '无——仅转写';
+
+  @override
+  String liveAppDefaultModel(String model) {
+    return '应用默认（$model）';
+  }
+
+  @override
+  String get liveLanguageDetection => '语言检测';
+
+  @override
+  String get liveLidAuto => '最佳可用方式';
+
+  @override
+  String get liveLidAudio => '从音频（LID 模型）';
+
+  @override
+  String get liveLidText => '从转写文本';
+
+  @override
+  String get liveLidRecognizer => '由识别器报告';
+
+  @override
+  String get liveLidHelp =>
+      '音频检测在转写前判断，适用于所有识别器。文本检测需要多语言识别器（如 Parakeet v3），但几乎没有开销。';
+
+  @override
+  String get liveNoModelsHint =>
+      '推荐下载：识别用 Parakeet TDT 0.6B v3（25 种欧洲语言），翻译用 M2M-100 418M 或 Hy-MT2 1.8B，语言检测用 ECAPA-TDNN 或 CLD3。';
+
+  @override
+  String get liveOpenModels => '打开模型';
+
+  @override
+  String get liveAudioTitle => '音频输入';
+
+  @override
+  String get liveMicrophone => '麦克风';
+
+  @override
+  String get liveSystemAudio => '系统音频';
+
+  @override
+  String get liveReplayFile => '回放录音';
+
+  @override
+  String get liveReplayHelp => '按实时速度播放音频文件，如同现场——用于预演设置。';
+
+  @override
+  String get liveDisplayTitle => '显示';
+
+  @override
+  String get liveFontSize => '字号';
+
+  @override
+  String get liveLayoutStacked => '堆叠';
+
+  @override
+  String get liveLayoutColumns => '分栏';
+
+  @override
+  String get liveShowSource => '显示说话语言的转写';
+
+  @override
+  String get liveShowDrafts => '显示进行中的句子';
+
+  @override
+  String get liveDarkBackground => '深色背景';
+
+  @override
+  String get liveWaiting => '正在聆听…';
+
+  @override
+  String get liveLoading => '正在加载模型…';
+
+  @override
+  String get liveFullscreen => '全屏（F）';
+
+  @override
+  String get liveCopyTranscript => '复制转写';
+
+  @override
+  String get liveCopied => '已复制转写';
+
+  @override
+  String get liveClear => '清屏';
+
+  @override
+  String get liveSmaller => '缩小文字（−）';
+
+  @override
+  String get liveLarger => '放大文字（+）';
+
+  @override
+  String get liveToggleLayout => '切换布局（L）';
+
+  @override
+  String get liveSetup => '设置';
+
+  @override
+  String liveBehind(String seconds) {
+    return '落后 $seconds 秒';
+  }
+
+  @override
+  String get liveKeyboardHint => 'F 全屏 · + − 字号 · L 布局 · S 原文 · Esc 停止';
+
+  @override
+  String get liveNotOnWeb => '实时翻译在桌面和移动应用中运行。';
+
+  @override
+  String get liveVisibleLanguages => '屏幕上的语言';
+
+  @override
+  String livePauseMs(int ms) {
+    return '结束句块的停顿：$ms 毫秒';
+  }
+
+  @override
+  String liveTargetsFor(String lang) {
+    return '将 $lang 翻译为';
+  }
+
+  @override
+  String get liveRemove => '移除';
+
+  @override
+  String get liveSavedToHistory => '会话已保存到历史记录';
+
+  @override
+  String get liveOpenInHistory => '打开';
 }

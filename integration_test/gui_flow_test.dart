@@ -57,6 +57,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:crisper_weaver/l10n/generated/app_localizations_en.dart';
 import 'package:crisper_weaver/main.dart' show CrisperWeaverApp;
 import 'package:crisper_weaver/providers/synthesize_screen_provider.dart';
+import 'package:crisper_weaver/screens/live_translate_screen.dart';
 import 'package:crisper_weaver/screens/model_management_screen.dart';
 import 'package:crisper_weaver/screens/onboarding_screen.dart';
 import 'package:crisper_weaver/screens/synthesize_screen.dart';
@@ -516,6 +517,50 @@ void main() {
     await tester.ensureVisible(find.text(l.advancedVadTrim));
     await _pumpFor(tester, const Duration(milliseconds: 200));
     expect(find.text(l.advancedVadTrimSubtitle), findsOneWidget);
+  });
+
+  // ---------------------------------------------------------------------
+  // §D. Live captions + translation, reached from the main toolbar.
+  //
+  // Guards: the caption icon routes to the setup page; a routing preset is
+  // applied AND persisted (the board reads the saved config); Start with no
+  // recogniser on disk lands on the board's explanation, and its way back
+  // shows the same explanation on the setup page instead of a silent no-op.
+  // No model weights — the failure path is the point.
+  // ---------------------------------------------------------------------
+  testWidgets('§D: live captions — toolbar → setup → preset → start explains '
+      'the missing recogniser', (tester) async {
+    final settings = await _seedPrefs();
+    await _pumpApp(tester, settings);
+
+    await _tapWhenReady(tester, find.byTooltip(l.menuLiveCaptions),
+        reason: 'the live-captions toolbar icon');
+    await _waitFor(tester, find.byType(LiveTranslateScreen),
+        reason: 'the live captions screen');
+    await _waitFor(tester, find.text(l.liveRoutesTitle),
+        reason: 'the translation-paths card');
+    expect(find.text('Deutsch · DE'), findsOneWidget);
+
+    await _tapWhenReady(tester, find.widgetWithText(ActionChip, 'de · en · fr'),
+        reason: 'the de · en · fr preset');
+    await _waitFor(tester, find.text('Français · FR'),
+        reason: 'French as a spoken language after the preset');
+    final saved = settings.liveTranslateConfig;
+    expect((saved?['routes'] as Map?)?['fr'], ['de', 'en'],
+        reason: 'the routing table is persisted, not only shown');
+
+    // By label: FilledButton.icon builds a private subclass, which
+    // `widgetWithText(FilledButton, …)` (exact runtimeType) never matches.
+    await _tapWhenReady(tester, find.text(l.liveStart),
+        reason: 'the Start bar');
+    await _waitFor(tester, find.textContaining('No speech recognition model'),
+        reason: 'the board explaining that no recogniser is downloaded');
+    await _tapWhenReady(tester, find.text(l.liveSetup),
+        reason: 'the board\'s way back to setup');
+    await _waitFor(tester, find.text(l.liveRoutesTitle),
+        reason: 'the setup page again');
+    expect(find.textContaining('No speech recognition model'), findsOneWidget,
+        reason: 'the failure stays explained on the setup page');
   });
 }
 

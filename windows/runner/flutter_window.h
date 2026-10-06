@@ -2,7 +2,9 @@
 #define RUNNER_FLUTTER_WINDOW_H_
 
 #include <flutter/dart_project.h>
+#include <flutter/encodable_value.h>
 #include <flutter/flutter_view_controller.h>
+#include <flutter/method_channel.h>
 
 #include <memory>
 
@@ -28,6 +30,15 @@ class FlutterWindow : public Win32Window {
 
   // The Flutter instance hosted by this window.
   std::unique_ptr<flutter::FlutterViewController> flutter_controller_;
+
+  // "crisperweaver/window_overlay": fullscreen / always-on-top for the
+  // live-captions and subtitle-overlay screens.
+  std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>>
+      overlay_channel_;
+  void SetFullScreen(bool on);
+  bool fullscreen_ = false;
+  LONG saved_style_ = 0;
+  RECT saved_rect_ = {};
 };
 
 #endif  // RUNNER_FLUTTER_WINDOW_H_
