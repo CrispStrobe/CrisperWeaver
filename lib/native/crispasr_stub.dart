@@ -481,6 +481,10 @@ class CrispasrSession {
     throw UnsupportedError('CrispasrSession is not available on web');
   }
 
+  String detectedLanguage() {
+    throw UnsupportedError('CrispasrSession is not available on web');
+  }
+
   List<SessionSegment> transcribeChunked(Float32List pcm,
       {int chunkSeconds = 0,
       int overlapSeconds = -1,
