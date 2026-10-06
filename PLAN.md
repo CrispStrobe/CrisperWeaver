@@ -63,7 +63,7 @@ The concrete store handoff is in [docs/appstore-2026-10-03/README.md](docs/appst
 |---|---|
 | iOS App Store | Read-only Apple inspection on 2026-10-03 reports 0.9.5 `READY_FOR_SALE`. First valid build was 75. Signing is **manual**, not `flutter build ipa` — see the auto-memory note on iOS signing before touching it. |
 | macOS App Store | Review message dated 2026-10-01 rejected Full 1.0 (85) for China mainland remote-AI references/functionality. Signed Lite package-only CI succeeded; storefront changes and a separate Lite submission remain pending. Sandboxed target = `AppStore.entitlements`. |
-| TestFlight | Builds are uploading and processing. No evidence in the repo that **external** Beta App Review has been submitted — confirm in App Store Connect before assuming either way. |
+| TestFlight | v0.14.0 build 90 (2026-10-06), iOS and macOS: VALID, in the Internal group (`IN_BETA_TESTING`) and in External Testers with Beta App Review submitted (`WAITING_FOR_BETA_REVIEW`); "what to test" notes set. Builds 88/89 passed external review. Public link: https://testflight.apple.com/join/svwfvHvh |
 | Google Play | Not started. |
 | Compliance | EU AI Act: seven audit rounds, all closed. 155 compliance tests green. |
 | Issue #35 | Closed by [`e0c8de0`](https://github.com/CrispStrobe/CrisperWeaver/commit/e0c8de0) (2026-08-29), shipping in v0.11.0. Write-up: HISTORY.md §18. |
