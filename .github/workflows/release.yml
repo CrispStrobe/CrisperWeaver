@@ -54,7 +54,7 @@ env:
   CRISPASR_REPO: CrispStrobe/CrispASR
   # Persistent streaming bindings, licensed German Moonshine deployments,
   # and merged live-translate revisions (#513). Immutable PR #515 commit.
-  CRISPASR_REF: cacb2cb1f0bcfb9f8f7d63b0d8ff1798e24fe709
+  CRISPASR_REF: 2bf39c58a53160ed10aed82d5d621c794dc32bba
   CRISPEMBED_REPO: CrispStrobe/CrispEmbed
   CRISPEMBED_REF: 40e7b7dd00bb6b1505c9e6ac74bef0c97efef337
   GLINT_REPO: CrispStrobe/glint
