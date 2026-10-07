@@ -35,7 +35,7 @@ Archived to HISTORY.md: §0, §8–§18.
 
 ## A. Current state
 
-**Version:** 0.14.0+90 (live captions + translation, CrispASR d5dabb81; also ships the Lite and local browser speech work).
+**Version:** 0.14.1+100 (release preparation: microphone selection, streaming fixes, Cohere context/cadence and licensed German Moonshine deployments; backend pinned to eb3a1d09).
 Current browser validation is dated 2026-10-02; the native health figures
 below are historical and are not a claim about the current complete suite.
 
@@ -320,6 +320,56 @@ the talk fixture is `tools/make_live_talk_fixture.sh`.
 
 **Bugs the verification found and fixed** (each would have shipped otherwise):
 
+- **2026-10-07, macOS system audio permission:** explicitly preflight/request
+  screen capture access before enumerating ScreenCaptureKit content, add
+  the usage description, and describe missing/stale authorization without
+  claiming the user denied it. Local builds should use a stable signing
+  certificate after dylib bundling so grants can survive rebuilds; the
+  user still needs to enable capture in macOS Settings.
+- **2026-10-07, microphone selection:** live setup now lists input devices
+  with a system-default option and refresh button. Persist the platform
+  device ID, pass the selected device to `record`'s PCM stream, and reject
+  a disconnected selection instead of silently recording another input.
+  Config round-trip and widget selection/persistence tests cover this.
+- **2026-10-07, stateful live recognition:** use CrispASR's reported stream
+  implementation instead of assuming every live model needs repeated-window
+  transcription. Nemotron retains its encoder/RNN-T caches across new PCM
+  chunks with the fixed German prompt; Qwen uses prefix rollback; Voxtral
+  enables live decoding and gets cumulative updates from its delta API.
+  Streams flush on pause/stop and close before the parent session. Offline
+  recognizers retain buffered-window decoding. The toolbar tooltip and log
+  identify the actual mode. On macOS Nemotron uses the CPU path rather than
+  Metal's high small-graph dispatch overhead. Lag uses capture timestamps, since audio buffers
+  cannot advance during a blocking call in the recognition isolate.
+  Native library/package changes live in sibling `CrispASR-streaming-local`.
+  Verified locally: 1,720 existing app tests, 2 model-free stateful worker
+  cases (native and prefix), German Nemotron live-worker replay, and both
+  Nemotron/Qwen public-ABI feed-partition/reopen tests. Build 96 bundles the
+  new native engine and is installed as `~/Applications/CrisperWeaver-local-fixed.app`.
+  Reviewed CrispASR #513: its slow ASR/translation revisions, final marker
+  and backlog policy live in the CLI sink. They are compatible with these
+  backend changes; the app does not yet implement that separate slow-pass UI.
+- **2026-10-07, German live model selection:** Moonshine Streaming Tiny is
+  English-only. CrispASR deliberately returns null when asked for German;
+  the live UI repeated a generic transcription error instead of rejecting
+  the setup. Tag the curated English Moonshine rows and validate the fixed
+  source language against current catalogue metadata before starting.
+  Nemotron also exposes language control tokens such as `<de-DE>` through
+  its segment text and timed words; remove those on the live path. This is
+  output cleanup, not a demonstrated fix for its poor recognition quality.
+- **2026-10-07, MacBook M1:** overlapping VAD revisions could append a
+  retained older speech span after newer spans. The pause detector then
+  invented a long trailing silence and split continuous German speech into
+  short utterances, losing recognition context. Keep the timeline sorted.
+  Using the installed v0.14.0 engine and downloaded Parakeet v3 Q4_K, the
+  FLEURS German fixture went from seven fragmented utterances (including
+  dropped/duplicated words) to one complete German utterance. Regression:
+  `test/live_translate/fixed_german_live_test.dart` (invocation in its header).
+  Direct C-ABI decoding of the same fixture also passed on CPU and Metal.
+  The original microphone audio was not retained, so its exact failure
+  still needs a microphone retest. Parakeet auto-detects from audio and
+  ignores the source-language hint; fixed mode labels/routes its output,
+  rather than constraining its vocabulary to German.
 - Linux system audio never captured anything — `parec --device=@DEFAULT_SINK@.monitor`
   is not a valid device; now `@DEFAULT_MONITOR@`, and a capture tool that
   dies surfaces as an error instead of a silent stream. Also fixes the
@@ -349,8 +399,8 @@ the talk fixture is `tools/make_live_talk_fixture.sh`.
 
 1. Measure sentence → translation latency on an Apple Silicon Mac and a CUDA
    box; record it next to upstream's numbers in its `docs/streaming.md`.
-2. Nemotron's incremental session as a recogniser once upstream makes its
-   encoder fast enough (upstream: not yet).
+2. Measure Nemotron native-streaming accuracy and latency on live microphone
+   audio; its stateful session is now connected through the session bindings.
 3. Optional second-screen output (board on the projector, setup on the
    laptop).
 
@@ -770,3 +820,52 @@ straight into HISTORY.md; it never lived here.
 
 Audit rounds 3–6 were written up in `docs/AI_ACT_RISK.md` §9 rather than
 here, and that document stays **live**.
+
+## E. German Moonshine coverage — local work 2026-10-07
+
+Audit requested checkpoints and inherited licenses. Add MIT German Tiny and
+Streaming Tiny/Small with isolated companions; wire ONNX execution through
+CrispASR. Keep non-commercial fidoriel derivatives excluded from release builds.
+Validate model loading and German recognition before rebuilding the local app.
+
+Completed locally in build 99: six MIT deployment variants installed for testing,
+38 catalog artifact hashes verified, 18 native batch results and six real-audio
+live-worker replays passed. Fixed low-level VAD input and protected its warm-up
+history from rewriting earlier speech. A deterministic fixture verifies one
+stream/flush and stop-tail preservation. Analyzer clean; 52 focused regression
+tests pass. Full Zoom recording transcribed locally with Whisper large-v3-turbo;
+audio, transcript and validation artifacts are outside Git. CrispASR checkout
+also includes merged PR #513, whose revision CLI tests pass. No changes pushed.
+
+
+## F. Headless live microphone CLI — local work 2026-10-07
+
+Implemented locally: `live` with macOS input listing/selection, reusable GUI ASR worker,
+16 kHz PCM capture independent of decoding, WAV + JSONL diagnostics, graceful
+stop and bounded startup/shutdown. Validate against file replay and the attached
+Sennheiser SP 20 for Lync. Cohere drafts wait for 3 s and keep up to 25 s acoustic
+context, rather than cutting near each committed word. Setup/usage: [docs/CLI_LIVE.md](docs/CLI_LIVE.md).
+Validation: 50 focused tests pass (one unrelated optional TTS test skips); actual 30 s Sennheiser capture and matched real-time
+Cohere/Moonshine replay retained under `~/Documents/CrisperWeaver/live/validation-20261007/`.
+Changed-file analysis is clean. Full analysis retains pre-existing lint notices and
+two base-pubspec sibling-path warnings (local dependency overrides resolve the packages).
+The installed Flutter app has not been rebuilt for these latest worker changes.
+
+Further local calibration: 119.936 s Sennheiser capture, matched 5 s-cadence
+replay, and raw/gain/light-cleanup decoding on three 30 s snippets are saved in
+`~/Documents/CrisperWeaver/live/sustained-20261007/`. Cohere kept pace under
+concurrent machine load, with occasional 6–8 s processing spikes. Preprocessing
+showed no consistent transcript improvement. Added reproducible comparison
+script, richer timing summaries and first-draft scheduling fix. 50 focused tests
+pass; the 22 worker/committer tests also pass after the scheduling change.
+
+## G. Release 0.14.1 build 100 — 2026-10-07
+
+Requested local GUI rebuild and GitHub CI delivery to both TestFlight groups.
+Backend fixes published in CrispASR PR #515, immutable pin eb3a1d09. Full app
+suite: 1,737 passed, 121 optional/model-dependent skips. Full analysis has only
+two existing sibling-path warnings on this Mac (the local overrides resolve
+those packages); lint notices were fixed. The CI checkout creates those siblings.
+Four TestFlight client tests pass and existing Apple builds/groups were inspected
+read-only. CI now includes explicit group assignment and external beta-review
+submission after both Apple upload jobs. Build/release results are pending.

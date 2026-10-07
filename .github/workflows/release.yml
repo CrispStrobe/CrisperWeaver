@@ -52,12 +52,8 @@ env:
   # backends or add them to its documented `engineOnly` set, then commit
   # the bump on its own so a regression bisects cleanly.
   CRISPASR_REPO: CrispStrobe/CrispASR
-  # Pinned to CrispASR main after v0.8.41 (d5dabb81). On top of v0.8.41 it adds
-  # live transcribe + translate (#493: the sentence-commit policy the app's
-  # live-captions screen ports), the ggml v0.26.0 sync, Nemotron streaming
-  # fixes, Qwen3.5 NextN-block loading (Index-Translate) and registry rows for
-  # the hy-mt2 / index-translate translation LLMs. The Dart API is unchanged
-  # since 0.8.37.
+  # Persistent streaming bindings, licensed German Moonshine deployments,
+  # and merged live-translate revisions (#513). Immutable PR #515 commit.
   CRISPASR_REF: eb3a1d09334c14fd25414aa2efc55bc74bdc71bf
   CRISPEMBED_REPO: CrispStrobe/CrispEmbed
   CRISPEMBED_REF: 40e7b7dd00bb6b1505c9e6ac74bef0c97efef337
@@ -147,12 +143,14 @@ jobs:
           # .app ships GPL-free (App-Store-safe). We deliberately do NOT
           # `brew install espeak-ng` so CMake can't find + link it. Built-in
           # G2P covers EN/DE/FR/ES; a user can add their own libespeak-ng.
+          ORT_ROOT="$(bash scripts/fetch_onnxruntime.sh "$RUNNER_TEMP/onnxruntime-sdk")"
           cmake -B build -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_OSX_DEPLOYMENT_TARGET=13.3 \
             -DCMAKE_OSX_ARCHITECTURES=arm64 \
             -DBUILD_SHARED_LIBS=ON -DWHISPER_METAL=ON \
             -DCRISPASR_WITH_ESPEAK_NG=AUTO \
-            -DCRISPASR_OPUS_FETCH=ON
+            -DCRISPASR_OPUS_FETCH=ON \
+            -DCRISPASR_ONNXRUNTIME_ROOT="$ORT_ROOT"
           # --parallel 2 (not unbounded): caps peak RAM so the heavier
           # CrispASR build doesn't get OOM-killed on the 7 GB M1 runner.
           cmake --build build --config Release --parallel 2 --target crispasr-lib
@@ -1531,3 +1529,53 @@ jobs:
           draft: false
           prerelease: false
           fail_on_unmatched_files: false
+
+  distribute-testflight:
+    name: Distribute iOS and macOS to TestFlight groups
+    needs: [validate-tag, build-macos-appstore, build-ios]
+    runs-on: ubuntu-latest
+    timeout-minutes: 100
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.validate-tag.outputs.tag }}
+      - name: Install App Store Connect client
+        run: |
+          python3 -m venv "$RUNNER_TEMP/asc-python"
+          "$RUNNER_TEMP/asc-python/bin/pip" install 'PyJWT[crypto]==2.10.1'
+          "$RUNNER_TEMP/asc-python/bin/python" -m unittest discover \
+            -s scripts -p test_distribute_testflight.py -v
+      - name: Distribute exact release builds
+        env:
+          APPSTORE_API_KEY_P8: ${{ secrets.APPSTORE_API_KEY_P8 }}
+          APPSTORE_APP_ID: ${{ secrets.APPSTORE_APP_ID }}
+        run: |
+          python3 - <<'PYTHON'
+          import base64, os, pathlib
+          key = os.environ['APPSTORE_API_KEY_P8']
+          if not key:
+              raise SystemExit('App Store Connect key is required for TestFlight distribution')
+          if 'BEGIN PRIVATE KEY' not in key:
+              key = base64.b64decode(key).decode()
+          if 'BEGIN PRIVATE KEY' not in key:
+              raise SystemExit('Invalid App Store Connect key format')
+          path = pathlib.Path(os.environ['RUNNER_TEMP']) / 'AuthKey_9RMU3C7422.p8'
+          path.write_text(key)
+          path.chmod(0o600)
+          PYTHON
+          VERSION=$(sed -n 's/^version: *\([^+]*\)+.*/\1/p' pubspec.yaml)
+          BUILD=$(sed -n 's/^version: .*+//p' pubspec.yaml)
+          "$RUNNER_TEMP/asc-python/bin/python" scripts/distribute_testflight.py \
+            --version "$VERSION" --build "$BUILD" \
+            --key "$RUNNER_TEMP/AuthKey_9RMU3C7422.p8" \
+            --notes docs/testflight-notes.json --output testflight-status.json
+      - name: Retain Apple distribution status
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: testflight-distribution-status
+          path: testflight-status.json
+          if-no-files-found: ignore
+      - name: Remove API key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/AuthKey_9RMU3C7422.p8"
