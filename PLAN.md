@@ -35,7 +35,7 @@ Archived to HISTORY.md: §0, §8–§18.
 
 ## A. Current state
 
-**Version:** 0.14.1+100 (release preparation: microphone selection, streaming fixes, Cohere context/cadence and licensed German Moonshine deployments; backend pinned to cacb2cb1).
+**Version:** 0.14.2+101 (release preparation: microphone selection, streaming fixes, Cohere context/cadence and licensed German Moonshine deployments; backend pinned to 2bf39c58).
 Current browser validation is dated 2026-10-02; the native health figures
 below are historical and are not a claim about the current complete suite.
 
@@ -873,3 +873,11 @@ submission after both Apple upload jobs. Build/release results are pending.
 Release preflight after version synchronization: 1,737 tests pass, 121 skip;
 changed-file analysis is clean; web release build passes. Backend CI follow-up
 fixes Dart formatting and optional-ONNX configuration auditing.
+
+
+Release follow-up: build 100 was built, signature-checked, installed and launched
+locally. GitHub's clean downloadable macOS build exposed an extra directory
+level in the official ONNX SDK archive. The fetcher now normalizes the layout;
+a real download, cache reuse and C++ header compile pass. Release 0.14.2 build
+101 pins this repair (2bf39c58), superseding the failed 0.14.1 release attempt
+without moving its tag. TestFlight delivery remains pending.

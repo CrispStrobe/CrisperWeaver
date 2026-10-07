@@ -346,8 +346,9 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
           ref.read(transcriptionScreenProvider.notifier).setModelName(selected);
           settings.defaultModel = selected;
         }
-        if (mounted)
+        if (mounted) {
           ref.read(transcriptionScreenProvider.notifier).setEngineReady(ok);
+        }
         return true;
       }
     }
