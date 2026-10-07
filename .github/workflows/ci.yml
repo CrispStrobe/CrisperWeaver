@@ -36,7 +36,7 @@ env:
   # backends or add them to its documented `engineOnly` set, then commit
   # the bump on its own so a regression bisects cleanly.
   CRISPASR_REPO: CrispStrobe/CrispASR
-  CRISPASR_REF: eb3a1d09334c14fd25414aa2efc55bc74bdc71bf
+  CRISPASR_REF: cacb2cb1f0bcfb9f8f7d63b0d8ff1798e24fe709
   # CrispEmbed — on-device embeddings. pubspec path: `../CrispEmbed/flutter/crispembed`.
   CRISPEMBED_REPO: CrispStrobe/CrispEmbed
   CRISPEMBED_REF: 40e7b7dd00bb6b1505c9e6ac74bef0c97efef337

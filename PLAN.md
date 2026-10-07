@@ -35,7 +35,7 @@ Archived to HISTORY.md: §0, §8–§18.
 
 ## A. Current state
 
-**Version:** 0.14.1+100 (release preparation: microphone selection, streaming fixes, Cohere context/cadence and licensed German Moonshine deployments; backend pinned to eb3a1d09).
+**Version:** 0.14.1+100 (release preparation: microphone selection, streaming fixes, Cohere context/cadence and licensed German Moonshine deployments; backend pinned to cacb2cb1).
 Current browser validation is dated 2026-10-02; the native health figures
 below are historical and are not a claim about the current complete suite.
 
@@ -862,10 +862,14 @@ pass; the 22 worker/committer tests also pass after the scheduling change.
 ## G. Release 0.14.1 build 100 — 2026-10-07
 
 Requested local GUI rebuild and GitHub CI delivery to both TestFlight groups.
-Backend fixes published in CrispASR PR #515, immutable pin eb3a1d09. Full app
+Backend fixes published in CrispASR PR #515, immutable pin cacb2cb1. Full app
 suite: 1,737 passed, 121 optional/model-dependent skips. Full analysis has only
 two existing sibling-path warnings on this Mac (the local overrides resolve
 those packages); lint notices were fixed. The CI checkout creates those siblings.
 Four TestFlight client tests pass and existing Apple builds/groups were inspected
 read-only. CI now includes explicit group assignment and external beta-review
 submission after both Apple upload jobs. Build/release results are pending.
+
+Release preflight after version synchronization: 1,737 tests pass, 121 skip;
+changed-file analysis is clean; web release build passes. Backend CI follow-up
+fixes Dart formatting and optional-ONNX configuration auditing.
