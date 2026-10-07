@@ -92,11 +92,21 @@ else
     NEED_CMAKE_CONFIGURE=1
   fi
 fi
+# German Moonshine's ONNX exports need the native CPU runtime. The source
+# checkout fetches a version- and checksum-pinned official SDK.
+if [[ -z "${CRISPASR_ONNXRUNTIME_ROOT:-}" ]]; then
+  CRISPASR_ONNXRUNTIME_ROOT="$(bash "$CRISPASR_DIR/scripts/fetch_onnxruntime.sh" "$REPO_ROOT/build/onnxruntime-sdk")"
+fi
+export CRISPASR_ONNXRUNTIME_ROOT
+CACHED_ORT="$(sed -n 's/^CRISPASR_ONNXRUNTIME_ROOT:PATH=//p' "$BUILDDIR/CMakeCache.txt" 2>/dev/null || true)"
+if [[ "$CACHED_ORT" != "$CRISPASR_ONNXRUNTIME_ROOT" ]]; then NEED_CMAKE_CONFIGURE=1; fi
+
 if [[ $NEED_CMAKE_CONFIGURE == 1 ]]; then
   echo "==> cmake configure"
   if [[ $REBUILD_CMAKE == 1 ]]; then rm -rf "$BUILDDIR"; fi
   cmake -S "$CRISPASR_DIR" -B "$BUILDDIR" \
     -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE \
+    -DCRISPASR_ONNXRUNTIME_ROOT="$CRISPASR_ONNXRUNTIME_ROOT" \
     -DCMAKE_OSX_DEPLOYMENT_TARGET=13.3 \
     -DCMAKE_OSX_ARCHITECTURES=arm64 \
     -DBUILD_SHARED_LIBS=ON \

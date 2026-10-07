@@ -440,6 +440,7 @@ class StreamingSession {
 }
 
 class CrispasrSession {
+  int get streamingKind => 0;
   String get backend => '';
 
   /// #332 — backend-native PCM rates. 0 is the documented "this build does

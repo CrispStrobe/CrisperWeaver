@@ -803,6 +803,7 @@ class ModelService {
     final modelDir = whisperCppDir();
     final localPath = path.join(modelDir, modelDef.fileName);
     final tempPath = '$localPath.tmp';
+    await File(localPath).parent.create(recursive: true);
 
     // Check if already downloaded and valid
     if (await _isModelDownloaded(localPath, modelDef)) {
@@ -1293,9 +1294,13 @@ class ModelService {
     final groups = <String, _BackendBytes>{};
     await for (final ent in dir.list(recursive: true)) {
       if (ent is! File) continue;
-      final base = path.basename(ent.path);
-      final logical =
-          base.endsWith('.tmp') ? base.substring(0, base.length - 4) : base;
+      final relative = path.relative(ent.path, from: dir.path);
+      final logicalRelative = relative.endsWith('.tmp')
+          ? relative.substring(0, relative.length - 4)
+          : relative;
+      final logical = byFilename.containsKey(logicalRelative)
+          ? logicalRelative
+          : path.basename(logicalRelative);
       final backend = byFilename[logical] ?? '(other)';
       int sz;
       try {
@@ -1778,11 +1783,10 @@ class DownloadEngine {
       if (range == null || range.start != partialBytes) {
         // The tail we're being offered doesn't line up with the bytes we
         // have. Splicing it on would corrupt the file, so start over.
-        Log.instance.w('model', 'Content-Range mismatch — restarting',
-            fields: {
-              'have': partialBytes,
-              'content_range': contentRange ?? '(none)',
-            });
+        Log.instance.w('model', 'Content-Range mismatch — restarting', fields: {
+          'have': partialBytes,
+          'content_range': contentRange ?? '(none)',
+        });
         await _discard(body);
         await _deleteQuietly(file);
         return true;

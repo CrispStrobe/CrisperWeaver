@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+export '../../utils/language_code.dart' show normaliseLangCode;
+
 /// How the spoken language of each utterance is decided.
 enum LiveLidMode {
   /// One fixed spoken language ([LiveTranslateConfig.fixedSource]).
@@ -56,6 +58,7 @@ class LiveTranslateConfig {
     this.translatorModel,
     this.lidModel,
     this.audioSource = LiveAudioSource.microphone,
+    this.microphoneDeviceId = '',
     this.layout = LiveLayout.stacked,
     this.fontSize = 34,
     this.showSource = true,
@@ -81,6 +84,8 @@ class LiveTranslateConfig {
   final String? lidModel;
 
   final LiveAudioSource audioSource;
+  /// Stable platform device ID; empty uses the system default microphone.
+  final String microphoneDeviceId;
   final LiveLayout layout;
   final double fontSize;
 
@@ -151,6 +156,7 @@ class LiveTranslateConfig {
     String? lidModel,
     bool clearLidModel = false,
     LiveAudioSource? audioSource,
+    String? microphoneDeviceId,
     LiveLayout? layout,
     double? fontSize,
     bool? showSource,
@@ -170,6 +176,7 @@ class LiveTranslateConfig {
             : (translatorModel ?? this.translatorModel),
         lidModel: clearLidModel ? null : (lidModel ?? this.lidModel),
         audioSource: audioSource ?? this.audioSource,
+        microphoneDeviceId: microphoneDeviceId ?? this.microphoneDeviceId,
         layout: layout ?? this.layout,
         fontSize: (fontSize ?? this.fontSize).clamp(minFont, maxFont),
         showSource: showSource ?? this.showSource,
@@ -188,6 +195,7 @@ class LiveTranslateConfig {
         'translatorModel': translatorModel,
         'lidModel': lidModel,
         'audioSource': audioSource.name,
+        'microphoneDeviceId': microphoneDeviceId,
         'layout': layout.name,
         'fontSize': fontSize,
         'showSource': showSource,
@@ -224,6 +232,9 @@ class LiveTranslateConfig {
       lidModel: j['lidModel'] as String?,
       audioSource:
           pick(LiveAudioSource.values, j['audioSource'], d.audioSource),
+      microphoneDeviceId: j['microphoneDeviceId'] is String
+          ? j['microphoneDeviceId'] as String
+          : '',
       layout: pick(LiveLayout.values, j['layout'], d.layout),
       fontSize: ((j['fontSize'] as num?)?.toDouble() ?? d.fontSize)
           .clamp(minFont, maxFont),
@@ -304,29 +315,6 @@ class LanguageColors {
         dark ? 0.85 : 0.75,
         dark ? 0.70 : 0.33,
       ).toColor();
-}
-
-/// ISO 639-3 (GlotLID's `deu_Latn`) → ISO 639-1 for the common languages,
-/// so text-LID labels compare against the routing table's two-letter codes.
-String normaliseLangCode(String raw) {
-  var c = raw.trim().toLowerCase();
-  if (c.startsWith('__label__')) c = c.substring(9);
-  final us = c.indexOf('_');
-  if (us > 0) c = c.substring(0, us);
-  final dash = c.indexOf('-');
-  if (dash > 0) c = c.substring(0, dash);
-  const three = {
-    'deu': 'de', 'eng': 'en', 'fra': 'fr', 'spa': 'es', 'ita': 'it',
-    'por': 'pt', 'nld': 'nl', 'pol': 'pl', 'rus': 'ru', 'ukr': 'uk',
-    'zho': 'zh', 'cmn': 'zh', 'jpn': 'ja', 'kor': 'ko', 'ara': 'ar',
-    'arb': 'ar', 'tur': 'tr', 'ces': 'cs', 'swe': 'sv', 'dan': 'da',
-    'hin': 'hi', 'ell': 'el', 'fin': 'fi', 'hun': 'hu', 'ron': 'ro',
-    'bul': 'bg', 'hrv': 'hr', 'srp': 'sr', 'slk': 'sk', 'slv': 'sl',
-    'nor': 'no', 'nob': 'no', 'cat': 'ca', 'heb': 'he', 'vie': 'vi',
-    'ind': 'id', 'tha': 'th', 'fas': 'fa', 'pes': 'fa', 'est': 'et',
-    'lit': 'lt', 'lav': 'lv', 'ekk': 'et', 'lvs': 'lv',
-  };
-  return three[c] ?? c;
 }
 
 /// The language's own name for itself — what an audience reads fastest

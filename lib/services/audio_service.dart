@@ -26,6 +26,9 @@ final audioServiceProvider = Provider<AudioService>((ref) {
   return AudioService(prefetch: prefetch);
 });
 
+final microphoneDevicesProvider = FutureProvider<List<InputDevice>>((ref) =>
+    ref.read(audioServiceProvider).listInputDevices());
+
 class AudioService {
   AudioService({AudioPrefetchService? prefetch}) : _prefetch = prefetch;
 
@@ -35,6 +38,8 @@ class AudioService {
 
   bool get isRecording => _isRecording;
   bool _isRecording = false;
+
+  Future<List<InputDevice>> listInputDevices() => _recorder.listInputDevices();
 
   /// Record audio from microphone
   Future<String?> startRecording({SettingsService? settingsService}) async {
@@ -78,13 +83,14 @@ class AudioService {
   /// stop+read+decode round trip per chunk; the streaming PCM API
   /// hands us samples as soon as the OS buffers them so the live
   /// transcript heartbeat can be sub-second.
-  Future<Stream<Float32List>?> startStreamingRecording() async {
+  Future<Stream<Float32List>?> startStreamingRecording({InputDevice? device}) async {
     try {
       if (!await _recorder.hasPermission()) return null;
-      const config = RecordConfig(
+      final config = RecordConfig(
         encoder: AudioEncoder.pcm16bits,
         sampleRate: 16000,
         numChannels: 1,
+        device: device,
       );
       final byteStream = await _recorder.startStream(config);
       _isRecording = true;

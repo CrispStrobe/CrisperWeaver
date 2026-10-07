@@ -531,6 +531,11 @@ abstract final class ModelCatalog {
     'cstr/f5-tts-GGUF', // CC-BY-NC-4.0 (Emilia-trained weights)
     'cstr/outetts-0.3-1b-GGUF', // CC-BY-NC-SA-4.0
     'cstr/voxtral-4b-tts-GGUF', // CC-BY-NC-4.0
+    'fidoriel/moonshine-base-de',
+    'fidoriel/moonshine-tiny-de',
+    'Phreak87/moonshine-base-de-onnx',
+    'Phreak87/moonshine-base_V2',
+    'Phreak87/moonshine-tiny_V2',
     'cstr/moonshine-base-de-fidoriel-GGUF', // CC-BY-NC-SA-4.0
     'cstr/moonshine-tiny-de-fidoriel-GGUF', // CC-BY-NC-SA-4.0
     'cstr/bttr-handwritten-math-gguf', // CC-BY-NC-SA-3.0
@@ -1556,7 +1561,8 @@ abstract final class ModelCatalog {
           'https://huggingface.co/ggml-org/whisper-vad/resolve/9ffd54a1e1ee413ddf265af9913beaf518d1639b/ggml-silero-v6.2.0.bin',
       sizeBytes: 885 * 1024,
       checksum: '',
-      description: 'Speech-window VAD Index-Echo reads from beside its model — companion',
+      description:
+          'Speech-window VAD Index-Echo reads from beside its model — companion',
       backend: 'index-echo',
       kind: ModelKind.codec,
     ),
@@ -1936,6 +1942,7 @@ abstract final class ModelCatalog {
       sizeBytes: 21199840,
       checksum: '',
       description: 'Moonshine tiny ASR (English, lightweight) — ~21 MB',
+      languages: langsEn,
       quantization: 'q4_k',
       backend: 'moonshine',
       // moonshine_init() in CrispASR reads the BPE tokenizer from
@@ -1955,6 +1962,7 @@ abstract final class ModelCatalog {
       sizeBytes: 46923872,
       checksum: '',
       description: 'Moonshine base ASR (English, lightweight) — ~47 MB',
+      languages: langsEn,
       quantization: 'q4_k',
       backend: 'moonshine',
       companions: ['moonshine-tokenizer'],
@@ -1967,7 +1975,9 @@ abstract final class ModelCatalog {
           'https://huggingface.co/cstr/moonshine-streaming-tiny-GGUF/resolve/main/moonshine-streaming-tiny-q4_k.gguf',
       sizeBytes: 32052896,
       checksum: '',
-      description: 'Moonshine streaming tiny — for live mic streaming, ~32 MB',
+      description:
+          'Moonshine streaming tiny — English live mic streaming, ~32 MB',
+      languages: langsEn,
       quantization: 'q4_k',
       backend: 'moonshine-streaming',
       companions: ['moonshine-tokenizer'],
@@ -1977,8 +1987,8 @@ abstract final class ModelCatalog {
     // at session-open time so this just needs to land alongside the
     // GGUF — the engine's setCodecPath call is a no-op for moonshine,
     // it's the filesystem co-location that matters. tiny + base share
-    // the English BPE; moonshine-streaming uses the same English vocab
-    // so reusing one tokenizer is correct.
+    // the English BPE. German streaming checkpoints use their own isolated
+    // 12k vocabulary and never use this English companion.
     'moonshine-tokenizer': ModelDefinition(
       name: 'moonshine-tokenizer',
       displayName: 'Moonshine BPE tokenizer',
@@ -3203,7 +3213,8 @@ abstract final class ModelCatalog {
           'https://huggingface.co/cstr/chatterbox-turbo-GGUF/resolve/main/chatterbox-turbo-t3-q8_0.gguf',
       sizeBytes: 658897152,
       checksum: '',
-      description: 'Chatterbox turbo TTS T3 (faster AR transformer) — needs the '
+      description:
+          'Chatterbox turbo TTS T3 (faster AR transformer) — needs the '
           'chatterbox-turbo-s3gen companion',
       quantization: 'q8_0',
       backend: 'chatterbox',
@@ -3977,7 +3988,8 @@ abstract final class ModelCatalog {
           'https://huggingface.co/cstr/pocket-tts-GGUF/resolve/main/pocket-tts-english-f16.gguf',
       sizeBytes: 220 * 1024 * 1024,
       checksum: '',
-      description: 'Kyutai Pocket TTS 100M — speaks in the voice of a reference recording, ~220 MB',
+      description:
+          'Kyutai Pocket TTS 100M — speaks in the voice of a reference recording, ~220 MB',
       quantization: 'f16',
       backend: 'pocket-tts',
       kind: ModelKind.tts,
@@ -4140,8 +4152,7 @@ abstract final class ModelCatalog {
           'https://huggingface.co/cstr/onsets-and-frames-GGUF/resolve/main/onsets-and-frames-q8_0.gguf',
       sizeBytes: 32244960,
       checksum: '',
-      description:
-          'Google Magenta Onsets & Frames — solo piano, fast, ~31 MB',
+      description: 'Google Magenta Onsets & Frames — solo piano, fast, ~31 MB',
       quantization: 'q8_0',
       backend: 'onsets-and-frames',
       kind: ModelKind.music,
@@ -4248,7 +4259,8 @@ abstract final class ModelCatalog {
           'https://huggingface.co/cstr/pocket-tts-GGUF/resolve/main/pocket-tts-german-q8_0.gguf',
       sizeBytes: 123633408,
       checksum: '',
-      description: 'Kyutai Pocket TTS 100M (German) — speaks in the voice of a reference recording, ~124 MB',
+      description:
+          'Kyutai Pocket TTS 100M (German) — speaks in the voice of a reference recording, ~124 MB',
       quantization: 'q8_0',
       backend: 'pocket-tts',
       kind: ModelKind.tts,
@@ -4263,7 +4275,8 @@ abstract final class ModelCatalog {
           'https://huggingface.co/cstr/pocket-tts-GGUF/resolve/main/pocket-tts-spanish-q8_0.gguf',
       sizeBytes: 123634464,
       checksum: '',
-      description: 'Kyutai Pocket TTS 100M (Spanish) — speaks in the voice of a reference recording, ~124 MB',
+      description:
+          'Kyutai Pocket TTS 100M (Spanish) — speaks in the voice of a reference recording, ~124 MB',
       quantization: 'q8_0',
       backend: 'pocket-tts',
       kind: ModelKind.tts,
@@ -4278,7 +4291,8 @@ abstract final class ModelCatalog {
           'https://huggingface.co/cstr/pocket-tts-GGUF/resolve/main/pocket-tts-italian-q8_0.gguf',
       sizeBytes: 123633664,
       checksum: '',
-      description: 'Kyutai Pocket TTS 100M (Italian) — speaks in the voice of a reference recording, ~124 MB',
+      description:
+          'Kyutai Pocket TTS 100M (Italian) — speaks in the voice of a reference recording, ~124 MB',
       quantization: 'q8_0',
       backend: 'pocket-tts',
       kind: ModelKind.tts,
@@ -4293,7 +4307,8 @@ abstract final class ModelCatalog {
           'https://huggingface.co/cstr/pocket-tts-GGUF/resolve/main/pocket-tts-portuguese-q8_0.gguf',
       sizeBytes: 123634592,
       checksum: '',
-      description: 'Kyutai Pocket TTS 100M (Portuguese) — speaks in the voice of a reference recording, ~124 MB',
+      description:
+          'Kyutai Pocket TTS 100M (Portuguese) — speaks in the voice of a reference recording, ~124 MB',
       quantization: 'q8_0',
       backend: 'pocket-tts',
       kind: ModelKind.tts,
@@ -4447,6 +4462,600 @@ abstract final class ModelCatalog {
       languages: langsDe,
     ),
     // ---------- New ASR models ----------
+    'moonshine-tiny-de-phreak87-onnx': ModelDefinition(
+      name: 'moonshine-tiny-de-phreak87-onnx',
+      displayName: 'Moonshine tiny DE — Phreak87 (ONNX)',
+      fileName: 'moonshine-tiny-de-phreak87-onnx/onnx/encoder_model.onnx',
+      url:
+          'https://huggingface.co/Phreak87/moonshine-tiny-de-onnx/resolve/ed7433af42952f66cc03a966c3571166c3e50013/onnx/encoder_model.onnx',
+      sizeBytes: 30962872,
+      checksum:
+          'fb0eb48d46d03b138927ac90cc4853abe41d16c655daac22ad927a8fc63e6de1',
+      description:
+          'dattazigzag German checkpoint, ONNX export; utterance-based recognition',
+      quantization: 'f32',
+      backend: 'moonshine-onnx',
+      languages: langsDe,
+      license: 'MIT',
+      companions: [
+        'moonshine-tiny-de-phreak87-onnx-onnx-decoder_model_merged-onnx',
+        'moonshine-tiny-de-phreak87-onnx-config-json',
+        'moonshine-tiny-de-phreak87-onnx-tokenizer-json'
+      ],
+    ),
+    'moonshine-tiny-de-dattazigzag-q4_k': ModelDefinition(
+      name: 'moonshine-tiny-de-dattazigzag-q4_k',
+      displayName: 'Moonshine tiny DE — dattazigzag (q4_k)',
+      fileName:
+          'moonshine-tiny-de-dattazigzag-q4_k/moonshine-tiny-de-dattazigzag-q4_k.gguf',
+      url:
+          'https://huggingface.co/cstr/moonshine-tiny-de-dattazigzag-GGUF/resolve/c5d7964c5284893b35fa937536b7187fe78a3f9e/moonshine-tiny-de-dattazigzag-q4_k.gguf',
+      sizeBytes: 17808928,
+      checksum:
+          '540032a1799bdb42192bcdc29ecd5f72da684ace18856cf5b166182b169c093e',
+      description: 'German fine-tune, utterance-based recognition; MIT',
+      quantization: 'q4_k',
+      backend: 'moonshine',
+      languages: langsDe,
+      license: 'MIT',
+      companions: ['moonshine-tiny-de-dattazigzag-q4_k-tokenizer-bin'],
+    ),
+    'moonshine-streaming-small-de-onnx': ModelDefinition(
+      name: 'moonshine-streaming-small-de-onnx',
+      displayName: 'Moonshine Streaming small DE (int8)',
+      fileName: 'moonshine-streaming-small-de-onnx/encoder_int8.onnx',
+      url:
+          'https://huggingface.co/Masterx/moonshine-streaming-small-de-ONNX/resolve/5d6dadcd2d3b9a53fcde00a8793950d2b222cac3/encoder_int8.onnx',
+      sizeBytes: 44581925,
+      checksum:
+          'b248453ec40b7ce0e7daaa4951e7f49d88f5b728c94d60c1fe6c6ba79a15edc6',
+      description:
+          'Official German small checkpoint, Masterx ONNX export; incremental audio encoder',
+      quantization: 'int8',
+      backend: 'moonshine-onnx',
+      languages: langsDe,
+      license: 'MIT',
+      companions: [
+        'moonshine-streaming-small-de-onnx-frontend-onnx',
+        'moonshine-streaming-small-de-onnx-adapter_int8-onnx',
+        'moonshine-streaming-small-de-onnx-cross_kv_int8-onnx',
+        'moonshine-streaming-small-de-onnx-decoder_kv_int8-onnx',
+        'moonshine-streaming-small-de-onnx-streaming_config-json',
+        'moonshine-streaming-small-de-onnx-tokenizer-json',
+        'moonshine-streaming-small-de-onnx-LICENSE'
+      ],
+    ),
+    'moonshine-streaming-tiny-de-onnx': ModelDefinition(
+      name: 'moonshine-streaming-tiny-de-onnx',
+      displayName: 'Moonshine Streaming tiny DE (int8)',
+      fileName: 'moonshine-streaming-tiny-de-onnx/encoder_int8.onnx',
+      url:
+          'https://huggingface.co/Masterx/moonshine-streaming-tiny-de-ONNX/resolve/67a2c78a3a7d3494dd7952863a18db515e6fb64a/encoder_int8.onnx',
+      sizeBytes: 7937712,
+      checksum:
+          '9e66f450b5cfdae59a8e2d84bedb146514295efcc1900974928732b35fbcba8d',
+      description:
+          'Official German tiny checkpoint, Masterx ONNX export; incremental audio encoder',
+      quantization: 'int8',
+      backend: 'moonshine-onnx',
+      languages: langsDe,
+      license: 'MIT',
+      companions: [
+        'moonshine-streaming-tiny-de-onnx-frontend-onnx',
+        'moonshine-streaming-tiny-de-onnx-adapter_int8-onnx',
+        'moonshine-streaming-tiny-de-onnx-cross_kv_int8-onnx',
+        'moonshine-streaming-tiny-de-onnx-decoder_kv_int8-onnx',
+        'moonshine-streaming-tiny-de-onnx-streaming_config-json',
+        'moonshine-streaming-tiny-de-onnx-tokenizer-json',
+        'moonshine-streaming-tiny-de-onnx-LICENSE'
+      ],
+    ),
+    'moonshine-streaming-tiny-de-onnx-frontend-onnx': ModelDefinition(
+      name: 'moonshine-streaming-tiny-de-onnx-frontend-onnx',
+      displayName: 'Moonshine Streaming tiny DE (int8): frontend.onnx',
+      fileName: 'moonshine-streaming-tiny-de-onnx/frontend.onnx',
+      url:
+          'https://huggingface.co/Masterx/moonshine-streaming-tiny-de-ONNX/resolve/67a2c78a3a7d3494dd7952863a18db515e6fb64a/frontend.onnx',
+      sizeBytes: 8307058,
+      checksum:
+          '04dd427d38702b3d53ecbec5c36867f7b3fa95f2540fceec80bdcf436288e35f',
+      description: 'Required companion for Moonshine Streaming tiny DE (int8)',
+      backend: 'moonshine-onnx',
+      kind: ModelKind.codec,
+      license: 'MIT',
+    ),
+    'moonshine-streaming-tiny-de-onnx-adapter_int8-onnx': ModelDefinition(
+      name: 'moonshine-streaming-tiny-de-onnx-adapter_int8-onnx',
+      displayName: 'Moonshine Streaming tiny DE (int8): adapter_int8.onnx',
+      fileName: 'moonshine-streaming-tiny-de-onnx/adapter_int8.onnx',
+      url:
+          'https://huggingface.co/Masterx/moonshine-streaming-tiny-de-ONNX/resolve/67a2c78a3a7d3494dd7952863a18db515e6fb64a/adapter_int8.onnx',
+      sizeBytes: 5249620,
+      checksum:
+          '124204c80218067135470c8902428050ee0d8a5a2856e67ab805e2533af18ee2',
+      description: 'Required companion for Moonshine Streaming tiny DE (int8)',
+      backend: 'moonshine-onnx',
+      kind: ModelKind.codec,
+      license: 'MIT',
+    ),
+    'moonshine-streaming-tiny-de-onnx-cross_kv_int8-onnx': ModelDefinition(
+      name: 'moonshine-streaming-tiny-de-onnx-cross_kv_int8-onnx',
+      displayName: 'Moonshine Streaming tiny DE (int8): cross_kv_int8.onnx',
+      fileName: 'moonshine-streaming-tiny-de-onnx/cross_kv_int8.onnx',
+      url:
+          'https://huggingface.co/Masterx/moonshine-streaming-tiny-de-ONNX/resolve/67a2c78a3a7d3494dd7952863a18db515e6fb64a/cross_kv_int8.onnx',
+      sizeBytes: 1283179,
+      checksum:
+          '9d096df88411975d177f0e89f574ca3d878641e0f0994814b393764955742d73',
+      description: 'Required companion for Moonshine Streaming tiny DE (int8)',
+      backend: 'moonshine-onnx',
+      kind: ModelKind.codec,
+      license: 'MIT',
+    ),
+    'moonshine-streaming-tiny-de-onnx-decoder_kv_int8-onnx': ModelDefinition(
+      name: 'moonshine-streaming-tiny-de-onnx-decoder_kv_int8-onnx',
+      displayName: 'Moonshine Streaming tiny DE (int8): decoder_kv_int8.onnx',
+      fileName: 'moonshine-streaming-tiny-de-onnx/decoder_kv_int8.onnx',
+      url:
+          'https://huggingface.co/Masterx/moonshine-streaming-tiny-de-ONNX/resolve/67a2c78a3a7d3494dd7952863a18db515e6fb64a/decoder_kv_int8.onnx',
+      sizeBytes: 27416345,
+      checksum:
+          'ef4111a38abbe3c89128f5657f8bb801682ce53452ca6a8445a9ae590b1326a0',
+      description: 'Required companion for Moonshine Streaming tiny DE (int8)',
+      backend: 'moonshine-onnx',
+      kind: ModelKind.codec,
+      license: 'MIT',
+    ),
+    'moonshine-streaming-tiny-de-onnx-streaming_config-json': ModelDefinition(
+      name: 'moonshine-streaming-tiny-de-onnx-streaming_config-json',
+      displayName: 'Moonshine Streaming tiny DE (int8): streaming_config.json',
+      fileName: 'moonshine-streaming-tiny-de-onnx/streaming_config.json',
+      url:
+          'https://huggingface.co/Masterx/moonshine-streaming-tiny-de-ONNX/resolve/67a2c78a3a7d3494dd7952863a18db515e6fb64a/streaming_config.json',
+      sizeBytes: 841,
+      checksum:
+          '804fd1482de8f454c7a4ff52d0546bf01e664f29a7e1865f4b33ba1bd98cf668',
+      description: 'Required companion for Moonshine Streaming tiny DE (int8)',
+      backend: 'moonshine-onnx',
+      kind: ModelKind.codec,
+      license: 'MIT',
+    ),
+    'moonshine-streaming-tiny-de-onnx-tokenizer-json': ModelDefinition(
+      name: 'moonshine-streaming-tiny-de-onnx-tokenizer-json',
+      displayName: 'Moonshine Streaming tiny DE (int8): tokenizer.json',
+      fileName: 'moonshine-streaming-tiny-de-onnx/tokenizer.json',
+      url:
+          'https://huggingface.co/Masterx/moonshine-streaming-tiny-de-ONNX/resolve/67a2c78a3a7d3494dd7952863a18db515e6fb64a/tokenizer.json',
+      sizeBytes: 588216,
+      checksum:
+          '983ec5f1b76300b74be6a764edc034a16e2912c38a8a8c0e4d51af355b6b755d',
+      description: 'Required companion for Moonshine Streaming tiny DE (int8)',
+      backend: 'moonshine-onnx',
+      kind: ModelKind.codec,
+      license: 'MIT',
+    ),
+    'moonshine-streaming-tiny-de-onnx-LICENSE': ModelDefinition(
+      name: 'moonshine-streaming-tiny-de-onnx-LICENSE',
+      displayName: 'Moonshine Streaming tiny DE (int8): LICENSE',
+      fileName: 'moonshine-streaming-tiny-de-onnx/LICENSE',
+      url:
+          'https://huggingface.co/Masterx/moonshine-streaming-tiny-de-ONNX/resolve/67a2c78a3a7d3494dd7952863a18db515e6fb64a/LICENSE',
+      sizeBytes: 1108,
+      checksum:
+          '900a19045a6ed6c9f534f3e942794d810002598c363fc5dd8b46ad1acbb4666f',
+      description: 'Required companion for Moonshine Streaming tiny DE (int8)',
+      backend: 'moonshine-onnx',
+      kind: ModelKind.codec,
+      license: 'MIT',
+    ),
+    'moonshine-streaming-small-de-onnx-frontend-onnx': ModelDefinition(
+      name: 'moonshine-streaming-small-de-onnx-frontend-onnx',
+      displayName: 'Moonshine Streaming small DE (int8): frontend.onnx',
+      fileName: 'moonshine-streaming-small-de-onnx/frontend.onnx',
+      url:
+          'https://huggingface.co/Masterx/moonshine-streaming-small-de-ONNX/resolve/5d6dadcd2d3b9a53fcde00a8793950d2b222cac3/frontend.onnx',
+      sizeBytes: 30966660,
+      checksum:
+          '24bc8abea5a3ead9c9015fbbd23f4f75141636420b3bef1a73f713334449ce87',
+      description: 'Required companion for Moonshine Streaming small DE (int8)',
+      backend: 'moonshine-onnx',
+      kind: ModelKind.codec,
+      license: 'MIT',
+    ),
+    'moonshine-streaming-small-de-onnx-adapter_int8-onnx': ModelDefinition(
+      name: 'moonshine-streaming-small-de-onnx-adapter_int8-onnx',
+      displayName: 'Moonshine Streaming small DE (int8): adapter_int8.onnx',
+      fileName: 'moonshine-streaming-small-de-onnx/adapter_int8.onnx',
+      url:
+          'https://huggingface.co/Masterx/moonshine-streaming-small-de-ONNX/resolve/5d6dadcd2d3b9a53fcde00a8793950d2b222cac3/adapter_int8.onnx',
+      sizeBytes: 10485642,
+      checksum:
+          '5eb364c1bdf7c15986060ed430d0e7a34dcf6be98ff5879276984f7effaea437',
+      description: 'Required companion for Moonshine Streaming small DE (int8)',
+      backend: 'moonshine-onnx',
+      kind: ModelKind.codec,
+      license: 'MIT',
+    ),
+    'moonshine-streaming-small-de-onnx-cross_kv_int8-onnx': ModelDefinition(
+      name: 'moonshine-streaming-small-de-onnx-cross_kv_int8-onnx',
+      displayName: 'Moonshine Streaming small DE (int8): cross_kv_int8.onnx',
+      fileName: 'moonshine-streaming-small-de-onnx/cross_kv_int8.onnx',
+      url:
+          'https://huggingface.co/Masterx/moonshine-streaming-small-de-ONNX/resolve/5d6dadcd2d3b9a53fcde00a8793950d2b222cac3/cross_kv_int8.onnx',
+      sizeBytes: 5352766,
+      checksum:
+          '39c78b9ec152cb287b0b3ebe49ca76fdc529ff0a8df97b25b7ba311f0e098996',
+      description: 'Required companion for Moonshine Streaming small DE (int8)',
+      backend: 'moonshine-onnx',
+      kind: ModelKind.codec,
+      license: 'MIT',
+    ),
+    'moonshine-streaming-small-de-onnx-decoder_kv_int8-onnx': ModelDefinition(
+      name: 'moonshine-streaming-small-de-onnx-decoder_kv_int8-onnx',
+      displayName: 'Moonshine Streaming small DE (int8): decoder_kv_int8.onnx',
+      fileName: 'moonshine-streaming-small-de-onnx/decoder_kv_int8.onnx',
+      url:
+          'https://huggingface.co/Masterx/moonshine-streaming-small-de-ONNX/resolve/5d6dadcd2d3b9a53fcde00a8793950d2b222cac3/decoder_kv_int8.onnx',
+      sizeBytes: 73614909,
+      checksum:
+          '2dfc3edb698f8ceeaba3442231e6bc99fcaa239d1337835d85db08a486ca9935',
+      description: 'Required companion for Moonshine Streaming small DE (int8)',
+      backend: 'moonshine-onnx',
+      kind: ModelKind.codec,
+      license: 'MIT',
+    ),
+    'moonshine-streaming-small-de-onnx-streaming_config-json': ModelDefinition(
+      name: 'moonshine-streaming-small-de-onnx-streaming_config-json',
+      displayName: 'Moonshine Streaming small DE (int8): streaming_config.json',
+      fileName: 'moonshine-streaming-small-de-onnx/streaming_config.json',
+      url:
+          'https://huggingface.co/Masterx/moonshine-streaming-small-de-ONNX/resolve/5d6dadcd2d3b9a53fcde00a8793950d2b222cac3/streaming_config.json',
+      sizeBytes: 985,
+      checksum:
+          '98ba8ada00cdb554076e9ba13fd02fd72bd69e83ae98e1ded6654e076143a782',
+      description: 'Required companion for Moonshine Streaming small DE (int8)',
+      backend: 'moonshine-onnx',
+      kind: ModelKind.codec,
+      license: 'MIT',
+    ),
+    'moonshine-streaming-small-de-onnx-tokenizer-json': ModelDefinition(
+      name: 'moonshine-streaming-small-de-onnx-tokenizer-json',
+      displayName: 'Moonshine Streaming small DE (int8): tokenizer.json',
+      fileName: 'moonshine-streaming-small-de-onnx/tokenizer.json',
+      url:
+          'https://huggingface.co/Masterx/moonshine-streaming-small-de-ONNX/resolve/5d6dadcd2d3b9a53fcde00a8793950d2b222cac3/tokenizer.json',
+      sizeBytes: 588216,
+      checksum:
+          '983ec5f1b76300b74be6a764edc034a16e2912c38a8a8c0e4d51af355b6b755d',
+      description: 'Required companion for Moonshine Streaming small DE (int8)',
+      backend: 'moonshine-onnx',
+      kind: ModelKind.codec,
+      license: 'MIT',
+    ),
+    'moonshine-streaming-small-de-onnx-LICENSE': ModelDefinition(
+      name: 'moonshine-streaming-small-de-onnx-LICENSE',
+      displayName: 'Moonshine Streaming small DE (int8): LICENSE',
+      fileName: 'moonshine-streaming-small-de-onnx/LICENSE',
+      url:
+          'https://huggingface.co/Masterx/moonshine-streaming-small-de-ONNX/resolve/5d6dadcd2d3b9a53fcde00a8793950d2b222cac3/LICENSE',
+      sizeBytes: 1108,
+      checksum:
+          '900a19045a6ed6c9f534f3e942794d810002598c363fc5dd8b46ad1acbb4666f',
+      description: 'Required companion for Moonshine Streaming small DE (int8)',
+      backend: 'moonshine-onnx',
+      kind: ModelKind.codec,
+      license: 'MIT',
+    ),
+    'moonshine-tiny-de-dattazigzag-q4_k-tokenizer-bin': ModelDefinition(
+      name: 'moonshine-tiny-de-dattazigzag-q4_k-tokenizer-bin',
+      displayName: 'Moonshine tiny DE — dattazigzag (q4_k): tokenizer.bin',
+      fileName: 'moonshine-tiny-de-dattazigzag-q4_k/tokenizer.bin',
+      url:
+          'https://huggingface.co/cstr/moonshine-tiny-de-dattazigzag-GGUF/resolve/c5d7964c5284893b35fa937536b7187fe78a3f9e/tokenizer.bin',
+      sizeBytes: 251254,
+      checksum:
+          '0e90e02b765a10f0fa35b7d67877df29dd22a1fd4890899c9b1b203a19bc8999',
+      description:
+          'Required companion for Moonshine tiny DE — dattazigzag (q4_k)',
+      backend: 'moonshine',
+      kind: ModelKind.codec,
+      license: 'MIT',
+    ),
+    'moonshine-tiny-de-phreak87-onnx-onnx-decoder_model_merged-onnx':
+        ModelDefinition(
+      name: 'moonshine-tiny-de-phreak87-onnx-onnx-decoder_model_merged-onnx',
+      displayName:
+          'Moonshine tiny DE — Phreak87 (ONNX): onnx/decoder_model_merged.onnx',
+      fileName:
+          'moonshine-tiny-de-phreak87-onnx/onnx/decoder_model_merged.onnx',
+      url:
+          'https://huggingface.co/Phreak87/moonshine-tiny-de-onnx/resolve/ed7433af42952f66cc03a966c3571166c3e50013/onnx/decoder_model_merged.onnx',
+      sizeBytes: 116312806,
+      checksum:
+          'fdf6dde6469fe970329d0f2daceb5e83caca7d41ac668d29a76c3dee58ec8b8b',
+      description: 'Required companion for Moonshine tiny DE — Phreak87 (ONNX)',
+      backend: 'moonshine-onnx',
+      kind: ModelKind.codec,
+      license: 'MIT',
+    ),
+    'moonshine-tiny-de-phreak87-onnx-config-json': ModelDefinition(
+      name: 'moonshine-tiny-de-phreak87-onnx-config-json',
+      displayName: 'Moonshine tiny DE — Phreak87 (ONNX): config.json',
+      fileName: 'moonshine-tiny-de-phreak87-onnx/config.json',
+      url:
+          'https://huggingface.co/Phreak87/moonshine-tiny-de-onnx/resolve/ed7433af42952f66cc03a966c3571166c3e50013/config.json',
+      sizeBytes: 919,
+      checksum:
+          'a5c25da3d6f73a04af04ec981949466b4d51fcc723d07310e7d91006a66fa9d4',
+      description: 'Required companion for Moonshine tiny DE — Phreak87 (ONNX)',
+      backend: 'moonshine-onnx',
+      kind: ModelKind.codec,
+      license: 'MIT',
+    ),
+    'moonshine-tiny-de-phreak87-onnx-tokenizer-json': ModelDefinition(
+      name: 'moonshine-tiny-de-phreak87-onnx-tokenizer-json',
+      displayName: 'Moonshine tiny DE — Phreak87 (ONNX): tokenizer.json',
+      fileName: 'moonshine-tiny-de-phreak87-onnx/tokenizer.json',
+      url:
+          'https://huggingface.co/Phreak87/moonshine-tiny-de-onnx/resolve/ed7433af42952f66cc03a966c3571166c3e50013/tokenizer.json',
+      sizeBytes: 3761751,
+      checksum:
+          'ad3a2ceb0e84e4da57451d86fa337f8116dcff5f5d106434f8aa0b0de89718b9',
+      description: 'Required companion for Moonshine tiny DE — Phreak87 (ONNX)',
+      backend: 'moonshine-onnx',
+      kind: ModelKind.codec,
+      license: 'MIT',
+    ),
+
+    'moonshine-streaming-tiny-de-onnx-f32-frontend-onnx': ModelDefinition(
+      name: 'moonshine-streaming-tiny-de-onnx-f32-frontend-onnx',
+      displayName: 'Moonshine Streaming tiny DE f32: frontend.onnx',
+      fileName: 'moonshine-streaming-tiny-de-onnx-f32/frontend.onnx',
+      url:
+          'https://huggingface.co/Masterx/moonshine-streaming-tiny-de-ONNX/resolve/67a2c78a3a7d3494dd7952863a18db515e6fb64a/frontend.onnx',
+      sizeBytes: 8307058,
+      checksum:
+          '04dd427d38702b3d53ecbec5c36867f7b3fa95f2540fceec80bdcf436288e35f',
+      description: 'Required companion for Moonshine Streaming tiny DE f32',
+      backend: 'moonshine-onnx',
+      kind: ModelKind.codec,
+      license: 'MIT',
+    ),
+    'moonshine-streaming-tiny-de-onnx-f32-adapter-onnx': ModelDefinition(
+      name: 'moonshine-streaming-tiny-de-onnx-f32-adapter-onnx',
+      displayName: 'Moonshine Streaming tiny DE f32: adapter.onnx',
+      fileName: 'moonshine-streaming-tiny-de-onnx-f32/adapter.onnx',
+      url:
+          'https://huggingface.co/Masterx/moonshine-streaming-tiny-de-ONNX/resolve/67a2c78a3a7d3494dd7952863a18db515e6fb64a/adapter.onnx',
+      sizeBytes: 5249586,
+      checksum:
+          '8d298411a37e30c35aaccff4c3e6d9c6b35ce3bb95a4fbf4f550f1be6080f77b',
+      description: 'Required companion for Moonshine Streaming tiny DE f32',
+      backend: 'moonshine-onnx',
+      kind: ModelKind.codec,
+      license: 'MIT',
+    ),
+    'moonshine-streaming-tiny-de-onnx-f32-cross_kv-onnx': ModelDefinition(
+      name: 'moonshine-streaming-tiny-de-onnx-f32-cross_kv-onnx',
+      displayName: 'Moonshine Streaming tiny DE f32: cross_kv.onnx',
+      fileName: 'moonshine-streaming-tiny-de-onnx-f32/cross_kv.onnx',
+      url:
+          'https://huggingface.co/Masterx/moonshine-streaming-tiny-de-ONNX/resolve/67a2c78a3a7d3494dd7952863a18db515e6fb64a/cross_kv.onnx',
+      sizeBytes: 4954013,
+      checksum:
+          '605d340b481b63ac46c3aeca06f914e27c8ca019deff12b524752a78bcf41617',
+      description: 'Required companion for Moonshine Streaming tiny DE f32',
+      backend: 'moonshine-onnx',
+      kind: ModelKind.codec,
+      license: 'MIT',
+    ),
+    'moonshine-streaming-tiny-de-onnx-f32-decoder_kv-onnx': ModelDefinition(
+      name: 'moonshine-streaming-tiny-de-onnx-f32-decoder_kv-onnx',
+      displayName: 'Moonshine Streaming tiny DE f32: decoder_kv.onnx',
+      fileName: 'moonshine-streaming-tiny-de-onnx-f32/decoder_kv.onnx',
+      url:
+          'https://huggingface.co/Masterx/moonshine-streaming-tiny-de-ONNX/resolve/67a2c78a3a7d3494dd7952863a18db515e6fb64a/decoder_kv.onnx',
+      sizeBytes: 60466439,
+      checksum:
+          '9958432c011f914596dd461df1dfea052410a3aea329bbce8c2d7ffaa2d0c26e',
+      description: 'Required companion for Moonshine Streaming tiny DE f32',
+      backend: 'moonshine-onnx',
+      kind: ModelKind.codec,
+      license: 'MIT',
+    ),
+    'moonshine-streaming-tiny-de-onnx-f32-streaming_config-json':
+        ModelDefinition(
+      name: 'moonshine-streaming-tiny-de-onnx-f32-streaming_config-json',
+      displayName: 'Moonshine Streaming tiny DE f32: streaming_config.json',
+      fileName: 'moonshine-streaming-tiny-de-onnx-f32/streaming_config.json',
+      url:
+          'https://huggingface.co/Masterx/moonshine-streaming-tiny-de-ONNX/resolve/67a2c78a3a7d3494dd7952863a18db515e6fb64a/streaming_config.json',
+      sizeBytes: 841,
+      checksum:
+          '804fd1482de8f454c7a4ff52d0546bf01e664f29a7e1865f4b33ba1bd98cf668',
+      description: 'Required companion for Moonshine Streaming tiny DE f32',
+      backend: 'moonshine-onnx',
+      kind: ModelKind.codec,
+      license: 'MIT',
+    ),
+    'moonshine-streaming-tiny-de-onnx-f32-tokenizer-json': ModelDefinition(
+      name: 'moonshine-streaming-tiny-de-onnx-f32-tokenizer-json',
+      displayName: 'Moonshine Streaming tiny DE f32: tokenizer.json',
+      fileName: 'moonshine-streaming-tiny-de-onnx-f32/tokenizer.json',
+      url:
+          'https://huggingface.co/Masterx/moonshine-streaming-tiny-de-ONNX/resolve/67a2c78a3a7d3494dd7952863a18db515e6fb64a/tokenizer.json',
+      sizeBytes: 588216,
+      checksum:
+          '983ec5f1b76300b74be6a764edc034a16e2912c38a8a8c0e4d51af355b6b755d',
+      description: 'Required companion for Moonshine Streaming tiny DE f32',
+      backend: 'moonshine-onnx',
+      kind: ModelKind.codec,
+      license: 'MIT',
+    ),
+    'moonshine-streaming-tiny-de-onnx-f32-LICENSE': ModelDefinition(
+      name: 'moonshine-streaming-tiny-de-onnx-f32-LICENSE',
+      displayName: 'Moonshine Streaming tiny DE f32: LICENSE',
+      fileName: 'moonshine-streaming-tiny-de-onnx-f32/LICENSE',
+      url:
+          'https://huggingface.co/Masterx/moonshine-streaming-tiny-de-ONNX/resolve/67a2c78a3a7d3494dd7952863a18db515e6fb64a/LICENSE',
+      sizeBytes: 1108,
+      checksum:
+          '900a19045a6ed6c9f534f3e942794d810002598c363fc5dd8b46ad1acbb4666f',
+      description: 'Required companion for Moonshine Streaming tiny DE f32',
+      backend: 'moonshine-onnx',
+      kind: ModelKind.codec,
+      license: 'MIT',
+    ),
+    'moonshine-streaming-tiny-de-onnx-f32': ModelDefinition(
+      name: 'moonshine-streaming-tiny-de-onnx-f32',
+      displayName: 'Moonshine Streaming tiny DE (f32)',
+      fileName: 'moonshine-streaming-tiny-de-onnx-f32/encoder.onnx',
+      url:
+          'https://huggingface.co/Masterx/moonshine-streaming-tiny-de-ONNX/resolve/67a2c78a3a7d3494dd7952863a18db515e6fb64a/encoder.onnx',
+      sizeBytes: 30011862,
+      checksum:
+          'a6c4439a6e2bb3654220375dbf26be0940b473c24ef6d4a2df5242a0f4ab2feb',
+      description:
+          'Official German tiny checkpoint, full precision ONNX; incremental audio encoder',
+      backend: 'moonshine-onnx',
+      languages: langsDe,
+      license: 'MIT',
+      quantization: 'f32',
+      companions: [
+        'moonshine-streaming-tiny-de-onnx-f32-frontend-onnx',
+        'moonshine-streaming-tiny-de-onnx-f32-adapter-onnx',
+        'moonshine-streaming-tiny-de-onnx-f32-cross_kv-onnx',
+        'moonshine-streaming-tiny-de-onnx-f32-decoder_kv-onnx',
+        'moonshine-streaming-tiny-de-onnx-f32-streaming_config-json',
+        'moonshine-streaming-tiny-de-onnx-f32-tokenizer-json',
+        'moonshine-streaming-tiny-de-onnx-f32-LICENSE'
+      ],
+    ),
+    'moonshine-streaming-small-de-onnx-f32-frontend-onnx': ModelDefinition(
+      name: 'moonshine-streaming-small-de-onnx-f32-frontend-onnx',
+      displayName: 'Moonshine Streaming small DE f32: frontend.onnx',
+      fileName: 'moonshine-streaming-small-de-onnx-f32/frontend.onnx',
+      url:
+          'https://huggingface.co/Masterx/moonshine-streaming-small-de-ONNX/resolve/5d6dadcd2d3b9a53fcde00a8793950d2b222cac3/frontend.onnx',
+      sizeBytes: 30966660,
+      checksum:
+          '24bc8abea5a3ead9c9015fbbd23f4f75141636420b3bef1a73f713334449ce87',
+      description: 'Required companion for Moonshine Streaming small DE f32',
+      backend: 'moonshine-onnx',
+      kind: ModelKind.codec,
+      license: 'MIT',
+    ),
+    'moonshine-streaming-small-de-onnx-f32-adapter-onnx': ModelDefinition(
+      name: 'moonshine-streaming-small-de-onnx-f32-adapter-onnx',
+      displayName: 'Moonshine Streaming small DE f32: adapter.onnx',
+      fileName: 'moonshine-streaming-small-de-onnx-f32/adapter.onnx',
+      url:
+          'https://huggingface.co/Masterx/moonshine-streaming-small-de-ONNX/resolve/5d6dadcd2d3b9a53fcde00a8793950d2b222cac3/adapter.onnx',
+      sizeBytes: 11435583,
+      checksum:
+          '09c4abd85cb10f4f8d58ec73a78ebc88863dd6108dab0cd31b4617afdb1ddf85',
+      description: 'Required companion for Moonshine Streaming small DE f32',
+      backend: 'moonshine-onnx',
+      kind: ModelKind.codec,
+      license: 'MIT',
+    ),
+    'moonshine-streaming-small-de-onnx-f32-cross_kv-onnx': ModelDefinition(
+      name: 'moonshine-streaming-small-de-onnx-f32-cross_kv-onnx',
+      displayName: 'Moonshine Streaming small DE f32: cross_kv.onnx',
+      fileName: 'moonshine-streaming-small-de-onnx-f32/cross_kv.onnx',
+      url:
+          'https://huggingface.co/Masterx/moonshine-streaming-small-de-ONNX/resolve/5d6dadcd2d3b9a53fcde00a8793950d2b222cac3/cross_kv.onnx',
+      sizeBytes: 21036275,
+      checksum:
+          '36c2d540223bed4f97620545ea4527ca5e26213dc9a9a14dc665447082e85ca5',
+      description: 'Required companion for Moonshine Streaming small DE f32',
+      backend: 'moonshine-onnx',
+      kind: ModelKind.codec,
+      license: 'MIT',
+    ),
+    'moonshine-streaming-small-de-onnx-f32-decoder_kv-onnx': ModelDefinition(
+      name: 'moonshine-streaming-small-de-onnx-f32-decoder_kv-onnx',
+      displayName: 'Moonshine Streaming small DE f32: decoder_kv.onnx',
+      fileName: 'moonshine-streaming-small-de-onnx-f32/decoder_kv.onnx',
+      url:
+          'https://huggingface.co/Masterx/moonshine-streaming-small-de-ONNX/resolve/5d6dadcd2d3b9a53fcde00a8793950d2b222cac3/decoder_kv.onnx',
+      sizeBytes: 214815835,
+      checksum:
+          '16da5f34c0133dc5813ef4b2335e8679f58de2069d691511e27c2b4b1c1b8819',
+      description: 'Required companion for Moonshine Streaming small DE f32',
+      backend: 'moonshine-onnx',
+      kind: ModelKind.codec,
+      license: 'MIT',
+    ),
+    'moonshine-streaming-small-de-onnx-f32-streaming_config-json':
+        ModelDefinition(
+      name: 'moonshine-streaming-small-de-onnx-f32-streaming_config-json',
+      displayName: 'Moonshine Streaming small DE f32: streaming_config.json',
+      fileName: 'moonshine-streaming-small-de-onnx-f32/streaming_config.json',
+      url:
+          'https://huggingface.co/Masterx/moonshine-streaming-small-de-ONNX/resolve/5d6dadcd2d3b9a53fcde00a8793950d2b222cac3/streaming_config.json',
+      sizeBytes: 985,
+      checksum:
+          '98ba8ada00cdb554076e9ba13fd02fd72bd69e83ae98e1ded6654e076143a782',
+      description: 'Required companion for Moonshine Streaming small DE f32',
+      backend: 'moonshine-onnx',
+      kind: ModelKind.codec,
+      license: 'MIT',
+    ),
+    'moonshine-streaming-small-de-onnx-f32-tokenizer-json': ModelDefinition(
+      name: 'moonshine-streaming-small-de-onnx-f32-tokenizer-json',
+      displayName: 'Moonshine Streaming small DE f32: tokenizer.json',
+      fileName: 'moonshine-streaming-small-de-onnx-f32/tokenizer.json',
+      url:
+          'https://huggingface.co/Masterx/moonshine-streaming-small-de-ONNX/resolve/5d6dadcd2d3b9a53fcde00a8793950d2b222cac3/tokenizer.json',
+      sizeBytes: 588216,
+      checksum:
+          '983ec5f1b76300b74be6a764edc034a16e2912c38a8a8c0e4d51af355b6b755d',
+      description: 'Required companion for Moonshine Streaming small DE f32',
+      backend: 'moonshine-onnx',
+      kind: ModelKind.codec,
+      license: 'MIT',
+    ),
+    'moonshine-streaming-small-de-onnx-f32-LICENSE': ModelDefinition(
+      name: 'moonshine-streaming-small-de-onnx-f32-LICENSE',
+      displayName: 'Moonshine Streaming small DE f32: LICENSE',
+      fileName: 'moonshine-streaming-small-de-onnx-f32/LICENSE',
+      url:
+          'https://huggingface.co/Masterx/moonshine-streaming-small-de-ONNX/resolve/5d6dadcd2d3b9a53fcde00a8793950d2b222cac3/LICENSE',
+      sizeBytes: 1108,
+      checksum:
+          '900a19045a6ed6c9f534f3e942794d810002598c363fc5dd8b46ad1acbb4666f',
+      description: 'Required companion for Moonshine Streaming small DE f32',
+      backend: 'moonshine-onnx',
+      kind: ModelKind.codec,
+      license: 'MIT',
+    ),
+    'moonshine-streaming-small-de-onnx-f32': ModelDefinition(
+      name: 'moonshine-streaming-small-de-onnx-f32',
+      displayName: 'Moonshine Streaming small DE (f32)',
+      fileName: 'moonshine-streaming-small-de-onnx-f32/encoder.onnx',
+      url:
+          'https://huggingface.co/Masterx/moonshine-streaming-small-de-ONNX/resolve/5d6dadcd2d3b9a53fcde00a8793950d2b222cac3/encoder.onnx',
+      sizeBytes: 174738099,
+      checksum:
+          'b116221b4709ec3ff3c2475ddedc0e4227c6735af4c162fe7596bfef75c12973',
+      description:
+          'Official German small checkpoint, full precision ONNX; incremental audio encoder',
+      backend: 'moonshine-onnx',
+      languages: langsDe,
+      license: 'MIT',
+      quantization: 'f32',
+      companions: [
+        'moonshine-streaming-small-de-onnx-f32-frontend-onnx',
+        'moonshine-streaming-small-de-onnx-f32-adapter-onnx',
+        'moonshine-streaming-small-de-onnx-f32-cross_kv-onnx',
+        'moonshine-streaming-small-de-onnx-f32-decoder_kv-onnx',
+        'moonshine-streaming-small-de-onnx-f32-streaming_config-json',
+        'moonshine-streaming-small-de-onnx-f32-tokenizer-json',
+        'moonshine-streaming-small-de-onnx-f32-LICENSE'
+      ],
+    ),
+
     // Moonshine German variants (fidoriel fine-tunes, CC-BY-NC-SA-4.0).
     'moonshine-base-de-q4_k': ModelDefinition(
       name: 'moonshine-base-de-q4_k',
@@ -5371,6 +5980,7 @@ abstract final class ModelCatalog {
     'glm-asr': 'glm-asr-nano-q4_k',
     'moonshine': 'moonshine-tiny-q4_k',
     'moonshine-streaming': 'moonshine-streaming-tiny-q4_k',
+    'moonshine-onnx': 'moonshine-streaming-small-de-onnx',
     'vibevoice': 'vibevoice-asr-q4_k',
     'mimo-asr': 'mimo-asr-q4_k',
     'granite-4.1': 'granite-speech-4.1-2b-q4_k',
@@ -5946,7 +6556,8 @@ abstract final class ModelCatalog {
       repoId: 'JJarvinen/chatterbox-finnish-nano-GGUF',
       baseName: 'chatterbox-finnish-nano-v0.1.3-t3',
       displayPrefix: 'Chatterbox nano Finnish T3',
-      description: 'Chatterbox nano Finnish TTS T3 — pair with chatterbox-turbo-s3gen',
+      description:
+          'Chatterbox nano Finnish TTS T3 — pair with chatterbox-turbo-s3gen',
       kind: ModelKind.tts,
       defaultCompanions: ['chatterbox-turbo-s3gen-q8_0'],
       defaultLanguages: <String>['fi'],
@@ -5956,7 +6567,8 @@ abstract final class ModelCatalog {
       repoId: 'cstr/kartoffelbox-turbo-GGUF',
       baseName: 'kartoffelbox-turbo-t3',
       displayPrefix: 'Kartoffelbox turbo T3 (DE)',
-      description: 'Kartoffelbox-turbo German T3 — pair with chatterbox-turbo-s3gen',
+      description:
+          'Kartoffelbox-turbo German T3 — pair with chatterbox-turbo-s3gen',
       kind: ModelKind.tts,
       defaultCompanions: ['chatterbox-turbo-s3gen-q8_0'],
       defaultLanguages: <String>['de', 'en'],
@@ -6662,8 +7274,7 @@ abstract final class ModelCatalog {
       repoId: 'cstr/zonos-v0.1-transformer-GGUF',
       baseName: 'zonos-v0.1-transformer',
       displayPrefix: 'Zonos',
-      description:
-          'Zonos v0.1 TTS — emotion/pitch/rate control, 44.1 kHz',
+      description: 'Zonos v0.1 TTS — emotion/pitch/rate control, 44.1 kHz',
       kind: ModelKind.tts,
       defaultCompanions: ['dac-44khz'],
       defaultLanguages: langsAll,

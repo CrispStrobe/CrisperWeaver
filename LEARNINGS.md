@@ -691,3 +691,37 @@ When packaging shared libraries (e.g. `libcrispasr.so.0.7.1`), the tarball must 
 ### optipng -o2 is the sweet spot for CI-friendly PNG compression
 
 `-o7` on a 1 MB PNG takes 5+ minutes; `-o2` takes seconds and captures ~90% of the savings (37% reduction on 1024×1024 RGBA). Uncompressed PNGs from design tools often have inefficient IDAT encoding that lossless recompression fixes trivially.
+
+
+## Headless live captions and Cohere context (2026-10-07)
+
+The ASR isolate can be shared by Flutter and the CLI after extracting language
+normalization from the Material-dependent configuration library. Use AVFoundation
+through FFmpeg for standalone macOS PCM capture: Flutter recorder plugins require
+a Flutter engine. Handle odd pipe boundaries and repair a streamed WAV header on
+shutdown. Install signal handlers before model loading, not just after capture.
+
+Cohere buffered live decoding degrades when committed-word timestamps are used
+to cut the acoustic input down to tiny fragments. On a real 30-second Sennheiser
+SP 20 capture, retaining up to 25 seconds of context improved long-phrase recovery
+relative to the prior live pass; the committer deduplicates the overlapping text.
+This costs extra inference time (max observed capture backlog 2.75 s, median step
+1.066 s with 3 s updates), and does not establish human-verified accuracy. Native
+Moonshine streaming had lower backlog (0.882 s) but much weaker German text on
+that capture. `behindSec` is backlog, not full caption commit latency.
+
+A subsequent 119.936 s capture on the same mic, with concurrent CPU/GPU jobs,
+used 70.276 s in periodic processing (59% of audio duration), median step
+1.299 s, max backlog 6.489 s, recovering to 2.295 s at the last periodic step.
+Replaying the identical WAV with 5 s updates used 49% periodic processing,
+but max backlog reached 8.345 s under changing load; this is not a controlled
+speed comparison. Keep 3 s updates as the room-mic default. Some committed
+captions arrived tens of seconds after their approximate native word timestamps.
+
+Raw capture RMS was -29.60 dBFS, peak -6.82, with no clipping. +3.60 dB gain
+and a 70 Hz highpass plus light afftdn did not consistently improve Cohere text
+on three matched 30 s snippets. Preserve raw audio and leave preprocessing
+optional. `scripts/evaluate_live_recording.py` makes playable comparisons without
+cloud requests. Fixed a first-draft scheduling gap: when the periodic tick sees
+slightly less than the minimum context, retry on reaching that context instead
+of waiting an additional full update interval.

@@ -25,17 +25,39 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:crisper_weaver/services/model_catalog.dart';
-import 'package:crisper_weaver/services/model_service.dart'
-    show ModelService;
+import 'package:crisper_weaver/services/model_service.dart' show ModelService;
 
 /// ISO 639-1 codes a voicepack is allowed to claim. Deliberately
 /// narrow: voices are hand-curated per family, so a code outside this
 /// set means someone pasted a repo-local tag (`jp`) instead of the ISO
 /// one (`ja`). Extend it when a family genuinely adds a language.
 const _voiceLanguageAllowlist = <String>{
-  'ar', 'cs', 'de', 'el', 'en', 'es', 'fi', 'fr', 'he', 'hi', 'hu',
-  'id', 'it', 'ja', 'ko', 'nl', 'no', 'pl', 'pt', 'ro', 'ru', 'sv',
-  'tr', 'uk', 'vi', 'zh',
+  'ar',
+  'cs',
+  'de',
+  'el',
+  'en',
+  'es',
+  'fi',
+  'fr',
+  'he',
+  'hi',
+  'hu',
+  'id',
+  'it',
+  'ja',
+  'ko',
+  'nl',
+  'no',
+  'pl',
+  'pt',
+  'ro',
+  'ru',
+  'sv',
+  'tr',
+  'uk',
+  'vi',
+  'zh',
 };
 
 /// Repo-local tags that must never reach `languages:` — the exact codes
@@ -69,6 +91,24 @@ const _voiceTemplate = ModelDefinition(
 );
 
 void main() {
+  test('English Moonshine models are excluded from the German model filter',
+      () {
+    for (final name in [
+      'moonshine-tiny-q4_k',
+      'moonshine-base-q4_k',
+      'moonshine-streaming-tiny-q4_k',
+    ]) {
+      final model = ModelCatalog.crispasrBackendModels[name]!;
+      expect(model.matchesLanguage('de'), isFalse, reason: name);
+      expect(model.matchesLanguage('en'), isTrue, reason: name);
+    }
+    for (final name in ['moonshine-base-de-q4_k', 'moonshine-tiny-de-q4_k']) {
+      expect(ModelCatalog.crispasrBackendModels[name]!.matchesLanguage('de'),
+          isTrue,
+          reason: name);
+    }
+  });
+
   group('matchesLanguage (issue #35 root cause)', () {
     test('an English filter excludes a German-tagged voice', () {
       final german = _voiceTemplate.copyWith(
@@ -83,7 +123,8 @@ void main() {
       expect(german.matchesLanguage(''), isTrue);
     });
 
-    test('an untagged voice is hidden rather than shown under every '
+    test(
+        'an untagged voice is hidden rather than shown under every '
         'language', () {
       const untaggedVoice = _voiceTemplate;
       expect(untaggedVoice.languages, isEmpty);
@@ -225,7 +266,8 @@ void main() {
       expect(mismatched, isEmpty, reason: mismatched.join('\n  '));
     });
 
-    test('the VibeVoice voices the repo names jp/kr/sp/in are tagged '
+    test(
+        'the VibeVoice voices the repo names jp/kr/sp/in are tagged '
         'ja/ko/es/en', () {
       final v = ModelCatalog.ttsVoicepacks;
       expect(v['vibevoice-voice-jp-Spk0_man']?.languages, ['ja']);
@@ -235,7 +277,8 @@ void main() {
       expect(v['vibevoice-voice-in-Samuel_man']?.languages, ['en']);
     });
 
-    test('filtering the voice catalogue by "en" leaves no non-English '
+    test(
+        'filtering the voice catalogue by "en" leaves no non-English '
         'voice behind', () {
       final matched = ModelCatalog.ttsVoicepacks.values
           .where((d) => d.matchesLanguage('en'))
@@ -292,7 +335,11 @@ void main() {
         description: 'x',
         voicepackBaseName: 'vibevoice-voice',
       );
-      for (final id in const ['jp-Spk0_man', 'de-Spk1_woman', 'en-Emma_woman']) {
+      for (final id in const [
+        'jp-Spk0_man',
+        'de-Spk1_woman',
+        'en-Emma_woman'
+      ]) {
         expect(ModelService.voicepackLanguages(repo, id),
             ModelCatalog.voicepackLanguages(repo.backend, id));
       }
@@ -320,8 +367,8 @@ void main() {
       };
       final suppressed = ModelCatalog.duplicateFileNameEntries(baked: baked);
       visible = <String, ModelDefinition>{
-        for (final e in <String, ModelDefinition>{...baked, ..._staticCatalog()}
-            .entries)
+        for (final e
+            in <String, ModelDefinition>{...baked, ..._staticCatalog()}.entries)
           if (!suppressed.contains(e.key)) e.key: e.value,
       };
     });
@@ -364,8 +411,7 @@ void main() {
               '${dangling.join(', ')}');
     });
 
-    test('every companion reference resolves across the merged catalogue',
-        () {
+    test('every companion reference resolves across the merged catalogue', () {
       final all = <String, ModelDefinition>{...baked, ..._staticCatalog()};
       final dangling = <String>[];
       for (final entry in all.entries) {
@@ -399,7 +445,18 @@ void main() {
 
     test('no two visible rows share a URL', () {
       final byUrl = <String, List<String>>{};
+      final companions = {
+        for (final model in visible.values) ...model.companions,
+      };
       for (final e in visible.entries) {
+        // Isolated ONNX bundles intentionally carry identical frontend,
+        // config and tokenizer bytes in separate directories. Removing one
+        // precision variant must not remove the other's required files.
+        if (e.value.kind == ModelKind.codec &&
+            companions.contains(e.key) &&
+            e.value.fileName.contains('/')) {
+          continue;
+        }
         byUrl.putIfAbsent(e.value.url, () => <String>[]).add(e.key);
       }
       final dups = byUrl.entries.where((e) => e.value.length > 1).toList();
@@ -427,8 +484,7 @@ void main() {
       expect(dups, isEmpty, reason: dups.join('\n  '));
     });
 
-    test('a suppressed duplicate keeps the curated row, not the baked one',
-        () {
+    test('a suppressed duplicate keeps the curated row, not the baked one', () {
       final suppressed = ModelCatalog.duplicateFileNameEntries(baked: baked);
       for (final name in suppressed) {
         expect(_staticCatalog().containsKey(name), isFalse,
@@ -439,15 +495,15 @@ void main() {
   });
 
   group('legacy file renames', () {
-    test('each rename target is a real catalogue entry and the source is '
+    test(
+        'each rename target is a real catalogue entry and the source is '
         'not', () {
       final all = <String, ModelDefinition>{
         ..._staticCatalog(),
         for (final item in _readBakedCatalog())
           item['name'] as String: ModelDefinition.fromJson(item),
       };
-      final fileNames =
-          all.values.map((d) => d.fileName.toLowerCase()).toSet();
+      final fileNames = all.values.map((d) => d.fileName.toLowerCase()).toSet();
       for (final e in ModelCatalog.legacyModelFileRenames.entries) {
         expect(fileNames, contains(e.value.toLowerCase()),
             reason: 'rename target "${e.value}" is not in the catalogue');

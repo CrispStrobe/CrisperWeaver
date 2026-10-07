@@ -27,6 +27,7 @@
 import Cocoa
 import FlutterMacOS
 import AVFoundation
+import CoreGraphics
 #if canImport(ScreenCaptureKit)
 import ScreenCaptureKit
 #endif
@@ -85,6 +86,19 @@ final class SystemAudioCaptureHandler: NSObject, SCStreamDelegate,
     func start(completion: @escaping (Result<Bool, NSError>) -> Void) {
         Task { @MainActor in
             do {
+                // Ask explicitly before enumerating shareable content. A
+                // missing or stale grant is not proof the user clicked Deny.
+                if !CGPreflightScreenCaptureAccess() && !CGRequestScreenCaptureAccess() {
+                    completion(.failure(NSError(
+                        domain: "SystemAudioCapture",
+                        code: 2,
+                        userInfo: [
+                            NSLocalizedDescriptionKey:
+                                "System audio capture is not authorized for this app. Open System Settings → Privacy & Security → Screen & System Audio Recording, enable CrisperWeaver, then quit and reopen the app. If several copies are listed, select this local build.",
+                            "code": "permission_denied",
+                        ])))
+                    return
+                }
                 // 1. Pick a shareable-content target. Audio capture
                 // is keyed off a display filter even though we don't
                 // care about pixels — SCContentFilter requires SOME
@@ -146,7 +160,9 @@ final class SystemAudioCaptureHandler: NSObject, SCStreamDelegate,
                     domain: "SystemAudioCapture",
                     code: 2,
                     userInfo: [
-                        NSLocalizedDescriptionKey: nsErr.localizedDescription,
+                        NSLocalizedDescriptionKey: code == "permission_denied"
+                            ? "macOS has not authorized system audio capture for this app. Enable it in System Settings → Privacy & Security → Screen & System Audio Recording, then quit and reopen the app."
+                            : nsErr.localizedDescription,
                         "code": code,
                     ])))
             }

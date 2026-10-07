@@ -47,6 +47,7 @@ void main() {
         'backends',
         'transcribe',
         'stream',
+        'live',
         'vad',
         'lid',
         'diarize',
@@ -61,6 +62,33 @@ void main() {
       ]) {
         expect(out, contains(cmd), reason: 'help should list "$cmd"');
       }
+    });
+
+    test('live help exposes input selection, recording and latency controls', () async {
+      final r = await _cli(['live', '--help']);
+      expect(r.exitCode, 0);
+      for (final flag in ['--list-devices', '--device', '--save-audio', '--events', '--input', '--max-lag']) {
+        expect('${r.stdout}', contains(flag));
+      }
+    });
+
+    test('live reports an unavailable capture executable without a stack trace', () async {
+      final r = await _cli(['live', '--list-devices', '--ffmpeg', '/no-such-cw-ffmpeg']);
+      expect(r.exitCode, 1);
+      expect('${r.stderr}', contains('live:'));
+      expect('${r.stderr}', isNot(contains('#0')));
+    });
+
+    test('live refuses an implicit microphone before loading a model', () async {
+      final r = await _cli(['live', '-m', 'test/cli_test.dart']);
+      expect(r.exitCode, 64);
+      expect('${r.stderr}', contains('--device'));
+    });
+
+    test('live rejects invalid duration before starting capture', () async {
+      final r = await _cli(['live', '-m', 'test/cli_test.dart', '--duration', 'NaN']);
+      expect(r.exitCode, 64);
+      expect('${r.stderr}', contains('--duration'));
     });
 
     test('a missing mandatory option is a usage error (exit 64)', () async {

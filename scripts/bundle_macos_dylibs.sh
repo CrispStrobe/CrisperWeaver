@@ -23,6 +23,8 @@
 #   CRISPASR_BUILD_DIR    absolute CMake binary dir override
 #   CRISPEMBED_BUILD_DIR  absolute CrispEmbed CMake binary dir override
 #   GLINT_BUILD_DIR       absolute glint CMake binary dir override
+#   CRISPERWEAVER_SIGN_IDENTITY codesign identity (default: - / ad hoc).
+#                        Use a stable certificate for local TCC permissions.
 #
 # Default app path: build/macos/Build/Products/{Debug,Release}/crisper_weaver.app
 
@@ -108,6 +110,20 @@ cp -L "$VERSIONED" "$FRAMEWORKS/libwhisper.dylib"
 #     covers anyone consuming the SOVERSION-1 ABI.
 ln -sf libwhisper.dylib "$FRAMEWORKS/libcrispasr.dylib"
 ln -sf libwhisper.dylib "$FRAMEWORKS/libcrispasr.1.dylib"
+
+# Optional Moonshine ONNX backend: copy the SDK runtime as well as its notices.
+# Its SONAME is already @rpath/libonnxruntime.1.dylib.
+ORT_ROOT="${CRISPASR_ONNXRUNTIME_ROOT:-}"
+if [[ -z "$ORT_ROOT" && -f "$CRISPASR_BUILD_ROOT/CMakeCache.txt" ]]; then
+  ORT_ROOT="$(sed -n 's/^CRISPASR_ONNXRUNTIME_ROOT:PATH=//p' "$CRISPASR_BUILD_ROOT/CMakeCache.txt")"
+fi
+if [[ -n "$ORT_ROOT" ]]; then
+  cp -L "$ORT_ROOT/lib/libonnxruntime.dylib" "$FRAMEWORKS/libonnxruntime.1.dylib"
+  mkdir -p "$APP/Contents/Resources/native-licenses/onnxruntime"
+  for notice in LICENSE ThirdPartyNotices.txt; do
+    if [[ -f "$ORT_ROOT/$notice" ]]; then cp "$ORT_ROOT/$notice" "$APP/Contents/Resources/native-licenses/onnxruntime/"; fi
+  done
+fi
 
 # CoreML encoder, when CrispASR was configured with CRISPASR_COREML=ON
 # (scripts/build_macos.sh does; release.yml deliberately does not). It is a
@@ -316,9 +332,11 @@ verify_dyld_closure() {
 }
 verify_dyld_closure "$APP"
 
-# Ad-hoc codesign so Gatekeeper accepts the modified bundle locally.
-# Release builds should re-sign with a real Developer ID via codesign
-# separately.
+# Sign the modified bundle locally. A certificate gives repeated local
+# builds a stable designated requirement for macOS TCC permissions;
+# ad-hoc signatures change with the executable. Release distribution
+# should still apply its final signing/notarization workflow separately.
+SIGN_IDENTITY="${CRISPERWEAVER_SIGN_IDENTITY:--}"
 #
 # Preserve the entitlements baked in by `flutter build macos` —
 # without `--entitlements`, `codesign --force` strips them, leaving
@@ -339,10 +357,10 @@ case "$APP" in
   *)             ENT_SRC="$REPO_ROOT/macos/Runner/DebugProfile.entitlements" ;;
 esac
 if [[ -f "$ENT_SRC" ]]; then
-  codesign --force --deep --sign - --entitlements "$ENT_SRC" "$APP" >/dev/null
+  codesign --force --deep --sign "$SIGN_IDENTITY" --entitlements "$ENT_SRC" "$APP" >/dev/null
 else
   echo "warn: entitlements source $ENT_SRC missing, signing without" >&2
-  codesign --force --deep --sign - "$APP" >/dev/null
+  codesign --force --deep --sign "$SIGN_IDENTITY" "$APP" >/dev/null
 fi
 
 echo "Bundled dylibs:"

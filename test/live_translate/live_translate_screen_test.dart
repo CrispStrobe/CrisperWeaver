@@ -9,6 +9,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:record/record.dart';
+import 'package:crisper_weaver/services/audio_service.dart';
 
 /// A controller that never touches models or audio: it shows [initial].
 class _FakeLive extends LiveTranslateController {
@@ -39,6 +41,10 @@ Future<void> _pump(WidgetTester tester, LiveTranslateState state,
     overrides: [
       settingsServiceProvider.overrideWithValue(SettingsService(sp)),
       liveTranslateProvider.overrideWith(() => _FakeLive(state)),
+      microphoneDevicesProvider.overrideWith((ref) async => [
+        const InputDevice(id: 'builtin', label: 'Built-in microphone'),
+        const InputDevice(id: 'usb', label: 'USB microphone'),
+      ]),
     ],
     child: const MaterialApp(
       localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -61,6 +67,22 @@ LiveUnit _unit(int key, String lang, String text, Map<String, String> tr) {
 }
 
 void main() {
+  testWidgets('live setup offers connected microphones and saves the choice',
+      (tester) async {
+    await _pump(tester, const LiveTranslateState());
+    await tester.pump();
+    final picker = find.byKey(const ValueKey('microphone-'));
+    await tester.scrollUntilVisible(picker, 400);
+    await tester.tap(picker);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('USB microphone').last);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('microphone-usb')), findsOneWidget);
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getString('live_translate_config_v1'),
+        contains('"microphoneDeviceId":"usb"'));
+  });
+
   testWidgets('setup shows the routing table and a preset extends it',
       (tester) async {
     await _pump(tester, const LiveTranslateState());

@@ -314,8 +314,8 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
     } catch (e) {
       if (mounted) {
         ref.read(appStateProvider.notifier).setError(
-            AppLocalizations.of(context).transcribeEngineInitFailed(
-                e.toString()));
+            AppLocalizations.of(context)
+                .transcribeEngineInitFailed(e.toString()));
       }
     }
   }
@@ -340,12 +340,14 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
       await _loadModels();
       if (service.currentEngine is BrowserSpeechEngine) {
         // Downloads are explicit: never retrieve weights during app startup.
-        if (_availableModels.isNotEmpty && !_availableModels.any((m) => m.name == _modelName)) {
+        if (_availableModels.isNotEmpty &&
+            !_availableModels.any((m) => m.name == _modelName)) {
           final selected = _availableModels.first.name;
           ref.read(transcriptionScreenProvider.notifier).setModelName(selected);
           settings.defaultModel = selected;
         }
-        if (mounted) ref.read(transcriptionScreenProvider.notifier).setEngineReady(ok);
+        if (mounted)
+          ref.read(transcriptionScreenProvider.notifier).setEngineReady(ok);
         return true;
       }
     }
@@ -369,8 +371,9 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
         final switched = whisperFirst.name;
         Log.instance.i('ui',
             'Auto-switching default model: was=$_modelName now=$switched');
-        if (mounted)
+        if (mounted) {
           ref.read(transcriptionScreenProvider.notifier).setModelName(switched);
+        }
         settings.defaultModel = switched;
       } else if (mounted) {
         // First-launch / nothing downloaded — the "default model X isn't
@@ -451,8 +454,9 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
         }
       }
     }
-    if (mounted)
+    if (mounted) {
       ref.read(transcriptionScreenProvider.notifier).setEngineReady(ok);
+    }
     return ok;
   }
 
@@ -496,7 +500,8 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
                     name: m.id,
                     displayName: m.name,
                     backend: m.metadata['backend'] as String? ?? m.id,
-                    isDownloaded: engine is BrowserSpeechEngine ? m.isDownloaded : true,
+                    isDownloaded:
+                        engine is BrowserSpeechEngine ? m.isDownloaded : true,
                     sizeBytes: m.sizeBytes,
                     size: '${(m.sizeBytes / 1e6).round()} MB',
                     description: m.description,
@@ -541,11 +546,11 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
       final success = plat.isWeb
           ? await ref.read(transcriptionServiceProvider).loadModel(model.name)
           : await modelService.downloadWhisperCppModel(
-        model.name,
-        onProgress: (p) {
-          // Optional: update UI with progress
-        },
-      );
+              model.name,
+              onProgress: (p) {
+                // Optional: update UI with progress
+              },
+            );
 
       if (success && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -671,8 +676,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
                 'synthesize', Icons.record_voice_over, l.menuSynthesize),
             _appBarMenuItem('translate', Icons.translate, l.menuTranslate),
             if (!plat.isWeb && phone)
-              _appBarMenuItem(
-                  'live', Icons.closed_caption, l.menuLiveCaptions),
+              _appBarMenuItem('live', Icons.closed_caption, l.menuLiveCaptions),
             if (advancedSurface) ...[
               _appBarMenuItem(
                   'presets', Icons.bookmarks_outlined, l.presetsTooltip),
@@ -681,8 +685,7 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
               _appBarMenuItem(
                   'subtitle-overlay', Icons.subtitles, l.menuSubtitleOverlay),
               _appBarMenuItem('music', Icons.music_note, l.menuMusicToMidi),
-              _appBarMenuItem(
-                  'verify-watermark', Icons.verified_user,
+              _appBarMenuItem('verify-watermark', Icons.verified_user,
                   l.transcribeVerifyWatermark),
             ],
           ],
@@ -1085,12 +1088,10 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
           },
           minSpeakers: ref.watch(transcriptionScreenProvider).minSpeakers,
           maxSpeakers: ref.watch(transcriptionScreenProvider).maxSpeakers,
-          onMinSpeakersChanged: (v) => ref
-              .read(transcriptionScreenProvider.notifier)
-              .setMinSpeakers(v),
-          onMaxSpeakersChanged: (v) => ref
-              .read(transcriptionScreenProvider.notifier)
-              .setMaxSpeakers(v),
+          onMinSpeakersChanged: (v) =>
+              ref.read(transcriptionScreenProvider.notifier).setMinSpeakers(v),
+          onMaxSpeakersChanged: (v) =>
+              ref.read(transcriptionScreenProvider.notifier).setMaxSpeakers(v),
           unavailableMethods: _missingDiarizationModels,
         ),
 
@@ -1123,10 +1124,11 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
             // silently transcribe with a mismatched language.
             if (_language != 'auto' && !codes.contains(_language)) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted)
+                if (mounted) {
                   ref
                       .read(transcriptionScreenProvider.notifier)
                       .setLanguage('auto');
+                }
               });
             }
             final options = <_LangOption>[
@@ -2386,7 +2388,9 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
         try {
           final bytes = await BrowserSpeechClient.fetchBytes(source);
           if (!mounted) return;
-          ref.read(transcriptionScreenProvider.notifier).setSelectedFileBytes(bytes);
+          ref
+              .read(transcriptionScreenProvider.notifier)
+              .setSelectedFileBytes(bytes);
         } catch (e) {
           if (mounted) _showErrorDialog(e.toString());
           return;
@@ -2498,10 +2502,11 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
           'Model load completed after user cancel — leaving model resident, '
               'skipping transcription start',
           fields: {'model': _modelName});
-      if (mounted)
+      if (mounted) {
         ref
             .read(transcriptionScreenProvider.notifier)
             .setTranscribePending(false);
+      }
       return;
     }
 
@@ -2512,10 +2517,11 @@ class _TranscriptionScreenState extends ConsumerState<TranscriptionScreen> {
       // ours so the button keeps showing the busy state via
       // appState.isTranscribing.
       appStateNotifier.startTranscription();
-      if (mounted)
+      if (mounted) {
         ref
             .read(transcriptionScreenProvider.notifier)
             .setTranscribePending(false);
+      }
 
       final started = DateTime.now();
       List<TranscriptionSegment> segments = [];

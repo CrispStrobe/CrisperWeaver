@@ -111,8 +111,7 @@ void main() {
     test('opposite vectors return -1.0', () {
       final a = Float32List.fromList([1.0, 0.0]);
       final b = Float32List.fromList([-1.0, 0.0]);
-      expect(
-          SemanticSearchService.cosineSimilarity(a, b), closeTo(-1.0, 1e-6));
+      expect(SemanticSearchService.cosineSimilarity(a, b), closeTo(-1.0, 1e-6));
     });
 
     test('empty vectors return 0.0', () {
@@ -212,19 +211,19 @@ void main() {
 
   group('§12.3a reranker integration', () {
     final candidates = [
-      SearchResult(
+      const SearchResult(
         segmentIndex: 0,
         score: 0.9,
         segment: TranscriptionSegment(
             text: 'the weather is nice', startTime: 0, endTime: 10),
       ),
-      SearchResult(
+      const SearchResult(
         segmentIndex: 1,
         score: 0.8,
         segment: TranscriptionSegment(
             text: 'machine learning rocks', startTime: 10, endTime: 20),
       ),
-      SearchResult(
+      const SearchResult(
         segmentIndex: 2,
         score: 0.7,
         segment: TranscriptionSegment(
@@ -283,11 +282,11 @@ void main() {
     test('rerankWithScorer skips empty-text segments', () {
       final candidatesWithEmpty = [
         ...candidates,
-        SearchResult(
+        const SearchResult(
           segmentIndex: 3,
           score: 0.6,
-          segment: TranscriptionSegment(
-              text: '   ', startTime: 30, endTime: 40),
+          segment:
+              TranscriptionSegment(text: '   ', startTime: 30, endTime: 40),
         ),
       ];
       final results = SemanticSearchService.rerankWithScorer(

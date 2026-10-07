@@ -14,6 +14,7 @@ import '../services/log_service.dart';
 import '../services/model_catalog.dart';
 import '../utils/ai_text_disclosure.dart';
 import '../services/settings_service.dart';
+import '../services/audio_service.dart';
 import '../services/text_translation_service.dart';
 import '../utils/file_picker_util.dart';
 import '../utils/platform_utils.dart' as plat;
@@ -514,8 +515,10 @@ class _LiveTranslateScreenState extends ConsumerState<LiveTranslateScreen> {
             if (running) ...[
               const _PulseDot(),
               const SizedBox(width: 8),
-              Text('LIVE  $elapsed',
-                  style: TextStyle(color: fg, fontWeight: FontWeight.w700, letterSpacing: 1)),
+              Tooltip(
+                message: st.recognizer ?? '',
+                child: Text('LIVE  $elapsed',
+                  style: TextStyle(color: fg, fontWeight: FontWeight.w700, letterSpacing: 1))),
             ] else if (st.status == LiveStatus.loading || st.status == LiveStatus.stopping)
               SizedBox(
                 width: 18,
@@ -757,6 +760,8 @@ class _LiveTranslateScreenState extends ConsumerState<LiveTranslateScreen> {
                   onSelectionChanged: (s) => _set(_cfg.copyWith(audioSource: s.first)),
                 ),
                 const SizedBox(height: 8),
+                if (_cfg.audioSource == LiveAudioSource.microphone)
+                  _microphonePicker(l),
                 Row(
                   children: [
                     TextButton.icon(
@@ -797,6 +802,50 @@ class _LiveTranslateScreenState extends ConsumerState<LiveTranslateScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _microphonePicker(AppLocalizations l) {
+    final devices = ref.watch(microphoneDevicesProvider);
+    return Row(
+      children: [
+        Expanded(
+          child: devices.when(
+            loading: () => const LinearProgressIndicator(),
+            error: (error, stack) => Text(l.streamingMicUnavailable),
+            data: (inputs) {
+              final selected = _cfg.microphoneDeviceId;
+              final missing = selected.isNotEmpty &&
+                  !inputs.any((d) => d.id == selected);
+              return DropdownButtonFormField<String>(
+                key: ValueKey('microphone-$selected'),
+                initialValue: selected,
+                isExpanded: true,
+                decoration: InputDecoration(labelText: l.liveMicrophone),
+                items: [
+                  DropdownMenuItem(
+                      value: '', child: Text(l.settingsSystemDefault)),
+                  for (final device in inputs)
+                    DropdownMenuItem(
+                        value: device.id, child: Text(device.label)),
+                  if (missing)
+                    DropdownMenuItem(
+                        value: selected,
+                        child: Text(l.streamingMicUnavailable)),
+                ],
+                onChanged: (id) {
+                  if (id != null) _set(_cfg.copyWith(microphoneDeviceId: id));
+                },
+              );
+            },
+          ),
+        ),
+        IconButton(
+          tooltip: l.storageRefresh,
+          icon: const Icon(Icons.refresh),
+          onPressed: () => ref.invalidate(microphoneDevicesProvider),
+        ),
+      ],
     );
   }
 

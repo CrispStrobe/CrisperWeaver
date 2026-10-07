@@ -40,16 +40,20 @@ import 'dart:typed_data';
 import '../../native/crispasr_import.dart' as crispasr;
 import '../../native/vad_native_import.dart';
 import '../../utils/emotion_inference.dart';
-import 'live_translate_config.dart' show normaliseLangCode;
+import '../../utils/language_code.dart' show normaliseLangCode;
 import 'sentence_committer.dart';
 
 const _sr = 16000;
+// A stateless Silero call needs enough history to distinguish a soft syllable
+// from a pause. Half a second made segmentation depend on ASR decode speed.
+const _vadHistory = 2 * _sr;
 
 class LiveAsrArgs {
   const LiveAsrArgs({
     required this.readyPort,
     required this.modelPath,
     required this.backend,
+    this.libPath,
     this.vadModelPath,
     this.lidMode = 'fixed',
     this.audioLidPath,
@@ -57,6 +61,7 @@ class LiveAsrArgs {
     this.fixedSource,
     this.expectedSources = const [],
     this.stepMs = 500,
+    this.minDecodeMs = 0,
     this.finalSilenceMs = 800,
     this.useGpu = true,
     this.nThreads = 0,
@@ -66,6 +71,9 @@ class LiveAsrArgs {
   final SendPort readyPort;
   final String modelPath;
   final String backend;
+
+  /// Optional native library path for embedders and integration tests.
+  final String? libPath;
   final String? vadModelPath;
 
   /// 'fixed' | 'audio' | 'text' | 'recognizer'
@@ -75,6 +83,10 @@ class LiveAsrArgs {
   final String? fixedSource;
   final List<String> expectedSources;
   final int stepMs;
+
+  /// 0 selects a backend default: Cohere needs 3 s before draft decoding.
+  /// Final utterances are still decoded even when shorter.
+  final int minDecodeMs;
   final int finalSilenceMs;
   final bool useGpu;
   final int nThreads;
@@ -100,10 +112,13 @@ Future<void> liveAsrWorkerEntry(LiveAsrArgs args) async {
         nThreads: args.nThreads,
         useGpu: args.useGpu,
         backend: args.backend,
+        libPath: args.libPath,
       );
     } on UnsupportedError {
       session = crispasr.CrispasrSession.open(args.modelPath,
-          nThreads: args.nThreads, backend: args.backend);
+          nThreads: args.nThreads,
+          backend: args.backend,
+          libPath: args.libPath);
     }
   } catch (e) {
     out.send({'type': 'error', 'message': 'Could not load the recogniser: $e'});
@@ -120,7 +135,26 @@ Future<void> liveAsrWorkerEntry(LiveAsrArgs args) async {
   try {
     session.transcribe(Float32List(_sr), language: args.fixedSource);
   } catch (_) {}
-  out.send({'type': 'ready', 'backend': session.backend});
+  final kind = session.streamingKind;
+  if (session.backend == 'nemotron' && kind != 2) {
+    session.close();
+    out.send({
+      'type': 'error',
+      'message':
+          'This CrispASR library does not expose native Nemotron streaming. Rebuild the native library.'
+    });
+    cmd.close();
+    return;
+  }
+  out.send({
+    'type': 'ready',
+    'backend': session.backend,
+    'streamingMode': kind == 2
+        ? 'native streaming'
+        : kind == 3
+            ? 'prefix streaming'
+            : 'buffered recognition'
+  });
 
   final loop = _LiveLoop(args, session, out);
   final done = Completer<void>();
@@ -128,7 +162,8 @@ Future<void> liveAsrWorkerEntry(LiveAsrArgs args) async {
     if (msg is! Map) return;
     switch (msg['type']) {
       case 'audio':
-        loop.push(msg['pcm'] as Float32List);
+        loop.push(msg['pcm'] as Float32List,
+            capturedAtMs: msg['capturedAtMs'] as int?);
       case 'stop':
         loop.stop();
         session.close();
@@ -151,6 +186,15 @@ class _LiveLoop {
   final SendPort out;
   final int stepSamples;
   final int silenceSamples;
+  bool get _stateful => !_direct && session.streamingKind >= 2;
+  int get _minDecodeSamples =>
+      (a.minDecodeMs > 0
+          ? a.minDecodeMs
+          : (session.backend == 'cohere' ? 3000 : 500)) *
+      _sr ~/
+      1000;
+  crispasr.StreamingSession? _stream;
+  int _streamFedUntil = 0;
 
   static const _pad = _sr ~/ 5; // 200 ms of context around speech
   static const _maxUtterance = 60 * _sr;
@@ -197,17 +241,20 @@ class _LiveLoop {
     _timer = Timer.periodic(const Duration(milliseconds: 100), (_) => _tick());
   }
 
-  void push(Float32List pcm) {
+  int _lastAudioAtMs = 0;
+
+  void push(Float32List pcm, {int? capturedAtMs}) {
     if (_stopped || pcm.isEmpty) return;
     if (_bufLen + pcm.length > _buf.length) _compact(pcm.length);
     _buf.setRange(_bufLen, _bufLen + pcm.length, pcm);
     _bufLen += pcm.length;
+    _lastAudioAtMs = capturedAtMs ?? DateTime.now().millisecondsSinceEpoch;
   }
 
   /// Drop audio no longer needed: everything before the open utterance (or
   /// before what VAD has yet to see), and grow when that is not enough.
   void _compact(int incoming) {
-    var keepFrom = math.min(_vadPos, _now) - _sr;
+    var keepFrom = math.min(_vadPos, _now) - _vadHistory - _sr ~/ 2;
     if (_open) keepFrom = math.min(keepFrom, _uttStart);
     keepFrom = math.max(keepFrom, math.max(_bufStart, _now - 120 * _sr));
     final drop = keepFrom - _bufStart;
@@ -234,32 +281,31 @@ class _LiveLoop {
   void stop() {
     if (_stopped) return;
     _timer?.cancel();
-    // Commit the sentence in progress, like the CLI's first Ctrl+C — from
-    // the hypothesis already on screen. Re-decoding the open audio first
-    // could take longer than the caller waits on a busy CPU, and the whole
-    // open text was then lost instead of committed. Only an utterance that
-    // was never decoded at all gets its one decode here.
+    // Drain the last received PCM even when stop arrives before the next tick.
+    // This also opens/closes an utterance that only exists in queued audio.
     try {
-      if (_open) {
-        if (_direct) {
-          _decodeDirect(_now);
-        } else if (_lastText.isEmpty) {
-          _decode(_now);
-        }
-        _close(_now);
-      }
+      _step(flushAll: true);
     } catch (e) {
       out.send({'type': 'error', 'message': 'Live step failed: $e'});
     }
+    _stream?.close();
+    _stream = null;
     _stopped = true;
   }
 
   void _tick() {
     if (_stopped) return;
-    if (_now - _lastStepAt < stepSamples) return;
+    // Speech can start slightly after a scheduled step. If that step was
+    // skipped for insufficient context, do not wait another full interval
+    // before the first draft. Later drafts retain the configured cadence.
+    final firstDraftDue = !_direct &&
+        !_stateful &&
+        _open &&
+        _lastDecodedEnd == _uttStart &&
+        _now - _uttStart >= _minDecodeSamples;
+    if (_now - _lastStepAt < stepSamples && !firstDraftDue) return;
     final sw = Stopwatch()..start();
-    final at = _now;
-    _lastStepAt = at;
+    _lastStepAt = _now;
     try {
       _step();
     } catch (e) {
@@ -269,10 +315,15 @@ class _LiveLoop {
     out.send({
       'type': 'stats',
       'stepMs': sw.elapsedMilliseconds,
+      'audioUntilSec': _now / _sr,
+      'decodedUntilSec': _lastDecodedEnd / _sr,
       'openSec': _open ? (_now - _uttStart) / _sr : 0.0,
-      // Audio that arrived while this step ran: how far behind the speaker
-      // the next step starts.
-      'behindSec': (_now - at) / _sr,
+      // Native calls block this isolate, so _now cannot advance during a
+      // decode. Compare to the capture timestamp to include queued audio.
+      'behindSec': _lastAudioAtMs == 0
+          ? 0.0
+          : math.max(0.0,
+              (DateTime.now().millisecondsSinceEpoch - _lastAudioAtMs) / 1000),
       'misses': _committer.alignMisses,
     });
   }
@@ -288,7 +339,8 @@ class _LiveLoop {
       if (!_open) {
         final next = _spans.where((s) => s.$2 > _closedUntil).firstOrNull;
         if (next == null) return;
-        _openUtterance(math.max(next.$1 - _pad, math.max(_closedUntil, _bufStart)));
+        _openUtterance(
+            math.max(next.$1 - _pad, math.max(_closedUntil, _bufStart)));
       }
 
       final end = _utteranceEnd(now);
@@ -300,7 +352,7 @@ class _LiveLoop {
         if (_direct) {
           _decodeDirect(to);
         } else if (_lastText.isEmpty || _lastDecodedEnd < end) {
-          _decode(to);
+          _decode(to, finalPass: true);
         }
         _close(end);
         continue; // the backlog may hold the next utterance already
@@ -311,8 +363,10 @@ class _LiveLoop {
       if (_direct) {
         // Whole utterances only; on stop, what is open is decoded as one.
         if (flushAll) _decodeDirect(now);
-      } else if (lastSpeech > _lastDecodedEnd || _lastText.isEmpty || flushAll) {
-        _decode(now);
+      } else if (lastSpeech > _lastDecodedEnd ||
+          _lastText.isEmpty ||
+          flushAll) {
+        _decode(now, finalPass: flushAll);
       }
       if (flushAll || now - _uttStart > _maxUtterance) {
         _close(now);
@@ -331,6 +385,7 @@ class _LiveLoop {
     _uttStart = at;
     _lastText = '';
     _lastDecodedEnd = at;
+    _streamFedUntil = at;
     _uttLang = a.lidMode == 'fixed' ? a.fixedSource : null;
     _uttLangConf = 0;
     _lidRuns = 0;
@@ -360,32 +415,36 @@ class _LiveLoop {
     return null;
   }
 
-  /// VAD over everything since the last call (half a second of overlap so a
-  /// span cut at the previous edge is seen whole), in ≤ 30 s pieces.
+  /// History warms up the stateless detector; only the last half second
+  /// may revise earlier spans. Rewriting the warm-up prefix invents pauses.
   void _runVad(int now) {
-    var from = math.max(_bufStart, _vadPos - _sr ~/ 2);
-    while (now - from >= _sr ~/ 4) {
-      final to = math.min(now, from + 30 * _sr);
-      final found = _vad(from, to);
-      // Replace what the overlap re-covered; join a span cut at `from`.
+    var reviseFrom = math.max(_bufStart, _vadPos - _sr ~/ 2);
+    while (now - reviseFrom >= _sr ~/ 4) {
+      final contextFrom = math.max(_bufStart, reviseFrom - _vadHistory);
+      final to = math.min(now, contextFrom + 30 * _sr);
+      final found = [
+        for (final span in _vad(contextFrom, to))
+          if (span.$2 > reviseFrom) (math.max(reviseFrom, span.$1), span.$2),
+      ];
       int? cutStart;
-      _spans.removeWhere((s) {
-        if (s.$2 <= from) return false;
-        if (s.$1 < from) cutStart = s.$1;
+      _spans.removeWhere((span) {
+        if (span.$2 <= reviseFrom) return false;
+        if (span.$1 < reviseFrom) cutStart = span.$1;
         return true;
       });
       for (var i = 0; i < found.length; i++) {
-        var s = found[i];
-        if (i == 0 && cutStart != null && s.$1 <= from + _sr ~/ 10) {
-          s = (cutStart!, s.$2);
+        var span = found[i];
+        if (i == 0 && cutStart != null && span.$1 <= reviseFrom + _sr ~/ 10) {
+          span = (cutStart!, span.$2);
           cutStart = null;
         }
-        _spans.add(s);
+        _spans.add(span);
       }
-      if (cutStart != null) _spans.add((cutStart!, from));
+      if (cutStart != null) _spans.add((cutStart!, reviseFrom));
+      _spans.sort((a, b) => a.$1.compareTo(b.$1));
       _vadPos = to;
       if (to == now) break;
-      from = to - _sr ~/ 2;
+      reviseFrom = to - _sr ~/ 2;
     }
   }
 
@@ -395,9 +454,31 @@ class _LiveLoop {
     final model = a.vadModelPath;
     if (model != null && !_vadBroken) {
       try {
-        final spans = vadSlicesNative(model, pcm,
-            minSpeechMs: 200, minSilenceMs: 150, speechPadMs: 30,
-            nThreads: 1);
+        // Quiet microphones can leave valid speech below Silero's useful
+        // input range. Lift only the detector input; ASR keeps the original
+        // waveform. Limit gain and peak level to preserve pauses and headroom.
+        var energy = 0.0;
+        var peak = 0.0;
+        for (final sample in pcm) {
+          energy += sample * sample;
+          peak = math.max(peak, sample.abs());
+        }
+        final rms = pcm.isEmpty ? 0.0 : math.sqrt(energy / pcm.length);
+        var detectorPcm = pcm;
+        if (rms > 0 && rms < 0.01 && peak > 0) {
+          final gain = math.min(12.0, math.min(0.03 / rms, 1.0 / peak));
+          if (gain > 1) {
+            detectorPcm =
+                Float32List.fromList([for (final sample in pcm) sample * gain]);
+          }
+        }
+        final spans = vadSlicesNative(model, detectorPcm,
+            threshold: 0.35,
+            minSpeechMs: 200,
+            minSilenceMs: 150,
+            speechPadMs: 30,
+            nThreads: 1,
+            libPath: a.libPath);
         return [
           for (final s in spans)
             (from + (s.start * _sr).round(), from + (s.end * _sr).round())
@@ -509,7 +590,16 @@ class _LiveLoop {
 
   bool get _direct => a.directTranslationTarget != null;
 
-  static String _clean(String raw) => EmotionInference.strip(raw.trim()).text.trim();
+  static final _nemotronLanguageTag = RegExp(r'<[a-z]{2,3}-[A-Z]{2}>');
+
+  String _clean(String raw) {
+    // Nemotron's detokenizer currently exposes its language control tokens
+    // in both segment text and timed words. They are not spoken words.
+    if (session.backend == 'nemotron') {
+      raw = raw.replaceAll(_nemotronLanguageTag, '');
+    }
+    return EmotionInference.strip(raw.trim()).text.trim();
+  }
 
   /// A speech-translation recogniser's utterance: each cue is
   /// "transcript\ntranslation"; every cue becomes one unit carrying its
@@ -521,11 +611,8 @@ class _LiveLoop {
     final segs = session.transcribe(pcm);
     final tgt = a.directTranslationTarget!;
     for (final g in segs) {
-      final lines = g.text
-          .split('\n')
-          .map(_clean)
-          .where((l) => l.isNotEmpty)
-          .toList();
+      final lines =
+          g.text.split('\n').map(_clean).where((l) => l.isNotEmpty).toList();
       if (lines.isEmpty) continue;
       final source = lines.first;
       final translation = lines.length > 1 ? lines.sublist(1).join(' ') : '';
@@ -544,10 +631,20 @@ class _LiveLoop {
 
   int _directId = 0;
 
-  void _decode(int to) {
+  void _decode(int to, {bool finalPass = false}) {
+    if (_stateful) {
+      _decodeStream(to);
+      return;
+    }
     var d0 = _uttStart;
     final from = _committer.decodeFrom;
-    if (from >= 0) {
+    if (session.backend == 'cohere') {
+      // Cohere is a buffered encoder-decoder. Cutting at a committed word
+      // leaves it with tiny fragments and removes the linguistic context
+      // that made its offline decode useful. Retain a bounded acoustic
+      // window; the committer aligns/deduplicates the repeated hypothesis.
+      d0 = math.max(_uttStart, to - 25 * _sr);
+    } else if (from >= 0) {
       final lead = _committer.decodeFromExact ? 0.3 : 1.5;
       d0 = ((from - lead) * _sr).round().clamp(_uttStart, to);
     }
@@ -555,6 +652,7 @@ class _LiveLoop {
     if (to - d0 < 2 * _sr) d0 = math.max(_uttStart, to - 2 * _sr);
     _committer.pressure = to - d0 > 9 * _sr;
     final pcm = _slice(d0, to);
+    if (!finalPass && pcm.length < _minDecodeSamples) return;
     _lastDecodedEnd = to;
     if (pcm.length < _sr ~/ 2) return;
     final segs = session.transcribe(pcm, language: _hint);
@@ -562,10 +660,8 @@ class _LiveLoop {
     // emits them inline) are discarded here as on every other transcription
     // path — this worker reaches the native session directly, so the
     // engine-side filter never sees its output.
-    final text = segs
-        .map((s) => _clean(s.text))
-        .where((s) => s.isNotEmpty)
-        .join(' ');
+    final text =
+        segs.map((s) => _clean(s.text)).where((s) => s.isNotEmpty).join(' ');
     final off = d0 / _sr;
     final timed = <LtTimedWord>[];
     for (final s in segs) {
@@ -589,8 +685,40 @@ class _LiveLoop {
         tAudio: to / _sr, timed: timed.isEmpty ? null : timed));
   }
 
+  void _streamUpdate(crispasr.StreamingUpdate? update, int to) {
+    if (update == null) return;
+    final text = _clean(update.text);
+    if (text.isEmpty) return;
+    _lastText = text;
+    _handle(_committer.onPartial(_utt, text, tAudio: to / _sr));
+  }
+
+  void _decodeStream(int to) {
+    // A single stream per utterance. Feed only newly arrived audio; never
+    // feed the committer's overlapping decode window into a cached encoder.
+    if (to <= _streamFedUntil) return;
+    if (_stream == null) {
+      _stream = session.openStream(
+          language: _hint ?? 'auto', stepMs: a.stepMs, nThreads: a.nThreads);
+      _stream!.setLiveDecode(true);
+    }
+    final pcm = _slice(_streamFedUntil, to);
+    _streamUpdate(_stream!.feed(pcm), to);
+    _streamFedUntil = to;
+    _lastDecodedEnd = to;
+  }
+
   void _close(int speechEnd) {
     if (!_open) return;
+    final stream = _stream;
+    if (stream != null) {
+      try {
+        _streamUpdate(stream.flush(), _streamFedUntil);
+      } finally {
+        stream.close();
+        _stream = null;
+      }
+    }
     if (_lastText.isNotEmpty) {
       _handle(_committer.onFinal(_utt, _lastText));
     }

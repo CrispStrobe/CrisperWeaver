@@ -26,6 +26,13 @@ Future<void> registerNativeLicenses() async {
           error: e, stack: st);
     }
 
+    for (final asset in ['ONNXRuntime', 'ONNXRuntimeThirdParty']) {
+      yield LicenseEntryWithLineBreaks(
+        const ['ONNX Runtime'],
+        await rootBundle.loadString('assets/licenses/$asset.txt'),
+      );
+    }
+
     // --- Bundled native codec/runtime libraries. `showLicensePage` only
     // auto-lists pub packages, so these FFI-side binaries must be
     // registered explicitly or their (required) notices wouldn't appear. ---

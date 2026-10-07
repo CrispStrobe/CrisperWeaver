@@ -15,7 +15,11 @@
 // The dylib is resolved from --lib, then $CRISPASR_LIB, then the
 // conventional CrispASR build outputs.
 
+import 'dart:async';
+import 'dart:convert';
 import 'dart:ffi';
+import 'dart:isolate';
+import 'dart:math' as math;
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -34,10 +38,16 @@ import 'package:crisper_weaver/utils/ai_text_disclosure.dart';
 import 'package:crisper_weaver/utils/emotion_inference.dart';
 import 'package:crisper_weaver/utils/marked_wav.dart';
 
+import 'package:crisper_weaver/cli/microphone_capture.dart';
+import 'package:crisper_weaver/services/live_translate/live_asr_worker.dart';
+
+part 'live_command.dart';
+
 String? _resolveLib(String? explicit) {
   for (final c in [
     explicit,
     Platform.environment['CRISPASR_LIB'],
+    '../CrispASR-streaming-local/build/src/libcrispasr.dylib',
     '../CrispASR/build/src/libcrispasr.dylib',
     '../CrispASR/build/src/libcrispasr.so',
     '../CrispASR/build/src/libwhisper.dylib',
@@ -1159,6 +1169,7 @@ Future<void> main(List<String> args) async {
     ..addCommand(_BackendsCmd())
     ..addCommand(_TranscribeCmd())
     ..addCommand(_StreamCmd())
+    ..addCommand(_LiveCmd())
     ..addCommand(_VadCmd())
     ..addCommand(_LidCmd())
     ..addCommand(_DiarizeCmd())

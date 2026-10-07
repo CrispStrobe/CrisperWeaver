@@ -37,6 +37,8 @@
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<key>NSScreenCaptureUsageDescription</key>
+	<string>CrisperWeaver captures system audio to transcribe and caption sound playing on this Mac.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>CrisperWeaver records audio from the microphone so it can be transcribed locally on your Mac.</string>
 	<!--

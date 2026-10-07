@@ -248,7 +248,8 @@ class LiveTranslateController extends Notifier<LiveTranslateState> {
 
   void clear() {
     _byKey.clear();
-    state = state.copyWith(units: const [], held: '', tail: '', drafts: const {});
+    state =
+        state.copyWith(units: const [], held: '', tail: '', drafts: const {});
   }
 
   /// Plain-text transcript of the session: each sentence with its
@@ -290,17 +291,31 @@ class LiveTranslateController extends Notifier<LiveTranslateState> {
       return null;
     }
 
-    final asr = downloaded(_config.asrModel) ?? downloaded(settings.defaultModel);
+    final asr =
+        downloaded(_config.asrModel) ?? downloaded(settings.defaultModel);
     if (asr == null) {
       throw const LiveTranslateException(
           'No speech recognition model is downloaded. Pick one in the live '
           'setup, or download Parakeet TDT 0.6B v3 from Models.');
     }
 
+    if (_config.lidMode == LiveLidMode.fixed) {
+      // Prefer the current catalogue over metadata saved with an older download.
+      final definition = ms.lookupDefinition(asr.name);
+      final supported = definition?.matchesLanguage(_config.fixedSource) ??
+          asr.matchesLanguage(_config.fixedSource);
+      if (!supported) {
+        throw LiveTranslateException(
+            '${asr.displayName} does not support the selected spoken language '
+            '(${_config.fixedSource}). Choose a model that supports it, such as '
+            'multilingual Whisper for German.');
+      }
+    }
+
     ModelInfo? translator;
     if (_config.needsTranslator) {
-      translator = downloaded(_config.translatorModel) ??
-          defaultTranslator(models);
+      translator =
+          downloaded(_config.translatorModel) ?? defaultTranslator(models);
     }
 
     String? findByPrefix(List<String> prefixes) {
@@ -320,7 +335,8 @@ class LiveTranslateController extends Notifier<LiveTranslateState> {
     // CPUs (tracked upstream), and a wrong language mis-routes a sentence.
     final audioLid = preferredLid != null && preferredLid.contains('lid')
         ? preferredLid
-        : findByPrefix(['ecapa-lid', 'firered-lid', 'silero-lid', 'silero-lang']);
+        : findByPrefix(
+            ['ecapa-lid', 'firered-lid', 'silero-lid', 'silero-lang']);
     final textLid = findByPrefix(['cld3', 'fasttext-lid', 'glotlid']);
 
     var mode = _config.lidMode;
@@ -395,7 +411,9 @@ class LiveTranslateController extends Notifier<LiveTranslateState> {
   static ModelInfo? defaultTranslator(List<ModelInfo> models) {
     final ready = models
         .where((m) =>
-            m.isDownloaded && m.localPath != null && m.kind == ModelKind.translate)
+            m.isDownloaded &&
+            m.localPath != null &&
+            m.kind == ModelKind.translate)
         .toList();
     int rank(ModelInfo m) => switch (m.backend) {
           'm2m100' => 0,
@@ -445,8 +463,10 @@ class LiveTranslateController extends Notifier<LiveTranslateState> {
       state = state.copyWith(status: LiveStatus.running);
       Log.instance.i('live', 'started', fields: {
         'asr': p.basename(paths.asrPath),
-        'translator':
-            paths.translatorPath == null ? '-' : p.basename(paths.translatorPath!),
+        'recognizer': state.recognizer,
+        'translator': paths.translatorPath == null
+            ? '-'
+            : p.basename(paths.translatorPath!),
         'lid': paths.lidMode.name,
         'source': replayFile == null ? _config.audioSource.name : 'file',
       });
@@ -603,7 +623,9 @@ class LiveTranslateController extends Notifier<LiveTranslateState> {
       if (_isolateDied(msg, ready, 'recogniser')) return;
       if (msg is! Map) return;
       if (msg['type'] == 'ready') {
-        state = state.copyWith(recognizer: msg['backend'] as String?);
+        state = state.copyWith(
+            recognizer:
+                '${msg['backend']} · ${msg['streamingMode'] ?? 'buffered recognition'}');
         if (!ready.isCompleted) ready.complete();
       } else if (msg['type'] == 'error' && !ready.isCompleted) {
         ready.completeError(LiveTranslateException(msg['message'] as String));
@@ -631,7 +653,15 @@ class LiveTranslateController extends Notifier<LiveTranslateState> {
             paths.lidMode == LiveLidMode.fixed ? _config.fixedSource : null,
         expectedSources: _config.expectedSources.toList(),
         finalSilenceMs: _config.finalSilenceMs,
-        nThreads: _asrThreads,
+        // Match the room-mic CLI calibration: overlapping Cohere windows
+        // need more processing headroom than native streaming updates.
+        stepMs: paths.asrBackend == 'cohere' ? 3000 : 500,
+        nThreads: paths.asrBackend == 'cohere'
+            ? _asrThreads.clamp(1, 3)
+            : _asrThreads,
+        // Native Nemotron uses many small graphs; on Metal their dispatch
+        // overhead dominates. Match the backend's CPU default on macOS.
+        useGpu: !(Platform.isMacOS && paths.asrBackend == 'nemotron'),
         directTranslationTarget: paths.directTranslationTarget,
       ),
       debugName: 'live-asr',
@@ -661,7 +691,8 @@ class LiveTranslateController extends Notifier<LiveTranslateState> {
           if (!ready.isCompleted) ready.complete();
         case 'error':
           if (!ready.isCompleted) {
-            ready.completeError(LiveTranslateException(msg['message'] as String));
+            ready.completeError(
+                LiveTranslateException(msg['message'] as String));
           }
         case 'stopped':
           _trStopped.add(null);
@@ -701,6 +732,7 @@ class LiveTranslateController extends Notifier<LiveTranslateState> {
         final end = (pos + chunk).clamp(0, pcm.length);
         _asrPort?.send({
           'type': 'audio',
+          'capturedAtMs': DateTime.now().millisecondsSinceEpoch,
           'pcm': Float32List.fromList(Float32List.sublistView(pcm, pos, end)),
         });
         pos = end;
@@ -714,7 +746,19 @@ class LiveTranslateController extends Notifier<LiveTranslateState> {
       _stopCapture = () => unawaited(svc.stop());
     } else {
       final audio = ref.read(audioServiceProvider);
-      frames = await audio.startStreamingRecording();
+      final id = _config.microphoneDeviceId;
+      final devices = id.isEmpty ? null : await audio.listInputDevices();
+      final device = devices?.where((d) => d.id == id).firstOrNull;
+      if (id.isNotEmpty && device == null) {
+        throw const LiveTranslateException(
+            'The selected microphone is disconnected. Reconnect it or choose '
+            'another microphone in the live setup.');
+      }
+      Log.instance.i('live', 'microphone selected', fields: {
+        'deviceId': device?.id ?? 'system-default',
+        'deviceLabel': device?.label ?? 'system-default',
+      });
+      frames = await audio.startStreamingRecording(device: device);
       if (frames == null) {
         throw const LiveTranslateException(
             'The microphone is unavailable — check the permission in the '
@@ -723,7 +767,11 @@ class LiveTranslateController extends Notifier<LiveTranslateState> {
       _stopCapture = () => unawaited(audio.stopStreaming());
     }
     _audioSub = frames.listen(
-      (f) => _asrPort?.send({'type': 'audio', 'pcm': f}),
+      (f) => _asrPort?.send({
+        'type': 'audio',
+        'pcm': f,
+        'capturedAtMs': DateTime.now().millisecondsSinceEpoch
+      }),
       // The capture died (device gone, tool failed): say so on the board
       // rather than showing a silent room.
       onError: (Object e) {
@@ -803,8 +851,8 @@ class LiveTranslateController extends Notifier<LiveTranslateState> {
           }
           units = units.sublist(drop);
         }
-        state = state.copyWith(
-            units: units, currentLang: lang, drafts: const {});
+        state =
+            state.copyWith(units: units, currentLang: lang, drafts: const {});
         for (final t in unit.targets) {
           if (unit.translations.containsKey(t)) continue;
           _queue.add((unit.key, unit.text, lang, t));
@@ -843,8 +891,8 @@ class LiveTranslateController extends Notifier<LiveTranslateState> {
     final tgt = msg['tgt'] as String;
     if (key is String && key.startsWith('draft:')) {
       if (key == 'draft:$_draftSeq' && msg['type'] == 'translation') {
-        state = state.copyWith(
-            drafts: {...state.drafts, tgt: msg['text'] as String});
+        state = state
+            .copyWith(drafts: {...state.drafts, tgt: msg['text'] as String});
       }
     } else if (key is int) {
       final unit = _byKey[key];

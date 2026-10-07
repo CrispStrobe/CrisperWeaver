@@ -3,6 +3,17 @@ import 'package:crisper_weaver/services/live_translate/live_translator_worker.da
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('microphone choice survives saving and can return to system default', () {
+    final selected = const LiveTranslateConfig()
+        .copyWith(microphoneDeviceId: 'usb-microphone-123');
+    final restored = LiveTranslateConfig.fromJson(selected.toJson());
+    expect(restored.microphoneDeviceId, 'usb-microphone-123');
+    expect(restored.copyWith(fontSize: 40).microphoneDeviceId,
+        'usb-microphone-123');
+    expect(restored.copyWith(microphoneDeviceId: '').microphoneDeviceId, '');
+    expect(LiveTranslateConfig.fromJson(const {}).microphoneDeviceId, '');
+  });
+
   group('routing', () {
     const cfg = LiveTranslateConfig(
       routes: {
