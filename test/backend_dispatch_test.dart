@@ -416,6 +416,15 @@ void main() {
         // schwammes" and "Spülen" as "schleudern". (A synthetic Pocket TTS
         // clip gave 57% on one run and 100% on another — not evidence.)
         'hojo-asr',
+
+        // Current CrispASR exposes Hikari, but its model has not been
+        // published in the registry. It accepts English source audio only.
+        'hikari',
+        // Opus-MT checkpoints each translate one fixed direction. Keep
+        // engine-only until the app validates source/target per checkpoint;
+        // the current translator probe always asks en->de and the generic
+        // picker assumes arbitrary pairs, which is unsafe for de->en models.
+        'marian',
       };
 
       final catalogued = <String>{
