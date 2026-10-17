@@ -13,7 +13,7 @@ def build(platform, version='0.14.1', number='100', state='VALID'):
 
 class AppleFake:
     def __init__(self, external='READY_FOR_BETA_SUBMISSION'):
-        self.groups = []
+        self.groups = set()
         self.external = external
         self.writes = []
 
@@ -21,14 +21,15 @@ class AppleFake:
         if method == 'GET':
             if path.endswith('/betaBuildLocalizations'):
                 return {'data': []}
-            if path.endswith('/relationships/betaGroups'):
-                return {'data': self.groups}
+            if path == 'builds':
+                member = params['filter[betaGroups]'] in self.groups
+                return {'data': [{'id': params['filter[id]']}] if member else []}
             if path.endswith('/buildBetaDetail'):
                 return {'data': {'id': 'detail', 'attributes': {
                     'internalBuildState': 'IN_BETA_TESTING', 'externalBuildState': self.external}}}
         self.writes.append((method, path, data))
-        if path.endswith('/relationships/betaGroups'):
-            self.groups.extend(data['data'])
+        if path.endswith('/relationships/builds'):
+            self.groups.add(path.split('/')[1])
         if path == 'betaAppReviewSubmissions':
             self.external = 'WAITING_FOR_BETA_REVIEW'
         return {}
@@ -57,7 +58,7 @@ class DistributionTest(unittest.TestCase):
         self.assertEqual(len(api.groups), 2)
         distribute(api, {'id': 'build'}, groups, {'en-US': 'Test microphones'})
         self.assertEqual(sum(p == 'betaAppReviewSubmissions' for _, p, _ in api.writes), 1)
-        self.assertEqual(sum(p.endswith('/relationships/betaGroups') for _, p, _ in api.writes), 1)
+        self.assertEqual(sum(p.endswith('/relationships/builds') for _, p, _ in api.writes), 2)
 
     def test_rejected_review_is_not_reported_as_success(self):
         with self.assertRaisesRegex(RuntimeError, 'BETA_REJECTED'):

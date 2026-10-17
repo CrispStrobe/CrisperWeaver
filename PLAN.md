@@ -35,7 +35,7 @@ Archived to HISTORY.md: §0, §8–§18.
 
 ## A. Current state
 
-**Version:** 0.14.2+101 (release preparation: microphone selection, streaming fixes, Cohere context/cadence and licensed German Moonshine deployments; backend pinned to 2bf39c58).
+**Version:** 0.14.3+102 (Opus-MT pair routing and second-pass revision for live translation, more voice-cloning backends, ONNX Runtime on Linux; backend pinned to 369029c9). 0.14.2 build 101 was built but never reached tester groups (distribution 403, fixed in 0.14.3).
 Current browser validation is dated 2026-10-02; the native health figures
 below are historical and are not a claim about the current complete suite.
 

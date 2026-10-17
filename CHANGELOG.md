@@ -3,7 +3,7 @@
 Notable user-facing changes per release. Full diff per version on
 the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases).
 
-## [Unreleased]
+## [0.14.3] — 2026-10-17
 
 ### Live translation: faster, then better
 
@@ -33,6 +33,21 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
   ship ONNX Runtime, as macOS does. Where the engine has no ONNX Runtime
   (Windows, mobile), those models are no longer offered rather than
   failing to load.
+
+## [0.14.2] — 2026-10-07
+
+Built but not distributed to TestFlight testers (0.14.1 was a failed
+release attempt).
+
+- **Microphone selection** for live captions: pick and refresh the input
+  device.
+- German live captions: native streaming fixes, the last audio is kept on
+  stop, better acoustic context and first-draft timing with Cohere, clearer
+  macOS screen/system-audio permission errors.
+- Permissively licensed **German Moonshine** models where the native
+  runtime supports them (macOS with ONNX Runtime).
+- CLI: `live` command with explicit microphone choice, recording and
+  timing diagnostics (`docs/CLI_LIVE.md`).
 
 ## [0.14.0] — 2026-10-06
 

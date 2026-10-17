@@ -61,6 +61,18 @@ def select_builds(document, version, build):
     return selected
 
 
+def groups_of(api, bid, groups):
+    """Ids of [groups] that contain build [bid].
+
+    Apple answers GET builds/{id}/relationships/betaGroups with 403 for this
+    key; filtering the build list by group is allowed.
+    """
+    return {g['id'] for g in groups
+            if api.call('GET', 'builds', params={'filter[betaGroups]': g['id'],
+                                                 'filter[id]': bid,
+                                                 'fields[builds]': 'version'})['data']}
+
+
 def distribute(api, item, groups, notes):
     bid = item['id']
     localizations = api.call('GET', f'builds/{bid}/betaBuildLocalizations')['data']
@@ -80,11 +92,11 @@ def distribute(api, item, groups, notes):
     api.call('PATCH', 'buildBetaDetails/' + detail['id'],
              {'data': {'type': 'buildBetaDetails', 'id': detail['id'],
                        'attributes': {'autoNotifyEnabled': True}}})
-    assigned = api.call('GET', f'builds/{bid}/relationships/betaGroups')['data']
-    missing = [{'type': 'betaGroups', 'id': g['id']} for g in groups
-               if g['id'] not in {x['id'] for x in assigned}]
-    if missing:
-        api.call('POST', f'builds/{bid}/relationships/betaGroups', {'data': missing})
+    assigned = groups_of(api, bid, groups)
+    for g in groups:
+        if g['id'] not in assigned:
+            api.call('POST', f'betaGroups/{g["id"]}/relationships/builds',
+                     {'data': [{'type': 'builds', 'id': bid}]})
     detail = api.call('GET', f'builds/{bid}/buildBetaDetail')['data']
     state = detail['attributes']['externalBuildState']
     if state == 'READY_FOR_BETA_SUBMISSION':
@@ -95,8 +107,7 @@ def distribute(api, item, groups, notes):
                        'BETA_APPROVED', 'READY_FOR_BETA_TESTING', 'IN_BETA_TESTING'):
         raise RuntimeError(f'Unexpected external state {state}; inspect Apple review requirements')
     detail = api.call('GET', f'builds/{bid}/buildBetaDetail')['data']['attributes']
-    assigned = api.call('GET', f'builds/{bid}/relationships/betaGroups')['data']
-    if not {g['id'] for g in groups}.issubset({g['id'] for g in assigned}):
+    if not {g['id'] for g in groups}.issubset(groups_of(api, bid, groups)):
         raise RuntimeError('Tester group assignment did not persist')
     return {'buildId': bid, 'groups': [g['attributes']['name'] for g in groups], **detail}
 
