@@ -4297,4 +4297,38 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get liveOpenInHistory => 'Öffnen';
+
+  @override
+  String get liveOpusMtTitle => 'Schnelle Übersetzung (Opus-MT)';
+
+  @override
+  String get liveOpusMtHelp =>
+      'Kleine Modelle für jeweils eine Übersetzungsrichtung — der schnellste Live-Übersetzer, mit besserem Text als M2M-100. Richtungen ohne eigenes Modell nutzen den Übersetzer oben.';
+
+  @override
+  String get liveOpusMtViaEnglish => 'über Englisch';
+
+  @override
+  String get liveOpusMtFallback => 'Übersetzer oben';
+
+  @override
+  String liveOpusMtDownload(int count, int mb) {
+    return '$count Opus-MT-Modelle laden (~$mb MB)';
+  }
+
+  @override
+  String liveOpusMtDownloading(String name) {
+    return 'Lade $name…';
+  }
+
+  @override
+  String get liveReviseLabel =>
+      'Zweiter Durchgang — bessere Übersetzung ein paar Sekunden später';
+
+  @override
+  String get liveReviseOff => 'Aus';
+
+  @override
+  String get liveReviseHelp =>
+      'Ein Übersetzungs-LLM (Hy-MT2, Index-Translate) übersetzt jeden fertigen Absatz im Zusammenhang neu und ersetzt die schnellen Zeilen (markiert mit ✓). Braucht einen schnellen Rechner.';
 }

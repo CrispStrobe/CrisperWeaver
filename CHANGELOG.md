@@ -5,6 +5,35 @@ the [GitHub releases page](https://github.com/CrispStrobe/CrisperWeaver/releases
 
 ## [Unreleased]
 
+### Live translation: faster, then better
+
+- **Opus-MT translators** (24 language directions: German, English,
+  French, Spanish, Italian, Arabic, Hebrew, Turkish; ~85 MB each). Each
+  covers one direction; installed pairs are used automatically for their
+  direction, pairs without a model go through English, everything else
+  falls back to the chosen translator. Upstream measured ~45 ms a sentence
+  against 315–650 ms for M2M-100, with better text. The setup page shows
+  which of your translation paths are covered and downloads the missing
+  models in one click.
+- **Second pass**: optionally, a translation LLM (Hy-MT2, Index-Translate)
+  re-translates each finished paragraph with its context a few seconds
+  later and replaces the fast lines (marked ✓); only while the fast
+  translator is idle, and it never piles up (oldest of more than three
+  waiting paragraphs dropped). Port of CrispASR's `--translate-revise`.
+
+### Engine and coverage
+
+- Built against CrispASR 369029c9 (0.8.43): UTF-8-safe results, Nemotron
+  frontend masks, measured character timestamps for CTC alignment, Breeze /
+  Dia / VoxCPM2 fixes.
+- Voice cloning on the Synthesize screen now also for **BT2-TTS** (needs
+  the clip's transcript), **Irodori-TTS** and **MOSS-TTS-Local**, verified
+  against the engine's voice code.
+- **German Moonshine ONNX models on Linux**: the Linux builds now link and
+  ship ONNX Runtime, as macOS does. Where the engine has no ONNX Runtime
+  (Windows, mobile), those models are no longer offered rather than
+  failing to load.
+
 ## [0.14.0] — 2026-10-06
 
 ### Live captions & translation

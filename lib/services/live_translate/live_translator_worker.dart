@@ -1,10 +1,13 @@
 // LiveTranslatorWorker — the translator half of live transcribe + translate.
 //
-// One isolate, one translator model, any number of language pairs: m2m100 /
-// MADLAD translate any-to-any through `CrispasrSession.translateText`, and a
-// translation chat LLM (Hy-MT2, Index-Translate) runs through the chat ABI
-// with the instruction it was trained on — the same two kinds upstream's
-// `--translate-backend` accepts.
+// One isolate, any number of language pairs. A general translator — m2m100 /
+// MADLAD (any-to-any through `CrispasrSession.translateText`) or a
+// translation chat LLM (Hy-MT2, Index-Translate, through the chat ABI with
+// the instruction it was trained on) — plus Opus-MT pair models (`marian`,
+// one model per direction). A sentence goes to its pair's Opus-MT model when
+// one is installed, through English in two hops when both halves are, and
+// to the general translator otherwise: upstream's `--translate-backend
+// marian` routing, with the general model as the fallback.
 //
 // Wire protocol:
 //   main → worker: {type: translate, key, text, src, tgt}
@@ -23,13 +26,19 @@ import '../../native/crispasr_import.dart' as crispasr;
 class LiveTranslatorArgs {
   const LiveTranslatorArgs({
     required this.readyPort,
-    required this.modelPath,
-    required this.backend,
+    this.modelPath,
+    this.backend = 'm2m100',
+    this.pairModels = const {},
     this.useGpu = true,
     this.nThreads = 0,
   });
   final SendPort readyPort;
-  final String modelPath;
+
+  /// The general translator, or null when only Opus-MT pairs are used.
+  final String? modelPath;
+
+  /// Opus-MT models by direction: `'de-en'` → path.
+  final Map<String, String> pairModels;
 
   /// Catalog backend: 'm2m100' / 'madlad' / … for a translation model,
   /// [chatTranslateBackend] for a translation chat LLM.
@@ -48,9 +57,14 @@ Future<void> liveTranslatorWorkerEntry(LiveTranslatorArgs args) async {
 
   final _Translator tr;
   try {
-    tr = args.backend == chatTranslateBackend
-        ? _ChatTranslator.open(args)
-        : _SessionTranslator.open(args);
+    final general = args.modelPath == null
+        ? null
+        : args.backend == chatTranslateBackend
+            ? _ChatTranslator.open(args)
+            : _SessionTranslator.open(args, args.modelPath!, args.backend);
+    tr = args.pairModels.isEmpty
+        ? general!
+        : _PairRoutingTranslator(args, general);
   } catch (e) {
     out.send({'type': 'error', 'message': 'Could not load the translator: $e'});
     cmd.close();
@@ -61,7 +75,8 @@ Future<void> liveTranslatorWorkerEntry(LiveTranslatorArgs args) async {
   // text translator (a speech-translation model also claims the capability
   // but returns nothing here).
   try {
-    final probe = await tr.translate('Hello.', 'en', 'de');
+    final (src, tgt) = tr.probePair;
+    final probe = await tr.translate(src == 'en' ? 'Hello.' : 'Hallo.', src, tgt);
     if (probe.isEmpty) {
       tr.close();
       out.send({
@@ -110,22 +125,93 @@ Future<void> liveTranslatorWorkerEntry(LiveTranslatorArgs args) async {
 
 abstract class _Translator {
   String get kind;
+
+  /// A direction this translator certainly handles, for the warm-up probe.
+  (String, String) get probePair => ('en', 'de');
   Future<String> translate(String text, String src, String tgt);
   void close();
 }
 
-class _SessionTranslator implements _Translator {
+/// Opus-MT pair models first, English pivot second, the general translator
+/// last. Pair sessions open on first use and stay open.
+class _PairRoutingTranslator extends _Translator {
+  _PairRoutingTranslator(this._a, this._general);
+  final LiveTranslatorArgs _a;
+  final _Translator? _general;
+  final Map<String, _SessionTranslator> _open = {};
+
+  _SessionTranslator _pair(String key) => _open[key] ??=
+      _SessionTranslator.open(_a, _a.pairModels[key]!, 'marian');
+
+  @override
+  String get kind => _general == null
+      ? 'opus-mt'
+      : 'opus-mt+${_general.kind}';
+
+  @override
+  (String, String) get probePair {
+    final first = _a.pairModels.keys.first.split('-');
+    return (first[0], first[1]);
+  }
+
+  /// How [src] → [tgt] will be translated: `pair`, `pivot`, `general`, or
+  /// null when nothing installed covers it. Pure, for tests and the UI.
+  static String? route(
+      Set<String> pairs, bool hasGeneral, String src, String tgt) {
+    if (pairs.contains('$src-$tgt')) return 'pair';
+    if (src != 'en' &&
+        tgt != 'en' &&
+        pairs.contains('$src-en') &&
+        pairs.contains('en-$tgt')) {
+      return 'pivot';
+    }
+    return hasGeneral ? 'general' : null;
+  }
+
+  @override
+  Future<String> translate(String text, String src, String tgt) async {
+    switch (route(_a.pairModels.keys.toSet(), _general != null, src, tgt)) {
+      case 'pair':
+        return _pair('$src-$tgt').translate(text, src, tgt);
+      case 'pivot':
+        final english = await _pair('$src-en').translate(text, src, 'en');
+        return _pair('en-$tgt').translate(english, 'en', tgt);
+      case 'general':
+        return _general!.translate(text, src, tgt);
+      default:
+        throw StateError('No translation model for $src → $tgt. Download '
+            'Opus-MT $src→$tgt (or $src→en and en→$tgt), or a general '
+            'translator such as M2M-100.');
+    }
+  }
+
+  @override
+  void close() {
+    for (final t in _open.values) {
+      t.close();
+    }
+    _open.clear();
+    _general?.close();
+  }
+}
+
+/// Exposed for tests: the routing decision of [_PairRoutingTranslator].
+String? opusMtRoute(Set<String> pairs, bool hasGeneral, String src, String tgt) =>
+    _PairRoutingTranslator.route(pairs, hasGeneral, src, tgt);
+
+class _SessionTranslator extends _Translator {
   _SessionTranslator(this._s);
   final crispasr.CrispasrSession _s;
 
-  factory _SessionTranslator.open(LiveTranslatorArgs a) {
+  factory _SessionTranslator.open(
+      LiveTranslatorArgs a, String path, String backend) {
     crispasr.CrispasrSession s;
     try {
-      s = crispasr.CrispasrSession.openWithParams(a.modelPath,
-          nThreads: a.nThreads, useGpu: a.useGpu, backend: a.backend);
+      s = crispasr.CrispasrSession.openWithParams(path,
+          nThreads: a.nThreads, useGpu: a.useGpu, backend: backend);
     } on UnsupportedError {
-      s = crispasr.CrispasrSession.open(a.modelPath,
-          nThreads: a.nThreads, backend: a.backend);
+      s = crispasr.CrispasrSession.open(path,
+          nThreads: a.nThreads, backend: backend);
     }
     // Greedy, as upstream's live mode does (--translate-beam 1): m2m100's
     // beam search has no KV cache, and beam 5 (its default since #439) took
@@ -149,21 +235,21 @@ class _SessionTranslator implements _Translator {
   void close() => _s.close();
 }
 
-class _ChatTranslator implements _Translator {
+class _ChatTranslator extends _Translator {
   _ChatTranslator(this._s, this._preset);
   final crispasr.CrispasrChatSession _s;
   final String _preset;
 
   factory _ChatTranslator.open(LiveTranslatorArgs a) {
     final s = crispasr.CrispasrChatSession.open(
-      a.modelPath,
+      a.modelPath!,
       params: crispasr.ChatOpenParams(
         nThreads: a.nThreads > 0 ? a.nThreads : null,
         nCtx: 2048, // one sentence in, one out
         nGpuLayers: a.useGpu ? null : 0,
       ),
     );
-    return _ChatTranslator(s, translationPromptPreset(a.modelPath));
+    return _ChatTranslator(s, translationPromptPreset(a.modelPath!));
   }
 
   @override

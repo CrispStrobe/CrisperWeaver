@@ -10,6 +10,7 @@ import '../l10n/generated/app_localizations.dart';
 import '../main.dart' show modelServiceProvider;
 import '../services/live_translate/live_translate_config.dart';
 import '../services/live_translate/live_translate_controller.dart';
+import '../services/live_translate/opus_mt_plan.dart';
 import '../services/log_service.dart';
 import '../services/model_catalog.dart';
 import '../utils/ai_text_disclosure.dart';
@@ -360,7 +361,7 @@ class _LiveTranslateScreenState extends ConsumerState<LiveTranslateScreen> {
       );
 
   Widget _line(String lang, String text, bool dark,
-      {bool dim = false, bool source = false}) {
+      {bool dim = false, bool source = false, bool revised = false}) {
     return Padding(
       padding: EdgeInsets.only(bottom: _cfg.fontSize * 0.12),
       child: Row(
@@ -372,7 +373,21 @@ class _LiveTranslateScreenState extends ConsumerState<LiveTranslateScreen> {
           ),
           SizedBox(width: _cfg.fontSize * 0.4),
           Expanded(
-            child: Text(text, style: _style(lang, dark, dim: dim, source: source)),
+            child: Text.rich(
+              TextSpan(children: [
+                TextSpan(text: text),
+                // The second pass replaced the fast translation here.
+                if (revised)
+                  TextSpan(
+                    text: '  ✓',
+                    style: TextStyle(
+                        fontSize: _cfg.fontSize * 0.6,
+                        color: LanguageColors.of(lang, dark: dark)
+                            .withValues(alpha: 0.7)),
+                  ),
+              ]),
+              style: _style(lang, dark, dim: dim, source: source),
+            ),
           ),
         ],
       ),
@@ -392,9 +407,10 @@ class _LiveTranslateScreenState extends ConsumerState<LiveTranslateScreen> {
           if (_cfg.showSource && _visible(u.lang))
             _line(u.lang, u.text, dark, source: true),
           for (final t in u.targets)
-            if (_visible(t))
+            if (_visible(t) && !u.merged.contains(t))
               _line(t, u.translations[t] ?? (u.isPending(t) ? '…' : '—'), dark,
-                  dim: !u.translations.containsKey(t)),
+                  dim: !u.translations.containsKey(t),
+                  revised: u.revised.contains(t)),
         ];
         if (lines.isEmpty) return const SizedBox.shrink();
         return Padding(
@@ -430,8 +446,10 @@ class _LiveTranslateScreenState extends ConsumerState<LiveTranslateScreen> {
     if (cols.isEmpty) return const SizedBox.shrink();
     String cell(LiveUnit u, String lang) {
       if (lang == u.lang) return _cfg.showSource ? u.text : '';
-      if (!u.targets.contains(lang)) return '';
-      return u.translations[lang] ?? (u.isPending(lang) ? '…' : '');
+      if (!u.targets.contains(lang) || u.merged.contains(lang)) return '';
+      final tr = u.translations[lang];
+      if (tr == null) return u.isPending(lang) ? '…' : '';
+      return u.revised.contains(lang) ? '$tr  ✓' : tr;
     }
 
     Widget row(List<(String, bool)> cells) => Padding(
@@ -849,6 +867,107 @@ class _LiveTranslateScreenState extends ConsumerState<LiveTranslateScreen> {
     );
   }
 
+  String? _opusMtProgress;
+
+  /// Opus-MT coverage of the routing table: per direction its own model, the
+  /// English pivot, or the general translator — and one button that fetches
+  /// the missing models.
+  List<Widget> _opusMtRow(AppLocalizations l, ThemeData theme) {
+    final directions = translationDirections(_cfg);
+    if (directions.isEmpty) return const [];
+    final marian = _models.where((m) => m.backend == 'marian' && m.languages.length == 2);
+    String dir(ModelInfo m) => '${m.languages[0]}-${m.languages[1]}';
+    final installed = {for (final m in marian) if (m.isDownloaded) dir(m)};
+    final byDir = {for (final m in marian) dir(m): m};
+    final plan = planOpusMt(directions,
+        installed: installed, published: byDir.keys.toSet());
+    final downloads = [for (final d in plan.toDownload) byDir[d]!];
+    final mb = downloads.fold<int>(0, (a, m) => a + m.sizeBytes) ~/ 1000000;
+    final dark = theme.brightness == Brightness.dark;
+    return [
+      const SizedBox(height: 12),
+      Text(l.liveOpusMtTitle, style: theme.textTheme.titleSmall),
+      const SizedBox(height: 4),
+      Text(l.liveOpusMtHelp, style: theme.textTheme.bodySmall),
+      const SizedBox(height: 6),
+      Wrap(
+        spacing: 6,
+        runSpacing: 4,
+        children: [
+          for (final (src, tgt) in directions)
+            Chip(
+              visualDensity: VisualDensity.compact,
+              avatar: Icon(
+                switch (plan.coverage['$src-$tgt']!) {
+                  OpusMtCoverage.pair => Icons.check_circle,
+                  OpusMtCoverage.pivot => Icons.alt_route,
+                  OpusMtCoverage.fallback => Icons.remove_circle_outline,
+                },
+                size: 16,
+                color: plan.coverage['$src-$tgt'] == OpusMtCoverage.fallback
+                    ? theme.hintColor
+                    : LanguageColors.of(tgt, dark: dark),
+              ),
+              label: Text(
+                '${src.toUpperCase()} → ${tgt.toUpperCase()}'
+                '${switch (plan.coverage['$src-$tgt']!) {
+                  OpusMtCoverage.pair => '',
+                  OpusMtCoverage.pivot => ' · ${l.liveOpusMtViaEnglish}',
+                  OpusMtCoverage.fallback => ' · ${l.liveOpusMtFallback}',
+                }}',
+              ),
+            ),
+        ],
+      ),
+      if (downloads.isNotEmpty) ...[
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            OutlinedButton.icon(
+              icon: const Icon(Icons.download),
+              label: Text(l.liveOpusMtDownload(downloads.length, mb)),
+              onPressed: _opusMtProgress != null
+                  ? null
+                  : () => _downloadOpusMt(downloads),
+            ),
+            if (_opusMtProgress != null) ...[
+              const SizedBox(width: 12),
+              Expanded(
+                  child: Text(_opusMtProgress!,
+                      style: theme.textTheme.bodySmall)),
+            ],
+          ],
+        ),
+      ],
+    ];
+  }
+
+  Future<void> _downloadOpusMt(List<ModelInfo> models) async {
+    final svc = ref.read(modelServiceProvider);
+    final l = AppLocalizations.of(context);
+    try {
+      for (final m in models) {
+        if (!mounted) return;
+        setState(() => _opusMtProgress = l.liveOpusMtDownloading(m.displayName));
+        await svc.downloadWhisperCppModel(m.name, onProgress: (p) {
+          if (mounted) {
+            setState(() => _opusMtProgress =
+                '${l.liveOpusMtDownloading(m.displayName)} ${(p * 100).round()} %');
+          }
+        });
+      }
+    } catch (e) {
+      Log.instance.w('live', 'Opus-MT download failed', error: e);
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('$e')));
+      }
+    } finally {
+      if (mounted) setState(() => _opusMtProgress = null);
+      await _loadModels();
+    }
+  }
+
   Widget _section(ThemeData theme, IconData icon, String title, List<Widget> children) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -971,8 +1090,13 @@ class _LiveTranslateScreenState extends ConsumerState<LiveTranslateScreen> {
         .where((m) => m.isDownloaded && m.kind == ModelKind.asr)
         .toList()
       ..sort((a, b) => a.displayName.compareTo(b.displayName));
+    // One-direction Opus-MT models are routed per pair (row below), never
+    // "the" translator.
     final translators = _models
-        .where((m) => m.isDownloaded && m.kind == ModelKind.translate)
+        .where((m) =>
+            m.isDownloaded &&
+            m.kind == ModelKind.translate &&
+            m.backend != 'marian')
         .toList()
       ..sort((a, b) => a.displayName.compareTo(b.displayName));
     final defaultName = ref.read(settingsServiceProvider).defaultModel;
@@ -1020,6 +1144,27 @@ class _LiveTranslateScreenState extends ConsumerState<LiveTranslateScreen> {
             ? _cfg.copyWith(clearTranslatorModel: true)
             : _cfg.copyWith(translatorModel: v)),
       ),
+      ..._opusMtRow(l, theme),
+      if (translators.isNotEmpty) ...[
+        const SizedBox(height: 12),
+        DropdownButtonFormField<String?>(
+          initialValue: translators.any((m) => m.name == _cfg.reviseModel)
+              ? _cfg.reviseModel
+              : null,
+          isExpanded: true,
+          decoration: InputDecoration(labelText: l.liveReviseLabel),
+          items: [
+            DropdownMenuItem<String?>(value: null, child: Text(l.liveReviseOff)),
+            for (final m in translators)
+              DropdownMenuItem<String?>(value: m.name, child: Text(m.displayName)),
+          ],
+          onChanged: (v) => _set(v == null
+              ? _cfg.copyWith(clearReviseModel: true)
+              : _cfg.copyWith(reviseModel: v)),
+        ),
+        const SizedBox(height: 4),
+        Text(l.liveReviseHelp, style: theme.textTheme.bodySmall),
+      ],
       if (_cfg.lidMode != LiveLidMode.fixed) ...[
         const SizedBox(height: 12),
         DropdownButtonFormField<LiveLidMode>(

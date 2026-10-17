@@ -4271,4 +4271,38 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get liveOpenInHistory => 'Open';
+
+  @override
+  String get liveOpusMtTitle => 'Fast translation (Opus-MT)';
+
+  @override
+  String get liveOpusMtHelp =>
+      'Small models for one language direction each — the fastest live translator, with better text than M2M-100. Directions without one use the translator above.';
+
+  @override
+  String get liveOpusMtViaEnglish => 'via English';
+
+  @override
+  String get liveOpusMtFallback => 'translator above';
+
+  @override
+  String liveOpusMtDownload(int count, int mb) {
+    return 'Download $count Opus-MT models (~$mb MB)';
+  }
+
+  @override
+  String liveOpusMtDownloading(String name) {
+    return 'Downloading $name…';
+  }
+
+  @override
+  String get liveReviseLabel =>
+      'Second pass — better translation a few seconds later';
+
+  @override
+  String get liveReviseOff => 'Off';
+
+  @override
+  String get liveReviseHelp =>
+      'A translation LLM (Hy-MT2, Index-Translate) re-translates each finished paragraph with its context and replaces the fast lines (marked ✓). Needs a fast computer.';
 }

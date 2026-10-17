@@ -73,6 +73,10 @@ void main() {
     await tester.pump();
     final picker = find.byKey(const ValueKey('microphone-'));
     await tester.scrollUntilVisible(picker, 400);
+    // Align it to the top of the list: scrolled in only just far enough, it
+    // sits under the full-width Start bar and the tap starts a session.
+    await tester.ensureVisible(picker);
+    await tester.pumpAndSettle();
     await tester.tap(picker);
     await tester.pumpAndSettle();
     await tester.tap(find.text('USB microphone').last);

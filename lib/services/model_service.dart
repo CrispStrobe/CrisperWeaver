@@ -309,6 +309,7 @@ class ModelService {
     for (final entry in merged.entries) {
       final modelDef = entry.value;
       if (suppressed.contains(modelDef.name) || !modelDef.isOffered) continue;
+      if (!_runtimeComponentPresent(modelDef.backend)) continue;
       final localPath = path.join(whisperCppDir(), modelDef.fileName);
       final isDownloaded = await _isModelDownloaded(localPath, modelDef);
 
@@ -330,6 +331,28 @@ class ModelService {
     }
 
     return modelInfos;
+  }
+
+  /// Backends that exist only when the engine was built with an optional
+  /// runtime: `moonshine-onnx` needs ONNX Runtime, which the macOS and
+  /// Linux builds link and the Windows / mobile builds do not. Offering
+  /// those rows where the engine cannot open them only produces a model
+  /// that downloads and then fails to load.
+  static const optionalRuntimeBackends = {'moonshine-onnx'};
+
+  Set<String>? _engineBackends;
+
+  /// False only when the loaded engine answers and lacks [backend]. An
+  /// engine that cannot be asked (no library: tests, a broken install)
+  /// hides nothing — that failure is reported where the engine loads.
+  bool _runtimeComponentPresent(String backend) {
+    if (!optionalRuntimeBackends.contains(backend) || plat.isWeb) return true;
+    try {
+      _engineBackends ??= crispasr.CrispasrSession.availableBackends().toSet();
+    } catch (_) {
+      return true;
+    }
+    return _engineBackends!.isEmpty || _engineBackends!.contains(backend);
   }
 
   /// Unified lookup — finds a model by name across every catalog including

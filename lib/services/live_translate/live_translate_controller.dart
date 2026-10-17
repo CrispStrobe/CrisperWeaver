@@ -20,6 +20,7 @@ import '../vad_service.dart';
 import 'live_asr_worker.dart';
 import 'live_translate_config.dart';
 import 'live_translator_worker.dart';
+import 'revision_planner.dart';
 
 enum LiveStatus { idle, loading, running, stopping, error }
 
@@ -34,9 +35,14 @@ class LiveUnit {
     required this.at,
     this.t0 = 0,
     this.t1 = 0,
+    this.utterance = 0,
   });
 
   final int key;
+
+  /// Recogniser utterance this sentence belongs to (paragraph boundary for
+  /// the second pass).
+  final int utterance;
   final String lang;
   final String text;
   final List<String> targets;
@@ -50,6 +56,19 @@ class LiveUnit {
   /// target language → translation; a target missing here is pending.
   final Map<String, String> translations = {};
   final Set<String> failed = {};
+
+  /// Targets whose translation is a second-pass paragraph revision (shown
+  /// with a mark), covering this sentence and the ones before it in
+  /// [mergedInto]-linked units.
+  final Set<String> revised = {};
+
+  /// Targets whose fast translation was folded into a later sentence's
+  /// paragraph revision — not shown, not exported, on their own.
+  final Set<String> merged = {};
+
+  /// The translation to show / export for [tgt]; null when folded away.
+  String? visibleTranslation(String tgt) =>
+      merged.contains(tgt) ? null : translations[tgt];
 
   bool isPending(String tgt) =>
       !translations.containsKey(tgt) && !failed.contains(tgt);
@@ -155,6 +174,9 @@ class LiveModelPaths {
     required this.lidMode,
     this.warning,
     this.directTranslationTarget,
+    this.opusMtPairs = const {},
+    this.revisePath,
+    this.reviseBackend,
   });
   final String asrPath;
   final String asrBackend;
@@ -173,6 +195,15 @@ class LiveModelPaths {
 
   /// Set when the recogniser translates speech itself (Index-Echo).
   final String? directTranslationTarget;
+
+  /// Installed Opus-MT models by direction (`'de-en'` → path).
+  final Map<String, String> opusMtPairs;
+
+  bool get hasTranslator => translatorPath != null || opusMtPairs.isNotEmpty;
+
+  /// The slow second-pass translator, when one is chosen and installed.
+  final String? revisePath;
+  final String? reviseBackend;
 }
 
 class LiveTranslateException implements Exception {
@@ -205,6 +236,16 @@ class LiveTranslateController extends Notifier<LiveTranslateState> {
   int _avgCommitMs = 0;
   final Map<int, LiveUnit> _byKey = {};
   final List<LiveUnit> _session = []; // every unit, for History
+
+  // Second pass (two speeds): paragraphs re-translated by a slow model.
+  RevisionPlanner _planner = RevisionPlanner();
+  Isolate? _revIso;
+  SendPort? _revPort;
+  ReceivePort? _revEvents;
+  final _revStopped = StreamController<void>.broadcast();
+  final List<(RevisionParagraph, String)> _revTasks = [];
+  bool _revInFlight = false;
+  (RevisionParagraph, String)? _revCurrent;
   int _nextKey = 0;
   double _lastUnitT = 0;
   String? _asrName;
@@ -267,7 +308,7 @@ class LiveTranslateController extends Notifier<LiveTranslateState> {
     for (final u in state.units) {
       b.writeln('[${u.lang}] ${u.text}');
       for (final t in u.targets) {
-        final tr = u.translations[t];
+        final tr = u.visibleTranslation(t);
         if (tr != null) b.writeln('[$t] $tr');
       }
       b.writeln();
@@ -313,9 +354,21 @@ class LiveTranslateController extends Notifier<LiveTranslateState> {
     }
 
     ModelInfo? translator;
+    ModelInfo? reviser;
+    final pairs = <String, String>{};
     if (_config.needsTranslator) {
-      translator =
-          downloaded(_config.translatorModel) ?? defaultTranslator(models);
+      final chosen = downloaded(_config.translatorModel);
+      translator = chosen != null && chosen.backend != 'marian'
+          ? chosen
+          : defaultTranslator(models);
+      pairs.addAll(opusMtPairsOf(models));
+      final r = downloaded(_config.reviseModel);
+      // A second pass with the very same model would only repeat itself.
+      if (r != null &&
+          r.backend != 'marian' &&
+          r.localPath != translator?.localPath) {
+        reviser = r;
+      }
     }
 
     String? findByPrefix(List<String> prefixes) {
@@ -401,8 +454,23 @@ class LiveTranslateController extends Notifier<LiveTranslateState> {
       lidMode: mode,
       warning: warning,
       directTranslationTarget: direct,
+      opusMtPairs: pairs,
+      revisePath: reviser?.localPath,
+      reviseBackend: reviser?.backend,
     );
   }
+
+  /// Installed Opus-MT models by direction (`'de-en'` → path). Each covers
+  /// one direction, so they are never "the" translator: the worker uses one
+  /// for its own pair and falls back to the general translator elsewhere.
+  static Map<String, String> opusMtPairsOf(List<ModelInfo> models) => {
+        for (final m in models)
+          if (m.isDownloaded &&
+              m.localPath != null &&
+              m.backend == 'marian' &&
+              m.languages.length == 2)
+            '${m.languages[0]}-${m.languages[1]}': m.localPath!,
+      };
 
   /// The translator used when the user picked none — the same rule the
   /// setup page shows as "(auto)". M2M-100 first, as upstream's
@@ -413,7 +481,9 @@ class LiveTranslateController extends Notifier<LiveTranslateState> {
         .where((m) =>
             m.isDownloaded &&
             m.localPath != null &&
-            m.kind == ModelKind.translate)
+            m.kind == ModelKind.translate &&
+            // One-direction Opus-MT models are routed per pair instead.
+            m.backend != 'marian')
         .toList();
     int rank(ModelInfo m) => switch (m.backend) {
           'm2m100' => 0,
@@ -438,6 +508,10 @@ class LiveTranslateController extends Notifier<LiveTranslateState> {
     _cancelled = false;
     _byKey.clear();
     _session.clear();
+    _planner = RevisionPlanner();
+    _revTasks.clear();
+    _revInFlight = false;
+    _revCurrent = null;
     _lastUnitT = 0;
     _queue.clear();
     _pendingDraft = null;
@@ -449,15 +523,17 @@ class LiveTranslateController extends Notifier<LiveTranslateState> {
       final paths = await resolveModels();
       _asrName = p.basenameWithoutExtension(paths.asrPath);
       final notes = [
-        if (_config.needsTranslator && paths.translatorPath == null)
+        if (_config.needsTranslator && !paths.hasTranslator)
           'No translation model is downloaded — showing the transcript '
-              'only. Download M2M-100 or Hy-MT2 from Models.',
+              'only. Download Opus-MT for your language pairs, M2M-100 or '
+              'Hy-MT2 from Models.',
         if (paths.warning != null) paths.warning!,
       ];
       if (notes.isNotEmpty) state = state.copyWith(message: notes.join('\n'));
       await Future.wait([
         _spawnAsr(paths),
-        if (paths.translatorPath != null) _spawnTranslator(paths),
+        if (paths.hasTranslator) _spawnTranslator(paths),
+        if (paths.revisePath != null) _spawnReviser(paths),
       ]);
       await _startAudio(replayFile);
       state = state.copyWith(status: LiveStatus.running);
@@ -467,6 +543,7 @@ class LiveTranslateController extends Notifier<LiveTranslateState> {
         'translator': paths.translatorPath == null
             ? '-'
             : p.basename(paths.translatorPath!),
+        'opusMt': paths.opusMtPairs.keys.join(','),
         'lid': paths.lidMode.name,
         'source': replayFile == null ? _config.audioSource.name : 'file',
       });
@@ -505,6 +582,17 @@ class LiveTranslateController extends Notifier<LiveTranslateState> {
     while ((_inFlight || _queue.isNotEmpty) && DateTime.now().isBefore(until)) {
       await Future<void>.delayed(const Duration(milliseconds: 100));
     }
+    // The last paragraph still deserves its second pass, within reason: a
+    // translation LLM on a CPU takes seconds per paragraph.
+    if (_revPort != null) {
+      _planner.flush();
+      _pumpRevise();
+      final revUntil = DateTime.now().add(const Duration(seconds: 20));
+      while ((_revInFlight || _revTasks.isNotEmpty) &&
+          DateTime.now().isBefore(revUntil)) {
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      }
+    }
     await _teardown();
     Log.instance.i('live', 'stopped', fields: {'sentences': _session.length});
     final saved = await _saveToHistory();
@@ -534,7 +622,9 @@ class LiveTranslateController extends Notifier<LiveTranslateState> {
             rawText: [
               u.text,
               for (final t in u.targets)
-                if (u.translations[t] != null) '[$t] ${u.translations[t]}',
+                if (u.visibleTranslation(t) != null)
+                  '[$t]${u.revised.contains(t) ? ' ✓' : ''} '
+                      '${u.visibleTranslation(t)}',
             ].join('\n'),
             startTime: u.t0,
             endTime: u.t1 > u.t0 ? u.t1 : u.t0,
@@ -548,7 +638,12 @@ class LiveTranslateController extends Notifier<LiveTranslateState> {
               'liveTranslate': true,
               'lang': u.lang,
               'source': u.text,
-              'translations': Map<String, String>.from(u.translations),
+              'translations': {
+                for (final t in u.targets)
+                  if (u.visibleTranslation(t) != null)
+                    t: u.visibleTranslation(t)!,
+              },
+              if (u.revised.isNotEmpty) 'revised': u.revised.toList(),
             },
           ),
       ];
@@ -589,14 +684,17 @@ class LiveTranslateController extends Notifier<LiveTranslateState> {
     await Future.wait([
       _stopWorker(_asrPort, _asrStopped, const Duration(seconds: 5)),
       _stopWorker(_trPort, _trStopped, const Duration(seconds: 5)),
+      _stopWorker(_revPort, _revStopped, const Duration(seconds: 5)),
     ]);
     _asrIso?.kill(priority: Isolate.beforeNextEvent);
     _trIso?.kill(priority: Isolate.beforeNextEvent);
+    _revIso?.kill(priority: Isolate.beforeNextEvent);
     _asrEvents?.close();
     _trEvents?.close();
-    _asrIso = _trIso = null;
-    _asrPort = _trPort = null;
-    _asrEvents = _trEvents = null;
+    _revEvents?.close();
+    _asrIso = _trIso = _revIso = null;
+    _asrPort = _trPort = _revPort = null;
+    _asrEvents = _trEvents = _revEvents = null;
   }
 
   /// `onExit` delivers null, `onError` a [message, stack] list. Either one
@@ -704,8 +802,9 @@ class LiveTranslateController extends Notifier<LiveTranslateState> {
       liveTranslatorWorkerEntry,
       LiveTranslatorArgs(
         readyPort: events.sendPort,
-        modelPath: paths.translatorPath!,
+        modelPath: paths.translatorPath,
         backend: paths.translatorBackend ?? 'm2m100',
+        pairModels: paths.opusMtPairs,
         nThreads: _translatorThreads,
       ),
       debugName: 'live-translator',
@@ -829,6 +928,7 @@ class LiveTranslateController extends Notifier<LiveTranslateState> {
           at: DateTime.now(),
           t0: _lastUnitT,
           t1: t1,
+          utterance: (msg['utt'] as int?) ?? 0,
         );
         _lastUnitT = t1;
         // A speech-translation recogniser (Index-Echo) brings its own
@@ -857,7 +957,18 @@ class LiveTranslateController extends Notifier<LiveTranslateState> {
           if (unit.translations.containsKey(t)) continue;
           _queue.add((unit.key, unit.text, lang, t));
         }
+        if (_revPort != null && unit.targets.isNotEmpty) {
+          _planner.add(RevisionSentence(
+              key: unit.key,
+              utterance: unit.utterance,
+              lang: lang,
+              text: unit.text));
+        }
         _pump();
+        _pumpRevise();
+      case 'utterance-end':
+        _planner.utteranceEnded((msg['utt'] as int?) ?? -1);
+        _pumpRevise();
       case 'held':
         state = state.copyWith(
             held: msg['text'] as String, currentLang: msg['lang'] as String?);
@@ -909,6 +1020,105 @@ class LiveTranslateController extends Notifier<LiveTranslateState> {
       }
     }
     _pump();
+    _pumpRevise();
+  }
+
+  // ---------------------------------------------------------------------
+  // Second pass
+  // ---------------------------------------------------------------------
+
+  Future<void> _spawnReviser(LiveModelPaths paths) async {
+    final events = ReceivePort();
+    _revEvents = events;
+    final ready = Completer<void>();
+    events.listen((msg) {
+      if (msg is SendPort) {
+        _revPort = msg;
+        return;
+      }
+      if (_isolateDied(msg, ready, 'second-pass translator')) return;
+      if (msg is! Map) return;
+      switch (msg['type']) {
+        case 'ready':
+          if (!ready.isCompleted) ready.complete();
+        case 'error':
+          if (!ready.isCompleted) {
+            ready.completeError(
+                LiveTranslateException(msg['message'] as String));
+          }
+        case 'stopped':
+          _revStopped.add(null);
+        default:
+          _onReviseEvent(msg);
+      }
+    });
+    _revIso = await Isolate.spawn(
+      liveTranslatorWorkerEntry,
+      LiveTranslatorArgs(
+        readyPort: events.sendPort,
+        modelPath: paths.revisePath,
+        backend: paths.reviseBackend ?? chatTranslateBackend,
+        nThreads: _translatorThreads,
+      ),
+      debugName: 'live-reviser',
+      onExit: events.sendPort,
+      onError: events.sendPort,
+    );
+    await ready.future;
+  }
+
+  /// Start the next revision when the slow translator is free — and, as
+  /// upstream does, only while the fast translator has nothing waiting.
+  void _pumpRevise() {
+    if (_revPort == null || _revInFlight) return;
+    if (_revTasks.isEmpty) {
+      final para = _planner.next(fastIdle: !_inFlight && _queue.isEmpty);
+      if (para == null) return;
+      for (final t in _config.targetsFor(para.lang)) {
+        _revTasks.add((para, t));
+      }
+      if (_revTasks.isEmpty) return;
+    }
+    final task = _revTasks.removeAt(0);
+    _revCurrent = task;
+    _revInFlight = true;
+    _revPort!.send({
+      'type': 'translate',
+      'key': 'rev:${task.$1.id}',
+      'text': task.$1.text,
+      'src': task.$1.lang,
+      'tgt': task.$2,
+    });
+  }
+
+  /// A paragraph's revision replaces the fast translations of its
+  /// sentences: it is shown under the last of them (marked), the earlier
+  /// ones' fast lines fold away.
+  void _onReviseEvent(Map<Object?, Object?> msg) {
+    _revInFlight = false;
+    final task = _revCurrent;
+    _revCurrent = null;
+    if (task != null &&
+        msg['type'] == 'translation' &&
+        (msg['text'] as String).trim().isNotEmpty) {
+      final (para, tgt) = task;
+      final units = [
+        for (final k in para.keys)
+          if (_byKey[k] != null && _byKey[k]!.targets.contains(tgt)) _byKey[k]!
+      ];
+      if (units.isNotEmpty) {
+        for (final u in units.take(units.length - 1)) {
+          u.merged.add(tgt);
+        }
+        units.last.translations[tgt] = (msg['text'] as String).trim();
+        units.last.revised.add(tgt);
+        units.last.merged.remove(tgt);
+        state = state.copyWith();
+      }
+    } else if (msg['type'] == 'failed') {
+      Log.instance.w('live', 'second pass failed: ${msg['message']}');
+    }
+    _pumpRevise();
   }
 
   void _requestDraft() {

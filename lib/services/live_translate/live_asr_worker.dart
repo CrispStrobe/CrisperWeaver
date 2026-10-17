@@ -30,6 +30,7 @@
 //                  {type: unit, utt, id, text, lang, t, langConf}
 //                  {type: lang, utt, lang, conf, method}
 //                  {type: stats, stepMs, openSec, behindSec, misses}
+//                  {type: utterance-end, utt}       paragraph boundary
 //                  {type: stopped}
 
 import 'dart:async';
@@ -726,6 +727,8 @@ class _LiveLoop {
     if (rest != null) _emitUnit(rest.$1, rest.$2, rest.$3);
     out.send({'type': 'held', 'utt': _utt, 'text': '', 'lang': _lastLang});
     out.send({'type': 'tail', 'utt': _utt, 'text': '', 'lang': _lastLang});
+    // Paragraph boundary for the two-speed translation (RevisionPlanner).
+    out.send({'type': 'utterance-end', 'utt': _utt});
     _open = false;
     _lastText = '';
     _closedUntil = math.max(_closedUntil, math.max(speechEnd, _uttStart + 1));

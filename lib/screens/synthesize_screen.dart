@@ -124,8 +124,16 @@ class SynthesizeScreen extends ConsumerStatefulWidget {
   ///   * `zonos` — `zonos_tts_set_voice` is a stub that returns `-1`;
   ///   * `kugelaudio` / `outetts` / `speecht5` / `kokoro` — voicepack,
   ///     JSON profile, x-vector `.bin`, voicepack respectively;
-  ///   * `moss-tts-local` — no arm; falls through to `rc=-3`.
+  ///   * `bark` — a speaker `.npz`, not a clip (its arm rejects WAV);
+  ///   * `melotts` — clones only with an OpenVoice2 codec session loaded
+  ///     beside it (`ov2_ctx`), otherwise `-2`.
+  ///
+  /// Re-checked against CrispASR 369029c9: `bt2-tts`, `irodori-tts` and
+  /// `moss-tts-local` gained WAV arms (moss-tts-local returns `-1` with a
+  /// decode-only codec GGUF). Chatterbox / Pocket-TTS variants share their
+  /// base backend's arm and are catalogued under the base name.
   static const cloneCapableBackends = <String>{
+    'bt2-tts',
     'chatterbox',
     'confucius4-tts',
     'cosyvoice3-tts',
@@ -134,7 +142,9 @@ class SynthesizeScreen extends ConsumerStatefulWidget {
     'f5-tts',
     'fireredtts3',
     'indextts',
+    'irodori-tts',
     'moss-tts',
+    'moss-tts-local',
     'omnivoice',
     'pocket-tts',
     'qwen3-tts',
@@ -151,6 +161,8 @@ class SynthesizeScreen extends ConsumerStatefulWidget {
   /// clip). The wizard lets the user skip this step, which is how a
   /// clone that "just ends with an error" happens.
   static const cloneRefTextRequiredBackends = <String>{
+    // bt2-tts: `ref_text is required` — returns -2 without it.
+    'bt2-tts',
     'cosyvoice3-tts',
     'cosyvoice3-tts-rl',
     'qwen3-tts',

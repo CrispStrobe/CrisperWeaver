@@ -56,6 +56,7 @@ class LiveTranslateConfig {
     this.defaultTargets = const ['en'],
     this.asrModel,
     this.translatorModel,
+    this.reviseModel,
     this.lidModel,
     this.audioSource = LiveAudioSource.microphone,
     this.microphoneDeviceId = '',
@@ -79,6 +80,11 @@ class LiveTranslateConfig {
   /// Catalog name of the translator (m2m100 / madlad / a translation chat
   /// LLM); null = transcription only.
   final String? translatorModel;
+
+  /// Catalog name of a slow translator (a translation LLM such as Hy-MT2)
+  /// that re-translates whole paragraphs a few seconds later and replaces
+  /// the fast sentence-by-sentence translations; null = off.
+  final String? reviseModel;
 
   /// Catalog name of the LID model to prefer; null = best available.
   final String? lidModel;
@@ -153,6 +159,8 @@ class LiveTranslateConfig {
     bool clearAsrModel = false,
     String? translatorModel,
     bool clearTranslatorModel = false,
+    String? reviseModel,
+    bool clearReviseModel = false,
     String? lidModel,
     bool clearLidModel = false,
     LiveAudioSource? audioSource,
@@ -174,6 +182,8 @@ class LiveTranslateConfig {
         translatorModel: clearTranslatorModel
             ? null
             : (translatorModel ?? this.translatorModel),
+        reviseModel:
+            clearReviseModel ? null : (reviseModel ?? this.reviseModel),
         lidModel: clearLidModel ? null : (lidModel ?? this.lidModel),
         audioSource: audioSource ?? this.audioSource,
         microphoneDeviceId: microphoneDeviceId ?? this.microphoneDeviceId,
@@ -193,6 +203,7 @@ class LiveTranslateConfig {
         'defaultTargets': defaultTargets,
         'asrModel': asrModel,
         'translatorModel': translatorModel,
+        'reviseModel': reviseModel,
         'lidModel': lidModel,
         'audioSource': audioSource.name,
         'microphoneDeviceId': microphoneDeviceId,
@@ -229,6 +240,7 @@ class LiveTranslateConfig {
       defaultTargets: strList(j['defaultTargets'], d.defaultTargets),
       asrModel: j['asrModel'] as String?,
       translatorModel: j['translatorModel'] as String?,
+      reviseModel: j['reviseModel'] as String?,
       lidModel: j['lidModel'] as String?,
       audioSource:
           pick(LiveAudioSource.values, j['audioSource'], d.audioSource),
