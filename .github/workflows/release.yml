@@ -52,9 +52,12 @@ env:
   # backends or add them to its documented `engineOnly` set, then commit
   # the bump on its own so a regression bisects cleanly.
   CRISPASR_REPO: CrispStrobe/CrispASR
-  # Persistent streaming bindings, licensed German Moonshine deployments,
-  # and merged live-translate revisions (#513). Immutable PR #515 commit.
-  CRISPASR_REF: 2bf39c58a53160ed10aed82d5d621c794dc32bba
+  # CrispASR main at 369029c9 (Dart package 0.8.43): UTF-8-safe results,
+  # measured CTC character timestamps, Opus-MT (`marian`) and Hikari
+  # backends, Nemotron frontend masks, TTS voice-cloning arms for bt2 /
+  # irodori / moss-tts-local. Dart API unchanged except
+  # AlignedWord.characters (additive).
+  CRISPASR_REF: 369029c91d90a61d8346b8bbdafe426bfdde76d1
   CRISPEMBED_REPO: CrispStrobe/CrispEmbed
   CRISPEMBED_REF: 40e7b7dd00bb6b1505c9e6ac74bef0c97efef337
   GLINT_REPO: CrispStrobe/glint
