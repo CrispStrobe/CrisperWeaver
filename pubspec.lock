@@ -188,17 +188,17 @@ packages:
   crispasr:
     dependency: "direct main"
     description:
-      path: "../CrispASR/flutter/crispasr"
+      path: "../CrispASR/.claude/worktrees/cw-pin-tip/flutter/crispasr"
       relative: true
     source: path
-    version: "0.8.41"
+    version: "0.8.43"
   crispembed:
     dependency: "direct main"
     description:
       path: "../CrispEmbed/flutter/crispembed"
       relative: true
     source: path
-    version: "0.17.10"
+    version: "0.17.11"
   cross_file:
     dependency: transitive
     description:
@@ -978,7 +978,7 @@ packages:
     source: hosted
     version: "1.2.1"
   record_linux:
-    dependency: "direct overridden"
+    dependency: transitive
     description:
       name: record_linux
       sha256: "31181787bf7eccb0e298835836b69b3cd0a903863b75d70e937de3dec71cd8f3"
