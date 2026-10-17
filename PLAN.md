@@ -385,6 +385,43 @@ the talk fixture is `tools/make_live_talk_fixture.sh`.
 - Sentences committed in one step all got that step's time; units now carry
   their last word's timestamp (History segments use it).
 
+**2026-10-17 — CrispASR 369029c9 (0.8.43) and coverage round.**
+
+- **Opus-MT (`marian`), 24 directions** in the catalogue (generated from the
+  registry). `LiveTranslatorWorker` routes per sentence: the pair's model,
+  else English pivot, else the general translator; one-direction models are
+  never offered as "the" translator. Setup shows per-path coverage and
+  downloads the missing models (`opus_mt_plan.dart`, unit-tested).
+  Verified live (Parakeet v3 + CLD3, Opus-MT only): every sentence
+  translated in 130–550 ms at load ~13 vs 0.6–1.9 s for M2M-100 earlier,
+  with better text.
+- **Second pass** (upstream `--translate-revise`): `RevisionPlanner`
+  (unit-tested: paragraph per utterance/language, ≤4 sentences, backlog 3,
+  only while the fast translator is idle) feeds a second translator isolate;
+  a revision replaces its sentences' fast lines (✓ under the last one,
+  earlier ones folded) on the board, in Copy and in History. Verified in
+  the Linux release build under Xvfb (mic via PulseAudio null sink,
+  Opus-MT fast pass, Hy-MT2 second pass).
+- **Voice cloning**: `bt2-tts` (+transcript), `irodori-tts`,
+  `moss-tts-local` added to `cloneCapableBackends`, checked against the
+  engine's `crispasr_session_set_voice` arms; `bark` (`.npz`), `melotts`
+  (needs an OpenVoice2 session), `outetts` (JSON) stay out.
+- **ONNX Runtime on Linux**: `scripts/build_linux.sh`, `bundle_linux_libs.sh`
+  and the release job fetch the pinned SDK and ship `libonnxruntime.so.1`
+  next to `libwhisper.so` (`moonshine-onnx`, German Moonshine exports). Where
+  the engine has no ONNX Runtime (Windows, mobile), `ModelService` no longer
+  offers `moonshine-onnx` rows. `backend_dispatch_test` passes against a
+  369029c9 build with ONNX Runtime.
+- **Not added: Hikari** (English speech → de/ja/ru, `hikari` backend).
+  Upstream: 1.7–2.8 s compute per audio-second on CPU, ~1.8 s on M1 — real
+  time only on NVIDIA GPUs, which the app's release engines do not use.
+- **Open, found here, not caused by this round:** under heavy load (steps of
+  15–22 s, load 13–22) the live recogniser intermittently loses or merges
+  sentences and audio LID mislabels a whole half; one run dropped two German
+  sentences, another kept them but labelled the English half German. Needs a
+  run on a normally loaded machine before it is called a bug or a load
+  artefact; the 2026-10-06 runs of the same clip were complete.
+
 **Not verified — do not claim.**
 
 - Latency on real hardware. This VPS ran Parakeet at ~0.5–0.75× real time

@@ -6,6 +6,8 @@
 //   CRISPASR_TEST_LIVE_ASR_MODEL     parakeet-tdt-0.6b-v3 GGUF (multilingual)
 //   CRISPASR_TEST_LIVE_TR_MODEL      m2m100 GGUF (or a translation LLM with
 //                                    CRISPASR_TEST_LIVE_TR_BACKEND=llm-translate)
+//   CRISPASR_TEST_LIVE_TR_PAIRS      Opus-MT pair models, `de-en=PATH,en-de=PATH`
+//                                    (alone, or with TR_MODEL as the fallback)
 //   CRISPASR_TEST_LIVE_LID_MODEL     ecapa-lid-107 GGUF (optional → audio LID)
 //   CRISPASR_TEST_LIVE_VAD_MODEL     ggml-silero VAD (optional; energy VAD otherwise)
 //   CRISPASR_TEST_LIVE_WAV           16 kHz mono WAV, German then English
@@ -50,7 +52,16 @@ Float32List _readWav16kMono(String path) {
 void main() {
   final env = Platform.environment;
   final asr = env['CRISPASR_TEST_LIVE_ASR_MODEL'];
-  final tr = env['CRISPASR_TEST_LIVE_TR_MODEL'];
+  final trGeneral = (env['CRISPASR_TEST_LIVE_TR_MODEL'] ?? '').isEmpty
+      ? null
+      : env['CRISPASR_TEST_LIVE_TR_MODEL'];
+  final trPairs = {
+    for (final kv in (env['CRISPASR_TEST_LIVE_TR_PAIRS'] ?? '')
+        .split(',')
+        .where((e) => e.contains('=')))
+      kv.split('=')[0]: kv.split('=')[1],
+  };
+  final tr = trGeneral ?? (trPairs.isEmpty ? null : 'opus-mt');
   final wav = env['CRISPASR_TEST_LIVE_WAV'];
   final skip = (asr == null || wav == null)
       ? 'set CRISPASR_TEST_LIVE_ASR_MODEL and CRISPASR_TEST_LIVE_WAV'
@@ -94,8 +105,9 @@ void main() {
           liveTranslatorWorkerEntry,
           LiveTranslatorArgs(
             readyPort: trEvents.sendPort,
-            modelPath: tr,
+            modelPath: trGeneral,
             backend: env['CRISPASR_TEST_LIVE_TR_BACKEND'] ?? 'm2m100',
+            pairModels: trPairs,
             nThreads: 2,
           ));
       await trReady.future.timeout(const Duration(minutes: 3));

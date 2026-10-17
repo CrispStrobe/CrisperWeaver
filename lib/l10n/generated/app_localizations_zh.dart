@@ -4131,4 +4131,37 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get liveOpenInHistory => '打开';
+
+  @override
+  String get liveOpusMtTitle => '快速翻译（Opus-MT）';
+
+  @override
+  String get liveOpusMtHelp =>
+      '每个模型只负责一个翻译方向的小型模型——最快的实时翻译器，译文优于 M2M-100。没有对应模型的方向使用上面的翻译器。';
+
+  @override
+  String get liveOpusMtViaEnglish => '经由英语';
+
+  @override
+  String get liveOpusMtFallback => '上面的翻译器';
+
+  @override
+  String liveOpusMtDownload(int count, int mb) {
+    return '下载 $count 个 Opus-MT 模型（约 $mb MB）';
+  }
+
+  @override
+  String liveOpusMtDownloading(String name) {
+    return '正在下载 $name…';
+  }
+
+  @override
+  String get liveReviseLabel => '第二遍——几秒后给出更好的译文';
+
+  @override
+  String get liveReviseOff => '关闭';
+
+  @override
+  String get liveReviseHelp =>
+      '翻译大模型（Hy-MT2、Index-Translate）会结合上下文重新翻译每个完成的段落，并替换快速译文（以 ✓ 标记）。需要较快的电脑。';
 }

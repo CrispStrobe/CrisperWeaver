@@ -3608,6 +3608,396 @@ abstract final class ModelCatalog {
       kind: ModelKind.translate,
       languages: langsAll,
     ),
+    // Opus-MT / MarianMT (Helsinki-NLP, CC-BY-4.0): one ~75M-parameter
+    // model per language DIRECTION, `marian` backend. Upstream measured them
+    // as the fastest live translator by far (median ~45 ms a sentence vs
+    // 315-650 ms for m2m100) with better text. Generated from CrispASR's
+    // registry (369029c9); LiveTranslatorWorker picks the pair per
+    // sentence and pivots through English when a pair has no model.
+    'opus-mt-ar-de-q8_0': ModelDefinition(
+      name: 'opus-mt-ar-de-q8_0',
+      displayName: 'Opus-MT ar→de (q8_0)',
+      fileName: 'opus-mt-ar-de-q8_0.gguf',
+      url:
+          'https://huggingface.co/cstr/opus-mt-ar-de-GGUF/resolve/main/opus-mt-ar-de-q8_0.gguf',
+      sizeBytes: 87228288,
+      checksum: '',
+      description:
+          'Fast Arabic → German translation (Opus-MT, one direction) — ~87 MB',
+      quantization: 'q8_0',
+      backend: 'marian',
+      kind: ModelKind.translate,
+      languages: ['ar', 'de'],
+      license: 'CC-BY-4.0',
+    ),
+    'opus-mt-ar-en-q8_0': ModelDefinition(
+      name: 'opus-mt-ar-en-q8_0',
+      displayName: 'Opus-MT ar→en (q8_0)',
+      fileName: 'opus-mt-ar-en-q8_0.gguf',
+      url:
+          'https://huggingface.co/cstr/opus-mt-ar-en-GGUF/resolve/main/opus-mt-ar-en-q8_0.gguf',
+      sizeBytes: 87078304,
+      checksum: '',
+      description:
+          'Fast Arabic → English translation (Opus-MT, one direction) — ~87 MB',
+      quantization: 'q8_0',
+      backend: 'marian',
+      kind: ModelKind.translate,
+      languages: ['ar', 'en'],
+      license: 'CC-BY-4.0',
+    ),
+    'opus-mt-de-ar-f16': ModelDefinition(
+      name: 'opus-mt-de-ar-f16',
+      displayName: 'Opus-MT de→ar (f16)',
+      fileName: 'opus-mt-de-ar-f16.gguf',
+      url:
+          'https://huggingface.co/cstr/opus-mt-de-ar-GGUF/resolve/main/opus-mt-de-ar-f16.gguf',
+      sizeBytes: 158792480,
+      checksum: '',
+      description:
+          'Fast German → Arabic translation (Opus-MT, one direction) — ~158 MB',
+      quantization: 'f16',
+      backend: 'marian',
+      kind: ModelKind.translate,
+      languages: ['de', 'ar'],
+      license: 'CC-BY-4.0',
+    ),
+    'opus-mt-de-en-q8_0': ModelDefinition(
+      name: 'opus-mt-de-en-q8_0',
+      displayName: 'Opus-MT de→en (q8_0)',
+      fileName: 'opus-mt-de-en-q8_0.gguf',
+      url:
+          'https://huggingface.co/cstr/opus-mt-de-en-GGUF/resolve/main/opus-mt-de-en-q8_0.gguf',
+      sizeBytes: 84097312,
+      checksum: '',
+      description:
+          'Fast German → English translation (Opus-MT, one direction) — ~84 MB',
+      quantization: 'q8_0',
+      backend: 'marian',
+      kind: ModelKind.translate,
+      languages: ['de', 'en'],
+      license: 'CC-BY-4.0',
+    ),
+    'opus-mt-de-es-q8_0': ModelDefinition(
+      name: 'opus-mt-de-es-q8_0',
+      displayName: 'Opus-MT de→es (q8_0)',
+      fileName: 'opus-mt-de-es-q8_0.gguf',
+      url:
+          'https://huggingface.co/cstr/opus-mt-de-es-GGUF/resolve/main/opus-mt-de-es-q8_0.gguf',
+      sizeBytes: 86072128,
+      checksum: '',
+      description:
+          'Fast German → Spanish translation (Opus-MT, one direction) — ~86 MB',
+      quantization: 'q8_0',
+      backend: 'marian',
+      kind: ModelKind.translate,
+      languages: ['de', 'es'],
+      license: 'CC-BY-4.0',
+    ),
+    'opus-mt-de-fr-q8_0': ModelDefinition(
+      name: 'opus-mt-de-fr-q8_0',
+      displayName: 'Opus-MT de→fr (q8_0)',
+      fileName: 'opus-mt-de-fr-q8_0.gguf',
+      url:
+          'https://huggingface.co/cstr/opus-mt-de-fr-GGUF/resolve/main/opus-mt-de-fr-q8_0.gguf',
+      sizeBytes: 85974560,
+      checksum: '',
+      description:
+          'Fast German → French translation (Opus-MT, one direction) — ~85 MB',
+      quantization: 'q8_0',
+      backend: 'marian',
+      kind: ModelKind.translate,
+      languages: ['de', 'fr'],
+      license: 'CC-BY-4.0',
+    ),
+    'opus-mt-de-he-q8_0': ModelDefinition(
+      name: 'opus-mt-de-he-q8_0',
+      displayName: 'Opus-MT de→he (q8_0)',
+      fileName: 'opus-mt-de-he-q8_0.gguf',
+      url:
+          'https://huggingface.co/cstr/opus-mt-de-he-GGUF/resolve/main/opus-mt-de-he-q8_0.gguf',
+      sizeBytes: 87188960,
+      checksum: '',
+      description:
+          'Fast German → Hebrew translation (Opus-MT, one direction) — ~87 MB',
+      quantization: 'q8_0',
+      backend: 'marian',
+      kind: ModelKind.translate,
+      languages: ['de', 'he'],
+      license: 'CC-BY-4.0',
+    ),
+    'opus-mt-de-it-q8_0': ModelDefinition(
+      name: 'opus-mt-de-it-q8_0',
+      displayName: 'Opus-MT de→it (q8_0)',
+      fileName: 'opus-mt-de-it-q8_0.gguf',
+      url:
+          'https://huggingface.co/cstr/opus-mt-de-it-GGUF/resolve/main/opus-mt-de-it-q8_0.gguf',
+      sizeBytes: 85253312,
+      checksum: '',
+      description:
+          'Fast German → Italian translation (Opus-MT, one direction) — ~85 MB',
+      quantization: 'q8_0',
+      backend: 'marian',
+      kind: ModelKind.translate,
+      languages: ['de', 'it'],
+      license: 'CC-BY-4.0',
+    ),
+    'opus-mt-en-ar-q8_0': ModelDefinition(
+      name: 'opus-mt-en-ar-q8_0',
+      displayName: 'Opus-MT en→ar (q8_0)',
+      fileName: 'opus-mt-en-ar-q8_0.gguf',
+      url:
+          'https://huggingface.co/cstr/opus-mt-en-ar-GGUF/resolve/main/opus-mt-en-ar-q8_0.gguf',
+      sizeBytes: 87047680,
+      checksum: '',
+      description:
+          'Fast English → Arabic translation (Opus-MT, one direction) — ~87 MB',
+      quantization: 'q8_0',
+      backend: 'marian',
+      kind: ModelKind.translate,
+      languages: ['en', 'ar'],
+      license: 'CC-BY-4.0',
+    ),
+    'opus-mt-en-de-q8_0': ModelDefinition(
+      name: 'opus-mt-en-de-q8_0',
+      displayName: 'Opus-MT en→de (q8_0)',
+      fileName: 'opus-mt-en-de-q8_0.gguf',
+      url:
+          'https://huggingface.co/cstr/opus-mt-en-de-GGUF/resolve/main/opus-mt-en-de-q8_0.gguf',
+      sizeBytes: 84097312,
+      checksum: '',
+      description:
+          'Fast English → German translation (Opus-MT, one direction) — ~84 MB',
+      quantization: 'q8_0',
+      backend: 'marian',
+      kind: ModelKind.translate,
+      languages: ['en', 'de'],
+      license: 'CC-BY-4.0',
+    ),
+    'opus-mt-en-es-q8_0': ModelDefinition(
+      name: 'opus-mt-en-es-q8_0',
+      displayName: 'Opus-MT en→es (q8_0)',
+      fileName: 'opus-mt-en-es-q8_0.gguf',
+      url:
+          'https://huggingface.co/cstr/opus-mt-en-es-GGUF/resolve/main/opus-mt-en-es-q8_0.gguf',
+      sizeBytes: 88116896,
+      checksum: '',
+      description:
+          'Fast English → Spanish translation (Opus-MT, one direction) — ~88 MB',
+      quantization: 'q8_0',
+      backend: 'marian',
+      kind: ModelKind.translate,
+      languages: ['en', 'es'],
+      license: 'CC-BY-4.0',
+    ),
+    'opus-mt-en-fr-q8_0': ModelDefinition(
+      name: 'opus-mt-en-fr-q8_0',
+      displayName: 'Opus-MT en→fr (q8_0)',
+      fileName: 'opus-mt-en-fr-q8_0.gguf',
+      url:
+          'https://huggingface.co/cstr/opus-mt-en-fr-GGUF/resolve/main/opus-mt-en-fr-q8_0.gguf',
+      sizeBytes: 84915232,
+      checksum: '',
+      description:
+          'Fast English → French translation (Opus-MT, one direction) — ~84 MB',
+      quantization: 'q8_0',
+      backend: 'marian',
+      kind: ModelKind.translate,
+      languages: ['en', 'fr'],
+      license: 'CC-BY-4.0',
+    ),
+    'opus-mt-en-he-q8_0': ModelDefinition(
+      name: 'opus-mt-en-he-q8_0',
+      displayName: 'Opus-MT en→he (q8_0)',
+      fileName: 'opus-mt-en-he-q8_0.gguf',
+      url:
+          'https://huggingface.co/cstr/opus-mt-en-he-GGUF/resolve/main/opus-mt-en-he-q8_0.gguf',
+      sizeBytes: 88705728,
+      checksum: '',
+      description:
+          'Fast English → Hebrew translation (Opus-MT, one direction) — ~88 MB',
+      quantization: 'q8_0',
+      backend: 'marian',
+      kind: ModelKind.translate,
+      languages: ['en', 'he'],
+      license: 'CC-BY-4.0',
+    ),
+    'opus-mt-en-it-q8_0': ModelDefinition(
+      name: 'opus-mt-en-it-q8_0',
+      displayName: 'Opus-MT en→it (q8_0)',
+      fileName: 'opus-mt-en-it-q8_0.gguf',
+      url:
+          'https://huggingface.co/cstr/opus-mt-en-it-GGUF/resolve/main/opus-mt-en-it-q8_0.gguf',
+      sizeBytes: 96750944,
+      checksum: '',
+      description:
+          'Fast English → Italian translation (Opus-MT, one direction) — ~96 MB',
+      quantization: 'q8_0',
+      backend: 'marian',
+      kind: ModelKind.translate,
+      languages: ['en', 'it'],
+      license: 'CC-BY-4.0',
+    ),
+    'opus-mt-en-tr-q8_0': ModelDefinition(
+      name: 'opus-mt-en-tr-q8_0',
+      displayName: 'Opus-MT en→tr (tc-big) (q8_0)',
+      fileName: 'opus-mt-tc-big-en-tr-q8_0.gguf',
+      url:
+          'https://huggingface.co/cstr/opus-mt-tc-big-en-tr-GGUF/resolve/main/opus-mt-tc-big-en-tr-q8_0.gguf',
+      sizeBytes: 261744960,
+      checksum: '',
+      description:
+          'Fast English → Turkish translation (Opus-MT, one direction) — ~261 MB',
+      quantization: 'q8_0',
+      backend: 'marian',
+      kind: ModelKind.translate,
+      languages: ['en', 'tr'],
+      license: 'CC-BY-4.0',
+    ),
+    'opus-mt-es-de-q8_0': ModelDefinition(
+      name: 'opus-mt-es-de-q8_0',
+      displayName: 'Opus-MT es→de (q8_0)',
+      fileName: 'opus-mt-es-de-q8_0.gguf',
+      url:
+          'https://huggingface.co/cstr/opus-mt-es-de-GGUF/resolve/main/opus-mt-es-de-q8_0.gguf',
+      sizeBytes: 86072128,
+      checksum: '',
+      description:
+          'Fast Spanish → German translation (Opus-MT, one direction) — ~86 MB',
+      quantization: 'q8_0',
+      backend: 'marian',
+      kind: ModelKind.translate,
+      languages: ['es', 'de'],
+      license: 'CC-BY-4.0',
+    ),
+    'opus-mt-es-en-q8_0': ModelDefinition(
+      name: 'opus-mt-es-en-q8_0',
+      displayName: 'Opus-MT es→en (q8_0)',
+      fileName: 'opus-mt-es-en-q8_0.gguf',
+      url:
+          'https://huggingface.co/cstr/opus-mt-es-en-GGUF/resolve/main/opus-mt-es-en-q8_0.gguf',
+      sizeBytes: 88116896,
+      checksum: '',
+      description:
+          'Fast Spanish → English translation (Opus-MT, one direction) — ~88 MB',
+      quantization: 'q8_0',
+      backend: 'marian',
+      kind: ModelKind.translate,
+      languages: ['es', 'en'],
+      license: 'CC-BY-4.0',
+    ),
+    'opus-mt-fr-de-q8_0': ModelDefinition(
+      name: 'opus-mt-fr-de-q8_0',
+      displayName: 'Opus-MT fr→de (q8_0)',
+      fileName: 'opus-mt-fr-de-q8_0.gguf',
+      url:
+          'https://huggingface.co/cstr/opus-mt-fr-de-GGUF/resolve/main/opus-mt-fr-de-q8_0.gguf',
+      sizeBytes: 85974560,
+      checksum: '',
+      description:
+          'Fast French → German translation (Opus-MT, one direction) — ~85 MB',
+      quantization: 'q8_0',
+      backend: 'marian',
+      kind: ModelKind.translate,
+      languages: ['fr', 'de'],
+      license: 'CC-BY-4.0',
+    ),
+    'opus-mt-fr-en-q8_0': ModelDefinition(
+      name: 'opus-mt-fr-en-q8_0',
+      displayName: 'Opus-MT fr→en (q8_0)',
+      fileName: 'opus-mt-fr-en-q8_0.gguf',
+      url:
+          'https://huggingface.co/cstr/opus-mt-fr-en-GGUF/resolve/main/opus-mt-fr-en-q8_0.gguf',
+      sizeBytes: 84915232,
+      checksum: '',
+      description:
+          'Fast French → English translation (Opus-MT, one direction) — ~84 MB',
+      quantization: 'q8_0',
+      backend: 'marian',
+      kind: ModelKind.translate,
+      languages: ['fr', 'en'],
+      license: 'CC-BY-4.0',
+    ),
+    'opus-mt-he-de-q8_0': ModelDefinition(
+      name: 'opus-mt-he-de-q8_0',
+      displayName: 'Opus-MT he→de (q8_0)',
+      fileName: 'opus-mt-he-de-q8_0.gguf',
+      url:
+          'https://huggingface.co/cstr/opus-mt-he-de-GGUF/resolve/main/opus-mt-he-de-q8_0.gguf',
+      sizeBytes: 87188960,
+      checksum: '',
+      description:
+          'Fast Hebrew → German translation (Opus-MT, one direction) — ~87 MB',
+      quantization: 'q8_0',
+      backend: 'marian',
+      kind: ModelKind.translate,
+      languages: ['he', 'de'],
+      license: 'CC-BY-4.0',
+    ),
+    'opus-mt-he-en-q8_0': ModelDefinition(
+      name: 'opus-mt-he-en-q8_0',
+      displayName: 'Opus-MT he→en (tc-big) (q8_0)',
+      fileName: 'opus-mt-tc-big-he-en-q8_0.gguf',
+      url:
+          'https://huggingface.co/cstr/opus-mt-tc-big-he-en-GGUF/resolve/main/opus-mt-tc-big-he-en-q8_0.gguf',
+      sizeBytes: 265398272,
+      checksum: '',
+      description:
+          'Fast Hebrew → English translation (Opus-MT, one direction) — ~265 MB',
+      quantization: 'q8_0',
+      backend: 'marian',
+      kind: ModelKind.translate,
+      languages: ['he', 'en'],
+      license: 'CC-BY-4.0',
+    ),
+    'opus-mt-it-de-q8_0': ModelDefinition(
+      name: 'opus-mt-it-de-q8_0',
+      displayName: 'Opus-MT it→de (q8_0)',
+      fileName: 'opus-mt-it-de-q8_0.gguf',
+      url:
+          'https://huggingface.co/cstr/opus-mt-it-de-GGUF/resolve/main/opus-mt-it-de-q8_0.gguf',
+      sizeBytes: 85253312,
+      checksum: '',
+      description:
+          'Fast Italian → German translation (Opus-MT, one direction) — ~85 MB',
+      quantization: 'q8_0',
+      backend: 'marian',
+      kind: ModelKind.translate,
+      languages: ['it', 'de'],
+      license: 'CC-BY-4.0',
+    ),
+    'opus-mt-it-en-q8_0': ModelDefinition(
+      name: 'opus-mt-it-en-q8_0',
+      displayName: 'Opus-MT it→en (q8_0)',
+      fileName: 'opus-mt-it-en-q8_0.gguf',
+      url:
+          'https://huggingface.co/cstr/opus-mt-it-en-GGUF/resolve/main/opus-mt-it-en-q8_0.gguf',
+      sizeBytes: 96947008,
+      checksum: '',
+      description:
+          'Fast Italian → English translation (Opus-MT, one direction) — ~96 MB',
+      quantization: 'q8_0',
+      backend: 'marian',
+      kind: ModelKind.translate,
+      languages: ['it', 'en'],
+      license: 'CC-BY-4.0',
+    ),
+    'opus-mt-tr-en-q8_0': ModelDefinition(
+      name: 'opus-mt-tr-en-q8_0',
+      displayName: 'Opus-MT tr→en (q8_0)',
+      fileName: 'opus-mt-tr-en-q8_0.gguf',
+      url:
+          'https://huggingface.co/cstr/opus-mt-tr-en-GGUF/resolve/main/opus-mt-tr-en-q8_0.gguf',
+      sizeBytes: 86665184,
+      checksum: '',
+      description:
+          'Fast Turkish → English translation (Opus-MT, one direction) — ~86 MB',
+      quantization: 'q8_0',
+      backend: 'marian',
+      kind: ModelKind.translate,
+      languages: ['tr', 'en'],
+      license: 'CC-BY-4.0',
+    ),
     // M2M-100 1.2B is not currently published — `cstr/m2m100-1.2b-GGUF`
     // returns 401. Use m2m100-418m-q4_k as the smaller default; revisit
     // if a 1.2B GGUF lands publicly.

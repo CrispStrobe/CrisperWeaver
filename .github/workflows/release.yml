@@ -470,12 +470,18 @@ jobs:
         run: |
           # Build static with PIC, then re-link as a single shared lib
           # with ggml + all backends baked in. No separate ggml .so's needed.
+          # German Moonshine's ONNX exports (moonshine-onnx) need ONNX
+          # Runtime, as in the macOS build: the pinned, checksummed SDK,
+          # linked dynamically and shipped as bundle/lib/libonnxruntime.so.1.
+          ORT_ROOT="$(bash scripts/fetch_onnxruntime.sh "$RUNNER_TEMP/onnxruntime-sdk")"
+          echo "ORT_ROOT=$ORT_ROOT" >> "$GITHUB_ENV"
           cmake -B build -DCMAKE_BUILD_TYPE=Release \
             -DBUILD_SHARED_LIBS=OFF \
             -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
             -DCRISPASR_BUILD_EXAMPLES=OFF -DCRISPASR_BUILD_TESTS=OFF \
             -DCRISPASR_OPUS_FETCH=ON \
-            -DCRISPASR_WITH_ESPEAK_NG=AUTO
+            -DCRISPASR_WITH_ESPEAK_NG=AUTO \
+            -DCRISPASR_ONNXRUNTIME_ROOT="$ORT_ROOT"
           # --parallel 2 (not unbounded): caps peak RAM so the heavy
           # CrispASR compile doesn't get OOM-killed (exit 143) on the
           # runner — same guard the macOS job uses.
@@ -491,6 +497,7 @@ jobs:
             src/libcrispasr.a \
             $(find . -name "lib*.a" ! -name "libcrispasr.a" ! -name "libCatch*" ! -name "libcommon*" -printf "%p ") \
             -Wl,--no-whole-archive \
+            -L"$ORT_ROOT/lib" -lonnxruntime \
             -lstdc++ -lm -lpthread -fopenmp
           ln -sf libcrispasr.so src/libwhisper.so
           ls -lh src/libcrispasr.so
@@ -540,6 +547,16 @@ jobs:
           ln -sf libwhisper.so "$BUNDLE/lib/libcrispasr.so"
           # glint codec (MP3/AAC/Opus) — self-contained, drop beside libwhisper.
           cp ../glint/build/libglint.so "$BUNDLE/lib/libglint.so"
+          # libcrispasr.so needs libonnxruntime.so.1 (its SONAME) beside it;
+          # the library's rpath is $ORIGIN.
+          cp -P "$ORT_ROOT"/lib/libonnxruntime.so* "$BUNDLE/lib/"
+          if ldd "$BUNDLE/lib/libwhisper.so" | grep -q "libonnxruntime.so.1 => $PWD/$BUNDLE/lib/"; then
+            echo "OK: libonnxruntime resolves from the bundle"
+          else
+            ldd "$BUNDLE/lib/libwhisper.so" | grep -i onnx || true
+            echo "::error::libonnxruntime.so.1 does not resolve from bundle/lib"
+            exit 1
+          fi
           # espeak-ng (GPL-3.0) is deliberately NOT bundled — built AUTO
           # (dlopen), so kokoro/piper use the built-in non-GPL G2P. A user who
           # wants espeak can drop libespeak-ng.so + espeak-ng-data into

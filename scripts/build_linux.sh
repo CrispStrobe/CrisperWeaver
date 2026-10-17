@@ -62,11 +62,26 @@ echo "==> Flutter config:   $CONFIG"
 # Step 1: configure CrispASR (skip if cmake cache already exists, unless
 # --rebuild-cmake is passed)
 # ---------------------------------------------------------------------------
+# German Moonshine's ONNX exports (`moonshine-onnx`) need the native CPU
+# runtime, as on macOS: fetch the version- and checksum-pinned official SDK
+# (Linux x86_64 / aarch64). Set CRISPASR_ONNXRUNTIME_ROOT= (empty) to build
+# without it; the app then hides those models.
+if [[ -z "${CRISPASR_ONNXRUNTIME_ROOT+set}" ]]; then
+  CRISPASR_ONNXRUNTIME_ROOT="$(bash "$CRISPASR_DIR/scripts/fetch_onnxruntime.sh" "$REPO_ROOT/build/onnxruntime-sdk" || true)"
+fi
+export CRISPASR_ONNXRUNTIME_ROOT
+CACHED_ORT="$(sed -n 's/^CRISPASR_ONNXRUNTIME_ROOT:PATH=//p' "$BUILDDIR/CMakeCache.txt" 2>/dev/null || true)"
+if [[ -f "$BUILDDIR/CMakeCache.txt" && "$CACHED_ORT" != "$CRISPASR_ONNXRUNTIME_ROOT" ]]; then
+  echo "==> ONNX Runtime root changed (${CACHED_ORT:-none} -> ${CRISPASR_ONNXRUNTIME_ROOT:-none}); reconfiguring"
+  REBUILD_CMAKE=1
+fi
+
 if [[ $REBUILD_CMAKE == 1 || ! -f "$BUILDDIR/CMakeCache.txt" ]]; then
   echo "==> cmake configure"
   rm -rf "$BUILDDIR"
   cmake -S "$CRISPASR_DIR" -B "$BUILDDIR" \
     -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE \
+    -DCRISPASR_ONNXRUNTIME_ROOT="$CRISPASR_ONNXRUNTIME_ROOT" \
     -DBUILD_SHARED_LIBS=ON \
     -DCRISPASR_BUILD_TESTS=OFF \
     -DCRISPASR_BUILD_EXAMPLES=OFF \

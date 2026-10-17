@@ -91,6 +91,20 @@ if [[ -d "$GGMLDIR" ]]; then
   find "$GGMLDIR" -name "libggml*.so*" -exec cp -P {} "$LIBDIR/" \;
 fi
 
+# ONNX Runtime, when libwhisper.so was built with it (moonshine-onnx).
+# libwhisper.so links libonnxruntime.so.1 by SONAME; next to it in lib/ it
+# resolves like the ggml libraries. Its notices ship in the app's assets
+# (assets/licenses/ONNXRuntime*.txt).
+ORT_ROOT="${CRISPASR_ONNXRUNTIME_ROOT:-}"
+if [[ -z "$ORT_ROOT" && -f "$CRISPASR_DIR/$CRISPASR_BUILD_SUBDIR/CMakeCache.txt" ]]; then
+  ORT_ROOT="$(sed -n 's/^CRISPASR_ONNXRUNTIME_ROOT:PATH=//p' "$CRISPASR_DIR/$CRISPASR_BUILD_SUBDIR/CMakeCache.txt")"
+fi
+rm -f "$LIBDIR"/libonnxruntime.so*
+if [[ -n "$ORT_ROOT" && -d "$ORT_ROOT/lib" ]]; then
+  find "$ORT_ROOT/lib" -maxdepth 1 -name 'libonnxruntime.so*' -exec cp -P {} "$LIBDIR/" \;
+  echo "Bundled ONNX Runtime from $ORT_ROOT"
+fi
+
 # glint codec library (on-device MP3 / AAC-LC / Opus). Self-contained
 # (only libc/libm/libstdc++), so a plain copy into the bundle's lib/ dir
 # resolves it like libwhisper ($ORIGIN/lib is on the rpath). Non-fatal —

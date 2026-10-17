@@ -2521,5 +2521,14 @@
   "liveTargetsFor": "{lang} übersetzen in",
   "liveRemove": "Entfernen",
   "liveSavedToHistory": "Sitzung im Verlauf gespeichert",
-  "liveOpenInHistory": "Öffnen"
+  "liveOpenInHistory": "Öffnen",
+  "liveOpusMtTitle": "Schnelle Übersetzung (Opus-MT)",
+  "liveOpusMtHelp": "Kleine Modelle für jeweils eine Übersetzungsrichtung — der schnellste Live-Übersetzer, mit besserem Text als M2M-100. Richtungen ohne eigenes Modell nutzen den Übersetzer oben.",
+  "liveOpusMtViaEnglish": "über Englisch",
+  "liveOpusMtFallback": "Übersetzer oben",
+  "liveOpusMtDownload": "{count} Opus-MT-Modelle laden (~{mb} MB)",
+  "liveOpusMtDownloading": "Lade {name}…",
+  "liveReviseLabel": "Zweiter Durchgang — bessere Übersetzung ein paar Sekunden später",
+  "liveReviseOff": "Aus",
+  "liveReviseHelp": "Ein Übersetzungs-LLM (Hy-MT2, Index-Translate) übersetzt jeden fertigen Absatz im Zusammenhang neu und ersetzt die schnellen Zeilen (markiert mit ✓). Braucht einen schnellen Rechner."
 }

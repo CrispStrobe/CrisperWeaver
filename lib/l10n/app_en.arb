@@ -2706,5 +2706,31 @@
   },
   "liveRemove": "Remove",
   "liveSavedToHistory": "Session saved to History",
-  "liveOpenInHistory": "Open"
+  "liveOpenInHistory": "Open",
+  "liveOpusMtTitle": "Fast translation (Opus-MT)",
+  "liveOpusMtHelp": "Small models for one language direction each — the fastest live translator, with better text than M2M-100. Directions without one use the translator above.",
+  "liveOpusMtViaEnglish": "via English",
+  "liveOpusMtFallback": "translator above",
+  "liveOpusMtDownload": "Download {count} Opus-MT models (~{mb} MB)",
+  "@liveOpusMtDownload": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "mb": {
+        "type": "int"
+      }
+    }
+  },
+  "liveOpusMtDownloading": "Downloading {name}…",
+  "@liveOpusMtDownloading": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "liveReviseLabel": "Second pass — better translation a few seconds later",
+  "liveReviseOff": "Off",
+  "liveReviseHelp": "A translation LLM (Hy-MT2, Index-Translate) re-translates each finished paragraph with its context and replaces the fast lines (marked ✓). Needs a fast computer."
 }

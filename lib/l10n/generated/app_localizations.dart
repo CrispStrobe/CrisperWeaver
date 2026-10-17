@@ -7197,6 +7197,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Open'**
   String get liveOpenInHistory;
+
+  /// No description provided for @liveOpusMtTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Fast translation (Opus-MT)'**
+  String get liveOpusMtTitle;
+
+  /// No description provided for @liveOpusMtHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Small models for one language direction each — the fastest live translator, with better text than M2M-100. Directions without one use the translator above.'**
+  String get liveOpusMtHelp;
+
+  /// No description provided for @liveOpusMtViaEnglish.
+  ///
+  /// In en, this message translates to:
+  /// **'via English'**
+  String get liveOpusMtViaEnglish;
+
+  /// No description provided for @liveOpusMtFallback.
+  ///
+  /// In en, this message translates to:
+  /// **'translator above'**
+  String get liveOpusMtFallback;
+
+  /// No description provided for @liveOpusMtDownload.
+  ///
+  /// In en, this message translates to:
+  /// **'Download {count} Opus-MT models (~{mb} MB)'**
+  String liveOpusMtDownload(int count, int mb);
+
+  /// No description provided for @liveOpusMtDownloading.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading {name}…'**
+  String liveOpusMtDownloading(String name);
+
+  /// No description provided for @liveReviseLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Second pass — better translation a few seconds later'**
+  String get liveReviseLabel;
+
+  /// No description provided for @liveReviseOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get liveReviseOff;
+
+  /// No description provided for @liveReviseHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'A translation LLM (Hy-MT2, Index-Translate) re-translates each finished paragraph with its context and replaces the fast lines (marked ✓). Needs a fast computer.'**
+  String get liveReviseHelp;
 }
 
 class _AppLocalizationsDelegate
