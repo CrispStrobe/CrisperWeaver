@@ -264,11 +264,26 @@ jobs:
   build-macos-appstore:
     name: macOS (App Store .pkg)
     needs: validate-tag
-    runs-on: macos-latest
+    # ITMS-90725: from April 2027 App Store Connect only accepts builds made
+    # with the 27 SDKs (Xcode 27). macos-latest still ships Xcode 26.x, so
+    # build on the xcode-27 image and fail before signing if the SDK is older.
+    runs-on: xcode-27
     timeout-minutes: 120
     permissions:
       contents: write
     steps:
+      - name: Select the newest Xcode 27 and require the macOS 27 SDK
+        run: |
+          set -euo pipefail
+          XC=$(ls -d /Applications/Xcode_27*.app | sort -V | tail -1)
+          sudo xcode-select -s "$XC/Contents/Developer"
+          xcodebuild -version
+          SDK=$(xcrun --sdk macosx --show-sdk-version)
+          echo "macosx SDK: $SDK"
+          if [ "${SDK%%.*}" -lt 27 ]; then
+            echo "::error::macOS SDK $SDK < 27 (ITMS-90725)"; exit 1
+          fi
+
       - name: Check out CrisperWeaver
         uses: actions/checkout@v5
         with:
@@ -332,14 +347,17 @@ jobs:
             exit 0
           fi
           KEYCHAIN="$RUNNER_TEMP/mac-appstore.keychain-db"
-          security create-keychain -p ci "$KEYCHAIN"
+          # Empty password: on the xcode-27 image unlock-keychain rejects the
+          # password the keychain was just created with (runner-images#14837).
+          # The keychain lives in RUNNER_TEMP on a single-use VM.
+          security create-keychain -p "" "$KEYCHAIN"
           security set-keychain-settings -lut 21600 "$KEYCHAIN"
-          security unlock-keychain -p ci "$KEYCHAIN"
+          security unlock-keychain -p "" "$KEYCHAIN"
           echo "$MAC_DIST_P12" | base64 --decode > "$RUNNER_TEMP/mac_dist.p12"
           security import "$RUNNER_TEMP/mac_dist.p12" -k "$KEYCHAIN" \
             -P "$MAC_DIST_P12_PASSWORD" -A -t cert -f pkcs12
           security set-key-partition-list -S apple-tool:,apple:,codesign: \
-            -s -k ci "$KEYCHAIN" >/dev/null
+            -s -k "" "$KEYCHAIN" >/dev/null
           security list-keychains -d user -s "$KEYCHAIN" \
             $(security list-keychains -d user | tr -d '"')
           mkdir -p "$RUNNER_TEMP/profiles"
@@ -1022,14 +1040,28 @@ jobs:
   build-ios:
     name: iOS IPA (unsigned, sideload-ready)
     needs: validate-tag
-    # macos-26 ships Xcode 26 (iOS 26.1 SDK). device_info_plus 13.1.0 calls
-    # -[NSProcessInfo isiOSAppOnVision] under @available(iOS 26.1) — it needs
-    # the 26.1 SDK to *compile* (the selector is undeclared on macos-latest's
-    # Xcode 16.4 / iOS 18.5 SDK), which broke the v0.7.7 iOS build.
-    runs-on: macos-26
+    # device_info_plus 13.1.0 calls -[NSProcessInfo isiOSAppOnVision] under
+    # @available(iOS 26.1), so it needs at least the 26.1 SDK to *compile*
+    # (Xcode 16.4 / iOS 18.5 broke the v0.7.7 iOS build; macos-26 fixed it).
+    # ITMS-90725: from April 2027 App Store Connect only accepts iOS 27 SDK
+    # builds, and macos-26 only has Xcode 26.x, so build on the xcode-27
+    # image and fail before signing if the SDK is older.
+    runs-on: xcode-27
     permissions:
       contents: write
     steps:
+      - name: Select the newest Xcode 27 and require the iOS 27 SDK
+        run: |
+          set -euo pipefail
+          XC=$(ls -d /Applications/Xcode_27*.app | sort -V | tail -1)
+          sudo xcode-select -s "$XC/Contents/Developer"
+          xcodebuild -version
+          SDK=$(xcrun --sdk iphoneos --show-sdk-version)
+          echo "iphoneos SDK: $SDK"
+          if [ "${SDK%%.*}" -lt 27 ]; then
+            echo "::error::iOS SDK $SDK < 27 (ITMS-90725)"; exit 1
+          fi
+
       - name: Check out CrisperWeaver
         uses: actions/checkout@v5
         with:
