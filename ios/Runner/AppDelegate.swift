@@ -2,13 +2,22 @@ import UIKit
 import Flutter
 import Foundation
 
+// UIScene lifecycle (required for apps built with the iOS 27 SDK: UIKit
+// traps at launch otherwise). Info.plist's UIApplicationSceneManifest hands
+// the window to FlutterSceneDelegate, so `window` is nil in
+// didFinishLaunching; plugins and the channel below are wired when the
+// implicit engine is ready instead.
 @main
-@objc class AppDelegate: FlutterAppDelegate {
+@objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
   override func application(
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
-    GeneratedPluginRegistrant.register(with: self)
+    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+  }
+
+  func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
+    GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
 
     // iOS helpers MethodChannel — currently exposes
     // `excludeFromBackup(path)` so the §5.23 batch persistence
@@ -19,11 +28,10 @@ import Foundation
     // Other platforms (Android/desktop) don't have an equivalent
     // mechanism; the Dart wrapper is a no-op there, so this handler
     // doesn't need a non-iOS sibling.
-    let controller = window?.rootViewController as? FlutterViewController
-    if let controller = controller {
+    do {
       let channel = FlutterMethodChannel(
         name: "crisperweaver/ios_helpers",
-        binaryMessenger: controller.binaryMessenger)
+        binaryMessenger: engineBridge.applicationRegistrar.messenger())
       channel.setMethodCallHandler { (call, result) in
         switch call.method {
         case "excludeFromBackup":
@@ -74,7 +82,5 @@ import Foundation
         }
       }
     }
-
-    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 }

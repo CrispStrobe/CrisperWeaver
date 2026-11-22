@@ -307,13 +307,38 @@
 	<true/>
 
 	<!--
-	No UIApplicationSceneManifest: the standard Flutter iOS template uses
-	the AppDelegate-only single-window architecture. The previous manifest
-	referenced $(PRODUCT_MODULE_NAME).SceneDelegate, but no SceneDelegate
-	class exists in this target — iOS would log a connection failure on
-	launch on every iOS 13+ device. Add a real SceneDelegate.swift before
-	re-introducing the manifest.
+	UIScene lifecycle. Apps built with the iOS 27 SDK must adopt it: iOS 27
+	UIKit traps at launch otherwise (SIGTRAP in
+	UIApplicationEvaluateRuntimeIssueForNoSceneLifecycleAdoption). The scene
+	delegate is Flutter's own FlutterSceneDelegate (Flutter 3.38+), which
+	lives in Flutter.framework, so there is no SceneDelegate.swift in this
+	target. (An earlier manifest pointed at $(PRODUCT_MODULE_NAME).SceneDelegate,
+	a class that never existed, and failed to connect on launch.) With the
+	scene owning the window, AppDelegate registers plugins and the
+	crisperweaver/ios_helpers channel in didInitializeImplicitFlutterEngine,
+	not via window?.rootViewController.
 	-->
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<false/>
+		<key>UISceneConfigurations</key>
+		<dict>
+			<key>UIWindowSceneSessionRoleApplication</key>
+			<array>
+				<dict>
+					<key>UISceneClassName</key>
+					<string>UIWindowScene</string>
+					<key>UISceneConfigurationName</key>
+					<string>flutter</string>
+					<key>UISceneDelegateClassName</key>
+					<string>FlutterSceneDelegate</string>
+					<key>UISceneStoryboardFile</key>
+					<string>Main</string>
+				</dict>
+			</array>
+		</dict>
+	</dict>
 
 	<!-- App icon: asset-catalog only (modern iOS 11+ setup). Do NOT add
 	     CFBundleIcons/CFBundleIcons~ipad with CFBundleIconFiles — listing
