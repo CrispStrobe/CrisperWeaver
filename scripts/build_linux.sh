@@ -67,7 +67,7 @@ echo "==> Flutter config:   $CONFIG"
 # (Linux x86_64 / aarch64). Set CRISPASR_ONNXRUNTIME_ROOT= (empty) to build
 # without it; the app then hides those models.
 if [[ -z "${CRISPASR_ONNXRUNTIME_ROOT+set}" ]]; then
-  CRISPASR_ONNXRUNTIME_ROOT="$(bash "$CRISPASR_DIR/scripts/fetch_onnxruntime.sh" "$REPO_ROOT/build/onnxruntime-sdk" || true)"
+  CRISPASR_ONNXRUNTIME_ROOT="$(bash "$REPO_ROOT/scripts/fetch_onnxruntime.sh" "$REPO_ROOT/build/onnxruntime-sdk" || true)"
 fi
 export CRISPASR_ONNXRUNTIME_ROOT
 CACHED_ORT="$(sed -n 's/^CRISPASR_ONNXRUNTIME_ROOT:PATH=//p' "$BUILDDIR/CMakeCache.txt" 2>/dev/null || true)"

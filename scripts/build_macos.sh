@@ -95,7 +95,7 @@ fi
 # German Moonshine's ONNX exports need the native CPU runtime. The source
 # checkout fetches a version- and checksum-pinned official SDK.
 if [[ -z "${CRISPASR_ONNXRUNTIME_ROOT:-}" ]]; then
-  CRISPASR_ONNXRUNTIME_ROOT="$(bash "$CRISPASR_DIR/scripts/fetch_onnxruntime.sh" "$REPO_ROOT/build/onnxruntime-sdk")"
+  CRISPASR_ONNXRUNTIME_ROOT="$(bash "$REPO_ROOT/scripts/fetch_onnxruntime.sh" "$REPO_ROOT/build/onnxruntime-sdk")"
 fi
 export CRISPASR_ONNXRUNTIME_ROOT
 CACHED_ORT="$(sed -n 's/^CRISPASR_ONNXRUNTIME_ROOT:PATH=//p' "$BUILDDIR/CMakeCache.txt" 2>/dev/null || true)"

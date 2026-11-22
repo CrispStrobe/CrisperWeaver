@@ -74,6 +74,15 @@ set_target_properties(${BINARY_NAME}
 # them to the application.
 include(flutter/generated_plugins.cmake)
 
+# hotkey_manager_linux 0.2.0 (latest) leaves a pointer uninitialized when a
+# hotkey lookup misses; current clang reports -Wsometimes-uninitialized and
+# APPLY_STANDARD_SETTINGS makes it an error. Keep it a warning for that plugin
+# only (third-party code we cannot patch in the pub cache).
+if(TARGET hotkey_manager_linux_plugin)
+  target_compile_options(hotkey_manager_linux_plugin PRIVATE
+    "$<$<CXX_COMPILER_ID:Clang>:-Wno-error=sometimes-uninitialized>")
+endif()
+
 
 # === Installation ===
 # By default, "installing" just makes a relocatable bundle in the build

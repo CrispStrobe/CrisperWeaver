@@ -146,7 +146,7 @@ jobs:
           # .app ships GPL-free (App-Store-safe). We deliberately do NOT
           # `brew install espeak-ng` so CMake can't find + link it. Built-in
           # G2P covers EN/DE/FR/ES; a user can add their own libespeak-ng.
-          ORT_ROOT="$(bash scripts/fetch_onnxruntime.sh "$RUNNER_TEMP/onnxruntime-sdk")"
+          ORT_ROOT="$(bash "$GITHUB_WORKSPACE/repos/CrisperWeaver/scripts/fetch_onnxruntime.sh" "$RUNNER_TEMP/onnxruntime-sdk")"
           cmake -B build -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_OSX_DEPLOYMENT_TARGET=13.3 \
             -DCMAKE_OSX_ARCHITECTURES=arm64 \
@@ -497,7 +497,7 @@ jobs:
           # German Moonshine's ONNX exports (moonshine-onnx) need ONNX
           # Runtime, as in the macOS build: the pinned, checksummed SDK,
           # linked dynamically and shipped as bundle/lib/libonnxruntime.so.1.
-          ORT_ROOT="$(bash scripts/fetch_onnxruntime.sh "$RUNNER_TEMP/onnxruntime-sdk")"
+          ORT_ROOT="$(bash "$GITHUB_WORKSPACE/repos/CrisperWeaver/scripts/fetch_onnxruntime.sh" "$RUNNER_TEMP/onnxruntime-sdk")"
           echo "ORT_ROOT=$ORT_ROOT" >> "$GITHUB_ENV"
           cmake -B build -DCMAKE_BUILD_TYPE=Release \
             -DBUILD_SHARED_LIBS=OFF \
