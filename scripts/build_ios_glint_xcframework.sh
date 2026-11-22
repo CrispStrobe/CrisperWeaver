@@ -17,7 +17,7 @@
 # Usage: scripts/build_ios_glint_xcframework.sh
 # Env:
 #   GLINT_DIR           path to sibling glint repo (default: ../glint)
-#   IOS_MIN_OS_VERSION  minimum iOS deployment target (default: 13.0)
+#   IOS_MIN_OS_VERSION  minimum iOS deployment target (default: 15.0; Xcode 27 rejects lower)
 #   GLINT_MODE          double|fixed|both (default: fixed — matches
 #                       glint's own mobile CI; smaller + no FP reliance)
 #   CLEAN               "1" to wipe build dirs first (default 0)
@@ -26,7 +26,7 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 GLINT_DIR="${GLINT_DIR:-$(cd "$REPO_ROOT/.." && pwd)/glint}"
-IOS_MIN_OS_VERSION="${IOS_MIN_OS_VERSION:-13.0}"
+IOS_MIN_OS_VERSION="${IOS_MIN_OS_VERSION:-15.0}"
 GLINT_MODE="${GLINT_MODE:-fixed}"
 CLEAN="${CLEAN:-0}"
 

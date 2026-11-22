@@ -81,7 +81,7 @@ jobs:
         env:
           CRISPASR_DIR: ${{ github.workspace }}/repos/CrispASR
           CRISPEMBED_DIR: ${{ github.workspace }}/repos/CrispEmbed
-          IOS_MIN_OS_VERSION: "13.0"
+          IOS_MIN_OS_VERSION: "15.0"
         run: bash scripts/build_ios_xcframework.sh
 
       - name: Wire crispasr.xcframework
@@ -96,7 +96,7 @@ jobs:
         working-directory: repos/CrisperWeaver
         env:
           GLINT_DIR: ${{ github.workspace }}/repos/glint
-          IOS_MIN_OS_VERSION: "13.0"
+          IOS_MIN_OS_VERSION: "15.0"
         run: |
           bash scripts/build_ios_glint_xcframework.sh
           ruby scripts/wire_ios_glint.rb

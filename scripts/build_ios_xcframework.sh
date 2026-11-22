@@ -21,8 +21,8 @@
 # Env:
 #   CRISPASR_DIR          path to sibling CrispASR repo
 #                         (default: ../CrispASR)
-#   IOS_MIN_OS_VERSION    minimum iOS deployment target (default: 13.0,
-#                         matching CrisperWeaver's Podfile)
+#   IOS_MIN_OS_VERSION    minimum iOS deployment target (default: 15.0,
+#                         matching CrisperWeaver's Podfile; Xcode 27 rejects lower)
 #   COREML                "ON"/"OFF" (default: ON) — wires the .mlmodelc
 #                         encoder for whisper backends, ~2-3× faster on
 #                         the Apple Neural Engine.
@@ -49,7 +49,7 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CRISPASR_DIR="${CRISPASR_DIR:-$(cd "$REPO_ROOT/.." && pwd)/CrispASR}"
-IOS_MIN_OS_VERSION="${IOS_MIN_OS_VERSION:-13.0}"
+IOS_MIN_OS_VERSION="${IOS_MIN_OS_VERSION:-15.0}"
 COREML="${COREML:-ON}"
 CLEAN="${CLEAN:-0}"
 ESPEAK_NG="${ESPEAK_NG:-OFF}"
