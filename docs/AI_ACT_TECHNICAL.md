@@ -168,8 +168,10 @@ inference. No training occurs on-device — inference only.
 - **Privacy by design:** No telemetry, no analytics, no user accounts.
 - **Model-agnostic:** Users choose from 40+ ASR and 20+ TTS model
   families; the app is not coupled to any single model.
-- **Provenance by default:** All AI-generated audio is watermarked
-  and C2PA-signed automatically.
+- **Provenance by default:** Speech synthesis attempts and verifies a PCM
+  watermark. Native C2PA signing is used when available and successful;
+  otherwise WAV output carries a versioned, unsigned application receipt in
+  a `cwpr` chunk. Short or silent audio may not carry a detectable watermark.
 
 ## 3. Development Methodology (Annex IV, 3)
 
@@ -250,7 +252,7 @@ biometric data processing risks.
 
 | Risk | Category | Mitigation |
 |---|---|---|
-| AI-generated audio misattributed as human | Art. 50 | Automatic watermark + C2PA signing + metadata tags, on every generating path (GUI, HTTP server, CLI) |
+| AI-generated audio misattributed as human | Art. 50 | PCM watermark with verification, native C2PA signing when successful or an unsigned application receipt, and metadata tags on generating paths (GUI, HTTP server, CLI) |
 | AI-generated text mistaken for authored text | Art. 50(2) | Disclosure attached to OCR, LLM summaries and translations on screen and on copy/export; `x-content-ai-generated` on the HTTP translation endpoint |
 | Voice cloning for impersonation | Art. 50(4) | Consent gate on **every** cloning path (wizard, voice-bake screen, CLI `--i-have-rights`) + mandatory beep disclaimer + audit logging |
 | **A beep that was applied to baked voices only** | Art. 50(4) | The row above was written as already-true and held for a cloning path that loads a baked voice GGUF. Issue #35 (2026-08-29) found the Synthesize screen never passing `customVoiceWavPath` to `writeWav`, so a clone from a user-supplied reference WAV — the route the voice-clone wizard drives — was written unmarked. Passed on that path now; the wizard hand-off itself is covered by `test/voice_clone_handoff_test.dart`. See `AI_ACT_RISK.md` §5.2 |
@@ -266,7 +268,7 @@ biometric data processing risks.
 | A transcript export implying the recording was faked | Art. 50(2) | The transcript notice said the content "contains AI-generated synthetic speech" — false for a recording of a real person, and in the direction that misleads. Both exporters now use the same "machine-generated transcript" wording |
 | Chapter exports escaping the notice | Art. 50(2) | Chapter titles are verbatim transcript text written to a shared file; the YouTube and Podcasting 2.0 exports carry the notice their segments earned |
 | Cloud TTS returning unmarked audio | Art. 50(2) | `HfSpaceTtsService` probes remote output for a watermark and embeds one locally when absent, verifying the result rather than assuming it |
-| Generated audio loses its mark when edited | Art. 50(2) | Trim/cut/split carry the C2PA manifest across as a `c2pa.edited` action and re-emit LIST/INFO; MP3 re-encode carries ID3v2; containers that cannot carry a manifest are logged as watermark-only |
+| Generated audio loses its mark when edited | Art. 50(2) | Trim/cut/split preserve the app's unsigned receipt with an edit action and re-emit LIST/INFO; legacy custom JSON remains readable. This does not preserve the validity of a native signed C2PA claim after editing. MP3 re-encode carries unsigned ID3v2 metadata; other containers require an explicit unmarked-export override |
 | Headless output escapes text marking | Art. 50(2) | CLI `translate` and `transcribe --translate` attach the shared `AiTextDisclosure`; suppression requires an explicit `--no-disclosure` |
 | **An ask prompt reaching a model unscreened** | Art. 5(1)(f), Annex III 1(c) | `ScreenedAskPrompt` is the only type `setAsk` accepts and can only be built by screening, so a new entry point cannot forget the guard — it can only fail to compile. Engine, pool, HTTP server and CLI converted; the worker isolate re-screens on arrival because the type cannot cross an untyped wire format. The screening itself is still a keyword list and still defeatable by rephrasing — see `AI_ACT_RISK.md` §2.9 |
 | **Emotion tags surviving in word tokens** | Annex III 1(c) | No version of the filter touched word text — every mapper stripped the segment and copied `w.text` through, so a tag emitted as its own token reached the word-level view and the JSON export. Stripped in `fromModelText`; tag-only tokens are dropped rather than left empty |
@@ -294,8 +296,8 @@ biometric data processing risks.
 - Test suite pass rate (CI-enforced, zero-error `flutter analyze`)
 - Compliance test coverage (`test/synthetic_compliance_test.dart`)
 - GitHub issue tracking for reported problems
-- Abuse reports via the channel embedded in every generated file's C2PA
-  manifest (`AI_ACT_RISK.md` §7.1)
+- Abuse reports via the channel embedded in the application's unsigned WAV
+  receipt; retention in other output paths varies (`AI_ACT_RISK.md` §7.1)
 
 ## 7. Instructions for Use (Art. 13)
 

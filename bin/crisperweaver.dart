@@ -157,7 +157,7 @@ void _writeMarkedWav(
   out.writeAsBytesSync(bytes);
   stdout.writeln('marking: watermark=${watermarked ? "verified" : "FAILED"} '
       '(${confidence.toStringAsFixed(3)}, ${fallback ? "dart-fallback" : "native"}) '
-      'c2pa=${c2paSigned ? "signed" : "unsigned-manifest"} '
+      'provenance=${c2paSigned ? "c2pa-signed" : "unsigned-application-receipt"} '
       'beep=${deepfake ? (beepSuppressed ? "suppressed" : "yes") : "n/a"}');
   if (!watermarked && !c2paSigned) {
     stderr.writeln('[MARKING] no robust mark on this output — neither a '

@@ -33,7 +33,7 @@ class SynthesizedAudio {
 /// re-encoding and trimming. The **container marking** (C2PA manifest,
 /// WAV LIST/INFO, ID3v2) is machine-readable but strips on any
 /// re-encode. A COSE-signed C2PA manifest is cryptographically
-/// verifiable; the unsigned JSON-LD fallback is not.
+/// verifiable; the unsigned application-receipt fallback is not.
 ///
 /// [robustMarkPresent] is the one that matters: false means the output
 /// is marked only by metadata a re-encode would remove.
@@ -987,7 +987,7 @@ class TtsService {
     }
     // C2PA signing — EU AI Act Art. 50 machine-readable AI-content marking.
     // Try real COSE/X.509 signing via CrispASR's native c2pa-audio first;
-    // fall back to the unsigned JSON-LD manifest when the native symbols
+    // fall back to an unsigned application receipt when the native symbols
     // are unavailable (web builds, old dylibs).
     bool c2paSigned = false;
     if (crispasr.CrispasrC2pa.isAvailable()) {
@@ -1016,7 +1016,7 @@ class TtsService {
             : null,
         timestamp: now,
       );
-      Log.instance.d('tts', 'C2PA unsigned JSON-LD manifest injected (fallback)');
+      Log.instance.d('tts', 'unsigned application receipt injected (cwpr fallback)');
     }
     lastMarking = MarkingStatus(
       watermarkVerified: watermarkVerified,

@@ -118,12 +118,16 @@ Three points this subsystem raises that the others do not:
   rewriting, the carve-out stops applying and the output needs marking —
   so the prompt is a compliance boundary, not a quality setting. LLM
   summarisation and translation are outside the carve-out and are marked.
-- **Text has no container.** Audio carries three independent marks
-  (watermark, C2PA manifest, container metadata); text can carry only the
-  disclosure itself, which a recipient can trivially delete. That is a
-  limitation of the medium rather than of the implementation, and is why
-  the disclosure is attached at every point where text leaves the app
-  rather than only where it is displayed.
+- **Text marking has limits.** Summary copies include a visible disclosure
+  and a versioned, unsigned JSON receipt in a Markdown comment. The receipt
+  records the configured provider/model, generation time and the exact
+  summary's SHA-256 hash; it includes no prompt, transcript, API key or full
+  endpoint URL. Other text exports retain known generation/transcription
+  flags where their format permits. Copying, reformatting or editing can
+  remove these marks. This is application metadata, not a statistical text
+  watermark or signed C2PA. ASR is identified as transcription, not as
+  evidence that the source speech was synthetic. Imported and historical
+  text with no recorded origin is not retrospectively labelled AI-generated.
 
 ### 2.8 Emotion Recognition — **removed** (2026-08-02)
 
@@ -680,15 +684,15 @@ attestation that is logged for audit.
 | Obligation | Implementation | Status |
 |---|---|---|
 | Art. 50(1): Users informed of AI interaction | First-use transparency dialog (EN/DE/ZH), enumerating every AI subsystem and which of them can use the network once enabled | Done |
-| Art. 50(2): Machine-readable AI marking — audio | Spread-spectrum watermark, verified post-embed by probing the PCM; C2PA COSE/X.509 manifest; WAV LIST/INFO + ID3v2 tags | Done |
-| Art. 50(2): Machine-readable AI marking — text | Transcript exports carry a synthetic-content disclosure by default; OCR, LLM summaries and translations carry one on screen and on copy; the HTTP translation endpoint sets `x-content-ai-generated` and a `_disclosure` field | Done |
+| Art. 50(2): Machine-readable AI marking — audio | PCM watermark verified after embedding; native C2PA signing when successful, otherwise an unsigned `cwpr` application receipt; WAV LIST/INFO + unsigned ID3v2 tags | Implemented with format and duration limits |
+| Art. 50(2): Machine-readable AI marking — text | Generated outputs have visible disclosures. Summary copies include an unsigned JSON receipt with content hash and configured provider/model. JSON transcripts retain known generation/ASR flags; unknown historical origin is not invented. The HTTP translation endpoint sets `x-content-ai-generated` and a `_disclosure` field | Implemented; removable metadata, no statistical text watermark |
 | Art. 50(2): Machine-readable AI marking — audio Q&A | Segments flagged `generated: audio-qa` at the engine and persisted with `metadata`; every export picks its wording from the flag; `/v1/audio/transcriptions` sets `x-content-ai-generated` + `_disclosure` + `"task": "audio-qa"`; CLI `--ask` attaches the disclosure | Done (2026-08-03) |
 | Art. 50(2): Marking of machine translation on the transcriptions endpoint | `/v1/audio/transcriptions` with `translate` / `target_language` returned bare text with a hardcoded `"task": "transcribe"`; now marked on all five response formats | Done (2026-08-03) |
 | Art. 50(4): Deep fake disclosure — voice cloning | Mandatory beep disclaimer; suppression requires a logged attestation. Applies on the GUI, server (`/v1/audio/speech`) and CLI (`synthesize --voice`) paths | Done |
 | Art. 50(4): Deep fake disclosure — speech-to-speech | Same beep path via `voiceConverted` / `_writeMarkedWav(deepfake: true)`; `/v1/audio/s2s` consent-gated; CLI `s2s` marked | Done |
 | **Art. 50(4): Deep fake disclosure — clones from a *custom reference clip*** | The row above was true for a baked voice GGUF and false for the runtime path beside it: the Synthesize screen never passed `customVoiceWavPath` to `writeWav`, so a clone made from a user-supplied reference WAV — the route the voice-clone wizard uses, and the one a first-run user reaches — was written **without** the beep. The parameter is now passed on that path, and the wizard hand-off is covered by `test/voice_clone_handoff_test.dart` | Done (2026-08-29) |
 | Art. 50(3): Emotion recognition notice | Not applicable — the capability was removed rather than disclosed (§2.8), and the audio-Q&A route to it is refused at the input rather than disclosed (§2.9). Emotion tags are discarded at the engine's parse boundary and on every CLI output format | n/a |
-| Art. 50(2): Marking survives editing | Trim / cut / split carry the source C2PA manifest into the derived file as a `c2pa.edited` action and re-emit the LIST/INFO tags, instead of re-encoding a bare 44-byte WAV; MP3 re-encode carries ID3v2 provenance, and containers that cannot carry a manifest are logged as watermark-only | Done |
+| Art. 50(2): Marking survives editing | Trim / cut / split carry the application's unsigned receipt into the derived file with an edit action and re-emit LIST/INFO tags. Legacy custom receipts remain readable; this does not authenticate them or preserve a native C2PA signature's validity after editing. MP3 uses unsigned ID3v2 provenance; other containers require an explicit unmarked-export override | Implemented for custom receipts; native signed ingredient chains are not implemented |
 | **Art. 50(2): Marking survives *persistence*** | `HistoryEntry.toJson` listed segment fields by hand and omitted `metadata`, so the `generated` flag died on save. Now round-tripped whole, with unencodable values dropped rather than thrown | Done (2026-08-02) |
 | Art. 50(2): Machine translation marked in the GUI | `CrispasrEngine` stamps `generated: translation`, so the GUI exporters reach the same conclusion the CLI and the HTTP server already reached from the request | Done (2026-08-02) |
 | **Art. 50(2): Marking on the worker-pool path** | The `generated` stamp lived in `CrispasrEngine.transcribe`. `TranscriptionWorkerPool.dispatch` is reached *without* it — directly by parallel batch jobs and the A/B comparison — and stamped nothing, so Q&A answers and machine translations produced in batch were labelled transcripts by every export, by history, and by the clipboard. The rule now lives in `GeneratedKind` and both callers use it | Done (2026-08-03) |
@@ -971,7 +975,7 @@ users by:
 | Wyoming ASR socket bound to every interface | **Done** (2026-08-03); see §7.6. Latent — the class has no production caller — but `AI_ACT_TECHNICAL.md` §1.4 asserted the opposite |
 | Art. 50(2) — machine translation marked in the GUI; chapter exports; cloud TTS | **Done** (2026-08-02); see §5.2 |
 | Annex III 1(c) — emotion-tag filter applied by every engine, not just `CrispasrEngine` | **Done** (2026-08-02). Was unreachable rather than live — the cloud model list offers no SenseVoice backend — but one list entry away; see §5.2 |
-| C2PA signing for MP3 exports | **Done** — ID3v2 provenance on the MP3 path; AAC/Opus are watermark-only and warn. §7.4's "no MP3 export exists" was incorrect |
+| Provenance metadata for MP3 exports | Unsigned ID3v2 provenance on the MP3 path, not C2PA signing. AAC/Opus require an explicit unmarked-export override. §7.4's "no MP3 export exists" was incorrect |
 | Art. 53 GPAI obligations for the `cstr/*` account | **Closed** (2026-08-03) — see §7.5b. 34 repos carry the duty (27 merges + 7 LaserRMT); all 34 verified by re-fetch to hold explicit 53(1)(c) and 53(1)(d) sections. The last outstanding one, `cstr/Flora_7B-laser`, was published on 2026-08-03. The 3 narrow trained-from-scratch models are outside Art. 53 entirely — not GPAI under Art. 3(63) (§7.5a). Deadline had been 2 August 2027 under Art. 111(3); met early |
 
 ### 7.1 Abuse-reporting channel
@@ -979,11 +983,12 @@ users by:
 The recipient of a synthetic clip is the person most likely to notice
 misuse, and they typically have no idea what produced it. A policy
 published only on a website is unreachable to someone holding a WAV, so
-the reporting channel is embedded **in the C2PA manifest of every file
-the app generates** (`crisperweaver.abuse-reporting` assertion:
+the reporting channel is embedded **in the application's unsigned WAV
+receipt** (`crisperweaver.abuse-reporting` assertion:
 acceptable-use policy URL, reporting URL, and a plain-language note).
-It therefore travels with the audio. A GitHub issue template backs the
-URL.
+It travels with that receipt. Native signed C2PA and compressed export
+paths do not necessarily carry this custom assertion. A GitHub issue
+template backs the URL.
 
 The channel is deliberately honest about its limits. CrisperWeaver is
 offline software with no accounts, no servers and no kill switch: the
@@ -1000,16 +1005,15 @@ Art. 50 duties are binding. Signatories gain predictability and legal
 certainty across Member States and avoid individual compliance
 assessments by market surveillance authorities.
 
-Its core commitment — outputs marked in a machine-readable format and
-detectable as artificially generated, by means that are "effective,
-interoperable, robust and reliable as far as technically feasible" — is
-already met, and on the robustness limb arguably exceeded:
+The following engineering controls address machine-readable marking and
+detection. Their presence alone does not establish legal compliance or
+interoperability of an unsigned custom receipt with C2PA validators:
 
 | CoP expectation | CrisperWeaver |
 |---|---|
-| Machine-readable marking | C2PA manifest (COSE-signed where available) + WAV `LIST`/`INFO` + ID3v2 tags |
+| Machine-readable marking | Native C2PA when successfully signed; otherwise an explicitly unsigned, versioned `cwpr` receipt. WAV `LIST`/`INFO` and MP3 ID3v2 tags are unsigned metadata |
 | Detectable as AI-generated | Spread-spectrum watermark, **verified after embedding** by probing the PCM, not assumed |
-| Interoperable | C2PA is the industry standard; the watermark is cross-compatible with the CrispASR / CrispTTS detectors |
+| Interoperable | Native signed C2PA is separate from the custom receipt, which is not C2PA-compatible. PCM detection uses the CrispASR / CrispTTS detector family |
 | Robust | Watermark survives re-encoding; container metadata does not, and that limit is disclosed to users rather than glossed |
 | "As far as technically feasible" | Sub-100 ms and digitally silent audio cannot carry a spectral watermark; the app **reports** this instead of claiming a mark it did not make |
 
@@ -1093,7 +1097,7 @@ subsystem if any of these become true:**
 Deadline if it ever applies: the Annex III obligations bind from
 **2 December 2027**.
 
-### 7.4 C2PA for MP3 and the compressed containers
+### 7.4 Provenance metadata for MP3 and the compressed containers
 
 Carried over from PLAN §13.3g. The 2026-08-01 revision recorded this as
 "not applicable — no MP3 export exists". **That was wrong**, and the
@@ -1106,7 +1110,7 @@ that the codebase did not support.
 
 Now implemented rather than deferred:
 
-- **MP3** carries ID3v2 `AI_GENERATED` provenance via
+- **MP3** carries unsigned ID3v2 `AI_GENERATED` metadata, not a C2PA signature, via
   `AudioWatermarkService.injectMp3Metadata`, applied when the source
   carried a provenance manifest.
 - **AAC / Opus** cannot carry a manifest through this path. The watermark

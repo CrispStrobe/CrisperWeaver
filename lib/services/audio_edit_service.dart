@@ -110,7 +110,7 @@ class AudioEditService {
   /// 16 kHz mono buffer is ~230 MB).
   final Map<String, DecodedSource> _cache = {};
 
-  /// C2PA manifests probed off source files, keyed by absolute path.
+  /// Unsigned application receipts probed off source files, keyed by path.
   /// A null *value* means "probed, carries none" — distinct from an absent
   /// key, so a source without provenance is not re-probed on every part of
   /// a multi-output [split].
@@ -392,19 +392,23 @@ class AudioEditService {
           generatorVersion: AppConstants.appVersion,
         ),
       );
-      Log.instance.i('audio-edit',
-          'carried AI provenance across $editAction',
-          fields: {'model': model ?? 'unknown', 'dest': destinationPath});
+      Log.instance.i(
+        'audio-edit',
+        'carried AI provenance across $editAction',
+        fields: {'model': model ?? 'unknown', 'dest': destinationPath},
+      );
     }
 
     final file = File(destinationPath);
     await file.writeAsBytes(bytes, flush: true);
-    Log.instance.i('audio-edit',
-        'wrote ${samples.length} samples to $destinationPath');
+    Log.instance.i(
+      'audio-edit',
+      'wrote ${samples.length} samples to $destinationPath',
+    );
     return file;
   }
 
-  /// The C2PA manifest on [absolutePath], or null when the file is not a
+  /// The application receipt on [absolutePath], or null when the file is not a
   /// WAV or carries none. Cached alongside the decoded-PCM cache.
   ///
   /// Walks the RIFF chunk table with a [RandomAccessFile] instead of
@@ -441,12 +445,13 @@ class AudioEditService {
           final id = String.fromCharCodes(head.sublist(0, 4));
           final size = ByteData.sublistView(Uint8List.fromList(head))
               .getUint32(4, Endian.little);
-          if (id == 'c2pa') {
-            if (offset + 8 + size <= length) {
-              manifest = ContentProvenanceService.decodeManifestPayload(
-                  await raf.read(size));
-            }
-            break;
+          if (offset + 8 + size > length) break;
+          if (ContentProvenanceService.isReceiptChunk(id) &&
+              size <= ContentProvenanceService.maxManifestBytes) {
+            manifest = ContentProvenanceService.decodeManifestPayload(
+                  await raf.read(size),
+                ) ??
+                manifest;
           }
           // Chunk sizes are padded to an even boundary.
           offset += 8 + size + (size.isOdd ? 1 : 0);

@@ -151,17 +151,56 @@ void main() {
   });
 
   group('summarize HTTP path', () {
+    test(
+        'successful generation captures portable provenance; parsing does not invent it',
+        () async {
+      final svc = TranscriptSummarizeService(
+        client: MockClient(
+          (_) async => http.Response(chatBody('## Key Topics\n- Budget'), 200),
+        ),
+      );
+      addTearDown(svc.dispose);
+      final result = await svc.summarize(
+        transcript: 'Private source text',
+        kinds: {SummaryKind.keyTopics},
+        config: config(
+          apiUrl: 'https://tenant.example/private?key=secret',
+          apiKey: 'sk-secret',
+        ),
+      );
+      expect(result.provenance?.provider, 'configured-endpoint');
+      expect(result.provenance?.model, 'gpt-4o-mini');
+      expect(result.portableMarkdown, contains('crisperweaver-provenance:'));
+      expect(result.portableMarkdown, contains('AI-generated:'));
+      for (final secret in [
+        'sk-secret',
+        'tenant.example',
+        'Private source text',
+      ]) {
+        expect(result.portableMarkdown, isNot(contains(secret)));
+      }
+      final parsed = svc.parseMarkdown('## Key Topics\n- Old text');
+      expect(parsed.provenance, isNull);
+      expect(parsed.portableMarkdown, isNot(contains('generated_at')));
+      expect(parsed.portableMarkdown, '## Key Topics\n- Old text');
+    });
+
     test('disabled config throws CloudLlmDisabledException', () async {
-      final svc = TranscriptSummarizeService(client: MockClient((_) async {
-        throw StateError('should not be called');
-      }));
+      final svc = TranscriptSummarizeService(
+        client: MockClient((_) async {
+          throw StateError('should not be called');
+        }),
+      );
       addTearDown(svc.dispose);
       await expectLater(
         svc.summarize(
           transcript: 'hello',
           kinds: {SummaryKind.actionItems},
           config: const CloudLlmConfig(
-              apiUrl: '', apiKey: '', model: 'gpt-4o-mini'),
+            apiUrl: '',
+            apiKey: '',
+            model: 'gpt-4o-mini',
+          ),
         ),
         throwsA(isA<CloudLlmDisabledException>()),
       );
