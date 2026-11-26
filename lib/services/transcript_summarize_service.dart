@@ -29,6 +29,9 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 
+import '../constants/app_constants.dart';
+import '../utils/ai_text_disclosure.dart';
+import '../utils/ai_text_provenance.dart';
 import 'ai_http_client.dart';
 import 'cloud_llm_cleanup_service.dart'
     show CloudLlmConfig, CloudLlmHttpException, CloudLlmDisabledException;
@@ -51,6 +54,7 @@ class SummaryResult {
     this.keyTopics = const [],
     this.decisions = const [],
     this.rawMarkdown = '',
+    this.provenance,
   });
 
   final List<String> actionItems;
@@ -61,6 +65,13 @@ class SummaryResult {
   /// can render verbatim when the user wants the full document
   /// rather than the dissected section lists.
   final String rawMarkdown;
+
+  /// Null for parsed/imported text; only a successful generation creates it.
+  final AiTextProvenance? provenance;
+
+  String get portableMarkdown => provenance == null
+      ? rawMarkdown
+      : AiTextDisclosure.forSummary(provenance!.annotateMarkdown(rawMarkdown));
 
   bool get isEmpty =>
       actionItems.isEmpty && keyTopics.isEmpty && decisions.isEmpty;
@@ -197,30 +208,47 @@ class TranscriptSummarizeService {
     }
     final decoded = jsonDecode(res.body);
     if (decoded is! Map) {
-      throw CloudLlmHttpException(res.statusCode,
-          'response body is not a JSON object: ${res.body}');
+      throw CloudLlmHttpException(
+        res.statusCode,
+        'response body is not a JSON object: ${res.body}',
+      );
     }
     final choices = decoded['choices'];
     if (choices is! List || choices.isEmpty) {
       throw CloudLlmHttpException(
-          res.statusCode, 'no choices in response: ${res.body}');
+        res.statusCode,
+        'no choices in response: ${res.body}',
+      );
     }
     final first = choices[0];
     if (first is! Map) {
       throw CloudLlmHttpException(
-          res.statusCode, 'first choice is not an object');
+        res.statusCode,
+        'first choice is not an object',
+      );
     }
     final message = first['message'];
     if (message is! Map) {
-      throw CloudLlmHttpException(
-          res.statusCode, 'choice has no message');
+      throw CloudLlmHttpException(res.statusCode, 'choice has no message');
     }
     final content = message['content'];
     if (content is! String) {
       throw CloudLlmHttpException(
-          res.statusCode, 'message content is not a string');
+        res.statusCode,
+        'message content is not a string',
+      );
     }
-    return parseMarkdown(content);
+    return parseMarkdown(
+      content,
+      provenance: AiTextProvenance(
+        kind: 'summary',
+        generatorVersion: AppConstants.appVersion,
+        provider: AiTextProvenance.providerForEndpoint(config.apiUrl),
+        model: config.model,
+        modelIdentifierSource: 'request-configuration',
+        generatedAt: DateTime.now(),
+      ),
+    );
   }
 
   /// §5.1.6 v3 — local-LLM mirror of [summarize]. Same prompt,
@@ -289,13 +317,23 @@ class TranscriptSummarizeService {
         generateParams: genParams,
       );
     }
-    return parseMarkdown(out);
+    return parseMarkdown(
+      out,
+      provenance: AiTextProvenance(
+        kind: 'summary',
+        generatorVersion: AppConstants.appVersion,
+        provider: 'local',
+        model: AiTextProvenance.localModelName(config.modelPath),
+        modelIdentifierSource: 'local-model-filename',
+        generatedAt: DateTime.now(),
+      ),
+    );
   }
 
   /// Pure parser — split structured-Markdown into sections.
   /// Exposed so tests can pin the parser behaviour without
   /// going through the HTTP path.
-  SummaryResult parseMarkdown(String markdown) {
+  SummaryResult parseMarkdown(String markdown, {AiTextProvenance? provenance}) {
     final action = <String>[];
     final topics = <String>[];
     final decisions = <String>[];
@@ -352,6 +390,7 @@ class TranscriptSummarizeService {
       keyTopics: List.unmodifiable(topics),
       decisions: List.unmodifiable(decisions),
       rawMarkdown: markdown,
+      provenance: provenance,
     );
   }
 

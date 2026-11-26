@@ -10,30 +10,32 @@ import '../utils/ai_text_disclosure.dart';
 class NoteExportService {
   NoteExportService._();
 
-  /// Machine-processed-content notice carried by every format here.
-  ///
-  /// Strictly this is over-compliance: a transcript of real speech is not
-  /// "synthetic text" under EU AI Act Art. 50(2), which is why nothing
-  /// forces a mark onto it. But `FileUtils.saveTranscription` has always
-  /// disclosed by default, and these exports write straight to disk and
-  /// hand off to the share sheet without going through it — so before the
-  /// 2026-08-02 audit an Obsidian export carried an `ai-generated` tag and
-  /// a Notion export of the same transcript carried nothing at all. The
-  /// mark is cheap; the inconsistency is what looks like an oversight.
-  static const String disclosure =
-      'Machine-generated transcript — produced by AI speech recognition and '
-      'not checked by a human. It may contain recognition errors.';
+  /// Legacy/imported transcripts have no recorded origin or review status.
+  static const String disclosure = AiTextDisclosure.unknownTranscript;
 
   /// The notice appropriate to [segments].
   ///
-  /// [disclosure] describes speech recognition, which is the wrong claim for
-  /// audio-Q&A output: those segments are a language model's answer, and
+  /// Audio-Q&A segments are a language model's answer, and
   /// calling them a transcript tells the reader the words were spoken. The
   /// 2026-08-03 audit found every format here asserting exactly that. Both
   /// artefacts still leave through the same exporters, so the notice is
   /// chosen per export rather than fixed.
   static String disclosureFor(List<TranscriptionSegment> segments) =>
-      AiTextDisclosure.forKind(_generatedKind(segments)) ?? disclosure;
+      AiTextDisclosure.forKind(_generatedKind(segments)) ??
+      (_knownTranscription(segments)
+          ? AiTextDisclosure.transcribed
+          : disclosure);
+
+  static bool _knownTranscription(List<TranscriptionSegment> segments) =>
+      segments.isNotEmpty &&
+      segments.every((s) => s.metadata['ai_processed'] == true);
+
+  static String _originTag(List<TranscriptionSegment> segments) =>
+      switch (_generatedKind(segments)) {
+        'translation' => 'ai-translated',
+        final kind? when kind.isNotEmpty => 'ai-generated',
+        _ => _knownTranscription(segments) ? 'ai-transcribed' : 'origin-unrecorded',
+      };
 
   /// The `metadata['generated']` kind carried by [segments]. Q&A wins over
   /// translation when both appear — a translated answer is still an answer.
@@ -92,7 +94,7 @@ class NoteExportService {
     }
     buf.writeln('tags:');
     buf.writeln('  - ${_kindFor(segments)}');
-    buf.writeln('  - ai-generated');
+    buf.writeln('  - ${_originTag(segments)}');
     buf.writeln('ai-notice: "${_escapeYaml(disclosureFor(segments))}"');
     buf.writeln('---');
     buf.writeln();
@@ -135,7 +137,8 @@ class NoteExportService {
     buf.writeln('# $title');
     if (date != null) {
       buf.writeln(
-          '*Transcribed: ${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}*');
+        '*Date: ${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}*',
+      );
     }
     buf.writeln();
     buf.writeln('> **Notice:** ${disclosureFor(segments)}');
@@ -178,15 +181,16 @@ class NoteExportService {
     if (date != null) buf.writeln('  date:: ${date.toIso8601String()}');
     if (model != null) buf.writeln('  model:: $model');
     buf.writeln('  type:: [[${_kindFor(segments)}]]');
-    buf.writeln('  tags:: ai-generated');
+    buf.writeln('  tags:: ${_originTag(segments)}');
     buf.writeln('  ai-notice:: ${disclosureFor(segments)}');
 
     for (var i = 0; i < segments.length; i++) {
       final seg = segments[i];
       final ts = _formatTimestamp(seg.startTime);
       final tags = segmentTags?[i];
-      final tagStr =
-          tags != null && tags.isNotEmpty ? ' ${tags.map((t) => t.emoji).join()}' : '';
+      final tagStr = tags != null && tags.isNotEmpty
+          ? ' ${tags.map((t) => t.emoji).join()}'
+          : '';
       final speaker = seg.speaker != null ? '**${seg.speaker}:** ' : '';
       buf.writeln('  - $speaker$tagStr${seg.text}');
       buf.writeln('    timestamp:: $ts');

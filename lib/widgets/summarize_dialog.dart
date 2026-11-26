@@ -131,8 +131,7 @@ class _SummarizeDialogState extends ConsumerState<SummarizeDialog> {
     // disclosure travels with it. Once it is on the clipboard this dialog
     // is no longer around to supply the provenance — same reasoning as the
     // OCR copy path in transcription_output_widget.
-    Clipboard.setData(
-        ClipboardData(text: AiTextDisclosure.forSummary(r.rawMarkdown)));
+    Clipboard.setData(ClipboardData(text: r.portableMarkdown));
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(AppLocalizations.of(context).outputAllCopied),
       duration: const Duration(seconds: 2),

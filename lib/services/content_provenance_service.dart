@@ -3,25 +3,23 @@ import 'dart:typed_data';
 
 /// Lightweight content provenance for AI-generated audio.
 ///
-/// Implements a JSON-LD provenance manifest embedded as a custom RIFF
-/// chunk (`c2pa`) in WAV files. The manifest follows the C2PA assertion
-/// vocabulary (https://c2pa.org/specifications/) so C2PA-aware tools
-/// can discover and parse it, while remaining a valid RIFF chunk that
-/// non-aware parsers skip.
-///
-/// This is NOT a full C2PA implementation (which requires CBOR + COSE
-/// signing + X.509 certificates). It is the subset that can be
-/// implemented without external dependencies: an unsigned provenance
-/// claim that records the generator, model, and creation context.
-/// Full C2PA signing can be layered on top when a Dart COSE library
-/// ships.
-///
-/// Embeds provenance metadata so outputs are machine-detectable
-/// as artificially generated.
+/// The `cwpr` RIFF chunk carries a versioned, unsigned application receipt.
+/// It records what the application did; it does not authenticate its author,
+/// prove the audio's origin, or claim compatibility with C2PA validators.
+/// Native COSE/X.509 signing, when available, is a separate TTS code path.
+/// Legacy releases put this JSON in a chunk named `c2pa`; those receipts remain
+/// readable, but opaque genuine C2PA data is never decoded as our receipt.
 class ContentProvenanceService {
   ContentProvenanceService._();
 
-  /// Build a C2PA-vocabulary provenance manifest as JSON-LD.
+  static const String schema = 'urn:crisperweaver:audio-provenance:1';
+  static const String riffChunkId = 'cwpr';
+  static const int maxManifestBytes = 1024 * 1024;
+
+  static bool isReceiptChunk(String id) => id == riffChunkId || id == 'c2pa';
+
+  /// Build an unsigned application receipt. Action names retain the legacy
+  /// vocabulary for existing CrisperWeaver readers; this is not signed C2PA.
   static Map<String, dynamic> buildManifest({
     required String generator,
     required String generatorVersion,
@@ -31,14 +29,13 @@ class ContentProvenanceService {
   }) {
     final ts = timestamp ?? DateTime.now();
     return {
-      '@context': 'https://c2pa.org/assertions/v1',
-      '@type': 'c2pa.actions',
+      'schema': schema,
+      '@type': 'crisperweaver.audio-provenance',
+      'signature': 'unsigned',
+      'ai_generated': true,
       'claim_generator': '$generator/$generatorVersion',
       'claim_generator_info': [
-        {
-          'name': generator,
-          'version': generatorVersion,
-        }
+        {'name': generator, 'version': generatorVersion},
       ],
       'actions': [
         {
@@ -93,26 +90,22 @@ class ContentProvenanceService {
   static const String abuseReportingPolicyUrl =
       'https://github.com/CrispStrobe/CrisperWeaver/blob/main/ACCEPTABLE_USE.md';
 
-  /// Encode [manifest] as a RIFF `c2pa` chunk suitable for appending
+  /// Encode [manifest] as a custom RIFF `cwpr` chunk suitable for appending
   /// to a WAV file. Returns the raw chunk bytes (4-byte ID + 4-byte
   /// size + JSON payload padded to even length).
   static Uint8List encodeAsRiffChunk(Map<String, dynamic> manifest) {
     final json = utf8.encode(jsonEncode(manifest));
     final padded = json.length.isOdd ? json.length + 1 : json.length;
     final chunk = Uint8List(8 + padded);
-    // Chunk ID: 'c2pa'
-    chunk[0] = 0x63; // 'c'
-    chunk[1] = 0x32; // '2'
-    chunk[2] = 0x70; // 'p'
-    chunk[3] = 0x61; // 'a'
+    chunk.setRange(0, 4, ascii.encode(riffChunkId));
     // Chunk size (little-endian)
     final bd = ByteData.view(chunk.buffer);
-    bd.setUint32(4, padded, Endian.little);
+    bd.setUint32(4, json.length, Endian.little);
     chunk.setRange(8, 8 + json.length, json);
     return chunk;
   }
 
-  /// Inject a C2PA provenance chunk into [wavBytes]. The chunk is
+  /// Append an unsigned application receipt to [wavBytes]. The chunk is
   /// appended after the existing chunks (before EOF) and the RIFF
   /// header's file size is updated. Returns the augmented WAV.
   ///
@@ -125,8 +118,6 @@ class ContentProvenanceService {
     String? voiceId,
     DateTime? timestamp,
   }) {
-    if (wavBytes.length < 44) return wavBytes;
-
     final manifest = buildManifest(
       generator: generator,
       generatorVersion: generatorVersion,
@@ -134,27 +125,18 @@ class ContentProvenanceService {
       voiceId: voiceId,
       timestamp: timestamp,
     );
-    final chunk = encodeAsRiffChunk(manifest);
-
-    // Append the c2pa chunk to the WAV and update the RIFF size.
-    final out = Uint8List(wavBytes.length + chunk.length);
-    out.setRange(0, wavBytes.length, wavBytes);
-    out.setRange(wavBytes.length, out.length, chunk);
-
-    // Update RIFF header size (offset 4, little-endian uint32).
-    final bd = ByteData.view(out.buffer);
-    bd.setUint32(4, out.length - 8, Endian.little);
-
-    return out;
+    return injectManifestIntoWav(wavBytes, manifest);
   }
 
-  /// Parse the payload of a `c2pa` RIFF chunk into a manifest.
+  /// Parse our versioned receipt or the legacy unsigned JSON receipt.
+  /// Arbitrary JSON and genuine signed C2PA payloads are not our format.
   ///
   /// Split out of [extractFromWav] so a caller that walks the chunk table
   /// itself — `AudioEditService`, which refuses to read a 100 MB recording
   /// into memory just to discover it has no manifest — can decode the
   /// payload without duplicating the padding and error handling.
   static Map<String, dynamic>? decodeManifestPayload(List<int> payload) {
+    if (payload.length > maxManifestBytes) return null;
     // Trim the trailing null bytes RIFF pads odd-length chunks with.
     var end = payload.length;
     while (end > 0 && payload[end - 1] == 0) {
@@ -163,8 +145,16 @@ class ContentProvenanceService {
     if (end == 0) return null;
     try {
       final decoded = jsonDecode(
-          utf8.decode(payload.sublist(0, end), allowMalformed: true));
-      return decoded is Map<String, dynamic> ? decoded : null;
+        utf8.decode(payload.sublist(0, end), allowMalformed: true),
+      );
+      if (decoded is! Map<String, dynamic>) return null;
+      final current =
+          decoded['schema'] == schema && decoded['signature'] == 'unsigned';
+      final legacy = decoded['@context'] == 'https://c2pa.org/assertions/v1' &&
+          decoded['@type'] == 'c2pa.actions' &&
+          decoded['claim_generator'] is String &&
+          decoded['actions'] is List;
+      return current || legacy ? decoded : null;
     } catch (_) {
       return null;
     }
@@ -177,27 +167,27 @@ class ContentProvenanceService {
   /// file must keep the *original* claim (which model, which voice, when)
   /// plus a record of the edit — not a new claim asserting CrisperWeaver
   /// generated the trimmed file just now.
+  /// A WAV with opaque native C2PA is returned byte-for-byte unchanged: even
+  /// changing the RIFF length to append a chunk could invalidate its signature.
   static Uint8List injectManifestIntoWav(
     Uint8List wavBytes,
     Map<String, dynamic> manifest,
   ) {
-    if (wavBytes.length < 44) return wavBytes;
+    if (!_isWav(wavBytes) || !_canAppendReceipt(wavBytes)) return wavBytes;
     final chunk = encodeAsRiffChunk(manifest);
     final out = Uint8List(wavBytes.length + chunk.length);
     out.setRange(0, wavBytes.length, wavBytes);
     out.setRange(wavBytes.length, out.length, chunk);
-    ByteData.view(out.buffer).setUint32(4, out.length - 8, Endian.little);
+    ByteData.sublistView(out).setUint32(4, out.length - 8, Endian.little);
     return out;
   }
 
   /// Derive a manifest for a file produced by editing one that already
   /// carried [source] provenance.
   ///
-  /// C2PA models this as an ingredient relationship: the derived asset
-  /// keeps the original claim and appends an action describing what was
-  /// done to it. So a trimmed clip of AI-generated speech still says "this
-  /// came from a TTS model", which is the fact Art. 50(2) cares about, and
-  /// additionally says it was trimmed.
+  /// The derived receipt keeps the original recorded generation action and
+  /// adds the edit. This is an unsigned history, not a verified C2PA ingredient
+  /// chain. A legacy receipt is upgraded without inventing a creation event.
   ///
   /// Before this existed, `AudioEditService` decoded to PCM and re-encoded
   /// a bare 44-byte WAV, silently dropping the manifest and the LIST/INFO
@@ -213,6 +203,10 @@ class ContentProvenanceService {
   }) {
     final ts = timestamp ?? DateTime.now();
     final derived = Map<String, dynamic>.from(source);
+    derived.remove('@context');
+    derived['schema'] = schema;
+    derived['@type'] = 'crisperweaver.audio-provenance';
+    derived['signature'] = 'unsigned';
     final actions = <dynamic>[
       ...(source['actions'] is List
           ? source['actions'] as List
@@ -251,25 +245,50 @@ class ContentProvenanceService {
     return (null, null);
   }
 
-  /// Extract and parse a C2PA manifest from [wavBytes] if present.
-  /// Returns null if no `c2pa` chunk is found.
+  /// Extract our latest application receipt, including legacy JSON receipts.
+  /// Genuine C2PA chunks are left untouched and require a C2PA verifier.
   static Map<String, dynamic>? extractFromWav(Uint8List wavBytes) {
-    if (wavBytes.length < 44) return null;
+    if (!_isWav(wavBytes)) return null;
 
     // Walk RIFF chunks after the 12-byte RIFF header.
     var offset = 12;
+    Map<String, dynamic>? receipt;
     while (offset + 8 <= wavBytes.length) {
       final id = String.fromCharCodes(wavBytes.sublist(offset, offset + 4));
-      final bd = ByteData.view(wavBytes.buffer);
+      final bd = ByteData.sublistView(wavBytes);
       final size = bd.getUint32(offset + 4, Endian.little);
-      if (id == 'c2pa') {
-        final end = offset + 8 + size;
-        if (end > wavBytes.length) return null;
-        return decodeManifestPayload(wavBytes.sublist(offset + 8, end));
+      final end = offset + 8 + size;
+      if (end > wavBytes.length) return null;
+      if (isReceiptChunk(id) && size <= maxManifestBytes) {
+        receipt =
+            decodeManifestPayload(wavBytes.sublist(offset + 8, end)) ?? receipt;
       }
       // Advance to next chunk (size padded to even boundary).
       offset += 8 + size + (size.isOdd ? 1 : 0);
     }
-    return null;
+    return receipt;
+  }
+
+  static bool _isWav(Uint8List bytes) =>
+      bytes.length >= 44 &&
+      String.fromCharCodes(bytes.sublist(0, 4)) == 'RIFF' &&
+      String.fromCharCodes(bytes.sublist(8, 12)) == 'WAVE';
+
+  static bool _canAppendReceipt(Uint8List bytes) {
+    final data = ByteData.sublistView(bytes);
+    var offset = 12;
+    while (offset + 8 <= bytes.length) {
+      final id = String.fromCharCodes(bytes.sublist(offset, offset + 4));
+      final size = data.getUint32(offset + 4, Endian.little);
+      final end = offset + 8 + size;
+      if (end + (size.isOdd ? 1 : 0) > bytes.length) return false;
+      if (id == 'c2pa' &&
+          (size > maxManifestBytes ||
+              decodeManifestPayload(bytes.sublist(offset + 8, end)) == null)) {
+        return false;
+      }
+      offset = end + (size.isOdd ? 1 : 0);
+    }
+    return offset == bytes.length;
   }
 }

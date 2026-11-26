@@ -235,8 +235,8 @@ that replicates a voice's characteristics. Under EU AI Act Art. 50(4),
 synthetic audio that resembles a specific person's voice must be
 disclosed as AI-generated. CrisperWeaver:
 
-- Automatically watermarks all synthesized audio (spread-spectrum +
-  C2PA signed provenance metadata)
+- Applies and checks audio watermarking, with native C2PA signing when available
+  and successful; the fallback is an explicitly unsigned application receipt
 - Prepends an audible beep disclaimer to voice-cloned output
 - Requires explicit attestation that the user has rights to clone
   the voice before proceeding

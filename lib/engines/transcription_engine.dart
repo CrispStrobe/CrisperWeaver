@@ -235,6 +235,7 @@ class TranscriptionSegment {
       words: cleanWords,
       metadata: {
         ...metadata,
+        'ai_processed': true,
         if (events.isNotEmpty) 'sensevoice_tags': events,
         if (events.isNotEmpty) 'audio_event': events.first,
       },

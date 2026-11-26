@@ -5,6 +5,74 @@ import 'package:crisper_weaver/engines/transcription_engine.dart';
 import 'package:crisper_weaver/models/segment_tag.dart';
 
 void main() {
+  test('translation is marked as assistance rather than invented source prose', () {
+    const translation = [TranscriptionSegment(
+      text: 'Translated source words',
+      startTime: 0,
+      endTime: 1,
+      metadata: {'generated': 'translation'},
+    )];
+    for (final exported in [
+      NoteExportService.toObsidian(segments: translation, title: 'Translation'),
+      NoteExportService.toLogseq(segments: translation, title: 'Translation'),
+    ]) {
+      expect(exported, contains('ai-translated'));
+      expect(exported, isNot(contains('ai-generated')));
+      expect(exported, contains('machine-translation'));
+    }
+  });
+
+  test(
+    'imported or legacy text is not attributed to an unrecorded AI origin',
+    () {
+      const imported = [
+        TranscriptionSegment(text: 'A human note', startTime: 0, endTime: 1),
+      ];
+      final obsidian = NoteExportService.toObsidian(
+        segments: imported,
+        title: 'Note',
+      );
+      final logseq = NoteExportService.toLogseq(
+        segments: imported,
+        title: 'Note',
+      );
+      expect(obsidian, contains('origin-unrecorded'));
+      expect(logseq, contains('tags:: origin-unrecorded'));
+      expect(obsidian, isNot(contains('ai-generated')));
+      expect(obsidian, isNot(contains('not checked by a human')));
+    },
+  );
+
+  test(
+    'new ASR is AI-transcribed; generated answers retain their distinct mark',
+    () {
+      final asr = [
+        TranscriptionSegment.fromModelText(
+          rawText: 'Words spoken',
+          startTime: 0,
+          endTime: 1,
+        ),
+      ];
+      final transcript = NoteExportService.toObsidian(
+        segments: asr,
+        title: 'Speech',
+      );
+      expect(transcript, contains('ai-transcribed'));
+      expect(transcript, isNot(contains('ai-generated')));
+      final answer = [
+        asr.single.copyWith(
+          metadata: {...asr.single.metadata, 'generated': 'audio-qa'},
+        ),
+      ];
+      final generated = NoteExportService.toObsidian(
+        segments: answer,
+        title: 'Answer',
+      );
+      expect(generated, contains('type: ai-answer'));
+      expect(generated, contains('  - ai-generated'));
+    },
+  );
+
   final segments = [
     const TranscriptionSegment(
       text: 'Hello world, this is a test.',

@@ -418,9 +418,11 @@ CrisperWeaver can clone voices and identify speakers. Because everything runs on
 - [`PRIVACY.md`](PRIVACY.md) — what is stored on device (including biometric voice embeddings) and your rights over it.
 - [`docs/AI_ACT_RISK.md`](docs/AI_ACT_RISK.md) · [`docs/DPIA.md`](docs/DPIA.md) · [`docs/AI_ACT_TECHNICAL.md`](docs/AI_ACT_TECHNICAL.md) — risk classification, data-protection impact assessment, Annex IV technical documentation.
 
-Every file the app synthesises is watermarked, C2PA-signed and metadata-tagged automatically; cloned and voice-converted output additionally carries an audible beep disclaimer. Two limits worth knowing: container metadata is stripped by re-encoding (the watermark survives), and audio under ~100 ms or digitally silent cannot carry a watermark at all — the app tells you when that happens rather than claiming a mark it did not make.
+Synthesised audio goes through watermark detection/embedding and container metadata tagging. Native C2PA signing is used when the installed engine supports it and signing succeeds; otherwise a custom, explicitly unsigned `cwpr` JSON receipt records the generator/model. That fallback is not a signed C2PA credential. Cloned and voice-converted output additionally carries an audible beep disclaimer. Container metadata can be stripped, and a watermark's robustness depends on the subsequent audio processing. Audio under ~100 ms or digitally silent cannot carry the spectral watermark; the app reports the observed marking outcome.
 
-**Received audio you believe impersonates someone?** [Report it here](https://github.com/CrispStrobe/CrisperWeaver/issues/new?labels=abuse-report&template=abuse-report.md). That address is embedded in the provenance manifest of every generated file, so it travels with the audio.
+New local and cloud meeting summaries capture the configured provider/model and generation time. Copy includes a visible AI notice and a versioned Markdown provenance comment, with a SHA-256 of the original summary. The receipt is unsigned, may be removed by other applications, and contains no transcript, API key, configured URL or local model directory. Imported/legacy text keeps its unrecorded origin; newly recognised speech is labelled AI-transcribed, while generated answers and translations retain their specific labels.
+
+**Received audio you believe impersonates someone?** [Report it here](https://github.com/CrispStrobe/CrisperWeaver/issues/new?labels=abuse-report&template=abuse-report.md). The unsigned WAV receipt includes this reporting address. Metadata retained in other formats depends on the export route.
 
 ## Browser builds
 

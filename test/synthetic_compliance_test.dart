@@ -585,10 +585,10 @@ void main() {
   });
 
   // -----------------------------------------------------------------------
-  // 9. C2PA provenance manifest (unsigned JSON-LD)
+  // 9. Application provenance receipt (unsigned JSON, distinct from C2PA)
   // -----------------------------------------------------------------------
   group('ContentProvenanceService', () {
-    test('buildManifest produces valid C2PA-vocabulary JSON-LD', () {
+    test('buildManifest identifies the custom unsigned receipt', () {
       final manifest = ContentProvenanceService.buildManifest(
         generator: 'CrisperWeaver',
         generatorVersion: '0.9.0',
@@ -597,8 +597,9 @@ void main() {
         timestamp: DateTime.utc(2026, 7, 16, 12, 0),
       );
 
-      expect(manifest['@context'], 'https://c2pa.org/assertions/v1');
-      expect(manifest['@type'], 'c2pa.actions');
+      expect(manifest['schema'], ContentProvenanceService.schema);
+      expect(manifest['signature'], 'unsigned');
+      expect(manifest['@type'], 'crisperweaver.audio-provenance');
       expect(manifest['claim_generator'], 'CrisperWeaver/0.9.0');
 
       final actions = manifest['actions'] as List;
@@ -624,26 +625,25 @@ void main() {
       expect((antiTraining['entries'] as List)[0]['use'], 'notAllowed');
     });
 
-    test('encodeAsRiffChunk produces valid RIFF chunk with c2pa ID', () {
+    test('encodeAsRiffChunk uses its own cwpr ID', () {
       final manifest = ContentProvenanceService.buildManifest(
         generator: 'Test',
         generatorVersion: '0.1',
       );
       final chunk = ContentProvenanceService.encodeAsRiffChunk(manifest);
 
-      // Chunk ID must be 'c2pa'.
-      expect(String.fromCharCodes(chunk.sublist(0, 4)), 'c2pa');
+      expect(String.fromCharCodes(chunk.sublist(0, 4)), 'cwpr');
 
       // Chunk size (LE uint32 at offset 4) + 8 must equal total length
       // (may be padded to even).
       final bd = ByteData.view(chunk.buffer);
       final size = bd.getUint32(4, Endian.little);
-      expect(chunk.length, 8 + size);
+      expect(chunk.length, 8 + size + (size.isOdd ? 1 : 0));
 
       // Payload must be valid JSON.
       final json = utf8.decode(chunk.sublist(8, 8 + size).where((b) => b != 0).toList());
       final decoded = jsonDecode(json) as Map<String, dynamic>;
-      expect(decoded['@type'], 'c2pa.actions');
+      expect(decoded['@type'], 'crisperweaver.audio-provenance');
     });
 
     test('injectIntoWav → extractFromWav round-trip', () {
@@ -656,7 +656,7 @@ void main() {
         timestamp: DateTime.utc(2026, 7, 16),
       );
 
-      // Output must be longer (c2pa chunk appended).
+      // Output must be longer (custom unsigned receipt chunk appended).
       expect(injected.length, greaterThan(wav.length));
 
       // RIFF header size must be updated.
@@ -672,7 +672,7 @@ void main() {
       expect(extracted['actions'][0]['parameters']['model'], 'orpheus');
     });
 
-    test('extractFromWav returns null on WAV without c2pa chunk', () {
+    test('extractFromWav returns null on WAV without an application receipt', () {
       final wav = _buildRawWav(_sineWave(1000));
       final result = ContentProvenanceService.extractFromWav(wav);
       expect(result, isNull);
@@ -1527,10 +1527,10 @@ void _thirdAuditTests() {
       });
     });
 
-    test('the notice says machine-generated and unreviewed', () {
+    test('missing provenance does not invent AI origin or human review status', () {
       final d = NoteExportService.disclosure.toLowerCase();
-      expect(d, contains('machine-generated'));
-      expect(d, contains('not checked by a human'));
+      expect(d, contains('origin and review status are not recorded'));
+      expect(d, isNot(contains('machine-generated')));
     });
 
     test('the transcript itself still survives the notice', () {

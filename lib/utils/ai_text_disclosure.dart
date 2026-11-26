@@ -1,10 +1,9 @@
 // EU AI Act Art. 50(2) — disclosure for AI-*generated text*.
 //
-// Art. 50(2) reaches synthetic text, not just audio. The audio path is
-// marked three ways (spread-spectrum watermark, C2PA manifest, container
-// metadata); text has no container to carry a manifest, so the marking is
-// the disclosure line itself plus, on the HTTP surface, the
-// `x-content-ai-generated` header the audio endpoints already set.
+// These labels describe the operation performed, including local inference.
+// They are not a claim that every use is subject to the same legal duty.
+// Generated summaries also carry an unsigned application receipt in copied
+// Markdown; audio has its separate watermark and container-marking paths.
 //
 // [OcrResult.disclosure] established the shape for OCR output. This is the
 // same contract for the LLM-backed text features — summarisation,
@@ -24,6 +23,16 @@
 /// that attaches one when the text leaves the app.
 class AiTextDisclosure {
   AiTextDisclosure._();
+
+  static const String transcribed =
+      'AI-transcribed text. Recognition errors may remain; compare with the '
+      'source recording.';
+
+  /// No model-origin or human-review claim is inferred from an old/imported
+  /// segment merely because it is being exported by this application.
+  static const String unknownTranscript =
+      'Transcript text. Its origin and review status are not recorded; '
+      'check against the source.';
 
   /// LLM-generated meeting summaries — action items, key topics, decisions.
   /// The model infers structure that was never stated verbatim, so the
